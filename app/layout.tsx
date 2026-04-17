@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
+// import { Providers } from "./providers";
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
@@ -39,8 +40,10 @@ export default function RootLayout({
         "font-mono",
         jetbrainsMono.variable,
       )}
+      suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">{children}</body>
+      {/* <Providers>{children}</Providers> */}
     </html>
   );
 }
