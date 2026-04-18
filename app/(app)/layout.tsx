@@ -7,7 +7,6 @@ import { Separator } from "@/components/ui/separator";
 const HomeLayout = ({ children }: { children: React.ReactNode }) => {
   return (
     <div className="h-screen flex bg-muted/30">
-      {/* SIDEBAR */}
       <aside className="w-64 bg-white border-r flex flex-col">
         <div className="p-5 font-bold text-lg">Vocab Master</div>
 
@@ -36,9 +35,7 @@ const HomeLayout = ({ children }: { children: React.ReactNode }) => {
         </div>
       </aside>
 
-      {/* MAIN */}
       <div className="flex-1 flex flex-col">
-        {/* TOPBAR */}
         <header className="h-14 border-b bg-white flex items-center justify-between px-6">
           <div className="text-sm text-muted-foreground">Learning System</div>
 

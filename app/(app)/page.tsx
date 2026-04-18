@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 const HomePage = () => {
   return (
     <div className="max-w-6xl mx-auto space-y-8">
-      {/* HERO */}
       <div>
         <h1 className="text-3xl font-bold">Welcome back 👋</h1>
         <p className="text-muted-foreground mt-1">
@@ -21,7 +20,6 @@ const HomePage = () => {
         </div>
       </div>
 
-      {/* MODE GRID */}
       <div className="grid md:grid-cols-3 gap-4">
         {[
           {
@@ -54,7 +52,6 @@ const HomePage = () => {
         ))}
       </div>
 
-      {/* STATS */}
       <div className="grid md:grid-cols-3 gap-4">
         {[
           ["Total Words", "1,240"],
