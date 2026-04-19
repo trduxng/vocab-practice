@@ -43,7 +43,7 @@ export default function Topbar({
         {/* Avatar */}
         <div className="flex items-center gap-2.5 cursor-pointer group">
           <div
-            className={`w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold ${role === "admin" ? "bg-gradient-to-br from-amber-500 to-orange-600" : "bg-gradient-to-br from-blue-500 to-cyan-500"}`}
+            className={`w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold ${role === "admin" ? "bg-linear-to-br from-amber-500 to-orange-600" : "bg-linear-to-br from-blue-500 to-cyan-500"}`}
           >
             {userName.slice(0, 2).toUpperCase()}
           </div>

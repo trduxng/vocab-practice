@@ -26,12 +26,12 @@ const adminLinks = [
 ];
 
 const studentLinks = [
-  { icon: LayoutDashboard, label: "Tổng quan", href: "/student/dashboard" },
-  { icon: Brain, label: "Học từ vựng", href: "/student/learn" },
-  { icon: Target, label: "Luyện tập", href: "/student/practice" },
-  { icon: Trophy, label: "Thành tích", href: "/student/achievements" },
-  { icon: BarChart3, label: "Tiến độ", href: "/student/progress" },
-  { icon: Settings, label: "Cài đặt", href: "/student/settings" },
+  { icon: LayoutDashboard, label: "Tổng quan", href: "/user/dashboard" },
+  { icon: Brain, label: "Học từ vựng", href: "/user/learn" },
+  { icon: Target, label: "Luyện tập", href: "/user/practice" },
+  { icon: Trophy, label: "Thành tích", href: "/user/achievements" },
+  { icon: BarChart3, label: "Tiến độ", href: "/user/progress" },
+  { icon: Settings, label: "Cài đặt", href: "/user/settings" },
 ];
 
 interface NavLinksProps {
@@ -91,7 +91,7 @@ export default function Sidebar({ role }: SidebarProps) {
       <div
         className={`flex items-center gap-3 px-4 h-16 border-b border-white/8 ${collapsed ? "justify-center" : ""}`}
       >
-        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center shrink-0 shadow-lg shadow-blue-500/25">
+        <div className="w-8 h-8 bg-linear-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center shrink-0 shadow-lg shadow-blue-500/25">
           <BookOpen size={15} className="text-white" />
         </div>
         {!collapsed && (
