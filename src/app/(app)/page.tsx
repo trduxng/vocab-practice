@@ -2,10 +2,10 @@
 
 import React from "react";
 
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
+import { Badge } from "@/src/components/ui/badge";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/src/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const HomePage = () => {

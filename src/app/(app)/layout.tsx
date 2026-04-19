@@ -3,9 +3,9 @@
 import React, { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { SidebarProvider, Sidebar } from "@/components/ui/sidebar";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
+import { SidebarProvider, Sidebar } from "@/src/components/ui/sidebar";
+import { Avatar, AvatarFallback } from "@/src/components/ui/avatar";
+import { Separator } from "@/src/components/ui/separator";
 import { cn } from "@/lib/utils";
 
 const nav = [
