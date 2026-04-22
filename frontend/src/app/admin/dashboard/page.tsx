@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import Topbar from "@/frontend/components/shared/Topbar";
+import Topbar from "@/src/components/shared/Topbar";
 import {
   Users,
   BookOpen,
