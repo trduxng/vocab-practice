@@ -1,5 +1,5 @@
 import React from "react";
-import Sidebar from "@/frontend/components/shared/Sidebar";
+import Sidebar from "@/src/components/shared/Sidebar";
 
 const AdminLayout = ({ children }: { children: React.ReactNode }) => {
   return (
