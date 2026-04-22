@@ -1,0 +1,19 @@
+{
+  "name": "vocab-practice",
+  "version": "1.0.0",
+  "description": "trang luyen tap tu vung tieng anh",
+  "main": "src/index.js",
+  "author": "trduxng",
+  "license": "MIT",
+  "private": false,
+  "dependencies": {
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  },
+  "scripts": {
+  "start": "node src/index.js",
+  "dev": "nodemon --watch src ./src/index.js"
+}
+}
