@@ -1,5 +1,5 @@
 import React from "react";
-import Topbar from "@/src/components/shared/Topbar";
+import Topbar from "@/frontend/components/shared/Topbar";
 import {
   Flame,
   Trophy,

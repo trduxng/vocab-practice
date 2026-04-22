@@ -1,6 +1,6 @@
-'use client';
+"use client";
 import React, { useState, useEffect } from "react";
-import Topbar from "@/src/components/shared/Topbar";
+import Topbar from "@/frontend/components/shared/Topbar";
 import {
   Users,
   BookOpen,
@@ -103,9 +103,15 @@ async function fetchTopCourses(): Promise<TopCourse[]> {
 // ---------------------------------------------------------------------------
 
 const AdminDashboard = () => {
-  const [overviewStats, setOverviewStats] = useState<OverviewStats | null>(null);
-  const [weeklyActivity, setWeeklyActivity] = useState<WeeklyActivityItem[]>([]);
-  const [todayActivity, setTodayActivity] = useState<TodayActivity | null>(null);
+  const [overviewStats, setOverviewStats] = useState<OverviewStats | null>(
+    null,
+  );
+  const [weeklyActivity, setWeeklyActivity] = useState<WeeklyActivityItem[]>(
+    [],
+  );
+  const [todayActivity, setTodayActivity] = useState<TodayActivity | null>(
+    null,
+  );
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
   const [topCourses, setTopCourses] = useState<TopCourse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -139,82 +145,82 @@ const AdminDashboard = () => {
   //                  completionRate, completionRateChange, completionRateUp }
   const statCards = overviewStats
     ? [
-      {
-        label: "Tổng học viên",
-        value: overviewStats.totalStudents.toLocaleString("vi-VN"),
-        change: overviewStats.totalStudentsChange,
-        up: overviewStats.totalStudentsUp,
-        icon: Users,
-        color: "from-blue-500 to-blue-600",
-        bg: "bg-blue-500/10",
-        border: "border-blue-500/20",
-      },
-      {
-        label: "Doanh thu tháng",
-        value: overviewStats.monthlyRevenue,
-        change: overviewStats.revenueChange,
-        up: overviewStats.revenueUp,
-        icon: DollarSign,
-        color: "from-green-500 to-emerald-600",
-        bg: "bg-green-500/10",
-        border: "border-green-500/20",
-      },
-      {
-        label: "Khóa học active",
-        value: overviewStats.activeCourses.toLocaleString("vi-VN"),
-        change: overviewStats.activeCoursesChange,
-        up: overviewStats.activeCoursesUp,
-        icon: BookOpen,
-        color: "from-violet-500 to-purple-600",
-        bg: "bg-violet-500/10",
-        border: "border-violet-500/20",
-      },
-      {
-        label: "Tỉ lệ hoàn thành",
-        value: `${overviewStats.completionRate}%`,
-        change: overviewStats.completionRateChange,
-        up: overviewStats.completionRateUp,
-        icon: TrendingUp,
-        color: "from-amber-500 to-orange-500",
-        bg: "bg-amber-500/10",
-        border: "border-amber-500/20",
-      },
-    ]
+        {
+          label: "Tổng học viên",
+          value: overviewStats.totalStudents.toLocaleString("vi-VN"),
+          change: overviewStats.totalStudentsChange,
+          up: overviewStats.totalStudentsUp,
+          icon: Users,
+          color: "from-blue-500 to-blue-600",
+          bg: "bg-blue-500/10",
+          border: "border-blue-500/20",
+        },
+        {
+          label: "Doanh thu tháng",
+          value: overviewStats.monthlyRevenue,
+          change: overviewStats.revenueChange,
+          up: overviewStats.revenueUp,
+          icon: DollarSign,
+          color: "from-green-500 to-emerald-600",
+          bg: "bg-green-500/10",
+          border: "border-green-500/20",
+        },
+        {
+          label: "Khóa học active",
+          value: overviewStats.activeCourses.toLocaleString("vi-VN"),
+          change: overviewStats.activeCoursesChange,
+          up: overviewStats.activeCoursesUp,
+          icon: BookOpen,
+          color: "from-violet-500 to-purple-600",
+          bg: "bg-violet-500/10",
+          border: "border-violet-500/20",
+        },
+        {
+          label: "Tỉ lệ hoàn thành",
+          value: `${overviewStats.completionRate}%`,
+          change: overviewStats.completionRateChange,
+          up: overviewStats.completionRateUp,
+          icon: TrendingUp,
+          color: "from-amber-500 to-orange-500",
+          bg: "bg-amber-500/10",
+          border: "border-amber-500/20",
+        },
+      ]
     : [];
 
   // Today activity cards — build từ API response
   // todayActivity: { newSignups, activeSessions, newReviews, revenue }
   const todayCards = todayActivity
     ? [
-      {
-        icon: UserPlus,
-        label: "Đăng ký mới",
-        value: todayActivity.newSignups.toLocaleString("vi-VN"),
-        color: "text-blue-400",
-        bg: "bg-blue-500/10",
-      },
-      {
-        icon: Eye,
-        label: "Lượt học",
-        value: todayActivity.activeSessions.toLocaleString("vi-VN"),
-        color: "text-violet-400",
-        bg: "bg-violet-500/10",
-      },
-      {
-        icon: Star,
-        label: "Đánh giá mới",
-        value: todayActivity.newReviews.toLocaleString("vi-VN"),
-        color: "text-amber-400",
-        bg: "bg-amber-500/10",
-      },
-      {
-        icon: DollarSign,
-        label: "Doanh thu",
-        value: todayActivity.revenue,
-        color: "text-green-400",
-        bg: "bg-green-500/10",
-      },
-    ]
+        {
+          icon: UserPlus,
+          label: "Đăng ký mới",
+          value: todayActivity.newSignups.toLocaleString("vi-VN"),
+          color: "text-blue-400",
+          bg: "bg-blue-500/10",
+        },
+        {
+          icon: Eye,
+          label: "Lượt học",
+          value: todayActivity.activeSessions.toLocaleString("vi-VN"),
+          color: "text-violet-400",
+          bg: "bg-violet-500/10",
+        },
+        {
+          icon: Star,
+          label: "Đánh giá mới",
+          value: todayActivity.newReviews.toLocaleString("vi-VN"),
+          color: "text-amber-400",
+          bg: "bg-amber-500/10",
+        },
+        {
+          icon: DollarSign,
+          label: "Doanh thu",
+          value: todayActivity.revenue,
+          color: "text-green-400",
+          bg: "bg-green-500/10",
+        },
+      ]
     : [];
 
   const maxUsers =
@@ -241,7 +247,6 @@ const AdminDashboard = () => {
       />
 
       <main className="flex-1 p-6 space-y-6 overflow-auto">
-
         {/* ── Stat cards ── */}
         {statCards.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -251,15 +256,25 @@ const AdminDashboard = () => {
                 className={`${s.bg} border ${s.border} rounded-2xl p-5 flex flex-col gap-3 hover:scale-[1.01] transition-transform cursor-default`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-400 text-sm font-medium">{s.label}</span>
-                  <div className={`w-9 h-9 rounded-xl bg-linear-to-br ${s.color} flex items-center justify-center shadow-lg`}>
+                  <span className="text-slate-400 text-sm font-medium">
+                    {s.label}
+                  </span>
+                  <div
+                    className={`w-9 h-9 rounded-xl bg-linear-to-br ${s.color} flex items-center justify-center shadow-lg`}
+                  >
                     <s.icon size={16} className="text-white" />
                   </div>
                 </div>
                 <div>
                   <p className="text-white font-bold text-2xl">{s.value}</p>
-                  <div className={`flex items-center gap-1 mt-1 text-xs font-semibold ${s.up ? "text-green-400" : "text-red-400"}`}>
-                    {s.up ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
+                  <div
+                    className={`flex items-center gap-1 mt-1 text-xs font-semibold ${s.up ? "text-green-400" : "text-red-400"}`}
+                  >
+                    {s.up ? (
+                      <ArrowUpRight size={13} />
+                    ) : (
+                      <ArrowDownRight size={13} />
+                    )}
                     {s.change} so với tháng trước
                   </div>
                 </div>
@@ -274,23 +289,25 @@ const AdminDashboard = () => {
 
         {/* ── Chart + Today activity ── */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-
           {/* Weekly users chart */}
           <div className="xl:col-span-2 bg-white/3 border border-white/8 rounded-2xl p-5">
             <div className="flex items-center justify-between mb-5">
               <div>
                 <h3 className="text-white font-bold">Người dùng trong tuần</h3>
-                <p className="text-slate-500 text-xs mt-0.5">Lượt học tích cực theo ngày</p>
+                <p className="text-slate-500 text-xs mt-0.5">
+                  Lượt học tích cực theo ngày
+                </p>
               </div>
               <div className="flex gap-2">
                 {["Tuần", "Tháng", "Năm"].map((t, i) => (
                   <button
                     key={t}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${i === 0
-                      ? "bg-blue-600 text-white"
-                      : "text-slate-400 hover:text-white hover:bg-white/6"
-                      }`}
-                  // onClick: gọi fetchWeeklyActivity với period tương ứng
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      i === 0
+                        ? "bg-blue-600 text-white"
+                        : "text-slate-400 hover:text-white hover:bg-white/6"
+                    }`}
+                    // onClick: gọi fetchWeeklyActivity với period tương ứng
                   >
                     {t}
                   </button>
@@ -302,11 +319,20 @@ const AdminDashboard = () => {
               /* weeklyActivity: [{ day: "T2", users: number }] */
               <div className="flex items-end gap-3 h-36">
                 {weeklyActivity.map((d, i) => (
-                  <div key={i} className="flex-1 flex flex-col items-center gap-1.5 group">
-                    <div className="w-full relative flex items-end justify-center" style={{ height: "112px" }}>
+                  <div
+                    key={i}
+                    className="flex-1 flex flex-col items-center gap-1.5 group"
+                  >
+                    <div
+                      className="w-full relative flex items-end justify-center"
+                      style={{ height: "112px" }}
+                    >
                       <div
                         className="w-full rounded-t-lg bg-linear-to-t from-blue-600 to-blue-400 group-hover:from-blue-500 group-hover:to-cyan-400 transition-all duration-300 relative"
-                        style={{ height: `${(d.users / maxUsers) * 100}%`, minHeight: "8px" }}
+                        style={{
+                          height: `${(d.users / maxUsers) * 100}%`,
+                          minHeight: "8px",
+                        }}
                       >
                         <div className="absolute -top-7 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-xs px-2 py-1 rounded-lg whitespace-nowrap border border-white/10 z-10">
                           {d.users.toLocaleString("vi-VN")}
@@ -337,12 +363,16 @@ const AdminDashboard = () => {
                   key={i}
                   className="flex items-center gap-3 p-3 rounded-xl bg-white/3 hover:bg-white/6 transition-colors cursor-default"
                 >
-                  <div className={`w-9 h-9 rounded-xl ${item.bg} flex items-center justify-center`}>
+                  <div
+                    className={`w-9 h-9 rounded-xl ${item.bg} flex items-center justify-center`}
+                  >
                     <item.icon size={16} className={item.color} />
                   </div>
                   <div className="flex-1">
                     <p className="text-slate-400 text-xs">{item.label}</p>
-                    <p className="text-white font-bold text-base">{item.value}</p>
+                    <p className="text-white font-bold text-base">
+                      {item.value}
+                    </p>
                   </div>
                   <ArrowUpRight size={14} className="text-green-400" />
                 </div>
@@ -357,7 +387,6 @@ const AdminDashboard = () => {
 
         {/* ── Bottom row ── */}
         <div className="grid grid-cols-1 xl:grid-cols-5 gap-5">
-
           {/* Recent users */}
           <div className="xl:col-span-3 bg-white/3 border border-white/8 rounded-2xl p-5">
             <div className="flex items-center justify-between mb-4">
@@ -381,18 +410,23 @@ const AdminDashboard = () => {
                       {u.avatar}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-white text-sm font-semibold truncate">{u.name}</p>
-                      <p className="text-slate-500 text-xs truncate">{u.email}</p>
+                      <p className="text-white text-sm font-semibold truncate">
+                        {u.name}
+                      </p>
+                      <p className="text-slate-500 text-xs truncate">
+                        {u.email}
+                      </p>
                     </div>
                     <div className="hidden sm:block text-center">
                       <p className="text-slate-400 text-xs">{u.course}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <span
-                        className={`text-xs px-2.5 py-1 rounded-full font-medium ${u.status === "active"
-                          ? "bg-green-500/15 text-green-400 border border-green-500/20"
-                          : "bg-slate-500/15 text-slate-400 border border-slate-500/20"
-                          }`}
+                        className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                          u.status === "active"
+                            ? "bg-green-500/15 text-green-400 border border-green-500/20"
+                            : "bg-slate-500/15 text-slate-400 border border-slate-500/20"
+                        }`}
                       >
                         {u.status === "active" ? "Active" : "Inactive"}
                       </span>
@@ -426,7 +460,9 @@ const AdminDashboard = () => {
                       <p className="text-slate-300 text-xs font-medium truncate pr-2 group-hover:text-white transition-colors">
                         {c.name}
                       </p>
-                      <span className="text-white text-xs font-bold shrink-0">{c.progress}%</span>
+                      <span className="text-white text-xs font-bold shrink-0">
+                        {c.progress}%
+                      </span>
                     </div>
                     <div className="h-1.5 bg-white/8 rounded-full overflow-hidden">
                       <div
@@ -438,7 +474,9 @@ const AdminDashboard = () => {
                       <span className="text-slate-600 text-xs">
                         {c.students.toLocaleString("vi-VN")} học viên
                       </span>
-                      <span className="text-slate-500 text-xs">{c.revenue}</span>
+                      <span className="text-slate-500 text-xs">
+                        {c.revenue}
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -449,7 +487,6 @@ const AdminDashboard = () => {
               </div>
             )}
           </div>
-
         </div>
       </main>
     </>

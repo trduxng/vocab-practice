@@ -1,11 +1,11 @@
-import Navbar from "@/src/components/Navbar";
-import Hero from "@/src/components/Hero";
-import Features from "@/src/components/Features";
-import Courses from "@/src/components/Courses";
-import HowItWorks from "@/src/components/HowItWorks";
-import Testimonials from "@/src/components/Testimonials";
-import Pricing from "@/src/components/Pricing";
-import { CTA, Footer } from "@/src/components/Footer";
+import Navbar from "@/frontend/components/Navbar";
+import Hero from "@/frontend/components/Hero";
+import Features from "@/frontend/components/Features";
+import Courses from "@/frontend/components/Courses";
+import HowItWorks from "@/frontend/components/HowItWorks";
+import Testimonials from "@/frontend/components/Testimonials";
+import Pricing from "@/frontend/components/Pricing";
+import { CTA, Footer } from "@/frontend/components/Footer";
 
 export default function Home() {
   return (
