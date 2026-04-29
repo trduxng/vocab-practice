@@ -8,6 +8,9 @@ const { poolPromise } = require('./config/db');
 
 // Import routes
 const authRoutes = require('./routes/auth.routes');
+const categoriesRoutes = require('./routes/categories.routes');
+const adminRoutes = require('./routes/admin.routes');
+const userRoutes = require('./routes/user.routes');
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -19,6 +22,9 @@ app.use(express.json());
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/categories', categoriesRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/user', userRoutes);
 
 app.get('/health', async (req, res) => {
   try {
