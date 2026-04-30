@@ -1,0 +1,192 @@
+// ============================================================
+// TOEIC Vocabulary Learning Platform
+// Database Schema - dbdiagram.io (DBML format)
+// Paste toàn bộ nội dung này vào https://dbdiagram.io
+// ============================================================
+
+Table Users {
+  UserID bigint [pk, increment, note: "Primary Key"]
+  FullName nvarchar(200) [not null]
+  Email nvarchar(255) [not null, unique]
+  PasswordHash nvarchar(500) [not null]
+  UserRole nvarchar(30) [not null, note: "Learner | ContentCreator | Admin"]
+  IsActive bit [not null, default: 1]
+  CreatedAt datetimeoffset [not null, default: `SYSDATETIMEOFFSET()`]
+  UpdatedAt datetimeoffset [not null, default: `SYSDATETIMEOFFSET()`]
+}
+
+Table PartOfSpeeches {
+  PartOfSpeechID int [pk, increment]
+  PartOfSpeechCode nvarchar(20) [not null, unique, note: "n | v | adj | adv | prep"]
+  PartOfSpeechName nvarchar(100) [not null, unique]
+  Description nvarchar(255) [null]
+}
+
+Table Topics {
+  TopicID bigint [pk, increment]
+  TopicName nvarchar(200) [not null, unique]
+  TopicCode nvarchar(50) [not null, unique, note: "VD: ECONOMY, OFFICE, TRAVEL"]
+  Description nvarchar(1000) [null]
+  CreatedByUserID bigint [not null]
+  CreatedAt datetimeoffset [not null, default: `SYSDATETIMEOFFSET()`]
+  UpdatedAt datetimeoffset [not null, default: `SYSDATETIMEOFFSET()`]
+}
+
+Table Words {
+  WordID bigint [pk, increment]
+  Term nvarchar(200) [not null]
+  PartOfSpeechID int [not null]
+  Meaning nvarchar(1000) [not null]
+  Phonetic nvarchar(255) [null, note: "VD: /eejent/"]
+  AudioUrlUK nvarchar(1000) [null, note: "British English audio"]
+  AudioUrlUS nvarchar(1000) [null, note: "American English audio"]
+  ImageUrl nvarchar(1000) [null]
+  DifficultyLevel tinyint [not null, default: 1, note: "1-5"]
+  CreatedByUserID bigint [not null]
+  CreatedAt datetimeoffset [not null, default: `SYSDATETIMEOFFSET()`]
+  UpdatedAt datetimeoffset [not null, default: `SYSDATETIMEOFFSET()`]
+
+  indexes {
+    (Term, PartOfSpeechID) [unique, name: "UQ_Words_Term_PartOfSpeech"]
+    (PartOfSpeechID) [name: "IX_Words_PartOfSpeechID"]
+    (CreatedByUserID) [name: "IX_Words_CreatedByUserID"]
+  }
+}
+
+Table ExampleSentences {
+  ExampleSentenceID bigint [pk, increment]
+  WordID bigint [not null]
+  SentenceText nvarchar(2000) [not null]
+  SentenceTranslation nvarchar(2000) [null]
+  AudioUrl nvarchar(1000) [null]
+  CreatedAt datetimeoffset [not null, default: `SYSDATETIMEOFFSET()`]
+  UpdatedAt datetimeoffset [not null, default: `SYSDATETIMEOFFSET()`]
+
+  indexes {
+    (WordID) [name: "IX_ExampleSentences_WordID"]
+  }
+}
+
+Table WordTopics {
+  WordID bigint [not null]
+  TopicID bigint [not null]
+  AssignedAt datetimeoffset [not null, default: `SYSDATETIMEOFFSET()`]
+
+  indexes {
+    (WordID, TopicID) [pk, name: "PK_WordTopics"]
+    (TopicID) [name: "IX_WordTopics_TopicID"]
+  }
+}
+
+Table Questions {
+  QuestionID bigint [pk, increment]
+  WordID bigint [not null]
+  QuestionType nvarchar(30) [not null, note: "MCQ | FillBlank | DragDrop | Dictation | FlashcardCheck"]
+  QuestionText nvarchar(2000) [not null]
+  OptionsJson nvarchar(max) [not null, note: "CHECK ISJSON()=1 | JSON luu dap an A/B/C/D & metadata bai tap"]
+  CorrectAnswer nvarchar(500) [not null]
+  Explanation nvarchar(2000) [null]
+  DifficultyLevel tinyint [not null, default: 1, note: "1-5"]
+  CreatedByUserID bigint [not null]
+  CreatedAt datetimeoffset [not null, default: `SYSDATETIMEOFFSET()`]
+  UpdatedAt datetimeoffset [not null, default: `SYSDATETIMEOFFSET()`]
+
+  indexes {
+    (WordID) [name: "IX_Questions_WordID"]
+    (CreatedByUserID) [name: "IX_Questions_CreatedByUserID"]
+  }
+}
+
+Table UserWordProgress {
+  UserWordProgressID bigint [pk, increment]
+  UserID bigint [not null]
+  WordID bigint [not null]
+  MasteryLevel tinyint [not null, default: 0, note: "0-10 | Muc do thuoc tu"]
+  EaseFactor decimal(4,2) [not null, default: 2.50, note: "1.30-3.50 | He so de (Spaced Rep)"]
+  RepetitionCount int [not null, default: 0, note: "Tong so lan on tap thanh cong"]
+  ConsecutiveCorrect int [not null, default: 0]
+  ConsecutiveWrong int [not null, default: 0]
+  LastReviewedAt datetimeoffset [null]
+  NextReviewDate datetimeoffset [null, note: "DATETIMEOFFSET | Lich on tap tiep theo"]
+  LastScore decimal(5,2) [null, note: "0-100"]
+  MemoryStatus nvarchar(30) [not null, default: "New", note: "New | Learning | Reviewing | Mastered | Lapsed"]
+  CreatedAt datetimeoffset [not null, default: `SYSDATETIMEOFFSET()`]
+  UpdatedAt datetimeoffset [not null, default: `SYSDATETIMEOFFSET()`]
+
+  indexes {
+    (UserID, WordID) [unique, name: "UQ_UserWordProgress_UserID_WordID"]
+    (UserID) [name: "IX_UserWordProgress_UserID"]
+    (WordID) [name: "IX_UserWordProgress_WordID"]
+    (UserID, NextReviewDate) [name: "IX_UserWordProgress_UserID_NextReviewDate"]
+    (NextReviewDate) [name: "IX_UserWordProgress_NextReviewDate"]
+  }
+}
+
+Table ExerciseAttempts {
+  ExerciseAttemptID bigint [pk, increment]
+  UserID bigint [not null]
+  QuestionID bigint [not null]
+  WordID bigint [not null]
+  SubmittedAnswer nvarchar(1000) [not null]
+  IsCorrect bit [not null]
+  ScoreAwarded decimal(5,2) [not null, note: "0-100"]
+  AttemptedAt datetimeoffset [not null, default: `SYSDATETIMEOFFSET()`]
+  ClientTimeZoneOffset nvarchar(10) [null, note: "VD: +07:00"]
+  AttemptMetadataJson nvarchar(max) [null, note: "Optional CHECK ISJSON()=1"]
+
+  indexes {
+    (UserID, AttemptedAt) [name: "IX_ExerciseAttempts_UserID_AttemptedAt"]
+    (WordID) [name: "IX_ExerciseAttempts_WordID"]
+    (QuestionID) [name: "IX_ExerciseAttempts_QuestionID"]
+  }
+}
+
+Table MiniTests {
+  MiniTestID bigint [pk, increment]
+  TopicID bigint [null]
+  TestTitle nvarchar(255) [not null]
+  Description nvarchar(1000) [null]
+  CreatedByUserID bigint [not null]
+  TotalQuestions int [not null, default: 0]
+  IsPublished bit [not null, default: 0]
+  CreatedAt datetimeoffset [not null, default: `SYSDATETIMEOFFSET()`]
+  UpdatedAt datetimeoffset [not null, default: `SYSDATETIMEOFFSET()`]
+
+  indexes {
+    (TopicID) [name: "IX_MiniTests_TopicID"]
+  }
+}
+
+Table MiniTestItems {
+  MiniTestID bigint [not null]
+  QuestionID bigint [not null]
+  DisplayOrder int [not null, note: "> 0"]
+
+  indexes {
+    (MiniTestID, QuestionID) [pk, name: "PK_MiniTestItems"]
+    (MiniTestID, DisplayOrder) [unique, name: "UQ_MiniTestItems_Order"]
+    (QuestionID) [name: "IX_MiniTestItems_QuestionID"]
+  }
+}
+
+// ============================================================
+// RELATIONSHIPS
+// ============================================================
+
+Ref: Topics.CreatedByUserID > Users.UserID
+Ref: Words.PartOfSpeechID > PartOfSpeeches.PartOfSpeechID
+Ref: Words.CreatedByUserID > Users.UserID
+Ref: ExampleSentences.WordID > Words.WordID [delete: cascade]
+Ref: WordTopics.WordID > Words.WordID [delete: cascade]
+Ref: WordTopics.TopicID > Topics.TopicID [delete: cascade]
+Ref: Questions.WordID > Words.WordID [delete: cascade]
+Ref: Questions.CreatedByUserID > Users.UserID
+Ref: UserWordProgress.UserID > Users.UserID [delete: cascade]
+Ref: UserWordProgress.WordID > Words.WordID [delete: cascade]
+Ref: ExerciseAttempts.UserID > Users.UserID [delete: cascade]
+Ref: ExerciseAttempts.QuestionID > Questions.QuestionID
+Ref: ExerciseAttempts.WordID > Words.WordID
+Ref: MiniTests.TopicID > Topics.TopicID [delete: set null]
+Ref: MiniTests.CreatedByUserID > Users.UserID
+Ref: MiniTestItems.MiniTestID > MiniTests.MiniTestID [delete: cascade]
+Ref: MiniTestItems.QuestionID > Questions.QuestionID

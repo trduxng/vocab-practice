@@ -52,6 +52,9 @@ lerna-debug.log*
 # OS
 Thumbs.db
 
+.cgcignore
+mcp.json
 
+.history/
 #backend
 ./backend/yarn.lock
