@@ -25,7 +25,7 @@ class AuthService {
       .input('PasswordHash', sql.NVarChar(500), hashedPassword)
       .query(`
         INSERT INTO Users (FullName, Email, PasswordHash, UserRole, IsActive, CreatedAt, UpdatedAt)
-        OUTPUT inserted.UserID, inserted.FullName, inserted.Email, inserted.UserRole
+        OUTPUT inserted.UserID AS id, inserted.FullName AS fullName, inserted.Email AS email, inserted.UserRole AS role
         VALUES (@FullName, @Email, @PasswordHash, 'Learner', 1, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
       `);
 
@@ -38,7 +38,8 @@ class AuthService {
     const result = await pool.request()
       .input('Email', sql.NVarChar(255), email)
       .query(`
-        SELECT UserID, FullName, Email, PasswordHash, UserRole FROM Users WHERE Email = @Email AND IsActive = 1
+        SELECT UserID AS id, FullName AS fullName, Email AS email, PasswordHash AS passwordHash, UserRole AS role 
+        FROM Users WHERE Email = @Email AND IsActive = 1
       `);
 
     const user = result.recordset[0];
@@ -46,15 +47,15 @@ class AuthService {
       throw new Error('Email hoặc mật khẩu không chính xác');
     }
 
-    const isMatch = await bcrypt.compare(password, user.PasswordHash);
+    const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
       throw new Error('Email hoặc mật khẩu không chính xác');
     }
 
     const payload = {
-      id: user.UserID,
-      fullName: user.FullName,
-      role: user.UserRole
+      id: user.id,
+      fullName: user.fullName,
+      role: user.role
     };
 
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1d' });
@@ -62,10 +63,10 @@ class AuthService {
     return {
       token,
       user: {
-        id: user.UserID,
-        fullName: user.FullName,
-        email: user.Email,
-        role: user.UserRole
+        id: user.id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role
       }
     };
   }

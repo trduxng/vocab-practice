@@ -200,10 +200,10 @@ const StudentDashboard = () => {
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <span className="text-white text-sm font-semibold">
-                          {w.Term}
+                          {w.term}
                         </span>
                         <span className="text-slate-500 text-xs">·</span>
-                        <span className="text-slate-400 text-xs">{w.Meaning}</span>
+                        <span className="text-slate-400 text-xs">{w.meaning}</span>
                       </div>
                     </div>
                     <span className="text-xs px-2 py-1 rounded-lg font-medium text-blue-400 bg-blue-500/10">
@@ -304,7 +304,7 @@ const StudentDashboard = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-white text-sm font-semibold truncate group-hover:text-blue-300 transition-colors">
-                        {r.Term}
+                        {r.term}
                       </p>
                       <p className="text-slate-500 text-xs">Mới</p>
                     </div>

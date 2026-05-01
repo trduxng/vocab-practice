@@ -5,29 +5,28 @@ class UserService {
     const pool = await poolPromise;
 
     const result = await pool.request()
-      .input('UserID', sql.Int, userId)
-      .input('QuestionID', sql.Int, questionId)
-      .input('WordID', sql.Int, wordId)
-      .input('SubmittedAnswer', sql.NVarChar(sql.MAX), submittedAnswer)
-      .input('IsCorrect', sql.Bit, isCorrect)
-      .input('ScoreAwarded', sql.Decimal(5, 2), scoreAwarded)
+      .input('UserID', sql.BigInt, userId)
+      .input('QuestionID', sql.BigInt, questionId)
+      .input('SubmittedAnswer', sql.NVarChar(1000), submittedAnswer)
       .execute('usp_SubmitQuestionAttempt');
 
-    return result;
+    return result.recordset[0];
   }
 
   static async getDueFlashcards(userId) {
     const pool = await poolPromise;
     const result = await pool.request()
-      .input('UserID', sql.Int, userId)
+      .input('UserID', sql.BigInt, userId)
       .query(`
-        SELECT w.WordID, w.Term, w.Meaning, w.Phonetic, q.QuestionID, q.QuestionType, q.QuestionText, q.OptionsJson
+        SELECT w.WordID AS wordId, w.Term AS term, w.Meaning AS meaning, w.Phonetic AS phonetic, 
+               q.QuestionID AS questionId, q.QuestionType AS questionType, 
+               q.QuestionText AS questionText, q.OptionsJson AS optionsJson
         FROM Words w
         JOIN Questions q ON w.WordID = q.WordID
         LEFT JOIN UserWordProgress uwp ON w.WordID = uwp.WordID AND uwp.UserID = @UserID
         WHERE uwp.UserWordProgressID IS NULL 
            OR uwp.MemoryStatus = 'New' 
-           OR uwp.NextReviewDate <= GETDATE()
+           OR uwp.NextReviewDate <= SYSDATETIMEOFFSET()
       `);
     return result.recordset;
   }

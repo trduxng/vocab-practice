@@ -9,7 +9,8 @@ class AdminService {
       .input('Offset', sql.Int, offset)
       .input('Limit', sql.Int, limit)
       .query(`
-        SELECT WordID, Term, Meaning, Phonetic, PartOfSpeechID, CreatedAt 
+        SELECT WordID AS id, Term AS term, Meaning AS meaning, Phonetic AS phonetic, 
+               PartOfSpeechID AS partOfSpeechId, CreatedAt AS createdAt 
         FROM Words 
         ORDER BY CreatedAt DESC
         OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY
@@ -35,11 +36,11 @@ class AdminService {
         .input('CreatedByUserID', sql.BigInt, adminId)
         .query(`
           INSERT INTO Words (Term, Meaning, Phonetic, PartOfSpeechID, CreatedByUserID, CreatedAt, UpdatedAt)
-          OUTPUT inserted.WordID
+          OUTPUT inserted.WordID AS id
           VALUES (@Term, @Meaning, @Phonetic, @PartOfSpeechID, @CreatedByUserID, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
         `);
       
-      const wordId = wordResult.recordset[0].WordID;
+      const wordId = wordResult.recordset[0].id;
 
       // Insert WordTopics
       if (topicIds && topicIds.length > 0) {
@@ -71,7 +72,7 @@ class AdminService {
       }
 
       await transaction.commit();
-      return { wordId, term, meaning };
+      return { id: wordId, term, meaning };
     } catch (error) {
       await transaction.rollback();
       throw error;
@@ -110,7 +111,7 @@ class AdminService {
       .input('CreatedByUserID', sql.BigInt, adminId)
       .query(`
         INSERT INTO Questions (WordID, QuestionType, QuestionText, OptionsJson, CorrectAnswer, Explanation, CreatedByUserID, CreatedAt, UpdatedAt)
-        OUTPUT inserted.QuestionID
+        OUTPUT inserted.QuestionID AS id
         VALUES (@WordID, @QuestionType, @QuestionText, @OptionsJson, @CorrectAnswer, @Explanation, @CreatedByUserID, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
       `);
     return result.recordset[0];
