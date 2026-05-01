@@ -1,5 +1,9 @@
-import React from "react";
+"use client";
+
+import React, { useEffect, useState } from "react";
 import Topbar from "@/src/components/shared/Topbar";
+import { userService } from "@/src/services/user.service";
+import { authService } from "@/src/services/auth.service";
 import {
   Flame,
   Trophy,
@@ -15,14 +19,6 @@ import {
   RotateCcw,
   ArrowRight,
 } from "lucide-react";
-
-const todayWords = [
-  { word: "Ambiguous", mean: "Mơ hồ", status: "learned", mastery: 90 },
-  { word: "Eloquent", mean: "Hùng hồn", status: "learned", mastery: 75 },
-  { word: "Diligent", mean: "Chăm chỉ", status: "learning", mastery: 50 },
-  { word: "Innovate", mean: "Đổi mới", status: "new", mastery: 0 },
-  { word: "Versatile", mean: "Linh hoạt", status: "new", mastery: 0 },
-];
 
 const achievements = [
   { icon: "🔥", label: "7-ngày streak", unlocked: true },
@@ -42,17 +38,37 @@ const weekData = [
   { day: "CN", words: 12, goal: 20 },
 ];
 
-const upcomingReviews = [
-  { word: "Phenomenon", due: "Hôm nay", level: 3 },
-  { word: "Substantial", due: "Ngày mai", level: 4 },
-  { word: "Ambiguous", due: "3 ngày nữa", level: 5 },
-  { word: "Eloquent", due: "1 tuần nữa", level: 6 },
-];
-
 const StudentDashboard = () => {
+  const [flashcards, setFlashcards] = useState<any[]>([]);
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [flashcardsData, currentUser] = await Promise.all([
+          userService.getDueFlashcards(),
+          authService.getCurrentUser()
+        ]);
+        setFlashcards(flashcardsData);
+        setUser(currentUser);
+      } catch (error) {
+        console.error("Failed to fetch dashboard data", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
   const todayLearned = 12;
   const todayGoal = 20;
   const progressPct = Math.round((todayLearned / todayGoal) * 100);
+
+  if (loading) {
+    return <div className="flex items-center justify-center min-h-screen text-white">Đang tải dữ liệu...</div>;
+  }
 
   return (
     <>
@@ -60,7 +76,7 @@ const StudentDashboard = () => {
         title="Tổng quan học tập"
         subtitle="Chào buổi sáng! Tiếp tục chuỗi streak của bạn nào 🔥"
         role="student"
-        userName="Minh Anh"
+        userName={user?.username || "Người dùng"}
       />
 
       <main className="flex-1 p-6 space-y-5 overflow-auto">
@@ -171,62 +187,31 @@ const StudentDashboard = () => {
 
               {/* Word list */}
               <div className="space-y-2">
-                {todayWords.map((w, i) => (
+                {flashcards.slice(0, 5).map((w, i) => (
                   <div
                     key={i}
                     className="flex items-center gap-3 p-3 rounded-xl bg-white/3 hover:bg-white/6 transition-colors group cursor-default"
                   >
                     <div
-                      className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                        w.status === "learned"
-                          ? "bg-green-500/15 border border-green-500/20"
-                          : w.status === "learning"
-                            ? "bg-blue-500/15 border border-blue-500/20"
-                            : "bg-white/5 border border-white/10"
-                      }`}
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-white/5 border border-white/10`}
                     >
-                      {w.status === "learned" ? (
-                        <CheckCircle2 size={14} className="text-green-400" />
-                      ) : w.status === "learning" ? (
-                        <RotateCcw size={14} className="text-blue-400" />
-                      ) : (
-                        <BookOpen size={14} className="text-slate-500" />
-                      )}
+                      <BookOpen size={14} className="text-slate-500" />
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <span className="text-white text-sm font-semibold">
-                          {w.word}
+                          {w.Term}
                         </span>
                         <span className="text-slate-500 text-xs">·</span>
-                        <span className="text-slate-400 text-xs">{w.mean}</span>
+                        <span className="text-slate-400 text-xs">{w.Meaning}</span>
                       </div>
-                      {w.mastery > 0 && (
-                        <div className="h-1 bg-white/8 rounded-full mt-1.5 w-24">
-                          <div
-                            className="h-full rounded-full bg-green-500"
-                            style={{ width: `${w.mastery}%` }}
-                          />
-                        </div>
-                      )}
                     </div>
-                    <span
-                      className={`text-xs px-2 py-1 rounded-lg font-medium ${
-                        w.status === "learned"
-                          ? "text-green-400 bg-green-500/10"
-                          : w.status === "learning"
-                            ? "text-blue-400 bg-blue-500/10"
-                            : "text-slate-500 bg-white/5"
-                      }`}
-                    >
-                      {w.status === "learned"
-                        ? "Thuộc"
-                        : w.status === "learning"
-                          ? "Đang học"
-                          : "Mới"}
+                    <span className="text-xs px-2 py-1 rounded-lg font-medium text-blue-400 bg-blue-500/10">
+                      Cần học
                     </span>
                   </div>
                 ))}
+                {flashcards.length === 0 && <p className="text-slate-500 text-center py-4">Hôm nay bạn không có từ nào cần học!</p>}
               </div>
             </div>
 
@@ -307,21 +292,21 @@ const StudentDashboard = () => {
                 <Clock size={15} className="text-slate-500" />
               </div>
               <div className="space-y-2.5">
-                {upcomingReviews.map((r, i) => (
+                {flashcards.slice(0, 4).map((r, i) => (
                   <div
                     key={i}
                     className="flex items-center gap-3 group cursor-default"
                   >
                     <div className="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0">
                       <span className="text-violet-400 text-xs font-bold">
-                        L{r.level}
+                        NEW
                       </span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-white text-sm font-semibold truncate group-hover:text-blue-300 transition-colors">
-                        {r.word}
+                        {r.Term}
                       </p>
-                      <p className="text-slate-500 text-xs">{r.due}</p>
+                      <p className="text-slate-500 text-xs">Mới</p>
                     </div>
                     <ChevronRight
                       size={14}
@@ -332,7 +317,7 @@ const StudentDashboard = () => {
               </div>
               <button className="w-full mt-4 py-2.5 rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-300 text-sm font-semibold hover:bg-blue-500/20 transition-all flex items-center justify-center gap-2">
                 <RotateCcw size={13} />
-                Bắt đầu ôn tập (24 từ)
+                Bắt đầu ôn tập ({flashcards.length} từ)
               </button>
             </div>
 
