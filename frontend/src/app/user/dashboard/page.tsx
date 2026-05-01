@@ -76,7 +76,7 @@ const StudentDashboard = () => {
         title="Tổng quan học tập"
         subtitle="Chào buổi sáng! Tiếp tục chuỗi streak của bạn nào 🔥"
         role="student"
-        userName={user?.username || "Người dùng"}
+        userName={user?.fullName || "Người dùng"}
       />
 
       <main className="flex-1 p-6 space-y-5 overflow-auto">

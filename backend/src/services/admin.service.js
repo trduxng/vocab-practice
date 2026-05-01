@@ -17,7 +17,7 @@ class AdminService {
     return result.recordset;
   }
 
-  static async createWord(wordData) {
+  static async createWord(wordData, adminId) {
     const { term, meaning, phonetic, partOfSpeechId, topicIds, examples } = wordData;
     const pool = await poolPromise;
     const transaction = new sql.Transaction(pool);
@@ -28,14 +28,15 @@ class AdminService {
       const request = new sql.Request(transaction);
       // Insert Word
       const wordResult = await request
-        .input('Term', sql.NVarChar(100), term)
-        .input('Meaning', sql.NVarChar(sql.MAX), meaning)
-        .input('Phonetic', sql.NVarChar(100), phonetic)
+        .input('Term', sql.NVarChar(200), term)
+        .input('Meaning', sql.NVarChar(1000), meaning)
+        .input('Phonetic', sql.NVarChar(255), phonetic)
         .input('PartOfSpeechID', sql.Int, partOfSpeechId)
+        .input('CreatedByUserID', sql.BigInt, adminId)
         .query(`
-          INSERT INTO Words (Term, Meaning, Phonetic, PartOfSpeechID, CreatedAt, UpdatedAt)
+          INSERT INTO Words (Term, Meaning, Phonetic, PartOfSpeechID, CreatedByUserID, CreatedAt, UpdatedAt)
           OUTPUT inserted.WordID
-          VALUES (@Term, @Meaning, @Phonetic, @PartOfSpeechID, GETDATE(), GETDATE())
+          VALUES (@Term, @Meaning, @Phonetic, @PartOfSpeechID, @CreatedByUserID, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
         `);
       
       const wordId = wordResult.recordset[0].WordID;
@@ -45,10 +46,11 @@ class AdminService {
         for (const topicId of topicIds) {
           const topicReq = new sql.Request(transaction);
           await topicReq
-            .input('WordID', sql.Int, wordId)
-            .input('TopicID', sql.Int, topicId)
+            .input('WordID', sql.BigInt, wordId)
+            .input('TopicID', sql.BigInt, topicId)
             .query(`
-              INSERT INTO WordTopics (WordID, TopicID) VALUES (@WordID, @TopicID)
+              INSERT INTO WordTopics (WordID, TopicID, AssignedAt) 
+              VALUES (@WordID, @TopicID, SYSDATETIMEOFFSET())
             `);
         }
       }
@@ -58,12 +60,12 @@ class AdminService {
         for (const ex of examples) {
           const exReq = new sql.Request(transaction);
           await exReq
-            .input('WordID', sql.Int, wordId)
-            .input('Sentence', sql.NVarChar(sql.MAX), ex.sentence)
-            .input('Meaning', sql.NVarChar(sql.MAX), ex.meaning)
+            .input('WordID', sql.BigInt, wordId)
+            .input('SentenceText', sql.NVarChar(2000), ex.sentence)
+            .input('SentenceTranslation', sql.NVarChar(2000), ex.meaning)
             .query(`
-              INSERT INTO ExampleSentences (WordID, Sentence, Meaning)
-              VALUES (@WordID, @Sentence, @Meaning)
+              INSERT INTO ExampleSentences (WordID, SentenceText, SentenceTranslation, CreatedAt, UpdatedAt)
+              VALUES (@WordID, @SentenceText, @SentenceTranslation, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
             `);
         }
       }
@@ -80,34 +82,36 @@ class AdminService {
     const { term, meaning, phonetic, partOfSpeechId } = wordData;
     const pool = await poolPromise;
     const result = await pool.request()
-      .input('WordID', sql.Int, wordId)
-      .input('Term', sql.NVarChar(100), term)
-      .input('Meaning', sql.NVarChar(sql.MAX), meaning)
-      .input('Phonetic', sql.NVarChar(100), phonetic)
+      .input('WordID', sql.BigInt, wordId)
+      .input('Term', sql.NVarChar(200), term)
+      .input('Meaning', sql.NVarChar(1000), meaning)
+      .input('Phonetic', sql.NVarChar(255), phonetic)
       .input('PartOfSpeechID', sql.Int, partOfSpeechId)
       .query(`
         UPDATE Words 
         SET Term = @Term, Meaning = @Meaning, Phonetic = @Phonetic, 
-            PartOfSpeechID = @PartOfSpeechID, UpdatedAt = GETDATE()
+            PartOfSpeechID = @PartOfSpeechID, UpdatedAt = SYSDATETIMEOFFSET()
         WHERE WordID = @WordID
       `);
     return result.rowsAffected[0] > 0;
   }
 
   // --- QUESTIONS ---
-  static async createQuestion(questionData) {
-    const { wordId, questionType, questionText, optionsJson, correctAnswer } = questionData;
+  static async createQuestion(questionData, adminId) {
+    const { wordId, questionType, questionText, optionsJson, correctAnswer, explanation } = questionData;
     const pool = await poolPromise;
     const result = await pool.request()
-      .input('WordID', sql.Int, wordId)
-      .input('QuestionType', sql.NVarChar(50), questionType)
-      .input('QuestionText', sql.NVarChar(sql.MAX), questionText)
+      .input('WordID', sql.BigInt, wordId)
+      .input('QuestionType', sql.NVarChar(30), questionType)
+      .input('QuestionText', sql.NVarChar(2000), questionText)
       .input('OptionsJson', sql.NVarChar(sql.MAX), optionsJson)
-      .input('CorrectAnswer', sql.NVarChar(sql.MAX), correctAnswer)
+      .input('CorrectAnswer', sql.NVarChar(500), correctAnswer)
+      .input('Explanation', sql.NVarChar(2000), explanation)
+      .input('CreatedByUserID', sql.BigInt, adminId)
       .query(`
-        INSERT INTO Questions (WordID, QuestionType, QuestionText, OptionsJson, CorrectAnswer, CreatedAt, UpdatedAt)
+        INSERT INTO Questions (WordID, QuestionType, QuestionText, OptionsJson, CorrectAnswer, Explanation, CreatedByUserID, CreatedAt, UpdatedAt)
         OUTPUT inserted.QuestionID
-        VALUES (@WordID, @QuestionType, @QuestionText, @OptionsJson, @CorrectAnswer, GETDATE(), GETDATE())
+        VALUES (@WordID, @QuestionType, @QuestionText, @OptionsJson, @CorrectAnswer, @Explanation, @CreatedByUserID, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
       `);
     return result.recordset[0];
   }

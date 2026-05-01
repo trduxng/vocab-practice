@@ -9,7 +9,7 @@ import { Input } from '@/src/components/ui/input';
 import { Label } from '@/src/components/ui/label';
 
 export default function RegisterPage() {
-  const [username, setUsername] = useState('');
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -22,7 +22,7 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      await authService.register({ username, email, password });
+      await authService.register({ fullName, email, password });
       router.push('/login?registered=true');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Đăng ký thất bại');
@@ -44,12 +44,12 @@ export default function RegisterPage() {
           <CardContent className="space-y-4">
             {error && <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-sm rounded-lg">{error}</div>}
             <div className="space-y-2">
-              <Label htmlFor="username">Tên người dùng</Label>
+              <Label htmlFor="fullName">Họ và tên</Label>
               <Input 
-                id="username" 
-                placeholder="testuser" 
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                id="fullName" 
+                placeholder="Nguyễn Văn A" 
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
                 className="bg-white/5 border-white/10"
                 required 
               />

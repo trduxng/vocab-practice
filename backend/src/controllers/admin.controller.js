@@ -15,8 +15,9 @@ class AdminController {
 
   static async createWord(req, res, next) {
     try {
+      const adminId = req.user.id;
       const wordData = req.body;
-      const result = await AdminService.createWord(wordData);
+      const result = await AdminService.createWord(wordData, adminId);
       res.status(201).json({ message: 'Tạo từ vựng thành công', data: result });
     } catch (error) {
       next(error);
@@ -41,7 +42,8 @@ class AdminController {
   // Questions
   static async createQuestion(req, res, next) {
     try {
-      const result = await AdminService.createQuestion(req.body);
+      const adminId = req.user.id;
+      const result = await AdminService.createQuestion(req.body, adminId);
       res.status(201).json({ message: 'Tạo câu hỏi thành công', data: result });
     } catch (error) {
       next(error);

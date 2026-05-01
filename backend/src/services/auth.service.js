@@ -3,31 +3,30 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
 class AuthService {
-  static async register(username, email, password) {
+  static async register(fullName, email, password) {
     const pool = await poolPromise;
     
     // Check if user exists
     const checkUser = await pool.request()
       .input('Email', sql.NVarChar(255), email)
-      .input('Username', sql.NVarChar(100), username)
       .query(`
-        SELECT UserID FROM Users WHERE Email = @Email OR Username = @Username
+        SELECT UserID FROM Users WHERE Email = @Email
       `);
       
     if (checkUser.recordset.length > 0) {
-      throw new Error('Email hoặc Username đã tồn tại');
+      throw new Error('Email đã tồn tại');
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const result = await pool.request()
-      .input('Username', sql.NVarChar(100), username)
+      .input('FullName', sql.NVarChar(200), fullName)
       .input('Email', sql.NVarChar(255), email)
-      .input('PasswordHash', sql.NVarChar(255), hashedPassword)
+      .input('PasswordHash', sql.NVarChar(500), hashedPassword)
       .query(`
-        INSERT INTO Users (Username, Email, PasswordHash, Role, CreatedAt, UpdatedAt)
-        OUTPUT inserted.UserID, inserted.Username, inserted.Email, inserted.Role
-        VALUES (@Username, @Email, @PasswordHash, 'User', GETDATE(), GETDATE())
+        INSERT INTO Users (FullName, Email, PasswordHash, UserRole, IsActive, CreatedAt, UpdatedAt)
+        OUTPUT inserted.UserID, inserted.FullName, inserted.Email, inserted.UserRole
+        VALUES (@FullName, @Email, @PasswordHash, 'Learner', 1, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
       `);
 
     return result.recordset[0];
@@ -39,7 +38,7 @@ class AuthService {
     const result = await pool.request()
       .input('Email', sql.NVarChar(255), email)
       .query(`
-        SELECT UserID, Username, Email, PasswordHash, Role FROM Users WHERE Email = @Email
+        SELECT UserID, FullName, Email, PasswordHash, UserRole FROM Users WHERE Email = @Email AND IsActive = 1
       `);
 
     const user = result.recordset[0];
@@ -54,8 +53,8 @@ class AuthService {
 
     const payload = {
       id: user.UserID,
-      username: user.Username,
-      role: user.Role
+      fullName: user.FullName,
+      role: user.UserRole
     };
 
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1d' });
@@ -64,9 +63,9 @@ class AuthService {
       token,
       user: {
         id: user.UserID,
-        username: user.Username,
+        fullName: user.FullName,
         email: user.Email,
-        role: user.Role
+        role: user.UserRole
       }
     };
   }

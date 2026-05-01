@@ -3,15 +3,15 @@ const AuthService = require('../services/auth.service');
 class AuthController {
   static async register(req, res, next) {
     try {
-      const { username, email, password } = req.body;
-      if (!username || !email || !password) {
+      const { fullName, email, password } = req.body;
+      if (!fullName || !email || !password) {
         return res.status(400).json({ message: 'Vui lòng cung cấp đủ thông tin' });
       }
 
-      const user = await AuthService.register(username, email, password);
+      const user = await AuthService.register(fullName, email, password);
       res.status(201).json({ message: 'Đăng ký thành công', user });
     } catch (error) {
-      if (error.message === 'Email hoặc Username đã tồn tại') {
+      if (error.message === 'Email đã tồn tại') {
         return res.status(400).json({ message: error.message });
       }
       next(error);
