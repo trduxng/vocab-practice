@@ -3,6 +3,11 @@ const cors = require('cors');
 const helmet = require('helmet');
 require('dotenv').config();
 
+if (!process.env.JWT_SECRET) {
+  console.error('FATAL ERROR: JWT_SECRET is not defined in .env file');
+  process.exit(1);
+}
+
 const errorHandler = require('./middlewares/errorHandler');
 const { poolPromise } = require('./config/db');
 
