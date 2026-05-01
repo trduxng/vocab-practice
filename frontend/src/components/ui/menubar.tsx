@@ -19,7 +19,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "@/src/components/ui/dropdown-menu";
+} from "@/frontend/components/ui/dropdown-menu";
 import { CheckIcon } from "@phosphor-icons/react";
 
 function Menubar({ className, ...props }: MenubarPrimitive.Props) {
