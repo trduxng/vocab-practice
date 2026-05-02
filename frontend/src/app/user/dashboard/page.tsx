@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Topbar from "@/src/components/shared/Topbar";
 import { userService } from "@/src/services/user.service";
-import { authService } from "@/src/services/auth.service";
+import { useAuth } from "@/src/app/context/AuthContext";
 import {
   Flame,
   Trophy,
@@ -40,18 +40,14 @@ const weekData = [
 
 const StudentDashboard = () => {
   const [flashcards, setFlashcards] = useState<any[]>([]);
-  const [user, setUser] = useState<any>(null);
+  const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [flashcardsData, currentUser] = await Promise.all([
-          userService.getDueFlashcards(),
-          authService.getCurrentUser()
-        ]);
+        const flashcardsData = await userService.getDueFlashcards();
         setFlashcards(flashcardsData);
-        setUser(currentUser);
       } catch (error) {
         console.error("Failed to fetch dashboard data", error);
       } finally {
@@ -59,15 +55,17 @@ const StudentDashboard = () => {
       }
     };
 
-    fetchData();
-  }, []);
+    if (user) {
+      fetchData();
+    }
+  }, [user]);
 
   const todayLearned = 12;
   const todayGoal = 20;
   const progressPct = Math.round((todayLearned / todayGoal) * 100);
 
-  if (loading) {
-    return <div className="flex items-center justify-center min-h-screen text-white">Đang tải dữ liệu...</div>;
+  if (authLoading || loading) {
+    return <div className="flex items-center justify-center min-h-screen text-white bg-slate-950">Đang tải dữ liệu...</div>;
   }
 
   return (

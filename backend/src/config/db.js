@@ -4,7 +4,10 @@ const { config } = require('dotenv');
 config(); // Load .env
 
 const serverClean = (process.env.DB_SERVER || '').replace(/"/g, '');
-const [host, instance] = serverClean.split('\\');
+// Tách lấy host và instance, loại bỏ các phần rỗng (tránh lỗi \\)
+const serverParts = serverClean.split('\\').filter(Boolean);
+const host = serverParts[0];
+const instance = serverParts[1];
 
 const dbConfig = {
   user: process.env.DB_USER,

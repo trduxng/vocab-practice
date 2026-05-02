@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { authService } from '@/src/services/auth.service';
+import { useAuth } from '@/src/app/context/AuthContext';
 import { Button } from '@/src/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/src/components/ui/card';
 import { Input } from '@/src/components/ui/input';
@@ -12,25 +12,25 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const { login, loading, user } = useAuth();
   const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
 
     try {
-      const data = await authService.login({ email, password });
-      if (data.user.role === 'Admin') {
+      await login({ email, password });
+      // The context updates state, but for immediate redirect we can use the returned data if login returned it
+      // Since our login in context doesn't return data, we check user after state update or use local storage as fallback
+      const savedUser = JSON.parse(localStorage.getItem('user') || '{}');
+      if (savedUser.role === 'Admin') {
         router.push('/admin/dashboard');
       } else {
         router.push('/user/dashboard');
       }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Đăng nhập thất bại');
-    } finally {
-      setLoading(false);
     }
   };
 
