@@ -78,7 +78,7 @@ export function CTA() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a href="#" className="btn-primary text-base px-8 py-4">
+            <a href="/register" className="btn-primary text-base px-8 py-4">
               Tạo tài khoản miễn phí
               <ArrowRight size={18} />
             </a>

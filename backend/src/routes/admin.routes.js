@@ -14,4 +14,8 @@ router.put('/words/:id', AdminController.updateWord);
 // Questions
 router.post('/questions', AdminController.createQuestion);
 
+// Mini Tests
+router.get('/minitests', AdminController.getMiniTests);
+router.post('/minitests', AdminController.createMiniTest);
+
 module.exports = router;

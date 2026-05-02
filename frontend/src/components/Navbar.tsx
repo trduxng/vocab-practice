@@ -55,10 +55,10 @@ export default function Navbar() {
 
           {/* CTA */}
           <div className="hidden md:flex items-center gap-3">
-            <a href="#" className="nav-link px-4 py-2">
+            <a href="/login" className="nav-link px-4 py-2">
               Đăng nhập
             </a>
-            <a href="#" className="btn-primary text-sm py-2.5 px-5">
+            <a href="/register" className="btn-primary text-sm py-2.5 px-5">
               <Zap size={15} />
               Bắt đầu miễn phí
             </a>
@@ -89,10 +89,10 @@ export default function Navbar() {
               </a>
             ))}
             <div className="pt-3 mt-2 border-t border-white/10 flex flex-col gap-2">
-              <a href="#" className="nav-link px-4 py-2.5 text-center">
+              <a href="/login" className="nav-link px-4 py-2.5 text-center">
                 Đăng nhập
               </a>
-              <a href="#" className="btn-primary text-sm justify-center">
+              <a href="/register" className="btn-primary text-sm justify-center">
                 <Zap size={15} /> Bắt đầu miễn phí
               </a>
             </div>

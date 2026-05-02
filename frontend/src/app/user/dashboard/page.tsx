@@ -11,43 +11,30 @@ import {
   Target,
   BookOpen,
   ChevronRight,
-  Star,
   Zap,
   TrendingUp,
-  CheckCircle2,
   Clock,
   RotateCcw,
   ArrowRight,
 } from "lucide-react";
-
-const achievements = [
-  { icon: "🔥", label: "7-ngày streak", unlocked: true },
-  { icon: "💯", label: "100 từ học", unlocked: true },
-  { icon: "🏆", label: "Top 10%", unlocked: true },
-  { icon: "⚡", label: "500 từ học", unlocked: false },
-  { icon: "🌟", label: "Perfect week", unlocked: false },
-];
-
-const weekData = [
-  { day: "T2", words: 22, goal: 20 },
-  { day: "T3", words: 18, goal: 20 },
-  { day: "T4", words: 25, goal: 20 },
-  { day: "T5", words: 20, goal: 20 },
-  { day: "T6", words: 30, goal: 20 },
-  { day: "T7", words: 28, goal: 20 },
-  { day: "CN", words: 12, goal: 20 },
-];
+import { useRouter } from "next/navigation";
 
 const StudentDashboard = () => {
   const [flashcards, setFlashcards] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
   const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const flashcardsData = await userService.getDueFlashcards();
+        const [flashcardsData, statsData] = await Promise.all([
+          userService.getDueFlashcards(),
+          userService.getStats()
+        ]);
         setFlashcards(flashcardsData);
+        setStats(statsData);
       } catch (error) {
         console.error("Failed to fetch dashboard data", error);
       } finally {
@@ -60,13 +47,11 @@ const StudentDashboard = () => {
     }
   }, [user]);
 
-  const todayLearned = 12;
-  const todayGoal = 20;
-  const progressPct = Math.round((todayLearned / todayGoal) * 100);
-
   if (authLoading || loading) {
-    return <div className="flex items-center justify-center min-h-screen text-white bg-slate-950">Đang tải dữ liệu...</div>;
+    return <div className="flex items-center justify-center min-h-screen text-white bg-slate-950 font-mono">LOADING SYSTEM...</div>;
   }
+
+  const progressPct = Math.min(100, Math.round((stats?.totalLearned / 50) * 100)); // Demo goal is 50 words
 
   return (
     <>
@@ -77,339 +62,144 @@ const StudentDashboard = () => {
         userName={user?.fullName || "Người dùng"}
       />
 
-      <main className="flex-1 p-6 space-y-5 overflow-auto">
+      <main className="flex-1 p-6 space-y-5 overflow-auto bg-[#080d1a]">
         {/* Top stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            {
-              icon: Flame,
-              label: "Streak hiện tại",
-              value: "14 ngày",
-              sub: "Kỷ lục: 21 ngày",
-              color: "from-orange-500 to-red-500",
-              bg: "bg-orange-500/10",
-              border: "border-orange-500/20",
-            },
-            {
-              icon: Brain,
-              label: "Từ đã học",
-              value: "1,284",
-              sub: "+25 hôm nay",
-              color: "from-violet-500 to-purple-600",
-              bg: "bg-violet-500/10",
-              border: "border-violet-500/20",
-            },
-            {
-              icon: Target,
-              label: "Mục tiêu hôm nay",
-              value: `${todayLearned}/${todayGoal}`,
-              sub: `${progressPct}% hoàn thành`,
-              color: "from-blue-500 to-cyan-500",
-              bg: "bg-blue-500/10",
-              border: "border-blue-500/20",
-            },
-            {
-              icon: Trophy,
-              label: "Điểm kinh nghiệm",
-              value: "8,420 XP",
-              sub: "Cấp độ 12 · Nâng cao",
-              color: "from-amber-500 to-yellow-500",
-              bg: "bg-amber-500/10",
-              border: "border-amber-500/20",
-            },
-          ].map((s, i) => (
-            <div
-              key={i}
-              className={`${s.bg} border ${s.border} rounded-2xl p-4 flex flex-col gap-2.5 hover:scale-[1.01] transition-transform cursor-default`}
-            >
-              <div
-                className={`w-9 h-9 rounded-xl bg-linear-to-br ${s.color} flex items-center justify-center shadow-lg`}
-              >
-                <s.icon size={16} className="text-white" />
-              </div>
+            <div className="bg-orange-500/10 border border-orange-500/20 rounded-2xl p-4 flex flex-col gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-linear-to-br from-orange-500 to-red-500 flex items-center justify-center shadow-lg"><Flame size={16} className="text-white" /></div>
               <div>
-                <p className="text-slate-400 text-xs">{s.label}</p>
-                <p className="text-white font-bold text-xl">{s.value}</p>
-                <p className="text-slate-500 text-xs mt-0.5">{s.sub}</p>
+                <p className="text-slate-400 text-xs uppercase font-bold">Streak</p>
+                <p className="text-white font-black text-2xl">{stats?.streak} ngày</p>
               </div>
             </div>
-          ))}
+            <div className="bg-violet-500/10 border border-violet-500/20 rounded-2xl p-4 flex flex-col gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-linear-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg"><Brain size={16} className="text-white" /></div>
+              <div>
+                <p className="text-slate-400 text-xs uppercase font-bold">Đã học</p>
+                <p className="text-white font-black text-2xl">{stats?.totalLearned}</p>
+              </div>
+            </div>
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4 flex flex-col gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-linear-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg"><Target size={16} className="text-white" /></div>
+              <div>
+                <p className="text-slate-400 text-xs uppercase font-bold">Chính xác</p>
+                <p className="text-white font-black text-2xl">{stats?.accuracy}%</p>
+              </div>
+            </div>
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex flex-col gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-linear-to-br from-amber-500 to-yellow-500 flex items-center justify-center shadow-lg"><Trophy size={16} className="text-white" /></div>
+              <div>
+                <p className="text-slate-400 text-xs uppercase font-bold">Kinh nghiệm</p>
+                <p className="text-white font-black text-2xl">{stats?.correct * 10} XP</p>
+              </div>
+            </div>
         </div>
 
         {/* Main content row */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-          {/* Today's session + quick actions */}
           <div className="xl:col-span-2 space-y-5">
-            {/* Today progress */}
-            <div className="bg-white/3 border border-white/8 rounded-2xl p-5">
-              <div className="flex items-center justify-between mb-4">
+            {/* Session Action */}
+            <div className="bg-white/3 border border-white/8 rounded-2xl p-6 relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 opacity-5"><Zap size={120} /></div>
+              <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h3 className="text-white font-bold">Phiên học hôm nay</h3>
-                  <p className="text-slate-500 text-xs mt-0.5">
-                    IELTS Vocabulary Master – Bộ 5/12
-                  </p>
+                  <h3 className="text-white font-black text-xl uppercase tracking-tighter">Học tập ngay</h3>
+                  <p className="text-slate-500 text-xs mt-1">Hệ thống đã chuẩn bị {flashcards.length} từ vựng cho bạn</p>
                 </div>
-                <button className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition-all hover:-translate-y-0.5 shadow-lg shadow-blue-500/25">
-                  <Zap size={14} />
-                  Học ngay
+                <button 
+                  onClick={() => router.push('/user/learn')}
+                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-black rounded-xl transition-all hover:-translate-y-1 shadow-xl shadow-blue-500/25 uppercase tracking-widest flex items-center gap-2"
+                >
+                  <Zap size={14} fill="white" /> Bắt đầu
                 </button>
               </div>
 
               {/* Progress bar */}
               <div className="mb-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-slate-400 text-xs">
-                    Tiến độ hôm nay
-                  </span>
-                  <span className="text-white font-bold text-sm">
-                    {todayLearned}/{todayGoal} từ
-                  </span>
+                  <span className="text-slate-400 text-[10px] uppercase font-bold tracking-widest">Mục tiêu tuần</span>
+                  <span className="text-white font-bold text-xs">{stats?.totalLearned}/50 từ</span>
                 </div>
-                <div className="h-3 bg-white/8 rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-linear-to-r from-blue-500 to-cyan-400 transition-all duration-1000 relative"
-                    style={{ width: `${progressPct}%` }}
-                  >
-                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg" />
-                  </div>
-                </div>
-                <div className="flex justify-between mt-1">
-                  <span className="text-slate-600 text-xs">
-                    {progressPct}% hoàn thành
-                  </span>
-                  <span className="text-slate-600 text-xs">
-                    {todayGoal - todayLearned} từ còn lại
-                  </span>
+                <div className="h-2 bg-white/5 rounded-full overflow-hidden border border-white/5 p-[1px]">
+                  <div className="h-full rounded-full bg-linear-to-r from-blue-600 to-cyan-400 transition-all duration-1000 shadow-glow" style={{ width: `${progressPct}%` }} />
                 </div>
               </div>
 
-              {/* Word list */}
-              <div className="space-y-2">
-                {flashcards.slice(0, 5).map((w, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-white/3 hover:bg-white/6 transition-colors group cursor-default"
-                  >
-                    <div
-                      className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-white/5 border border-white/10`}
-                    >
-                      <BookOpen size={14} className="text-slate-500" />
-                    </div>
+              {/* Quick Word Preview */}
+              <div className="space-y-2 mt-8">
+                {flashcards.slice(0, 3).map((w, i) => (
+                  <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-white/2 border border-white/5 hover:bg-white/5 transition-colors group cursor-default">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-blue-500/10 border border-blue-500/20"><BookOpen size={14} className="text-blue-400" /></div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-white text-sm font-semibold">
-                          {w.term}
-                        </span>
+                        <span className="text-white text-sm font-bold">{w.term}</span>
                         <span className="text-slate-500 text-xs">·</span>
-                        <span className="text-slate-400 text-xs">{w.meaning}</span>
+                        <span className="text-slate-400 text-xs truncate">{w.meaning}</span>
                       </div>
                     </div>
-                    <span className="text-xs px-2 py-1 rounded-lg font-medium text-blue-400 bg-blue-500/10">
-                      Cần học
-                    </span>
+                    <ChevronRight size={14} className="text-slate-700 group-hover:text-blue-400" />
                   </div>
                 ))}
-                {flashcards.length === 0 && <p className="text-slate-500 text-center py-4">Hôm nay bạn không có từ nào cần học!</p>}
+                {flashcards.length === 0 && <div className="p-10 text-center text-slate-600 text-sm italic">Hôm nay bạn đã thuộc hết từ vựng rồi!</div>}
               </div>
             </div>
 
-            {/* Weekly chart */}
-            <div className="bg-white/3 border border-white/8 rounded-2xl p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-white font-bold">Hoạt động tuần này</h3>
-                  <p className="text-slate-500 text-xs mt-0.5">
-                    Số từ học mỗi ngày so với mục tiêu
-                  </p>
-                </div>
-                <div className="flex items-center gap-3 text-xs">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-2.5 h-2.5 rounded-sm bg-blue-500" />
-                    <span className="text-slate-400">Đã học</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-2.5 h-2.5 rounded-sm bg-white/15 border border-dashed border-white/20" />
-                    <span className="text-slate-400">Mục tiêu</span>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-end gap-2 h-28">
-                {weekData.map((d, i) => {
-                  const maxVal = Math.max(
-                    ...weekData.map((x) => Math.max(x.words, x.goal)),
-                  );
-                  const wordH = (d.words / maxVal) * 100;
-                  const goalH = (d.goal / maxVal) * 100;
-                  const isToday = i === 6;
-                  return (
-                    <div
-                      key={i}
-                      className="flex-1 flex flex-col items-center gap-1.5 group"
-                    >
-                      <div
-                        className="w-full relative flex items-end justify-center gap-1"
-                        style={{ height: "96px" }}
-                      >
-                        {/* Goal line marker */}
-                        <div
-                          className="absolute w-full flex items-end"
-                          style={{ height: `${goalH}%` }}
-                        >
-                          <div className="w-full border-t border-dashed border-white/20" />
-                        </div>
-                        {/* Bar */}
-                        <div
-                          className={`w-full rounded-t-lg transition-all duration-300 ${
-                            isToday
-                              ? "bg-linear-to-t from-blue-600 to-cyan-400"
-                              : d.words >= d.goal
-                                ? "bg-linear-to-t from-green-600 to-green-400"
-                                : "bg-linear-to-t from-slate-600 to-slate-500"
-                          } group-hover:opacity-80`}
-                          style={{ height: `${wordH}%`, minHeight: "4px" }}
-                        />
-                      </div>
-                      <span
-                        className={`text-xs ${isToday ? "text-blue-400 font-bold" : "text-slate-500"}`}
-                      >
-                        {d.day}
-                      </span>
-                    </div>
-                  );
-                })}
+            {/* Simple Weekly Activity */}
+            <div className="bg-white/3 border border-white/8 rounded-2xl p-6">
+              <h3 className="text-white font-bold mb-6">Tỉ lệ hoàn thành</h3>
+              <div className="h-32 flex items-center justify-center text-slate-600 border border-dashed border-white/10 rounded-xl">
+                 <p className="text-xs uppercase tracking-widest font-bold">Sẽ cập nhật biểu đồ tại Phase 4.3</p>
               </div>
             </div>
           </div>
 
           {/* Right column */}
           <div className="space-y-5">
-            {/* SRS upcoming reviews */}
-            <div className="bg-white/3 border border-white/8 rounded-2xl p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-white font-bold">Ôn tập sắp tới</h3>
-                <Clock size={15} className="text-slate-500" />
-              </div>
-              <div className="space-y-2.5">
-                {flashcards.slice(0, 4).map((r, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center gap-3 group cursor-default"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0">
-                      <span className="text-violet-400 text-xs font-bold">
-                        NEW
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white text-sm font-semibold truncate group-hover:text-blue-300 transition-colors">
-                        {r.term}
-                      </p>
-                      <p className="text-slate-500 text-xs">Mới</p>
-                    </div>
-                    <ChevronRight
-                      size={14}
-                      className="text-slate-600 group-hover:text-slate-400 transition-colors"
-                    />
-                  </div>
-                ))}
-              </div>
-              <button className="w-full mt-4 py-2.5 rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-300 text-sm font-semibold hover:bg-blue-500/20 transition-all flex items-center justify-center gap-2">
-                <RotateCcw size={13} />
-                Bắt đầu ôn tập ({flashcards.length} từ)
-              </button>
-            </div>
-
             {/* Achievements */}
-            <div className="bg-white/3 border border-white/8 rounded-2xl p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-white font-bold">Thành tích</h3>
-                <button className="text-blue-400 text-xs font-semibold hover:text-blue-300">
-                  Xem tất cả
-                </button>
+            <div className="bg-white/3 border border-white/8 rounded-2xl p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-white font-black text-sm uppercase tracking-widest">Thành tích</h3>
+                <Trophy size={16} className="text-amber-500" />
               </div>
-              <div className="grid grid-cols-5 gap-2">
-                {achievements.map((a, i) => (
-                  <div
-                    key={i}
-                    className="flex flex-col items-center gap-1 group cursor-default"
-                    title={a.label}
-                  >
-                    <div
-                      className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xl transition-all ${
-                        a.unlocked
-                          ? "bg-amber-500/15 border border-amber-500/30 group-hover:scale-110"
-                          : "bg-white/4 border border-white/8 grayscale opacity-40"
-                      }`}
-                    >
+              <div className="grid grid-cols-4 gap-3">
+                {stats?.achievements?.map((a: any) => (
+                  <div key={a.id} className="group relative" title={a.label}>
+                    <div className={`aspect-square rounded-2xl flex items-center justify-center text-2xl transition-all border ${a.unlocked ? 'bg-amber-500/10 border-amber-500/30' : 'bg-white/2 border-white/5 grayscale opacity-20'}`}>
                       {a.icon}
                     </div>
                   </div>
                 ))}
               </div>
-              <div className="mt-4 pt-4 border-t border-white/6">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-slate-400 text-xs">
-                    Cấp độ hiện tại
-                  </span>
-                  <span className="text-white text-xs font-bold">
-                    Lv.12 · 8,420 XP
-                  </span>
+              <div className="mt-8 pt-6 border-t border-white/5">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Cấp độ tiếp theo</span>
+                  <span className="text-white text-[10px] font-black uppercase tracking-widest">LV.{(Math.floor(stats?.correct / 10)) + 1}</span>
                 </div>
-                <div className="h-1.5 bg-white/8 rounded-full">
-                  <div className="h-full w-[68%] bg-linear-to-r from-amber-500 to-yellow-400 rounded-full" />
+                <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                   <div className="h-full bg-amber-500 shadow-glow" style={{ width: `${(stats?.correct % 10) * 10}%` }} />
                 </div>
-                <p className="text-slate-600 text-xs mt-1">
-                  3,580 XP để lên Lv.13
-                </p>
               </div>
             </div>
 
-            {/* Course progress */}
-            <div className="bg-white/3 border border-white/8 rounded-2xl p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-white font-bold">Khóa học của tôi</h3>
-                <TrendingUp size={15} className="text-slate-500" />
+            {/* Spaced Repetition Info */}
+            <div className="bg-white/3 border border-white/8 rounded-2xl p-6">
+               <div className="flex items-center justify-between mb-4">
+                <h3 className="text-white font-bold text-sm">Ôn tập (SRS)</h3>
+                <Clock size={16} className="text-slate-500" />
               </div>
-              {[
-                {
-                  name: "IELTS Vocabulary Master",
-                  progress: 42,
-                  total: "5,000 từ",
-                  color: "from-blue-500 to-indigo-500",
-                },
-                {
-                  name: "Giao Tiếp Hàng Ngày",
-                  progress: 78,
-                  total: "2,000 từ",
-                  color: "from-green-500 to-emerald-500",
-                },
-              ].map((c, i) => (
-                <div
-                  key={i}
-                  className={`${i > 0 ? "mt-4 pt-4 border-t border-white/6" : ""}`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-slate-300 text-sm font-medium truncate pr-2">
-                      {c.name}
-                    </p>
-                    <span className="text-white text-sm font-bold shrink-0">
-                      {c.progress}%
-                    </span>
-                  </div>
-                  <div className="h-2 bg-white/8 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full bg-linear-to-r ${c.color}`}
-                      style={{ width: `${c.progress}%` }}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between mt-1.5">
-                    <span className="text-slate-600 text-xs">{c.total}</span>
-                    <button className="text-blue-400 text-xs flex items-center gap-1 hover:text-blue-300">
-                      Tiếp tục <ArrowRight size={11} />
-                    </button>
-                  </div>
-                </div>
-              ))}
+              <div className="space-y-3">
+                 <div className="flex justify-between items-center p-3 rounded-xl bg-violet-500/10 border border-violet-500/20">
+                    <span className="text-xs text-violet-300 font-bold uppercase">Cần ôn ngay</span>
+                    <span className="text-white font-black">{flashcards.length}</span>
+                 </div>
+                 <p className="text-[10px] text-slate-500 leading-relaxed italic">Hệ thống tính toán thời điểm vàng để bạn không bao giờ quên từ vựng.</p>
+              </div>
+              <button 
+                onClick={() => router.push('/user/practice')}
+                className="w-full mt-6 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-bold hover:bg-white/10 transition-all flex items-center justify-center gap-2"
+              >
+                <RotateCcw size={13} /> Luyện tập trắc nghiệm
+              </button>
             </div>
           </div>
         </div>

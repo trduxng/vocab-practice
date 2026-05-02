@@ -147,6 +147,62 @@ class AdminService {
       `);
     return result.recordset[0];
   }
+
+  // --- MINI TESTS ---
+  static async getMiniTests() {
+    const pool = await poolPromise;
+    const result = await pool.request().query(`
+      SELECT mt.MiniTestID AS id, mt.TestTitle AS title, mt.Description AS description, 
+             t.TopicName AS topicName, mt.TotalQuestions AS totalQuestions, mt.IsPublished AS isPublished
+      FROM MiniTests mt
+      LEFT JOIN Topics t ON mt.TopicID = t.TopicID
+      ORDER BY mt.CreatedAt DESC
+    `);
+    return result.recordset;
+  }
+
+  static async createMiniTest(testData, adminId) {
+    const { title, description, topicId, questionIds } = testData;
+    const pool = await poolPromise;
+    const transaction = new sql.Transaction(pool);
+
+    try {
+      await transaction.begin();
+      const request = new sql.Request(transaction);
+      
+      const testResult = await request
+        .input('Title', sql.NVarChar(255), title)
+        .input('Description', sql.NVarChar(1000), description)
+        .input('TopicID', sql.BigInt, topicId)
+        .input('CreatedByUserID', sql.BigInt, adminId)
+        .input('TotalQuestions', sql.Int, questionIds.length)
+        .query(`
+          INSERT INTO MiniTests (TestTitle, Description, TopicID, CreatedByUserID, TotalQuestions, IsPublished, CreatedAt, UpdatedAt)
+          OUTPUT inserted.MiniTestID AS id
+          VALUES (@Title, @Description, @TopicID, @CreatedByUserID, @TotalQuestions, 1, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
+        `);
+      
+      const testId = testResult.recordset[0].id;
+
+      for (let i = 0; i < questionIds.length; i++) {
+        const itemReq = new sql.Request(transaction);
+        await itemReq
+          .input('MiniTestID', sql.BigInt, testId)
+          .input('QuestionID', sql.BigInt, questionIds[i])
+          .input('DisplayOrder', sql.Int, i + 1)
+          .query(`
+            INSERT INTO MiniTestItems (MiniTestID, QuestionID, DisplayOrder)
+            VALUES (@MiniTestID, @QuestionID, @DisplayOrder)
+          `);
+      }
+
+      await transaction.commit();
+      return { id: testId, title };
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
+  }
 }
 
 module.exports = AdminService;

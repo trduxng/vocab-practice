@@ -49,6 +49,26 @@ class AdminController {
       next(error);
     }
   }
+
+  // Mini Tests
+  static async getMiniTests(req, res, next) {
+    try {
+      const tests = await AdminService.getMiniTests();
+      res.status(200).json(tests);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async createMiniTest(req, res, next) {
+    try {
+      const adminId = req.user.id;
+      const result = await AdminService.createMiniTest(req.body, adminId);
+      res.status(201).json({ message: 'Tạo Mini Test thành công', data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = AdminController;

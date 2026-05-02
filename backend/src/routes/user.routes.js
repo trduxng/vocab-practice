@@ -8,5 +8,10 @@ router.use(authMiddleware.verifyToken);
 
 router.post('/submit-answer', UserController.submitAnswer);
 router.get('/flashcards', UserController.getFlashcards);
+router.get('/stats', UserController.getStats);
+
+// Mini Tests
+router.get('/minitests', UserController.getMiniTests);
+router.get('/minitests/:id', UserController.getMiniTestDetails);
 
 module.exports = router;

@@ -35,6 +35,35 @@ class UserController {
       next(error);
     }
   }
+
+  static async getStats(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const stats = await UserService.getUserStats(userId);
+      res.status(200).json(stats);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getMiniTests(req, res, next) {
+    try {
+      const tests = await UserService.getMiniTests();
+      res.status(200).json(tests);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getMiniTestDetails(req, res, next) {
+    try {
+      const { id } = req.params;
+      const questions = await UserService.getMiniTestDetails(id);
+      res.status(200).json(questions);
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = UserController;
