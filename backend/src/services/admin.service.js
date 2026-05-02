@@ -5,17 +5,48 @@ class AdminService {
   static async getWords(page = 1, limit = 20) {
     const pool = await poolPromise;
     const offset = (page - 1) * limit;
+    
+    // Fetch main words
     const result = await pool.request()
       .input('Offset', sql.Int, offset)
       .input('Limit', sql.Int, limit)
       .query(`
-        SELECT WordID AS id, Term AS term, Meaning AS meaning, Phonetic AS phonetic, 
-               PartOfSpeechID AS partOfSpeechId, CreatedAt AS createdAt 
-        FROM Words 
-        ORDER BY CreatedAt DESC
+        SELECT w.WordID AS id, w.Term AS term, w.Meaning AS meaning, w.Phonetic AS phonetic, 
+               w.PartOfSpeechID AS partOfSpeechId, p.PartOfSpeechName AS partOfSpeechName,
+               w.CreatedAt AS createdAt 
+        FROM Words w
+        LEFT JOIN PartOfSpeeches p ON w.PartOfSpeechID = p.PartOfSpeechID
+        ORDER BY w.CreatedAt DESC
         OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY
       `);
-    return result.recordset;
+    
+    const words = result.recordset;
+
+    // Fetch related data for each word (Note: In production, optimize this with a JOIN or separate batch query)
+    for (let word of words) {
+      // Topics
+      const topicsResult = await pool.request()
+        .input('WordID', sql.BigInt, word.id)
+        .query(`
+          SELECT t.TopicID AS id, t.TopicName AS name 
+          FROM WordTopics wt
+          JOIN Topics t ON wt.TopicID = t.TopicID
+          WHERE wt.WordID = @WordID
+        `);
+      word.topics = topicsResult.recordset;
+
+      // Examples
+      const examplesResult = await pool.request()
+        .input('WordID', sql.BigInt, word.id)
+        .query(`
+          SELECT ExampleSentenceID AS id, SentenceText AS sentence, SentenceTranslation AS meaning
+          FROM ExampleSentences
+          WHERE WordID = @WordID
+        `);
+      word.examples = examplesResult.recordset;
+    }
+
+    return words;
   }
 
   static async createWord(wordData, adminId) {

@@ -19,6 +19,7 @@ import {
 
 const adminLinks = [
   { icon: LayoutDashboard, label: "Tổng quan", href: "/admin/dashboard" },
+  { icon: BookOpen, label: "Từ vựng", href: "/admin/words" },
   { icon: Users, label: "Học viên", href: "/admin/students" },
   { icon: BookOpen, label: "Khóa học", href: "/admin/courses" },
   { icon: BarChart3, label: "Thống kê", href: "/admin/analytics" },
