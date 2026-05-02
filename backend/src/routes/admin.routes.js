@@ -17,5 +17,6 @@ router.post('/questions', AdminController.createQuestion);
 // Mini Tests
 router.get('/minitests', AdminController.getMiniTests);
 router.post('/minitests', AdminController.createMiniTest);
+router.get('/stats', AdminController.getStats);
 
 module.exports = router;

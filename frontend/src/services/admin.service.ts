@@ -19,5 +19,10 @@ export const adminService = {
   async createQuestion(data: any) {
     const response = await apiClient.post('/admin/questions', data);
     return response.data;
+  },
+
+  async getStats() {
+    const response = await apiClient.get('/admin/stats');
+    return response.data;
   }
 };

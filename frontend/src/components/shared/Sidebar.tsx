@@ -16,6 +16,7 @@ import {
   Brain,
   Home,
   FileText,
+  HelpCircle,
 } from "lucide-react";
 
 const adminLinks = [
@@ -32,6 +33,7 @@ const studentLinks = [
   { icon: LayoutDashboard, label: "Tổng quan", href: "/user/dashboard" },
   { icon: Brain, label: "Học từ vựng", href: "/user/learn" },
   { icon: Target, label: "Luyện tập", href: "/user/practice" },
+  { icon: FileText, label: "Mini Tests", href: "/user/minitests" },
   { icon: Trophy, label: "Thành tích", href: "/user/achievements" },
   { icon: BarChart3, label: "Tiến độ", href: "/user/progress" },
   { icon: Settings, label: "Cài đặt", href: "/user/settings" },
@@ -165,11 +167,6 @@ export default function Sidebar({ role }: SidebarProps) {
         className="absolute -right-3 top-20 w-6 h-6 bg-[#0d1526] border border-white/15 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:border-blue-500/50 transition-all z-10"
       >
         {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
-      </button>
-    </aside>
-  );
-}
-nLeft size={12} />}
       </button>
     </aside>
   );

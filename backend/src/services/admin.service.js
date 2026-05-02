@@ -203,6 +203,22 @@ class AdminService {
       throw error;
     }
   }
+
+  static async getDashboardStats() {
+    const pool = await poolPromise;
+    
+    const studentsResult = await pool.request().query("SELECT COUNT(*) AS total FROM Users WHERE UserRole = 'Learner'");
+    const wordsResult = await pool.request().query("SELECT COUNT(*) AS total FROM Words");
+    const topicsResult = await pool.request().query("SELECT COUNT(*) AS total FROM Topics");
+    const attemptsResult = await pool.request().query("SELECT COUNT(*) AS total FROM ExerciseAttempts");
+
+    return {
+      totalStudents: studentsResult.recordset[0].total,
+      totalWords: wordsResult.recordset[0].total,
+      totalTopics: topicsResult.recordset[0].total,
+      totalAttempts: attemptsResult.recordset[0].total
+    };
+  }
 }
 
 module.exports = AdminService;

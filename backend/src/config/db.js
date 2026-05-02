@@ -4,7 +4,6 @@ const { config } = require('dotenv');
 config(); // Load .env
 
 const serverClean = (process.env.DB_SERVER || '').replace(/"/g, '');
-// Tách lấy host và instance, loại bỏ các phần rỗng (tránh lỗi \\)
 const serverParts = serverClean.split('\\').filter(Boolean);
 const host = serverParts[0];
 const instance = serverParts[1];
@@ -14,9 +13,9 @@ const dbConfig = {
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
   server: host,
-  port: parseInt(process.env.DB_PORT) || 1433,
+  // Bỏ port để dùng Dynamic Port mặc định của SQLEXPRESS
   options: {
-    instanceName: instance,
+    instanceName: instance, 
     encrypt: true,
     trustServerCertificate: true
   },
