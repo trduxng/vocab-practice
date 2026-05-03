@@ -16,6 +16,16 @@ export const adminService = {
     return response.data;
   },
 
+  async deleteWord(id: number) {
+    const response = await apiClient.delete(`/admin/words/${id}`);
+    return response.data;
+  },
+
+  async getQuestionsByWord(wordId: number) {
+    const response = await apiClient.get(`/admin/questions/${wordId}`);
+    return response.data;
+  },
+
   async createQuestion(data: any) {
     const response = await apiClient.post('/admin/questions', data);
     return response.data;
@@ -23,6 +33,21 @@ export const adminService = {
 
   async getStats() {
     const response = await apiClient.get('/admin/stats');
+    return response.data;
+  },
+
+  async getStudents() {
+    const response = await apiClient.get('/admin/students');
+    return response.data;
+  },
+
+  async toggleStudentStatus(id: number) {
+    const response = await apiClient.patch(`/admin/students/${id}/toggle`);
+    return response.data;
+  },
+
+  async getAnalytics() {
+    const response = await apiClient.get('/admin/analytics');
     return response.data;
   }
 };

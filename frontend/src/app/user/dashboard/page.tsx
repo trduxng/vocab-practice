@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import Topbar from "@/src/components/shared/Topbar";
 import { userService } from "@/src/services/user.service";
 import { useAuth } from "@/src/app/context/AuthContext";
+import { Skeleton } from "@/src/components/ui/skeleton";
 import {
   Flame,
   Trophy,
@@ -47,11 +48,11 @@ const StudentDashboard = () => {
     }
   }, [user]);
 
-  if (authLoading || loading) {
-    return <div className="flex items-center justify-center min-h-screen text-white bg-slate-950 font-mono">LOADING SYSTEM...</div>;
+  if (authLoading) {
+    return <div className="flex items-center justify-center min-h-screen text-white bg-slate-950 font-mono">AUTHENTICATING...</div>;
   }
 
-  const progressPct = Math.min(100, Math.round((stats?.totalLearned / 50) * 100)); // Demo goal is 50 words
+  const progressPct = stats ? Math.min(100, Math.round((stats.totalLearned / 50) * 100)) : 0;
 
   return (
     <>
@@ -65,34 +66,48 @@ const StudentDashboard = () => {
       <main className="flex-1 p-6 space-y-5 overflow-auto bg-[#080d1a]">
         {/* Top stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-orange-500/10 border border-orange-500/20 rounded-2xl p-4 flex flex-col gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-linear-to-br from-orange-500 to-red-500 flex items-center justify-center shadow-lg"><Flame size={16} className="text-white" /></div>
-              <div>
-                <p className="text-slate-400 text-xs uppercase font-bold">Streak</p>
-                <p className="text-white font-black text-2xl">{stats?.streak} ngày</p>
-              </div>
-            </div>
-            <div className="bg-violet-500/10 border border-violet-500/20 rounded-2xl p-4 flex flex-col gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-linear-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg"><Brain size={16} className="text-white" /></div>
-              <div>
-                <p className="text-slate-400 text-xs uppercase font-bold">Đã học</p>
-                <p className="text-white font-black text-2xl">{stats?.totalLearned}</p>
-              </div>
-            </div>
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4 flex flex-col gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-linear-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg"><Target size={16} className="text-white" /></div>
-              <div>
-                <p className="text-slate-400 text-xs uppercase font-bold">Chính xác</p>
-                <p className="text-white font-black text-2xl">{stats?.accuracy}%</p>
-              </div>
-            </div>
-            <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex flex-col gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-linear-to-br from-amber-500 to-yellow-500 flex items-center justify-center shadow-lg"><Trophy size={16} className="text-white" /></div>
-              <div>
-                <p className="text-slate-400 text-xs uppercase font-bold">Kinh nghiệm</p>
-                <p className="text-white font-black text-2xl">{stats?.correct * 10} XP</p>
-              </div>
-            </div>
+            {loading ? (
+              [...Array(4)].map((_, i) => (
+                <div key={i} className="bg-white/3 border border-white/5 rounded-2xl p-4 flex flex-col gap-2.5">
+                   <Skeleton className="w-9 h-9 rounded-xl" />
+                   <div className="space-y-2">
+                      <Skeleton className="h-3 w-16" />
+                      <Skeleton className="h-6 w-20" />
+                   </div>
+                </div>
+              ))
+            ) : (
+              <>
+                <div className="bg-orange-500/10 border border-orange-500/20 rounded-2xl p-4 flex flex-col gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-linear-to-br from-orange-500 to-red-500 flex items-center justify-center shadow-lg"><Flame size={16} className="text-white" /></div>
+                  <div>
+                    <p className="text-slate-400 text-xs uppercase font-bold">Streak</p>
+                    <p className="text-white font-black text-2xl">{stats?.streak} ngày</p>
+                  </div>
+                </div>
+                <div className="bg-violet-500/10 border border-violet-500/20 rounded-2xl p-4 flex flex-col gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-linear-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg"><Brain size={16} className="text-white" /></div>
+                  <div>
+                    <p className="text-slate-400 text-xs uppercase font-bold">Đã học</p>
+                    <p className="text-white font-black text-2xl">{stats?.totalLearned}</p>
+                  </div>
+                </div>
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4 flex flex-col gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-linear-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg"><Target size={16} className="text-white" /></div>
+                  <div>
+                    <p className="text-slate-400 text-xs uppercase font-bold">Chính xác</p>
+                    <p className="text-white font-black text-2xl">{stats?.accuracy}%</p>
+                  </div>
+                </div>
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex flex-col gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-linear-to-br from-amber-500 to-yellow-500 flex items-center justify-center shadow-lg"><Trophy size={16} className="text-white" /></div>
+                  <div>
+                    <p className="text-slate-400 text-xs uppercase font-bold">Kinh nghiệm</p>
+                    <p className="text-white font-black text-2xl">{stats?.correct * 10} XP</p>
+                  </div>
+                </div>
+              </>
+            )}
         </div>
 
         {/* Main content row */}
@@ -104,7 +119,7 @@ const StudentDashboard = () => {
               <div className="flex items-center justify-between mb-8">
                 <div>
                   <h3 className="text-white font-black text-xl uppercase tracking-tighter">Học tập ngay</h3>
-                  <p className="text-slate-500 text-xs mt-1">Hệ thống đã chuẩn bị {flashcards.length} từ vựng cho bạn</p>
+                  <p className="text-slate-500 text-xs mt-1">Hệ thống đã chuẩn bị {loading ? '...' : flashcards.length} từ vựng cho bạn</p>
                 </div>
                 <button 
                   onClick={() => router.push('/user/learn')}
@@ -118,7 +133,7 @@ const StudentDashboard = () => {
               <div className="mb-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-slate-400 text-[10px] uppercase font-bold tracking-widest">Mục tiêu tuần</span>
-                  <span className="text-white font-bold text-xs">{stats?.totalLearned}/50 từ</span>
+                  <span className="text-white font-bold text-xs">{loading ? '...' : stats?.totalLearned}/50 từ</span>
                 </div>
                 <div className="h-2 bg-white/5 rounded-full overflow-hidden border border-white/5 p-[1px]">
                   <div className="h-full rounded-full bg-linear-to-r from-blue-600 to-cyan-400 transition-all duration-1000 shadow-glow" style={{ width: `${progressPct}%` }} />
@@ -127,7 +142,16 @@ const StudentDashboard = () => {
 
               {/* Quick Word Preview */}
               <div className="space-y-2 mt-8">
-                {flashcards.slice(0, 3).map((w, i) => (
+                {loading ? (
+                   [...Array(3)].map((_, i) => (
+                    <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-white/2 border border-white/5">
+                       <Skeleton className="w-8 h-8 rounded-lg" />
+                       <div className="flex-1 space-y-1">
+                          <Skeleton className="h-4 w-32" />
+                       </div>
+                    </div>
+                  ))
+                ) : flashcards.slice(0, 3).map((w, i) => (
                   <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-white/2 border border-white/5 hover:bg-white/5 transition-colors group cursor-default">
                     <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-blue-500/10 border border-blue-500/20"><BookOpen size={14} className="text-blue-400" /></div>
                     <div className="flex-1">
@@ -140,7 +164,7 @@ const StudentDashboard = () => {
                     <ChevronRight size={14} className="text-slate-700 group-hover:text-blue-400" />
                   </div>
                 ))}
-                {flashcards.length === 0 && <div className="p-10 text-center text-slate-600 text-sm italic">Hôm nay bạn đã thuộc hết từ vựng rồi!</div>}
+                {!loading && flashcards.length === 0 && <div className="p-10 text-center text-slate-600 text-sm italic">Hôm nay bạn đã thuộc hết từ vựng rồi!</div>}
               </div>
             </div>
 
@@ -162,7 +186,9 @@ const StudentDashboard = () => {
                 <Trophy size={16} className="text-amber-500" />
               </div>
               <div className="grid grid-cols-4 gap-3">
-                {stats?.achievements?.map((a: any) => (
+                {loading ? (
+                   [...Array(5)].map((_, i) => <Skeleton key={i} className="aspect-square rounded-2xl" />)
+                ) : stats?.achievements?.map((a: any) => (
                   <div key={a.id} className="group relative" title={a.label}>
                     <div className={`aspect-square rounded-2xl flex items-center justify-center text-2xl transition-all border ${a.unlocked ? 'bg-amber-500/10 border-amber-500/30' : 'bg-white/2 border-white/5 grayscale opacity-20'}`}>
                       {a.icon}
@@ -173,10 +199,10 @@ const StudentDashboard = () => {
               <div className="mt-8 pt-6 border-t border-white/5">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Cấp độ tiếp theo</span>
-                  <span className="text-white text-[10px] font-black uppercase tracking-widest">LV.{(Math.floor(stats?.correct / 10)) + 1}</span>
+                  <span className="text-white text-[10px] font-black uppercase tracking-widest">LV.{loading ? '...' : (Math.floor(stats?.correct / 10)) + 1}</span>
                 </div>
                 <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                   <div className="h-full bg-amber-500 shadow-glow" style={{ width: `${(stats?.correct % 10) * 10}%` }} />
+                   <div className="h-full bg-amber-500 shadow-glow" style={{ width: `${loading ? 0 : (stats?.correct % 10) * 10}%` }} />
                 </div>
               </div>
             </div>
@@ -190,7 +216,7 @@ const StudentDashboard = () => {
               <div className="space-y-3">
                  <div className="flex justify-between items-center p-3 rounded-xl bg-violet-500/10 border border-violet-500/20">
                     <span className="text-xs text-violet-300 font-bold uppercase">Cần ôn ngay</span>
-                    <span className="text-white font-black">{flashcards.length}</span>
+                    <span className="text-white font-black">{loading ? '...' : flashcards.length}</span>
                  </div>
                  <p className="text-[10px] text-slate-500 leading-relaxed italic">Hệ thống tính toán thời điểm vàng để bạn không bao giờ quên từ vựng.</p>
               </div>

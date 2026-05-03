@@ -24,5 +24,10 @@ export const userService = {
   async getMiniTestDetails(id: string) {
     const response = await apiClient.get(`/user/minitests/${id}`);
     return response.data;
+  },
+
+  async updateProfile(data: any) {
+    const response = await apiClient.put('/user/profile', data);
+    return response.data;
   }
 };

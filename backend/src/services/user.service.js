@@ -107,6 +107,15 @@ class UserService {
       `);
     return result.recordset;
   }
+
+  static async updateProfile(userId, fullName) {
+    const pool = await poolPromise;
+    await pool.request()
+      .input('UserID', sql.BigInt, userId)
+      .input('FullName', sql.NVarChar(200), fullName)
+      .query('UPDATE Users SET FullName = @FullName, UpdatedAt = SYSDATETIMEOFFSET() WHERE UserID = @UserID');
+    return { id: userId, fullName };
+  }
 }
 
 module.exports = UserService;

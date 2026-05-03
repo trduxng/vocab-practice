@@ -6,11 +6,12 @@ import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/src/components/ui/card';
 import { Textarea } from '@/src/components/ui/textarea';
-import { HelpCircle, Plus, Search, BookOpen } from 'lucide-react';
+import { HelpCircle, Plus, Search, BookOpen, Trash2, ListChecks } from 'lucide-react';
 import Topbar from '@/src/components/shared/Topbar';
 
 export default function AdminQuestionsPage() {
   const [words, setWords] = useState<any[]>([]);
+  const [existingQuestions, setExistingQuestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedWord, setSelectedWord] = useState<any>(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -28,6 +29,12 @@ export default function AdminQuestionsPage() {
     fetchWords();
   }, []);
 
+  useEffect(() => {
+    if (selectedWord) {
+      fetchExistingQuestions();
+    }
+  }, [selectedWord]);
+
   const fetchWords = async () => {
     setLoading(true);
     try {
@@ -37,6 +44,15 @@ export default function AdminQuestionsPage() {
       console.error("Failed to fetch words", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchExistingQuestions = async () => {
+    try {
+      const data = await adminService.getQuestionsByWord(selectedWord.id);
+      setExistingQuestions(data);
+    } catch (error) {
+      console.error("Failed to fetch existing questions", error);
     }
   };
 
@@ -59,6 +75,7 @@ export default function AdminQuestionsPage() {
         correctAnswer: '',
         explanation: ''
       });
+      fetchExistingQuestions();
       alert("Tạo câu hỏi thành công!");
     } catch (error) {
       console.error("Failed to create question", error);
@@ -79,21 +96,21 @@ export default function AdminQuestionsPage() {
         <div className="lg:col-span-1 space-y-4">
           <div className="flex items-center gap-2 mb-2">
             <BookOpen size={18} className="text-blue-400" />
-            <h2 className="text-white font-bold">Chọn từ vựng</h2>
+            <h2 className="text-white font-bold text-sm uppercase tracking-widest">Chọn từ vựng</h2>
           </div>
           <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
-            <Input className="pl-9 bg-white/5 border-white/10 text-xs text-white" placeholder="Tìm từ..." />
+            <Input className="pl-9 bg-white/5 border-white/10 text-xs text-white rounded-xl" placeholder="Tìm từ..." />
           </div>
           <div className="space-y-2 max-h-[calc(100vh-250px)] overflow-y-auto pr-2 no-scrollbar">
             {words.map((w) => (
               <div 
                 key={w.id} 
                 onClick={() => { setSelectedWord(w); setShowAddForm(false); }}
-                className={`p-3 rounded-xl border cursor-pointer transition-all ${selectedWord?.id === w.id ? 'bg-blue-600/20 border-blue-500/50 text-white' : 'bg-white/3 border-white/5 text-slate-400 hover:bg-white/5'}`}
+                className={`p-4 rounded-2xl border cursor-pointer transition-all ${selectedWord?.id === w.id ? 'bg-blue-600/20 border-blue-500/50 text-white' : 'bg-white/3 border-white/5 text-slate-400 hover:bg-white/5'}`}
               >
                 <div className="font-bold text-sm">{w.term}</div>
-                <div className="text-[10px] opacity-60">{w.meaning}</div>
+                <div className="text-[10px] opacity-60 mt-1">{w.meaning}</div>
               </div>
             ))}
           </div>
@@ -103,56 +120,70 @@ export default function AdminQuestionsPage() {
         <div className="lg:col-span-2 space-y-6">
           {selectedWord ? (
             <>
-              <div className="flex justify-between items-center bg-white/3 p-4 rounded-2xl border border-white/8">
+              <div className="flex justify-between items-center bg-white/3 p-6 rounded-3xl border border-white/8 shadow-xl shadow-black/20">
                 <div>
-                  <h3 className="text-white font-bold text-xl">{selectedWord.term}</h3>
-                  <p className="text-slate-500 text-sm">{selectedWord.partOfSpeechName} · {selectedWord.meaning}</p>
+                  <h3 className="text-white font-black text-2xl tracking-tighter">{selectedWord.term}</h3>
+                  <p className="text-slate-500 text-sm font-medium">{selectedWord.partOfSpeechName} · {selectedWord.meaning}</p>
                 </div>
                 {!showAddForm && (
-                  <Button onClick={() => setShowAddForm(true)} className="bg-blue-600 hover:bg-blue-700 gap-2">
-                    <Plus size={16} /> Thêm câu hỏi
+                  <Button onClick={() => setShowAddForm(true)} className="bg-blue-600 hover:bg-blue-700 font-bold uppercase text-[10px] tracking-widest px-6 rounded-xl gap-2">
+                    <Plus size={14} /> Thêm câu hỏi
                   </Button>
                 )}
               </div>
 
               {showAddForm && (
-                <Card className="bg-white/5 border-white/10 text-white">
-                  <CardHeader>
-                    <CardTitle className="text-lg">Câu hỏi mới cho "{selectedWord.term}"</CardTitle>
+                <Card className="bg-white/5 border-white/10 text-white rounded-[32px] overflow-hidden border-blue-500/30">
+                  <CardHeader className="bg-blue-600/10 border-b border-white/5">
+                    <CardTitle className="text-sm uppercase tracking-widest font-black text-blue-400">Thiết kế câu hỏi mới</CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <form onSubmit={handleAddQuestion} className="space-y-5">
-                      <div className="space-y-2">
-                        <label className="text-xs text-slate-400">Loại câu hỏi</label>
-                        <select 
-                          className="w-full h-9 bg-white/5 border border-white/10 px-3 text-sm text-white outline-none rounded-lg"
-                          value={newQuestion.questionType}
-                          onChange={e => setNewQuestion({...newQuestion, questionType: e.target.value})}
-                        >
-                          <option value="MCQ">Trắc nghiệm (MCQ)</option>
-                          <option value="FillBlank">Điền vào chỗ trống</option>
-                          <option value="Dictation">Chính tả</option>
-                        </select>
+                  <CardContent className="p-8">
+                    <form onSubmit={handleAddQuestion} className="space-y-6">
+                      <div className="grid grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Loại câu hỏi</label>
+                          <select 
+                            className="w-full h-11 bg-white/5 border border-white/10 px-4 text-sm text-white outline-none rounded-xl focus:border-blue-500/50 transition-all"
+                            value={newQuestion.questionType}
+                            onChange={e => setNewQuestion({...newQuestion, questionType: e.target.value})}
+                          >
+                            <option value="MCQ">Trắc nghiệm (MCQ)</option>
+                            <option value="FillBlank">Điền vào chỗ trống</option>
+                            <option value="Dictation">Chính tả</option>
+                          </select>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Đáp án chính xác</label>
+                          <Input 
+                            value={newQuestion.correctAnswer}
+                            onChange={e => setNewQuestion({...newQuestion, correctAnswer: e.target.value})}
+                            className="bg-white/5 border-white/10 h-11 px-4 rounded-xl" 
+                            placeholder="VD: Ambiguous"
+                            required
+                          />
+                        </div>
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-xs text-slate-400">Nội dung câu hỏi</label>
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Nội dung câu hỏi</label>
                         <Textarea 
                           value={newQuestion.questionText}
                           onChange={e => setNewQuestion({...newQuestion, questionText: e.target.value})}
-                          placeholder="VD: What is the meaning of this word?"
-                          className="bg-white/5 border-white/10 min-h-[80px]"
+                          placeholder="VD: What is the correct translation of this word?"
+                          className="bg-white/5 border-white/10 min-h-[100px] p-4 rounded-xl text-lg font-medium"
                           required
                         />
                       </div>
 
                       {newQuestion.questionType === 'MCQ' && (
-                        <div className="space-y-3">
-                          <label className="text-xs text-slate-400">Các lựa chọn</label>
-                          <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-4 pt-4">
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                            <ListChecks size={14} className="text-blue-400" /> Các phương án lựa chọn
+                          </label>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             {newQuestion.options.map((opt, idx) => (
-                              <div key={idx} className="flex items-center gap-2">
-                                <span className="text-slate-500 font-bold text-xs">{String.fromCharCode(65 + idx)}.</span>
+                              <div key={idx} className="flex items-center gap-3">
+                                <span className="w-8 h-8 flex items-center justify-center bg-white/5 border border-white/10 rounded-lg font-black text-[10px] text-slate-500">{String.fromCharCode(65 + idx)}</span>
                                 <Input 
                                   value={opt}
                                   onChange={e => {
@@ -160,7 +191,7 @@ export default function AdminQuestionsPage() {
                                     opts[idx] = e.target.value;
                                     setNewQuestion({...newQuestion, options: opts});
                                   }}
-                                  className="bg-white/5 border-white/10 text-xs" 
+                                  className="bg-white/5 border-white/10 text-sm h-11 px-4 rounded-xl flex-1" 
                                   placeholder={`Lựa chọn ${idx + 1}`}
                                   required
                                 />
@@ -170,46 +201,57 @@ export default function AdminQuestionsPage() {
                         </div>
                       )}
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <label className="text-xs text-slate-400">Đáp án đúng</label>
-                          <Input 
-                            value={newQuestion.correctAnswer}
-                            onChange={e => setNewQuestion({...newQuestion, correctAnswer: e.target.value})}
-                            className="bg-white/5 border-white/10" 
-                            placeholder="Nhập chính xác đáp án"
-                            required
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-xs text-slate-400">Giải thích (nếu có)</label>
-                          <Input 
-                            value={newQuestion.explanation}
-                            onChange={e => setNewQuestion({...newQuestion, explanation: e.target.value})}
-                            className="bg-white/5 border-white/10" 
-                          />
-                        </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Giải thích bổ sung</label>
+                        <Input 
+                          value={newQuestion.explanation}
+                          onChange={e => setNewQuestion({...newQuestion, explanation: e.target.value})}
+                          className="bg-white/5 border-white/10 h-11 px-4 rounded-xl" 
+                          placeholder="VD: Word refers to something unclear..."
+                        />
                       </div>
 
-                      <div className="flex justify-end gap-3 pt-2">
-                        <Button type="button" variant="ghost" onClick={() => setShowAddForm(false)}>Hủy</Button>
-                        <Button type="submit" className="bg-blue-600 hover:bg-blue-700">Lưu câu hỏi</Button>
+                      <div className="flex justify-end gap-3 pt-6">
+                        <Button type="button" variant="ghost" onClick={() => setShowAddForm(false)} className="px-8 h-11 rounded-xl text-slate-400">Hủy bỏ</Button>
+                        <Button type="submit" className="bg-blue-600 hover:bg-blue-700 px-10 h-11 rounded-xl font-bold">Lưu câu hỏi</Button>
                       </div>
                     </form>
                   </CardContent>
                 </Card>
               )}
 
-              {/* Placeholder for existing questions list */}
-              <div className="py-10 text-center text-slate-600 border border-dashed border-white/10 rounded-2xl">
-                <HelpCircle size={32} className="mx-auto mb-2 opacity-20" />
-                <p className="text-sm">Danh sách câu hỏi đã tạo sẽ hiện ở đây.</p>
+              {/* List existing questions */}
+              <div className="space-y-4">
+                 <h4 className="text-white font-bold text-xs uppercase tracking-widest flex items-center gap-2">
+                    <ListChecks size={16} className="text-blue-400" /> Câu hỏi hiện có ({existingQuestions.length})
+                 </h4>
+                 <div className="grid grid-cols-1 gap-3">
+                    {existingQuestions.map((q) => (
+                      <div key={q.id} className="p-5 bg-white/3 border border-white/5 rounded-2xl group hover:border-white/10 transition-all">
+                        <div className="flex justify-between items-start mb-3">
+                           <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 font-bold border border-blue-500/20">{q.questionType}</span>
+                           <button className="text-slate-700 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={14}/></button>
+                        </div>
+                        <p className="text-white text-sm font-semibold mb-2">{q.questionText}</p>
+                        <p className="text-[10px] text-green-400 font-bold uppercase tracking-tighter">Đáp án: {q.correctAnswer}</p>
+                      </div>
+                    ))}
+                    {existingQuestions.length === 0 && !showAddForm && (
+                      <div className="py-20 text-center text-slate-700 border border-dashed border-white/5 rounded-[32px]">
+                         <HelpCircle size={40} className="mx-auto mb-3 opacity-10" />
+                         <p className="text-sm">Chưa có câu hỏi nào cho từ này.</p>
+                      </div>
+                    )}
+                 </div>
               </div>
             </>
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-slate-600 gap-3 border border-dashed border-white/10 rounded-3xl">
-              <HelpCircle size={48} className="opacity-10" />
-              <p>Chọn một từ vựng bên trái để quản lý câu hỏi</p>
+            <div className="h-full flex flex-col items-center justify-center text-slate-700 gap-4 border border-dashed border-white/8 rounded-[40px] bg-white/[0.01]">
+              <HelpCircle size={64} className="opacity-10" />
+              <div className="text-center">
+                 <p className="font-black uppercase tracking-tighter text-lg mb-1">Hệ thống câu hỏi</p>
+                 <p className="text-xs text-slate-500 max-w-[200px]">Vui lòng chọn một từ vựng bên trái để bắt đầu quản lý nội dung.</p>
+              </div>
             </div>
           )}
         </div>

@@ -20,25 +20,55 @@ const userRoutes = require('./routes/user.routes');
 const app = express();
 const port = process.env.PORT || 3001;
 
+// Global Error Handlers to prevent crash
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception thrown:', err);
+});
+
 // Middlewares
-app.use(helmet());
-app.use(cors());
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+}));
+app.use(cors({
+  origin: true, 
+  credentials: true
+}));
 app.use(express.json());
 
+// Request Logger
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
+
 // Routes
+app.get('/api/health', async (req, res) => {
+  const status = {
+    uptime: process.uptime(),
+    message: 'OK',
+    timestamp: Date.now(),
+    db: 'Checking...'
+  };
+  try {
+    const pool = await poolPromise;
+    await pool.request().query('SELECT 1');
+    status.db = 'Connected';
+    res.status(200).json(status);
+  } catch (e) {
+    status.db = 'Disconnected';
+    status.error = e.message;
+    res.status(500).json(status);
+  }
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/user', userRoutes);
-
-app.get('/health', async (req, res) => {
-  try {
-    const pool = await poolPromise;
-    res.status(200).json({ status: 'OK', db: 'Connected' });
-  } catch (error) {
-    res.status(500).json({ status: 'ERROR', db: 'Disconnected' });
-  }
-});
 
 // Error Handler Middleware
 app.use(errorHandler);
@@ -46,3 +76,20 @@ app.use(errorHandler);
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
+
+// Graceful shutdown
+const gracefulShutdown = async () => {
+  console.log('Shutting down gracefully...');
+  try {
+    const pool = await poolPromise;
+    await pool.close();
+    console.log('Database pool closed.');
+    process.exit(0);
+  } catch (err) {
+    console.error('Error during shutdown:', err);
+    process.exit(1);
+  }
+};
+
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);

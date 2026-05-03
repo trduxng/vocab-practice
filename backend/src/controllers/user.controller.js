@@ -64,6 +64,17 @@ class UserController {
       next(error);
     }
   }
+
+  static async updateProfile(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const { fullName } = req.body;
+      const result = await UserService.updateProfile(userId, fullName);
+      res.status(200).json({ message: 'Cập nhật thành công', data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = UserController;

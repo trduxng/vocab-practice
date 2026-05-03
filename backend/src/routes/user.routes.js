@@ -14,4 +14,6 @@ router.get('/stats', UserController.getStats);
 router.get('/minitests', UserController.getMiniTests);
 router.get('/minitests/:id', UserController.getMiniTestDetails);
 
+router.put('/profile', UserController.updateProfile);
+
 module.exports = router;

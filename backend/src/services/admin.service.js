@@ -128,7 +128,44 @@ class AdminService {
     return result.rowsAffected[0] > 0;
   }
 
+  static async deleteWord(wordId) {
+    const pool = await poolPromise;
+    // Note: Due to CASCADE in ExampleSentences and WordTopics, 
+    // we only need to delete from Words and Questions.
+    // However, MiniTestItems might reference Questions.
+    
+    const transaction = new sql.Transaction(pool);
+    try {
+      await transaction.begin();
+      const request = new sql.Request(transaction);
+      
+      // Delete from Words (cascades to WordTopics, ExampleSentences, Questions)
+      await request
+        .input('WordID', sql.BigInt, wordId)
+        .query('DELETE FROM Words WHERE WordID = @WordID');
+
+      await transaction.commit();
+      return true;
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
+  }
+
   // --- QUESTIONS ---
+  static async getQuestionsByWord(wordId) {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('WordID', sql.BigInt, wordId)
+      .query(`
+        SELECT QuestionID AS id, QuestionType AS questionType, QuestionText AS questionText, 
+               OptionsJson AS optionsJson, CorrectAnswer AS correctAnswer, Explanation AS explanation
+        FROM Questions
+        WHERE WordID = @WordID
+      `);
+    return result.recordset;
+  }
+
   static async createQuestion(questionData, adminId) {
     const { wordId, questionType, questionText, optionsJson, correctAnswer, explanation } = questionData;
     const pool = await poolPromise;
@@ -217,6 +254,56 @@ class AdminService {
       totalWords: wordsResult.recordset[0].total,
       totalTopics: topicsResult.recordset[0].total,
       totalAttempts: attemptsResult.recordset[0].total
+    };
+  }
+
+  static async getStudents() {
+    const pool = await poolPromise;
+    const result = await pool.request().query(`
+      SELECT u.UserID AS id, u.FullName AS fullName, u.Email AS email, u.IsActive AS isActive, u.CreatedAt AS joinedAt,
+             (SELECT COUNT(*) FROM UserWordProgress WHERE UserID = u.UserID AND MasteryLevel >= 8) AS masteredWords,
+             (SELECT COUNT(*) FROM UserWordProgress WHERE UserID = u.UserID) AS totalWords
+      FROM Users u
+      WHERE u.UserRole = 'Learner'
+      ORDER BY u.CreatedAt DESC
+    `);
+    return result.recordset;
+  }
+
+  static async toggleUserStatus(userId) {
+    const pool = await poolPromise;
+    await pool.request()
+      .input('UserID', sql.BigInt, userId)
+      .query('UPDATE Users SET IsActive = CASE WHEN IsActive = 1 THEN 0 ELSE 1 END, UpdatedAt = SYSDATETIMEOFFSET() WHERE UserID = @UserID');
+    return true;
+  }
+
+  static async getAnalyticsData() {
+    const pool = await poolPromise;
+    
+    // Fetch last 7 days of activity
+    const activityResult = await pool.request().query(`
+      SELECT CAST(AttemptedAt AS DATE) AS date, COUNT(*) AS count
+      FROM ExerciseAttempts
+      WHERE AttemptedAt >= DATEADD(day, -7, SYSDATETIMEOFFSET())
+      GROUP BY CAST(AttemptedAt AS DATE)
+      ORDER BY date ASC
+    `);
+
+    // Word distribution by Part of Speech
+    const distributionResult = await pool.request().query(`
+      SELECT p.PartOfSpeechName AS name, COUNT(w.WordID) AS value
+      FROM PartOfSpeeches p
+      LEFT JOIN Words w ON p.PartOfSpeechID = w.PartOfSpeechID
+      GROUP BY p.PartOfSpeechName
+    `);
+
+    return {
+      dailyTrends: activityResult.recordset.map(r => ({
+        day: new Date(r.date).toLocaleDateString('vi-VN', { weekday: 'short' }),
+        attempts: r.count
+      })),
+      wordDistribution: distributionResult.recordset
     };
   }
 }

@@ -39,7 +39,27 @@ class AdminController {
     }
   }
 
+  static async deleteWord(req, res, next) {
+    try {
+      const { id } = req.params;
+      await AdminService.deleteWord(id);
+      res.status(200).json({ message: 'Xóa từ vựng thành công' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   // Questions
+  static async getQuestionsByWord(req, res, next) {
+    try {
+      const { wordId } = req.params;
+      const questions = await AdminService.getQuestionsByWord(wordId);
+      res.status(200).json(questions);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async createQuestion(req, res, next) {
     try {
       const adminId = req.user.id;
@@ -74,6 +94,34 @@ class AdminController {
     try {
       const stats = await AdminService.getDashboardStats();
       res.status(200).json(stats);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getStudents(req, res, next) {
+    try {
+      const students = await AdminService.getStudents();
+      res.status(200).json(students);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async toggleStudentStatus(req, res, next) {
+    try {
+      const { id } = req.params;
+      await AdminService.toggleUserStatus(id);
+      res.status(200).json({ message: 'Cập nhật trạng thái thành công' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getAnalytics(req, res, next) {
+    try {
+      const data = await AdminService.getAnalyticsData();
+      res.status(200).json(data);
     } catch (error) {
       next(error);
     }
