@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  # Database
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: vocaboost-db
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=YourStrongPassword123
+    ports:
+      - "1433:1433"
+
+  # Backend API
+  backend:
+    build: ./backend
+    container_name: vocaboost-api
+    environment:
+      - PORT=3001
+      - DB_USER=sa
+      - DB_PASSWORD=YourStrongPassword123
+      - DB_SERVER=sqlserver
+      - DB_NAME=ToeicVocabularyPlatform
+      - JWT_SECRET=your_production_jwt_secret
+    ports:
+      - "3001:3001"
+    depends_on:
+      - sqlserver
+
+  # Frontend Web
+  frontend:
+    build: ./frontend
+    container_name: vocaboost-web
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:3001/api
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend

@@ -62,12 +62,24 @@ class UserService {
         ORDER BY uwp.MasteryLevel ASC
       `);
 
-    return {
+    // 4. Recent attempts
+    const recentAttemptsResult = await pool.request()
+      .input('UserID', sql.BigInt, userId)
+      .query(`
+        SELECT TOP 10 ea.SubmittedAnswer AS answer, ea.IsCorrect AS isCorrect, ea.AttemptedAt AS date, w.Term AS term
+        FROM ExerciseAttempts ea
+        JOIN Words w ON ea.WordID = w.WordID
+        WHERE ea.UserID = @UserID
+        ORDER BY ea.AttemptedAt DESC
+      `);
+
+    const stats = {
       totalLearned: learnedResult.recordset[0].total,
       accuracy: Math.round(accuracyResult.recordset[0].accuracy || 0),
       correct: accuracyResult.recordset[0].correct || 0,
       wrong: accuracyResult.recordset[0].wrong || 0,
       weakWords: weakWordsResult.recordset,
+      recentAttempts: recentAttemptsResult.recordset,
       streak: 5,
       achievements: [
         { id: 1, icon: "🌱", label: "Mới bắt đầu", unlocked: learnedResult.recordset[0].total > 0 },
