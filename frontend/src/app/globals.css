@@ -160,7 +160,7 @@
   }
 
   .gradient-text {
-    @apply bg-gradient-to-r from-brand-400 to-cyan-400 bg-clip-text text-transparent;
+    @apply bg-linear-to-r from-brand-400 to-cyan-400 bg-clip-text text-transparent;
   }
 
   .nav-link {

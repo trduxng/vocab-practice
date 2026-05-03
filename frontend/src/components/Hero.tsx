@@ -1,6 +1,7 @@
 "use client";
 import { ArrowRight, Play, Star, Zap, TrendingUp, Brain } from "lucide-react";
 import { useEffect, useRef } from "react";
+import Link from "next/link";
 
 const floatingWords = [
   {
@@ -119,20 +120,20 @@ export default function Hero() {
           className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12 reveal"
           style={{ animationDelay: "0.3s" }}
         >
-          <a
-            href="#"
+          <Link
+            href="/register"
             className="btn-primary text-base px-8 py-4 w-full sm:w-auto justify-center"
           >
             Bắt đầu học miễn phí
             <ArrowRight size={18} />
-          </a>
-          <a
+          </Link>
+          <Link
             href="#"
             className="btn-secondary text-base px-8 py-4 w-full sm:w-auto justify-center"
           >
             <Play size={16} className="fill-white" />
             Xem demo
-          </a>
+          </Link>
         </div>
 
         {/* Social proof */}

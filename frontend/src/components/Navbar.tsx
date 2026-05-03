@@ -1,6 +1,8 @@
+// vocab-practice/frontend/src/components/Navbar.tsx
 "use client";
 import { useState, useEffect } from "react";
 import { BookOpen, Menu, X, Zap } from "lucide-react";
+import Link from "next/link";
 
 const navLinks = [
   { label: "Tính năng", href: "#features" },
@@ -32,7 +34,7 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <a href="#" className="flex items-center gap-2.5 group">
-            <div className="w-8 h-8 bg-gradient-to-br from-brand-500 to-cyan-500 rounded-lg flex items-center justify-center shadow-glow group-hover:scale-110 transition-transform">
+            <div className="w-8 h-8 bg-linear-to-br from-brand-500 to-cyan-500 rounded-lg flex items-center justify-center shadow-glow group-hover:scale-110 transition-transform">
               <BookOpen size={16} className="text-white" />
             </div>
             <span className="font-display font-bold text-lg text-white tracking-tight">
@@ -55,13 +57,13 @@ export default function Navbar() {
 
           {/* CTA */}
           <div className="hidden md:flex items-center gap-3">
-            <a href="#" className="nav-link px-4 py-2">
+            <Link href="/login" className="nav-link px-4 py-2">
               Đăng nhập
-            </a>
-            <a href="#" className="btn-primary text-sm py-2.5 px-5">
+            </Link>
+            <Link href="/register" className="btn-primary text-sm py-2.5 px-5">
               <Zap size={15} />
               Bắt đầu miễn phí
-            </a>
+            </Link>
           </div>
 
           {/* Mobile hamburger */}
@@ -89,12 +91,15 @@ export default function Navbar() {
               </a>
             ))}
             <div className="pt-3 mt-2 border-t border-white/10 flex flex-col gap-2">
-              <a href="#" className="nav-link px-4 py-2.5 text-center">
+              <Link href="/login" className="nav-link px-4 py-2.5 text-center">
                 Đăng nhập
-              </a>
-              <a href="#" className="btn-primary text-sm justify-center">
+              </Link>
+              <Link
+                href="/register"
+                className="btn-primary text-sm justify-center"
+              >
                 <Zap size={15} /> Bắt đầu miễn phí
-              </a>
+              </Link>
             </div>
           </nav>
         </div>
