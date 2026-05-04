@@ -56,16 +56,6 @@ const UserPractice = () => {
     ? selected === current?.meaning 
     : selected?.toLowerCase().trim() === current?.term?.toLowerCase().trim();
 
-  useEffect(() => {
-    if (checked || !current) return;
-    if (timeLeft <= 0) {
-      handleCheck(true);
-      return;
-    }
-    const timer = setTimeout(() => setTimeLeft(t => t - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [timeLeft, checked, current]);
-
   const handleCheck = async (isTimeout = false) => {
     if (!current || checked) return;
     const correct = !isTimeout && isCorrect;
@@ -87,6 +77,16 @@ const UserPractice = () => {
       console.error("Failed to submit answer", error);
     }
   };
+
+  useEffect(() => {
+    if (checked || !current) return;
+    if (timeLeft <= 0) {
+      handleCheck(true);
+      return;
+    }
+    const timer = setTimeout(() => setTimeLeft(t => t - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [timeLeft, checked, current]);
 
   const next = () => {
     if (index < questions.length - 1) {

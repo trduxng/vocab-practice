@@ -23,7 +23,17 @@ const verifyAdmin = (req, res, next) => {
   next();
 };
 
+const checkPermission = (permissionCode) => {
+  return (req, res, next) => {
+    if (!req.user || !req.user.permissions || !req.user.permissions.includes(permissionCode)) {
+      return res.status(403).json({ message: `Bạn không có quyền thực hiện hành động này (${permissionCode})` });
+    }
+    next();
+  };
+};
+
 module.exports = {
   verifyToken,
-  verifyAdmin
+  verifyAdmin,
+  checkPermission
 };

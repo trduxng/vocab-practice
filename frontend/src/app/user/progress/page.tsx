@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { userService } from "@/src/services/user.service";
 import { useAuth } from "@/src/app/context/AuthContext";
 import Topbar from "@/src/components/shared/Topbar";
-import { Card, CardContent } from "@/src/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/src/components/ui/card";
 import { TrendingUp, BookOpen, Target, Flame, Brain, AlertCircle } from "lucide-react";
 
 const UserProgress = () => {
@@ -23,90 +23,57 @@ const UserProgress = () => {
         setLoading(false);
       }
     };
-
-    if (user) {
-      fetchStats();
-    }
+    if (user) fetchStats();
   }, [user]);
 
-  if (authLoading || loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-[#0a0f1e] text-white">Đang tổng hợp dữ liệu...</div>;
-  }
+  if (authLoading || loading) return <div className="min-h-screen flex items-center justify-center bg-[#080d1a] text-white">Đang tải báo cáo...</div>;
 
   return (
-    <div className="flex-1 flex flex-col bg-[#0a0f1e]">
+    <div className="flex-1 flex flex-col bg-[#080d1a]">
       <Topbar title="Tiến độ học tập" role="student" userName={user?.fullName} />
       
-      <main className="p-6 space-y-8 overflow-auto max-w-6xl mx-auto w-full">
-        {/* OVERVIEW */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="bg-white/5 border-white/10">
-            <CardContent className="p-6 text-center">
-              <BookOpen className="mx-auto mb-2 text-blue-400" size={24} />
-              <p className="text-slate-400 text-xs uppercase font-bold tracking-widest">Đã học</p>
-              <p className="text-3xl font-black text-white">{stats.totalLearned}</p>
-              <p className="text-[10px] text-slate-500 mt-1">từ vựng</p>
-            </CardContent>
-          </Card>
+      <main className="p-6 space-y-6 overflow-auto bg-[#080d1a]">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+           {/* STAT CARDS */}
+           <Card className="bg-white/5 border-white/10 p-6 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-400">
+                 <TrendingUp size={24} />
+              </div>
+              <div>
+                 <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest">Độ chính xác</p>
+                 <p className="text-white text-2xl font-black">{stats?.accuracy}%</p>
+              </div>
+           </Card>
 
-          <Card className="bg-white/5 border-white/10">
-            <CardContent className="p-6 text-center">
-              <Target className="mx-auto mb-2 text-green-400" size={24} />
-              <p className="text-slate-400 text-xs uppercase font-bold tracking-widest">Chính xác</p>
-              <p className="text-3xl font-black text-green-400">{stats.accuracy}%</p>
-              <p className="text-[10px] text-slate-500 mt-1">tỉ lệ trả lời đúng</p>
-            </CardContent>
-          </Card>
+           <Card className="bg-white/5 border-white/10 p-6 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-green-500/10 flex items-center justify-center text-green-400">
+                 <BookOpen size={24} />
+              </div>
+              <div>
+                 <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest">Từ vựng đã học</p>
+                 <p className="text-white text-2xl font-black">{stats?.totalLearned}</p>
+              </div>
+           </Card>
 
-          <Card className="bg-white/5 border-white/10">
-            <CardContent className="p-6 text-center">
-              <Flame className="mx-auto mb-2 text-orange-400" size={24} />
-              <p className="text-slate-400 text-xs uppercase font-bold tracking-widest">Streak</p>
-              <p className="text-3xl font-black text-orange-400">{stats.streak}</p>
-              <p className="text-[10px] text-slate-500 mt-1">ngày liên tiếp</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white/5 border-white/10">
-            <CardContent className="p-6 text-center">
-              <Brain className="mx-auto mb-2 text-violet-400" size={24} />
-              <p className="text-slate-400 text-xs uppercase font-bold tracking-widest">Tổng câu</p>
-              <p className="text-3xl font-black text-white">{stats.correct + stats.wrong}</p>
-              <p className="text-[10px] text-slate-500 mt-1">lượt trả lời</p>
-            </CardContent>
-          </Card>
+           <Card className="bg-white/5 border-white/10 p-6 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-400">
+                 <Flame size={24} />
+              </div>
+              <div>
+                 <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest">Hôm nay</p>
+                 <p className="text-white text-2xl font-black">{stats?.correct} đúng / {stats?.wrong} sai</p>
+              </div>
+           </Card>
         </div>
 
-        {/* PROGRESS BAR */}
-        <Card className="bg-white/5 border-white/10">
-          <CardContent className="p-6">
-            <div className="flex justify-between items-center mb-4">
-               <h3 className="text-white font-bold flex items-center gap-2">
-                <TrendingUp size={18} className="text-blue-400" />
-                Hiệu suất trả lời
-               </h3>
-               <span className="text-xs text-slate-500 font-bold">{stats.correct} đúng / {stats.wrong} sai</span>
-            </div>
-            <div className="w-full h-4 bg-red-500/20 rounded-full overflow-hidden flex border border-white/5">
-              <div
-                className="h-full bg-linear-to-r from-green-600 to-green-400 transition-all duration-1000 shadow-lg shadow-green-500/20"
-                style={{ width: `${stats.accuracy}%` }}
-              />
-            </div>
-            <div className="flex justify-between mt-2 text-[10px] uppercase font-bold tracking-wider">
-               <span className="text-green-500">Chính xác</span>
-               <span className="text-red-500">Cần cải thiện</span>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* WEAK WORDS */}
-        <Card className="bg-white/5 border-white/10 overflow-hidden">
+        <Card className="bg-white/5 border-white/10 overflow-hidden shadow-2xl">
+           <CardHeader className="bg-white/5 border-b border-white/5">
+              <CardTitle className="text-white text-sm font-bold uppercase tracking-widest flex items-center gap-2">
+                 <AlertCircle size={16} className="text-red-400" /> Từ vựng cần chú ý
+              </CardTitle>
+           </CardHeader>
            <CardContent className="p-0">
-             <div className="bg-white/5 p-4 border-b border-white/10 flex items-center gap-2">
-                <AlertCircle size={18} className="text-red-400" />
-                <h3 className="text-white font-bold text-sm">Từ vựng cần chú ý (Weak Words)</h3>
-             </div>
              <div className="divide-y divide-white/5">
                 {stats?.weakWords?.length > 0 ? stats.weakWords.map((w: any, i: number) => (
                   <div key={i} className="flex justify-between items-center p-4 hover:bg-white/2 transition-colors group">
@@ -117,7 +84,7 @@ const UserProgress = () => {
                     <span className="text-[10px] px-2 py-1 rounded bg-red-500/10 text-red-400 border border-red-500/20 uppercase font-bold">Lapsed</span>
                   </div>
                 )) : (
-                  <div className="p-10 text-center text-slate-600 italic">Chúc mừng! Bạn chưa có từ nào bị "hổng" kiến thức.</div>
+                  <div className="p-10 text-center text-slate-600 italic">Chúc mừng! Bạn chưa có từ nào bị &quot;hổng&quot; kiến thức.</div>
                 )}
              </div>
            </CardContent>
@@ -151,7 +118,7 @@ const UserProgress = () => {
                                   {att.isCorrect ? 'Đúng' : 'Sai'}
                                </span>
                             </td>
-                            <td className="px-6 py-4 text-slate-400 text-xs italic">"{att.answer}"</td>
+                            <td className="px-6 py-4 text-slate-400 text-xs italic">&quot;{att.answer}&quot;</td>
                          </tr>
                        )) : (
                          <tr>

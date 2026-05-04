@@ -4,25 +4,26 @@ class UserController {
   static async submitAnswer(req, res, next) {
     try {
       const userId = req.user.id;
-      const { questionId, wordId, submittedAnswer, isCorrect, scoreAwarded } = req.body;
+      const { questionId, submittedAnswer } = req.body;
 
-      if (!questionId || !wordId) {
-        return res.status(400).json({ message: 'Thiếu questionId hoặc wordId' });
+      if (!questionId) {
+        return res.status(400).json({ message: 'Thiếu questionId' });
       }
 
-      await UserService.submitQuestionAttempt(
+      await UserService.submitAnswer({
         userId,
         questionId,
-        wordId,
-        submittedAnswer,
-        isCorrect,
-        scoreAwarded
-      );
+        submittedAnswer
+      });
 
       return res.status(200).json({ message: 'Lưu kết quả thành công' });
     } catch (error) {
-      console.error('[UserController.submitAnswer] Error:', error);
-      return res.status(500).json({ message: 'Lỗi server khi nộp bài' });
+      console.error('[UserController.submitAnswer] Full Error:', error);
+      return res.status(500).json({ 
+        message: 'Lỗi server khi nộp bài',
+        error: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
     }
   }
 

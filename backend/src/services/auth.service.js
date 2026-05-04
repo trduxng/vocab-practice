@@ -24,12 +24,16 @@ class AuthService {
       .input('Email', sql.NVarChar(255), email)
       .input('PasswordHash', sql.NVarChar(500), hashedPassword)
       .query(`
-        INSERT INTO Users (FullName, Email, PasswordHash, UserRole, IsActive, CreatedAt, UpdatedAt)
-        OUTPUT inserted.UserID AS id, inserted.FullName AS fullName, inserted.Email AS email, inserted.UserRole AS role
-        VALUES (@FullName, @Email, @PasswordHash, 'Learner', 1, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
+        DECLARE @DefaultRoleID INT;
+        SELECT @DefaultRoleID = RoleID FROM Roles WHERE RoleName = 'Learner';
+
+        INSERT INTO Users (FullName, Email, PasswordHash, UserRole, RoleID, IsActive, CreatedAt, UpdatedAt)
+        OUTPUT inserted.UserID AS id, inserted.FullName AS fullName, inserted.Email AS email
+        VALUES (@FullName, @Email, @PasswordHash, 'Learner', @DefaultRoleID, 1, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
       `);
 
-    return result.recordset[0];
+    const user = result.recordset[0];
+    return { ...user, role: 'Learner', permissions: ['VIEW_DASHBOARD', 'LEARN_VOCAB'] };
   }
 
   static async login(email, password) {
@@ -38,8 +42,11 @@ class AuthService {
     const result = await pool.request()
       .input('Email', sql.NVarChar(255), email)
       .query(`
-        SELECT UserID AS id, FullName AS fullName, Email AS email, PasswordHash AS passwordHash, UserRole AS role 
-        FROM Users WHERE Email = @Email AND IsActive = 1
+        SELECT u.UserID AS id, u.FullName AS fullName, u.Email AS email, 
+               u.PasswordHash AS passwordHash, r.RoleName AS role 
+        FROM Users u
+        JOIN Roles r ON u.RoleID = r.RoleID
+        WHERE u.Email = @Email AND u.IsActive = 1
       `);
 
     const user = result.recordset[0];
@@ -52,10 +59,24 @@ class AuthService {
       throw new Error('Email hoặc mật khẩu không chính xác');
     }
 
+    // Fetch Permissions
+    const permResult = await pool.request()
+      .input('UserID', sql.BigInt, user.id)
+      .query(`
+        SELECT p.PermissionCode
+        FROM RolePermissions rp
+        JOIN Permissions p ON rp.PermissionID = p.PermissionID
+        JOIN Users u ON rp.RoleID = u.RoleID
+        WHERE u.UserID = @UserID
+      `);
+    
+    const permissions = permResult.recordset.map(r => r.PermissionCode);
+
     const payload = {
       id: user.id,
       fullName: user.fullName,
-      role: user.role
+      role: user.role,
+      permissions
     };
 
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1d' });
@@ -66,7 +87,8 @@ class AuthService {
         id: user.id,
         fullName: user.fullName,
         email: user.email,
-        role: user.role
+        role: user.role,
+        permissions
       }
     };
   }

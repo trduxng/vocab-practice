@@ -41,15 +41,12 @@ class UserService {
     return result.recordset;
   }
 
-  static async submitAnswer({ userId, questionId, wordId, submittedAnswer, isCorrect, scoreAwarded }) {
+  static async submitAnswer({ userId, questionId, submittedAnswer }) {
     const pool = await poolPromise;
     await pool.request()
       .input('UserID', sql.BigInt, userId)
       .input('QuestionID', sql.BigInt, questionId)
-      .input('WordID', sql.BigInt, wordId)
       .input('SubmittedAnswer', sql.NVarChar, submittedAnswer)
-      .input('IsCorrect', sql.Bit, isCorrect)
-      .input('ScoreAwarded', sql.Decimal(5, 2), scoreAwarded)
       .execute('usp_SubmitQuestionAttempt');
   }
 

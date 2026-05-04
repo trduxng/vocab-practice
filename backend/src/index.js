@@ -73,13 +73,14 @@ app.use('/api/user', userRoutes);
 // Error Handler Middleware
 app.use(errorHandler);
 
+console.log('Attempting to start server...');
 app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+  console.log(`Server successfully started on port ${port}`);
 });
 
 // Graceful shutdown
-const gracefulShutdown = async () => {
-  console.log('Shutting down gracefully...');
+const gracefulShutdown = async (signal) => {
+  console.log(`Received ${signal}. Shutting down gracefully...`);
   try {
     const pool = await poolPromise;
     await pool.close();

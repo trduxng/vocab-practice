@@ -1,30 +1,30 @@
 const express = require('express');
 const AdminController = require('../controllers/admin.controller');
-const { verifyToken, verifyAdmin } = require('../middlewares/auth');
+const { verifyToken, verifyAdmin, checkPermission } = require('../middlewares/auth');
 const { validate, schemas } = require('../middlewares/validate');
 
 const router = express.Router();
 
-router.use(verifyToken, verifyAdmin);
+router.use(verifyToken);
 
 // Words
-router.get('/words', AdminController.getWords);
-router.post('/words', validate(schemas.createWord), AdminController.createWord);
-router.put('/words/:id', AdminController.updateWord);
-router.delete('/words/:id', AdminController.deleteWord);
+router.get('/words', checkPermission('MANAGE_WORDS'), AdminController.getWords);
+router.post('/words', checkPermission('MANAGE_WORDS'), validate(schemas.createWord), AdminController.createWord);
+router.put('/words/:id', checkPermission('MANAGE_WORDS'), AdminController.updateWord);
+router.delete('/words/:id', checkPermission('MANAGE_WORDS'), AdminController.deleteWord);
 
 // Questions
-router.get('/questions/:wordId', AdminController.getQuestionsByWord);
-router.post('/questions', validate(schemas.createQuestion), AdminController.createQuestion);
+router.get('/questions/:wordId', checkPermission('MANAGE_QUESTIONS'), AdminController.getQuestionsByWord);
+router.post('/questions', checkPermission('MANAGE_QUESTIONS'), validate(schemas.createQuestion), AdminController.createQuestion);
 
 // Mini Tests
-router.get('/minitests', AdminController.getMiniTests);
-router.post('/minitests', AdminController.createMiniTest);
-router.get('/stats', AdminController.getStats);
+router.get('/minitests', checkPermission('MANAGE_TESTS'), AdminController.getMiniTests);
+router.post('/minitests', checkPermission('MANAGE_TESTS'), AdminController.createMiniTest);
+router.get('/stats', checkPermission('VIEW_DASHBOARD'), AdminController.getStats);
 
 // Students
-router.get('/students', AdminController.getStudents);
-router.patch('/students/:id/toggle', AdminController.toggleStudentStatus);
-router.get('/analytics', AdminController.getAnalytics);
+router.get('/students', checkPermission('MANAGE_USERS'), AdminController.getStudents);
+router.patch('/students/:id/toggle', checkPermission('MANAGE_USERS'), AdminController.toggleStudentStatus);
+router.get('/analytics', checkPermission('VIEW_DASHBOARD'), AdminController.getAnalytics);
 
 module.exports = router;
