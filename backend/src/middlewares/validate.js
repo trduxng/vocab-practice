@@ -38,8 +38,13 @@ const schemas = {
     body: z.object({
       term: z.string().min(1),
       meaning: z.string().min(1),
+      phonetic: z.string().optional(),
       partOfSpeechId: z.number(),
       topicIds: z.array(z.number()).optional(),
+      examples: z.array(z.object({
+        sentence: z.string().min(1),
+        meaning: z.string().optional()
+      })).optional()
     })
   }),
 
