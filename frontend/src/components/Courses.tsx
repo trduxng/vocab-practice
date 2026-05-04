@@ -1,3 +1,4 @@
+// vocab-practice/frontend/src/components/Courses.tsx
 "use client";
 import {
   Users,
@@ -6,6 +7,7 @@ import {
   ArrowRight,
   Trophy,
   Star,
+  BookOpen, // Thêm import này
 } from "lucide-react";
 
 const courses = [
@@ -90,11 +92,11 @@ export default function Courses() {
           {courses.map((course, i) => (
             <div
               key={i}
-              className={`group relative bg-white/[0.03] border ${course.accent} rounded-2xl overflow-hidden hover:border-brand-500/50 transition-all duration-300 hover:-translate-y-1 cursor-pointer`}
+              className={`group relative bg-white/3 border ${course.accent} rounded-2xl overflow-hidden hover:border-brand-500/50 transition-all duration-300 hover:-translate-y-1 cursor-pointer`}
             >
               {/* Course hero image / gradient */}
               <div
-                className={`h-40 bg-gradient-to-br ${course.image} relative flex items-center justify-center`}
+                className={`h-40 bg-linear-to-br ${course.image} relative flex items-center justify-center`}
               >
                 <span className="text-6xl opacity-60">{course.badge}</span>
                 {/* Tag */}
@@ -158,23 +160,23 @@ export default function Courses() {
   );
 }
 
-// Fix missing import
-function BookOpen({ size, className }: { size: number; className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-    </svg>
-  );
-}
+// // Fix missing import
+// function BookOpen({ size, className }: { size: number; className?: string }) {
+//   return (
+//     <svg
+//       xmlns="http://www.w3.org/2000/svg"
+//       width={size}
+//       height={size}
+//       viewBox="0 0 24 24"
+//       fill="none"
+//       stroke="currentColor"
+//       strokeWidth="2"
+//       strokeLinecap="round"
+//       strokeLinejoin="round"
+//       className={className}
+//     >
+//       <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+//       <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+//     </svg>
+//   );
+// }

@@ -1,3 +1,4 @@
+// vocab-practice/frontend/src/components/Features.tsx
 "use client";
 import {
   Brain,
@@ -73,7 +74,7 @@ export default function Features() {
             Tính năng nổi bật
           </span>
           <h2 className="section-title mb-4">
-            Công nghệ học tập <span className="linear-text">thế hệ mới</span>
+            Công nghệ học tập <span className="gradient-text">thế hệ mới</span>
           </h2>
           <p className="text-slate-400 text-lg max-w-xl mx-auto">
             Kết hợp khoa học nhận thức và AI tiên tiến để mang lại trải nghiệm

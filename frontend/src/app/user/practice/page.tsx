@@ -1,20 +1,7 @@
+// vocab-practice/frontend/src/app/user/practice/page.tsx
 "use client";
-
-import React, { useMemo, useState, useEffect } from "react";
-
-type Flashcard = {
-  word: string;
-  meaning: string;
-};
-
-const data: Flashcard[] = [
-  { word: "Ambiguous", meaning: "Mơ hồ, không rõ ràng" },
-  { word: "Eloquent", meaning: "Hùng hồn, diễn đạt tốt" },
-  { word: "Diligent", meaning: "Chăm chỉ, cần cù" },
-  { word: "Innovate", meaning: "Đổi mới, sáng tạo" },
-  { word: "Versatile", meaning: "Đa năng, linh hoạt" },
-  { word: "Proficient", meaning: "Thành thạo" },
-];
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { userService } from "@/src/services/user.service";
 
 // Fisher-Yates shuffle
 const shuffle = <T,>(arr: T[]): T[] => {
@@ -26,70 +13,186 @@ const shuffle = <T,>(arr: T[]): T[] => {
   return newArr;
 };
 
+interface QuestionOption {
+  meaning: string;
+  wordId: number;
+  isCorrect: boolean;
+}
+
+interface PracticeQuestion {
+  wordId: number;
+  questionId: number;
+  term: string;
+  meaning: string;
+  options: QuestionOption[];
+}
+
 const QUESTION_TIME = 10;
 
-const UserPractice = () => {
-  const [questions, setQuestions] = useState<Flashcard[]>(() => shuffle(data));
+export default function UserPractice() {
+  const [questions, setQuestions] = useState<PracticeQuestion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [index, setIndex] = useState(0);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<number | null>(null);
   const [checked, setChecked] = useState(false);
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(QUESTION_TIME);
-  const [wrongList, setWrongList] = useState<Flashcard[]>([]);
+  const [wrongList, setWrongList] = useState<
+    { term: string; meaning: string }[]
+  >([]);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Refs để tránh setState trong effect
+  const handleTimeoutRef = useRef<() => void>(() => {});
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Fetch flashcards và chuyển thành practice questions
+  useEffect(() => {
+    async function fetchQuestions() {
+      try {
+        setLoading(true);
+        setError(null);
+        const flashcards = await userService.getDueFlashcards(20);
+
+        if (flashcards.length === 0) {
+          setQuestions([]);
+          setLoading(false);
+          return;
+        }
+
+        const allFlashcards = [...flashcards];
+
+        const practiceQuestions: PracticeQuestion[] = flashcards.map((card) => {
+          const wrongOptions = shuffle(
+            allFlashcards.filter((f) => f.wordId !== card.wordId),
+          ).slice(0, 3);
+
+          const options: QuestionOption[] = shuffle([
+            { meaning: card.meaning, wordId: card.wordId, isCorrect: true },
+            ...wrongOptions.map((w) => ({
+              meaning: w.meaning,
+              wordId: w.wordId,
+              isCorrect: false,
+            })),
+          ]);
+
+          return {
+            wordId: card.wordId,
+            questionId: card.questionId,
+            term: card.term,
+            meaning: card.meaning,
+            options,
+          };
+        });
+
+        setQuestions(shuffle(practiceQuestions));
+      } catch (err: unknown) {
+        console.error("Failed to fetch practice questions:", err);
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : typeof err === "object" && err !== null && "response" in err
+              ? (err as { response: { data?: { message?: string } } }).response
+                  ?.data?.message
+              : "Không thể tải câu hỏi.";
+        setError(errorMessage || "Không thể tải câu hỏi.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchQuestions();
+  }, []);
 
   const current = questions[index];
+  const progress =
+    questions.length > 0 ? ((index + 1) / questions.length) * 100 : 0;
+  const accuracy =
+    questions.length > 0 ? Math.round((score / questions.length) * 100) : 0;
 
-  // options
-  const options = useMemo(() => {
-    if (!current) return [];
-
-    const wrong = shuffle(data)
-      .filter((i) => i.word !== current.word)
-      .slice(0, 3);
-
-    return shuffle([current, ...wrong]);
-  }, [index, current]);
-
-  const isCorrect = selected === current?.meaning;
-  const progress = ((index + 1) / questions.length) * 100;
-  const accuracy = Math.round((score / questions.length) * 100);
-
-  // ✅ xử lý khi hết giờ
-  const handleTimeout = () => {
-    if (!current) return;
-
-    setChecked(true);
-    setWrongList((prev) => [...prev, current]);
-  };
-
-  // TIMER (không vi phạm rule)
+  // Cập nhật handleTimeoutRef mỗi khi current thay đổi
   useEffect(() => {
-    if (checked) return;
+    handleTimeoutRef.current = () => {
+      if (!current) return;
+      setChecked(true);
+      setWrongList((prev) => [
+        ...prev,
+        { term: current.term, meaning: current.meaning },
+      ]);
+    };
+  }, [current]);
 
-    if (timeLeft <= 0) {
-      handleTimeout();
+  // Timer effect - KHÔNG gọi setState trực tiếp
+  useEffect(() => {
+    // Clear timer cũ nếu có
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+
+    // Dừng timer nếu: đã check, đang loading, không có câu hỏi
+    if (checked || loading || questions.length === 0) {
       return;
     }
 
-    const timer = setTimeout(() => {
+    // Nếu hết giờ, gọi callback qua ref (không setState trực tiếp)
+    if (timeLeft <= 0) {
+      // Dùng setTimeout để defer setState ra khỏi effect
+      timerRef.current = setTimeout(() => {
+        handleTimeoutRef.current();
+      }, 0);
+      return;
+    }
+
+    // Đếm ngược
+    timerRef.current = setTimeout(() => {
       setTimeLeft((t) => t - 1);
     }, 1000);
 
-    return () => clearTimeout(timer);
-  }, [timeLeft, checked]);
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, [timeLeft, checked, loading, questions.length]);
 
-  // check đáp án
+  const submitAnswerToAPI = useCallback(
+    async (selectedMeaning: string) => {
+      if (!current) return;
+      setSubmitting(true);
+      try {
+        const result = await userService.submitAnswer({
+          questionId: current.questionId,
+          submittedAnswer: selectedMeaning,
+        });
+        console.log("Practice answer submitted:", result);
+      } catch (err) {
+        console.error("Failed to submit practice answer:", err);
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [current],
+  );
+
   const handleCheck = () => {
-    if (!current) return;
+    if (!current || selected === null) return;
+
+    const selectedOption = current.options[selected];
+    const isCorrect = selectedOption.isCorrect;
 
     if (isCorrect) {
       setScore((s) => s + 1);
     } else {
-      setWrongList((prev) => [...prev, current]);
+      setWrongList((prev) => [
+        ...prev,
+        { term: current.term, meaning: current.meaning },
+      ]);
     }
 
     setChecked(true);
+    submitAnswerToAPI(selectedOption.meaning);
   };
 
   const next = () => {
@@ -99,12 +202,12 @@ const UserPractice = () => {
       setChecked(false);
       setTimeLeft(QUESTION_TIME);
     } else {
-      setIndex(questions.length); // trigger end screen
+      setIndex(questions.length);
     }
   };
 
   const restart = () => {
-    setQuestions(shuffle(data));
+    setQuestions(shuffle(questions));
     setIndex(0);
     setScore(0);
     setSelected(null);
@@ -113,17 +216,58 @@ const UserPractice = () => {
     setWrongList([]);
   };
 
-  // END SCREEN
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0a0f1e]">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-brand-500/30 border-t-brand-500 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-slate-400">Đang tải câu hỏi...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0a0f1e]">
+        <div className="text-center">
+          <p className="text-red-400 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 bg-brand-600 rounded-xl text-white"
+          >
+            Thử lại
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Empty state
+  if (questions.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0a0f1e] text-white">
+        <div className="text-center">
+          <p className="text-xl mb-2">Chưa có câu hỏi nào</p>
+          <p className="text-slate-400">
+            Hãy học thêm từ vựng trước khi luyện tập.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // End screen
   if (index >= questions.length) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0a0f1e] text-white">
         <div className="text-center max-w-md">
           <h1 className="text-3xl font-bold mb-4">Hoàn thành</h1>
-
           <p className="text-lg mb-2">
             Điểm: {score} / {questions.length}
           </p>
-
           <p className="text-slate-400 mb-6">Accuracy: {accuracy}%</p>
 
           {wrongList.length > 0 && (
@@ -132,7 +276,7 @@ const UserPractice = () => {
               <ul className="text-sm text-slate-300 space-y-1">
                 {wrongList.map((w, i) => (
                   <li key={i}>
-                    {w.word} → {w.meaning}
+                    {w.term} → {w.meaning}
                   </li>
                 ))}
               </ul>
@@ -161,7 +305,6 @@ const UserPractice = () => {
               {index + 1}/{questions.length}
             </span>
           </div>
-
           <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
             <div
               className="h-full bg-linear-to-r from-brand-500 to-cyan-400 transition-all"
@@ -177,19 +320,19 @@ const UserPractice = () => {
 
         {/* WORD */}
         <h1 className="text-4xl text-white font-bold text-center mb-8">
-          {current.word}
+          {current.term}
         </h1>
 
         {/* OPTIONS */}
         <div className="grid gap-4">
-          {options.map((opt, i) => {
-            const isSelected = selected === opt.meaning;
-            const isAnswer = opt.meaning === current.meaning;
+          {current.options.map((opt, i) => {
+            const isSelected = selected === i;
+            const isAnswer = opt.isCorrect;
 
             return (
               <button
                 key={i}
-                onClick={() => !checked && setSelected(opt.meaning)}
+                onClick={() => !checked && setSelected(i)}
                 className={`p-4 rounded-xl border text-left transition
                   ${
                     checked
@@ -213,7 +356,7 @@ const UserPractice = () => {
         {/* ACTION */}
         {!checked ? (
           <button
-            disabled={!selected}
+            disabled={selected === null || submitting}
             onClick={handleCheck}
             className="mt-6 w-full py-3 bg-brand-600 text-white rounded-xl disabled:opacity-50"
           >
@@ -223,13 +366,15 @@ const UserPractice = () => {
           <div className="mt-6 text-center">
             <p
               className={`text-lg font-semibold ${
-                isCorrect ? "text-green-400" : "text-red-400"
+                current.options[selected!]?.isCorrect
+                  ? "text-green-400"
+                  : "text-red-400"
               }`}
             >
-              {isCorrect ? "Đúng" : "Sai"}
+              {current.options[selected!]?.isCorrect ? "Đúng" : "Sai"}
             </p>
 
-            {!isCorrect && (
+            {!current.options[selected!]?.isCorrect && (
               <p className="text-slate-300 mt-2">
                 Đáp án đúng: {current.meaning}
               </p>
@@ -237,6 +382,7 @@ const UserPractice = () => {
 
             <button
               onClick={next}
+              disabled={submitting}
               className="mt-4 px-6 py-3 bg-white/10 rounded-xl text-white"
             >
               Câu tiếp
@@ -251,6 +397,4 @@ const UserPractice = () => {
       </div>
     </div>
   );
-};
-
-export default UserPractice;
+}

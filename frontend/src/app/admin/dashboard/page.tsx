@@ -1,5 +1,7 @@
+// vocab-practice/frontend/src/app/admin/dashboard/page.tsx
 "use client";
 import React, { useState, useEffect } from "react";
+import apiClient from "@/src/lib/api-client";
 import Topbar from "@/src/components/shared/Topbar";
 import {
   Users,
@@ -69,33 +71,53 @@ interface TopCourse {
 // ---------------------------------------------------------------------------
 
 // GET /api/admin/overview-stats
-async function fetchOverviewStats(): Promise<OverviewStats | null> {
-  // return await api.get("/admin/overview-stats");
-  return null;
+// async function fetchOverviewStats(): Promise<OverviewStats | null> {
+//   // return await api.get("/admin/overview-stats");
+//   return null;
+// }
+async function fetchOverviewStats() {
+  const response = await apiClient.get("/admin/overview-stats");
+  return response.data;
 }
 
 // GET /api/admin/weekly-activity
-async function fetchWeeklyActivity(): Promise<WeeklyActivityItem[]> {
-  // return await api.get("/admin/weekly-activity");
-  return [];
+// async function fetchWeeklyActivity(): Promise<WeeklyActivityItem[]> {
+//   // return await api.get("/admin/weekly-activity");
+//   return [];
+// }
+async function fetchWeeklyActivity() {
+  const response = await apiClient.get("/admin/weekly-activity");
+  return response.data;
 }
 
 // GET /api/admin/today-activity
-async function fetchTodayActivity(): Promise<TodayActivity | null> {
-  // return await api.get("/admin/today-activity");
-  return null;
+// async function fetchTodayActivity(): Promise<TodayActivity | null> {
+//   // return await api.get("/admin/today-activity");
+//   return null;
+// }
+async function fetchTodayActivity() {
+  const response = await apiClient.get("/admin/today-activity");
+  return response.data;
 }
 
 // GET /api/admin/recent-users
-async function fetchRecentUsers(): Promise<RecentUser[]> {
-  // return await api.get("/admin/recent-users");
-  return [];
+// async function fetchRecentUsers(): Promise<RecentUser[]> {
+//   // return await api.get("/admin/recent-users");
+//   return [];
+// }
+async function fetchRecentUsers() {
+  const response = await apiClient.get("/admin/recent-users");
+  return response.data;
 }
 
 // GET /api/admin/top-courses
-async function fetchTopCourses(): Promise<TopCourse[]> {
-  // return await api.get("/admin/top-courses");
-  return [];
+// async function fetchTopCourses(): Promise<TopCourse[]> {
+//   // return await api.get("/admin/top-courses");
+//   return [];
+// }
+async function fetchTopCourses() {
+  const response = await apiClient.get("/admin/top-courses");
+  return response.data;
 }
 
 // ---------------------------------------------------------------------------

@@ -1,3 +1,4 @@
+// vocab-practice/frontend/src/app/admin/layout.tsx
 import React from "react";
 import Sidebar from "@/src/components/shared/Sidebar";
 

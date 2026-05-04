@@ -1,4 +1,5 @@
-const CategoriesService = require('../services/categories.service');
+// vocab-practice/backend/src/controllers/categories.controller.js
+const CategoriesService = require("../services/categories.service");
 
 class CategoriesController {
   static async getPartOfSpeeches(req, res, next) {

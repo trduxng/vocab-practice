@@ -1,3 +1,4 @@
+// vocab-practice/frontend/src/components/Footer.tsx
 import { ArrowRight, BookOpen, Mail, Phone } from "lucide-react";
 
 // Custom social media icons
@@ -57,8 +58,8 @@ export function CTA() {
   return (
     <section className="py-24 bg-[#080d1a] relative overflow-hidden">
       <div className="absolute inset-0">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-brand-600/20 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-cyan-500/10 rounded-full blur-2xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-150 h-100 bg-brand-600/20 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-75 h-75 bg-cyan-500/10 rounded-full blur-2xl" />
       </div>
 
       <div className="max-w-4xl mx-auto px-4 text-center relative">

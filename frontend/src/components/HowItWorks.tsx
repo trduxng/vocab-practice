@@ -1,3 +1,4 @@
+// vocab-practice/frontend/src/components/HowItWorks.tsx
 "use client";
 import { useState } from "react";
 import { Volume2, RotateCcw, Check, X, ChevronRight } from "lucide-react";
@@ -48,7 +49,7 @@ export default function HowItWorks() {
               Cách hoạt động
             </span>
             <h2 className="section-title mb-12">
-              Chỉ <span className="linear-text">4 bước</span> để thành thạo từ
+              Chỉ <span className="gradient-text">4 bước</span> để thành thạo từ
               vựng
             </h2>
 

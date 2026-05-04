@@ -1,3 +1,4 @@
+// vocab-practice/frontend/src/components/Hero.tsx
 "use client";
 import { ArrowRight, Play, Star, Zap, TrendingUp, Brain } from "lucide-react";
 import { useEffect, useRef } from "react";

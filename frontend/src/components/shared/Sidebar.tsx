@@ -1,7 +1,8 @@
+// vocab-practice/frontend/src/components/shared/Sidebar.tsx
 "use client";
 import { useState, Suspense } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation"; // Thêm useRouter
 import {
   LayoutDashboard,
   Users,
@@ -16,6 +17,7 @@ import {
   Brain,
   Home,
 } from "lucide-react";
+import { authService } from "@/src/services/auth.service"; // Thêm import
 
 const adminLinks = [
   { icon: LayoutDashboard, label: "Tổng quan", href: "/admin/dashboard" },
@@ -81,7 +83,14 @@ interface SidebarProps {
 
 export default function Sidebar({ role }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const router = useRouter(); // Thêm router
   const links = role === "admin" ? adminLinks : studentLinks;
+
+  // Thêm hàm handleLogout
+  const handleLogout = () => {
+    authService.logout();
+    router.push("/login");
+  };
 
   return (
     <aside
@@ -149,6 +158,7 @@ export default function Sidebar({ role }: SidebarProps) {
         className={`px-2 pb-4 border-t border-white/8 pt-3 ${collapsed ? "flex justify-center" : ""}`}
       >
         <button
+          onClick={handleLogout}
           className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-500 hover:text-red-400 hover:bg-red-500/8 transition-all w-full ${collapsed ? "justify-center" : ""}`}
         >
           <LogOut size={16} />
