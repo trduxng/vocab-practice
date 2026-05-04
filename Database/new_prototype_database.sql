@@ -20,7 +20,7 @@ GO
     /* ============================================================
      1. CREATE DATABASE
      ============================================================ */
-    IF DB_ID(N'ToeicVocabularyPlatform') IS NULL BEGIN CREATE DATABASE ToeicVocabularyPlatform_new;
+    IF DB_ID(N'ToeicVocabularyPlatform_new') IS NULL BEGIN CREATE DATABASE ToeicVocabularyPlatform_new;
 
 END
 GO

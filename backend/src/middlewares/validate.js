@@ -1,3 +1,4 @@
+// backend/src/middlewares/validate.js
 /**
  * Simple validation middleware
  * Có thể thay bằng Joi/Zod sau này

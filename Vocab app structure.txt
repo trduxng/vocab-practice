@@ -4,9 +4,10 @@
 │   ├── TOEIC_BusinessProcess.md
 │   ├── TOEIC_Schema_dbdiagram.dbml
 │   ├── abstract_dataset.docx
+│   ├── db_seed_data.sql
 │   ├── link_perplexity.txt
 │   ├── lo_trinh_xay_dung.md
-│   ├── prototype_database.sql
+│   ├── new_prototype_database.sql
 │   └── tác dụng của từng table và tác dụng của nó với tab.docx
 ├── README.md
 ├── Vocab app structure.txt
@@ -22,20 +23,24 @@
 │   │   │   ├── admin.controller.js
 │   │   │   ├── auth.controller.js
 │   │   │   ├── categories.controller.js
+│   │   │   ├── progress.controller.js
 │   │   │   └── user.controller.js
 │   │   ├── index.js
 │   │   ├── middlewares
 │   │   │   ├── auth.js
-│   │   │   └── errorHandler.js
+│   │   │   ├── errorHandler.js
+│   │   │   └── validate.js
 │   │   ├── routes
 │   │   │   ├── admin.routes.js
 │   │   │   ├── auth.routes.js
 │   │   │   ├── categories.routes.js
+│   │   │   ├── progress.routes.js
 │   │   │   └── user.routes.js
 │   │   └── services
 │   │       ├── admin.service.js
 │   │       ├── auth.service.js
 │   │       ├── categories.service.js
+│   │       ├── progress.service.js
 │   │       └── user.service.js
 │   └── yarn.lock
 ├── frontend
@@ -139,6 +144,7 @@
 │   │   │       └── tooltip.tsx
 │   │   ├── lib
 │   │   │   └── api-client.ts
+│   │   ├── proxy.ts
 │   │   └── services
 │   │       ├── admin.service.ts
 │   │       ├── auth.service.ts
@@ -148,4 +154,4 @@
 ├── prompt_backend.md
 └── vocab.mv2
 
-35 directories, 114 files
+35 directories, 120 files
