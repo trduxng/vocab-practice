@@ -75,6 +75,27 @@ class UserController {
       next(error);
     }
   }
+
+  static async getTestHistory(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const history = await UserService.getTestHistory(userId);
+      res.status(200).json(history);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getTestSessionDetails(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const { testId, date } = req.query;
+      const details = await UserService.getTestSessionDetails(userId, testId, date);
+      res.status(200).json(details);
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = UserController;

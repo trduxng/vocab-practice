@@ -6,6 +6,15 @@ import { userService } from "@/src/services/user.service";
 import { useAuth } from "@/src/app/context/AuthContext";
 import { Skeleton } from "@/src/components/ui/skeleton";
 import {
+  Area,
+  AreaChart,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from "recharts";
+import {
   Flame,
   Trophy,
   Brain,
@@ -13,10 +22,8 @@ import {
   BookOpen,
   ChevronRight,
   Zap,
-  TrendingUp,
   Clock,
   RotateCcw,
-  ArrowRight,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -49,7 +56,7 @@ const StudentDashboard = () => {
   }, [user]);
 
   if (authLoading) {
-    return <div className="flex items-center justify-center min-h-screen text-white bg-slate-950 font-mono">AUTHENTICATING...</div>;
+    return <div className="flex items-center justify-center min-h-screen text-white bg-[#080d1a] font-mono">AUTHENTICATING...</div>;
   }
 
   const progressPct = stats ? Math.min(100, Math.round((stats.totalLearned / 50) * 100)) : 0;
@@ -81,29 +88,29 @@ const StudentDashboard = () => {
                 <div className="bg-orange-500/10 border border-orange-500/20 rounded-2xl p-4 flex flex-col gap-2.5">
                   <div className="w-9 h-9 rounded-xl bg-linear-to-br from-orange-500 to-red-500 flex items-center justify-center shadow-lg"><Flame size={16} className="text-white" /></div>
                   <div>
-                    <p className="text-slate-400 text-xs uppercase font-bold">Streak</p>
+                    <p className="text-slate-400 text-[10px] uppercase font-bold tracking-widest">Streak</p>
                     <p className="text-white font-black text-2xl">{stats?.streak} ngày</p>
                   </div>
                 </div>
                 <div className="bg-violet-500/10 border border-violet-500/20 rounded-2xl p-4 flex flex-col gap-2.5">
                   <div className="w-9 h-9 rounded-xl bg-linear-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg"><Brain size={16} className="text-white" /></div>
                   <div>
-                    <p className="text-slate-400 text-xs uppercase font-bold">Đã học</p>
+                    <p className="text-slate-400 text-[10px] uppercase font-bold tracking-widest">Đã học</p>
                     <p className="text-white font-black text-2xl">{stats?.totalLearned}</p>
                   </div>
                 </div>
                 <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4 flex flex-col gap-2.5">
                   <div className="w-9 h-9 rounded-xl bg-linear-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg"><Target size={16} className="text-white" /></div>
                   <div>
-                    <p className="text-slate-400 text-xs uppercase font-bold">Chính xác</p>
+                    <p className="text-slate-400 text-[10px] uppercase font-bold tracking-widest">Chính xác</p>
                     <p className="text-white font-black text-2xl">{stats?.accuracy}%</p>
                   </div>
                 </div>
                 <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex flex-col gap-2.5">
                   <div className="w-9 h-9 rounded-xl bg-linear-to-br from-amber-500 to-yellow-500 flex items-center justify-center shadow-lg"><Trophy size={16} className="text-white" /></div>
                   <div>
-                    <p className="text-slate-400 text-xs uppercase font-bold">Kinh nghiệm</p>
-                    <p className="text-white font-black text-2xl">{stats?.correct * 10} XP</p>
+                    <p className="text-slate-400 text-[10px] uppercase font-bold tracking-widest">Kinh nghiệm</p>
+                    <p className="text-white font-black text-2xl">{(stats?.correct || 0) * 10} XP</p>
                   </div>
                 </div>
               </>
@@ -114,65 +121,94 @@ const StudentDashboard = () => {
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
           <div className="xl:col-span-2 space-y-5">
             {/* Session Action */}
-            <div className="bg-white/3 border border-white/8 rounded-2xl p-6 relative overflow-hidden">
+            <div className="bg-white/3 border border-white/8 rounded-[32px] p-8 relative overflow-hidden">
               <div className="absolute top-0 right-0 p-4 opacity-5"><Zap size={120} /></div>
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h3 className="text-white font-black text-xl uppercase tracking-tighter">Học tập ngay</h3>
-                  <p className="text-slate-500 text-xs mt-1">Hệ thống đã chuẩn bị {loading ? '...' : flashcards.length} từ vựng cho bạn</p>
+                  <h3 className="text-white font-black text-2xl uppercase tracking-tighter">Học tập ngay</h3>
+                  <p className="text-slate-500 text-sm mt-1">Hệ thống đã chuẩn bị {loading ? '...' : flashcards.length} từ vựng cho bạn</p>
                 </div>
                 <button 
                   onClick={() => router.push('/user/learn')}
-                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-black rounded-xl transition-all hover:-translate-y-1 shadow-xl shadow-blue-500/25 uppercase tracking-widest flex items-center gap-2"
+                  className="px-8 py-4 bg-white text-black hover:bg-blue-600 hover:text-white text-xs font-black rounded-2xl transition-all hover:-translate-y-1 shadow-2xl uppercase tracking-[0.2em] flex items-center gap-2"
                 >
-                  <Zap size={14} fill="white" /> Bắt đầu
+                  <Zap size={14} fill="currentColor" /> Bắt đầu
                 </button>
               </div>
 
               {/* Progress bar */}
               <div className="mb-4">
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-3">
                   <span className="text-slate-400 text-[10px] uppercase font-bold tracking-widest">Mục tiêu tuần</span>
-                  <span className="text-white font-bold text-xs">{loading ? '...' : stats?.totalLearned}/50 từ</span>
+                  <span className="text-white font-black text-xs">{loading ? '...' : stats?.totalLearned}/50 từ</span>
                 </div>
-                <div className="h-2 bg-white/5 rounded-full overflow-hidden border border-white/5 p-[1px]">
-                  <div className="h-full rounded-full bg-linear-to-r from-blue-600 to-cyan-400 transition-all duration-1000 shadow-glow" style={{ width: `${progressPct}%` }} />
+                <div className="h-3 bg-white/5 rounded-full overflow-hidden border border-white/5 p-[2px]">
+                  <div className="h-full rounded-full bg-linear-to-r from-blue-600 to-indigo-400 transition-all duration-1000 shadow-glow" style={{ width: `${progressPct}%` }} />
                 </div>
               </div>
 
               {/* Quick Word Preview */}
-              <div className="space-y-2 mt-8">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-10">
                 {loading ? (
-                   [...Array(3)].map((_, i) => (
-                    <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-white/2 border border-white/5">
-                       <Skeleton className="w-8 h-8 rounded-lg" />
-                       <div className="flex-1 space-y-1">
-                          <Skeleton className="h-4 w-32" />
-                       </div>
-                    </div>
-                  ))
+                   [...Array(3)].map((_, i) => <Skeleton key={i} className="h-14 rounded-2xl bg-white/2" />)
                 ) : flashcards.slice(0, 3).map((w, i) => (
-                  <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-white/2 border border-white/5 hover:bg-white/5 transition-colors group cursor-default">
+                  <div key={i} className="flex items-center gap-3 p-4 rounded-2xl bg-white/2 border border-white/5 hover:bg-white/5 transition-colors group cursor-default">
                     <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-blue-500/10 border border-blue-500/20"><BookOpen size={14} className="text-blue-400" /></div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-white text-sm font-bold">{w.term}</span>
-                        <span className="text-slate-500 text-xs">·</span>
-                        <span className="text-slate-400 text-xs truncate">{w.meaning}</span>
-                      </div>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-white text-xs font-black truncate">{w.term}</p>
+                        <p className="text-slate-500 text-[9px] truncate">{w.meaning}</p>
                     </div>
-                    <ChevronRight size={14} className="text-slate-700 group-hover:text-blue-400" />
                   </div>
                 ))}
-                {!loading && flashcards.length === 0 && <div className="p-10 text-center text-slate-600 text-sm italic">Hôm nay bạn đã thuộc hết từ vựng rồi!</div>}
+                {!loading && flashcards.length === 0 && <div className="col-span-3 py-6 text-center text-slate-600 text-sm italic border border-dashed border-white/5 rounded-2xl">Tuyệt vời! Bạn đã thuộc hết từ vựng hôm nay.</div>}
               </div>
             </div>
 
-            {/* Simple Weekly Activity */}
-            <div className="bg-white/3 border border-white/8 rounded-2xl p-6">
-              <h3 className="text-white font-bold mb-6">Tỉ lệ hoàn thành</h3>
-              <div className="h-32 flex items-center justify-center text-slate-600 border border-dashed border-white/10 rounded-xl">
-                 <p className="text-xs uppercase tracking-widest font-bold">Sẽ cập nhật biểu đồ tại Phase 4.3</p>
+            {/* Real Weekly Activity Chart */}
+            <div className="bg-white/3 border border-white/8 rounded-[32px] p-8">
+              <h3 className="text-white font-black text-sm uppercase tracking-widest mb-2">Hoạt động 7 ngày qua</h3>
+              <p className="text-slate-500 text-xs mb-8">Theo dõi số lượng câu hỏi bạn đã trả lời mỗi ngày.</p>
+              
+              <div className="h-[280px] w-full">
+                {loading ? (
+                   <Skeleton className="w-full h-full rounded-2xl" />
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={stats?.dailyTrends?.length > 0 ? stats.dailyTrends : [
+                      { day: 'T2', count: 0 }, { day: 'T3', count: 0 }, { day: 'T4', count: 0 }, 
+                      { day: 'T5', count: 0 }, { day: 'T6', count: 0 }, { day: 'T7', count: 0 }, { day: 'CN', count: 0 }
+                    ]}>
+                      <defs>
+                        <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+                      <XAxis 
+                        dataKey="day" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{fill: '#64748b', fontSize: 10, fontWeight: 'bold'}} 
+                        dy={10}
+                      />
+                      <YAxis hide />
+                      <Tooltip 
+                        contentStyle={{backgroundColor: '#1e293b', border: 'none', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold', color: '#fff'}}
+                        itemStyle={{color: '#3b82f6'}}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="count" 
+                        stroke="#3b82f6" 
+                        strokeWidth={4}
+                        fillOpacity={1} 
+                        fill="url(#colorCount)" 
+                        animationDuration={2000}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </div>
           </div>
@@ -180,51 +216,57 @@ const StudentDashboard = () => {
           {/* Right column */}
           <div className="space-y-5">
             {/* Achievements */}
-            <div className="bg-white/3 border border-white/8 rounded-2xl p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-white font-black text-sm uppercase tracking-widest">Thành tích</h3>
+            <div className="bg-white/3 border border-white/8 rounded-[32px] p-8">
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="text-white font-black text-sm uppercase tracking-widest">Huy hiệu</h3>
                 <Trophy size={16} className="text-amber-500" />
               </div>
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-4 gap-4">
                 {loading ? (
-                   [...Array(5)].map((_, i) => <Skeleton key={i} className="aspect-square rounded-2xl" />)
-                ) : stats?.achievements?.map((a: any) => (
+                   [...Array(8)].map((_, i) => <Skeleton key={i} className="aspect-square rounded-xl" />)
+                ) : stats?.achievements?.slice(0, 8).map((a: any) => (
                   <div key={a.id} className="group relative" title={a.label}>
-                    <div className={`aspect-square rounded-2xl flex items-center justify-center text-2xl transition-all border ${a.unlocked ? 'bg-amber-500/10 border-amber-500/30' : 'bg-white/2 border-white/5 grayscale opacity-20'}`}>
+                    <div className={`aspect-square rounded-xl flex items-center justify-center text-xl transition-all border-2 ${a.unlocked ? 'bg-amber-500/10 border-amber-500/30 shadow-lg shadow-amber-900/10' : 'bg-white/2 border-white/5 grayscale opacity-20'}`}>
                       {a.icon}
                     </div>
                   </div>
                 ))}
               </div>
-              <div className="mt-8 pt-6 border-t border-white/5">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Cấp độ tiếp theo</span>
-                  <span className="text-white text-[10px] font-black uppercase tracking-widest">LV.{loading ? '...' : (Math.floor(stats?.correct / 10)) + 1}</span>
+              <div className="mt-10 pt-6 border-t border-white/5">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Level Progression</span>
+                  <span className="text-white text-[10px] font-black uppercase tracking-widest">LV.{loading ? '...' : (Math.floor((stats?.correct || 0) / 10)) + 1}</span>
                 </div>
-                <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                   <div className="h-full bg-amber-500 shadow-glow" style={{ width: `${loading ? 0 : (stats?.correct % 10) * 10}%` }} />
+                <div className="h-1.5 bg-white/5 rounded-full overflow-hidden p-[1px]">
+                   <div className="h-full rounded-full bg-amber-500 shadow-glow" style={{ width: `${loading ? 0 : ((stats?.correct || 0) % 10) * 10}%` }} />
                 </div>
               </div>
+              <button 
+                onClick={() => router.push('/user/achievements')}
+                className="w-full mt-8 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white transition-colors"
+              >
+                Xem tất cả thành tích →
+              </button>
             </div>
 
             {/* Spaced Repetition Info */}
-            <div className="bg-white/3 border border-white/8 rounded-2xl p-6">
-               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-white font-bold text-sm">Ôn tập (SRS)</h3>
-                <Clock size={16} className="text-slate-500" />
+            <div className="bg-linear-to-br from-violet-600/20 to-purple-600/20 border border-violet-500/20 rounded-[32px] p-8">
+               <div className="flex items-center justify-between mb-6">
+                <h3 className="text-violet-300 font-black text-sm uppercase tracking-widest">Ôn tập (SRS)</h3>
+                <Clock size={16} className="text-violet-400" />
               </div>
-              <div className="space-y-3">
-                 <div className="flex justify-between items-center p-3 rounded-xl bg-violet-500/10 border border-violet-500/20">
-                    <span className="text-xs text-violet-300 font-bold uppercase">Cần ôn ngay</span>
-                    <span className="text-white font-black">{loading ? '...' : flashcards.length}</span>
+              <div className="space-y-4">
+                 <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
+                    <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest mb-1">Cần ôn ngay</p>
+                    <p className="text-white font-black text-3xl">{loading ? '...' : flashcards.length}</p>
                  </div>
-                 <p className="text-[10px] text-slate-500 leading-relaxed italic">Hệ thống tính toán thời điểm vàng để bạn không bao giờ quên từ vựng.</p>
+                 <p className="text-xs text-slate-500 leading-relaxed italic">Hệ thống SRS sử dụng thuật toán tối ưu để nhắc nhở bạn ôn tập đúng thời điểm, giúp ghi nhớ từ vựng vĩnh viễn.</p>
               </div>
               <button 
                 onClick={() => router.push('/user/practice')}
-                className="w-full mt-6 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-bold hover:bg-white/10 transition-all flex items-center justify-center gap-2"
+                className="w-full mt-8 py-4 rounded-2xl bg-violet-600 hover:bg-violet-500 text-white text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-violet-900/20"
               >
-                <RotateCcw size={13} /> Luyện tập trắc nghiệm
+                Luyện tập trắc nghiệm
               </button>
             </div>
           </div>

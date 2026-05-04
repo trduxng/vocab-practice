@@ -21,6 +21,16 @@ export const userService = {
     return response.data;
   },
 
+  async getTestHistory() {
+    const response = await apiClient.get('/user/minitests/history');
+    return response.data;
+  },
+
+  async getTestSessionDetails(testId: number, date: string) {
+    const response = await apiClient.get(`/user/minitests/session-details?testId=${testId}&date=${date}`);
+    return response.data;
+  },
+
   async getMiniTestDetails(id: string) {
     const response = await apiClient.get(`/user/minitests/${id}`);
     return response.data;

@@ -16,6 +16,7 @@ import {
   Brain,
   Home,
   FileText,
+  Clock,
   HelpCircle,
 } from "lucide-react";
 
@@ -31,9 +32,11 @@ const adminLinks = [
 
 const studentLinks = [
   { icon: LayoutDashboard, label: "Tổng quan", href: "/user/dashboard" },
+  { icon: BookOpen, label: "Khóa học", href: "/user/courses" },
   { icon: Brain, label: "Học từ vựng", href: "/user/learn" },
   { icon: Target, label: "Luyện tập", href: "/user/practice" },
   { icon: FileText, label: "Mini Tests", href: "/user/minitests" },
+  { icon: Clock, label: "Lịch sử thi", href: "/user/minitests/history" },
   { icon: Trophy, label: "Thành tích", href: "/user/achievements" },
   { icon: BarChart3, label: "Tiến độ", href: "/user/progress" },
   { icon: Settings, label: "Cài đặt", href: "/user/settings" },

@@ -16,6 +16,20 @@ const StudentFlashcard = () => {
   const [sessionFinished, setSessionFinished] = useState(false);
   const router = useRouter();
 
+  const speak = (text: string) => {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'en-US';
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
+  useEffect(() => {
+    if (flipped && card) {
+      speak(card.term);
+    }
+  }, [flipped, card]);
+
   useEffect(() => {
     const fetchFlashcards = async () => {
       try {

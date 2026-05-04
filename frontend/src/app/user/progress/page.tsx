@@ -108,7 +108,7 @@ const UserProgress = () => {
                 <h3 className="text-white font-bold text-sm">Từ vựng cần chú ý (Weak Words)</h3>
              </div>
              <div className="divide-y divide-white/5">
-                {stats.weakWords.length > 0 ? stats.weakWords.map((w: any, i: number) => (
+                {stats?.weakWords?.length > 0 ? stats.weakWords.map((w: any, i: number) => (
                   <div key={i} className="flex justify-between items-center p-4 hover:bg-white/2 transition-colors group">
                     <div>
                       <p className="text-white font-bold group-hover:text-blue-400 transition-colors">{w.word}</p>
@@ -140,7 +140,7 @@ const UserProgress = () => {
                        </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
-                       {stats.recentAttempts?.map((att: any, i: number) => (
+                       {stats?.recentAttempts?.length > 0 ? stats.recentAttempts.map((att: any, i: number) => (
                          <tr key={i} className="hover:bg-white/[0.02] transition-colors">
                             <td className="px-6 py-4 text-[10px] text-slate-500 font-mono">
                                {new Date(att.date).toLocaleString('vi-VN')}
@@ -153,8 +153,7 @@ const UserProgress = () => {
                             </td>
                             <td className="px-6 py-4 text-slate-400 text-xs italic">"{att.answer}"</td>
                          </tr>
-                       ))}
-                       {(!stats.recentAttempts || stats.recentAttempts.length === 0) && (
+                       )) : (
                          <tr>
                             <td colSpan={4} className="p-10 text-center text-slate-600 italic">Bạn chưa thực hiện lượt trả lời nào.</td>
                          </tr>
