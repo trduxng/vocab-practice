@@ -1,16 +1,21 @@
-const { poolPromise, sql } = require('../config/db');
+const { sql, poolPromise } = require('../config/db');
 
 class UserService {
-  static async submitQuestionAttempt(userId, questionId, wordId, submittedAnswer, isCorrect, scoreAwarded) {
+  static async getFlashcards(userId) {
     const pool = await poolPromise;
-
     const result = await pool.request()
       .input('UserID', sql.BigInt, userId)
-      .input('QuestionID', sql.BigInt, questionId)
-      .input('SubmittedAnswer', sql.NVarChar(1000), submittedAnswer)
-      .execute('usp_SubmitQuestionAttempt');
-
-    return result.recordset[0];
+      .query(`
+        SELECT TOP 10 q.QuestionID AS questionId, q.QuestionText AS questionText, 
+               q.CorrectAnswer AS term, w.Phonetic AS phonetic, w.Meaning AS meaning,
+               w.WordID AS wordId
+        FROM Questions q
+        JOIN Words w ON q.WordID = w.WordID
+        LEFT JOIN UserWordProgress uwp ON w.WordID = uwp.WordID AND uwp.UserID = @UserID
+        WHERE uwp.NextReviewDate IS NULL OR uwp.NextReviewDate <= SYSDATETIMEOFFSET()
+        ORDER BY NEWID()
+      `);
+    return result.recordset;
   }
 
   static async getDueFlashcards(userId) {
@@ -18,40 +23,56 @@ class UserService {
     const result = await pool.request()
       .input('UserID', sql.BigInt, userId)
       .query(`
-        SELECT w.WordID AS wordId, w.Term AS term, w.Meaning AS meaning, w.Phonetic AS phonetic, 
-               q.QuestionID AS questionId, q.QuestionType AS questionType, 
-               q.QuestionText AS questionText, q.OptionsJson AS optionsJson
-        FROM Words w
-        JOIN Questions q ON w.WordID = q.WordID
+        SELECT TOP 15 
+          q.QuestionID AS questionId, 
+          q.QuestionType AS questionType,
+          q.QuestionText AS questionText, 
+          q.CorrectAnswer AS term, 
+          q.OptionsJson AS optionsJson,
+          w.Phonetic AS phonetic, 
+          w.Meaning AS meaning,
+          w.WordID AS wordId
+        FROM Questions q
+        JOIN Words w ON q.WordID = w.WordID
         LEFT JOIN UserWordProgress uwp ON w.WordID = uwp.WordID AND uwp.UserID = @UserID
-        WHERE uwp.UserWordProgressID IS NULL 
-           OR uwp.MemoryStatus = 'New' 
-           OR uwp.NextReviewDate <= SYSDATETIMEOFFSET()
+        WHERE uwp.NextReviewDate IS NULL OR uwp.NextReviewDate <= SYSDATETIMEOFFSET()
+        ORDER BY uwp.MasteryLevel ASC, NEWID()
       `);
     return result.recordset;
+  }
+
+  static async submitAnswer({ userId, questionId, wordId, submittedAnswer, isCorrect, scoreAwarded }) {
+    const pool = await poolPromise;
+    await pool.request()
+      .input('UserID', sql.BigInt, userId)
+      .input('QuestionID', sql.BigInt, questionId)
+      .input('WordID', sql.BigInt, wordId)
+      .input('SubmittedAnswer', sql.NVarChar, submittedAnswer)
+      .input('IsCorrect', sql.Bit, isCorrect)
+      .input('ScoreAwarded', sql.Decimal(5, 2), scoreAwarded)
+      .execute('usp_SubmitQuestionAttempt');
   }
 
   static async getUserStats(userId) {
     const pool = await poolPromise;
     
-    // 1. Total learned (MasteryLevel > 0)
+    // 1. Total words learned
     const learnedResult = await pool.request()
       .input('UserID', sql.BigInt, userId)
-      .query('SELECT COUNT(*) AS total FROM UserWordProgress WHERE UserID = @UserID AND MasteryLevel > 0');
-    
-    // 2. Accuracy (from ExerciseAttempts)
+      .query('SELECT COUNT(*) AS total FROM UserWordProgress WHERE UserID = @UserID AND MasteryLevel >= 3');
+
+    // 2. Accuracy rate
     const accuracyResult = await pool.request()
       .input('UserID', sql.BigInt, userId)
       .query(`
         SELECT 
-          CAST(SUM(CASE WHEN IsCorrect = 1 THEN 1 ELSE 0 END) AS FLOAT) / 
-          NULLIF(COUNT(*), 0) * 100 AS accuracy,
+          CAST(SUM(CASE WHEN IsCorrect = 1 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0) AS DECIMAL(5,2)) AS accuracy,
           SUM(CASE WHEN IsCorrect = 1 THEN 1 ELSE 0 END) AS correct,
           SUM(CASE WHEN IsCorrect = 0 THEN 1 ELSE 0 END) AS wrong
         FROM ExerciseAttempts WHERE UserID = @UserID
       `);
 
-    // 3. Weak words (MemoryStatus = 'Lapsed' or low mastery)
+    // 3. Weak words
     const weakWordsResult = await pool.request()
       .input('UserID', sql.BigInt, userId)
       .query(`
@@ -71,47 +92,54 @@ class UserService {
         JOIN Words w ON ea.WordID = w.WordID
         WHERE ea.UserID = @UserID
         ORDER BY ea.AttemptedAt DESC
-      const stats = {
-        totalLearned: learnedResult.recordset[0].total,
-        accuracy: Math.round(accuracyResult.recordset[0].accuracy || 0),
-        correct: accuracyResult.recordset[0].correct || 0,
-        wrong: accuracyResult.recordset[0].wrong || 0,
-        weakWords: weakWordsResult.recordset,
-        recentAttempts: recentAttemptsResult.recordset,
-        streak: 5 
-      };
+      `);
 
-      // 5. Daily trends (Last 7 days)
-      const trendsResult = await pool.request()
-        .input('UserID', sql.BigInt, userId)
-        .query(`
-          SELECT CAST(AttemptedAt AS DATE) AS date, COUNT(*) AS count
-          FROM ExerciseAttempts
-          WHERE UserID = @UserID AND AttemptedAt >= DATEADD(day, -7, SYSDATETIMEOFFSET())
-          GROUP BY CAST(AttemptedAt AS DATE)
-          ORDER BY date ASC
-        `);
-
-      stats.dailyTrends = trendsResult.recordset.map(r => ({
-        day: new Date(r.date).toLocaleDateString('vi-VN', { weekday: 'short' }),
-        count: r.count
-      }));
-
-      // Calculate Achievements
-        { id: 1, icon: "🌱", label: "Mới bắt đầu", unlocked: learnedResult.recordset[0].total > 0 },
-        { id: 2, icon: "💯", label: "Chăm chỉ", unlocked: (accuracyResult.recordset[0].correct || 0) >= 100 },
-        { id: 3, icon: "🎯", label: "Chính xác", unlocked: Math.round(accuracyResult.recordset[0].accuracy || 0) >= 90 && learnedResult.recordset[0].total >= 10 },
-        { id: 4, icon: "🏆", label: "Bậc thầy", unlocked: learnedResult.recordset[0].total >= 50 },
-        { id: 5, icon: "🔥", label: "Streak 7", unlocked: false },
-      ]
+    const stats = {
+      totalLearned: learnedResult.recordset[0].total,
+      accuracy: Math.round(accuracyResult.recordset[0].accuracy || 0),
+      correct: accuracyResult.recordset[0].correct || 0,
+      wrong: accuracyResult.recordset[0].wrong || 0,
+      weakWords: weakWordsResult.recordset,
+      recentAttempts: recentAttemptsResult.recordset,
+      streak: 5 
     };
+
+    // 5. Daily trends (Last 7 days)
+    const trendsResult = await pool.request()
+      .input('UserID', sql.BigInt, userId)
+      .query(`
+        SELECT CAST(AttemptedAt AS DATE) AS date, COUNT(*) AS count
+        FROM ExerciseAttempts
+        WHERE UserID = @UserID AND AttemptedAt >= DATEADD(day, -7, SYSDATETIMEOFFSET())
+        GROUP BY CAST(AttemptedAt AS DATE)
+        ORDER BY date ASC
+      `);
+    
+    stats.dailyTrends = trendsResult.recordset.map(r => ({
+      day: new Date(r.date).toLocaleDateString('vi-VN', { weekday: 'short' }),
+      count: r.count
+    }));
+
+    // Calculate Achievements
+    stats.achievements = [
+      { id: 1, icon: "🌱", label: "Mới bắt đầu", unlocked: learnedResult.recordset[0].total > 0 },
+      { id: 2, icon: "💯", label: "Chăm chỉ", unlocked: (accuracyResult.recordset[0].correct || 0) >= 100 },
+      { id: 3, icon: "🎯", label: "Chính xác", unlocked: Math.round(accuracyResult.recordset[0].accuracy || 0) >= 90 && learnedResult.recordset[0].total >= 10 },
+      { id: 4, icon: "🏆", label: "Bậc thầy", unlocked: learnedResult.recordset[0].total >= 50 },
+      { id: 5, icon: "🔥", label: "Streak 7", unlocked: false },
+      { id: 6, icon: "⚡", label: "Tốc độ", unlocked: (accuracyResult.recordset[0].correct || 0) >= 10 },
+      { id: 7, icon: "📚", label: "Mọt sách", unlocked: learnedResult.recordset[0].total >= 20 },
+      { id: 8, icon: "🌟", label: "Ngôi sao", unlocked: false }
+    ];
+
+    return stats;
   }
 
   static async getMiniTests() {
     const pool = await poolPromise;
     const result = await pool.request().query(`
-      SELECT mt.MiniTestID AS id, mt.TestTitle AS title, mt.Description AS description, 
-             t.TopicName AS topicName, mt.TotalQuestions AS totalQuestions
+      SELECT mt.MiniTestID AS id, mt.TestTitle AS title, mt.Description AS description,
+             t.TopicName AS topicName, t.TopicCode AS topicCode
       FROM MiniTests mt
       LEFT JOIN Topics t ON mt.TopicID = t.TopicID
       WHERE mt.IsPublished = 1

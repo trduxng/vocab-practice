@@ -17,6 +17,7 @@
     "zod": "^4.4.2"
   },
   "devDependencies": {
+    "axios": "^1.16.0",
     "nodemon": "^3.1.14"
   },
   "scripts": {
