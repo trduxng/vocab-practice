@@ -1,8 +1,8 @@
 ﻿/*
  ============================================================
- DATABASE SCHEMA: TOEIC Vocabulary Learning Platform
+ DATABASE SCHEMA: TOEIC Vocabulary Learning Platform New
  Target RDBMS      : Microsoft SQL Server
- Naming convention : PascalCase for tables, snake-free SQL Server style
+ Naming convention : PascalCase for tables
  Author role       : Database Architect
  Notes:
  - Use DATETIMEOFFSET for all important timestamps.
@@ -18,13 +18,13 @@ SET
 
 GO
     /* ============================================================
-     1. CREATE DATABASE (optional)
+     1. CREATE DATABASE
      ============================================================ */
-    IF DB_ID(N'ToeicVocabularyPlatform') IS NULL BEGIN CREATE DATABASE ToeicVocabularyPlatform;
+    IF DB_ID(N'ToeicVocabularyPlatform') IS NULL BEGIN CREATE DATABASE ToeicVocabularyPlatform_new;
 
 END
 GO
-    USE ToeicVocabularyPlatform;
+    USE ToeicVocabularyPlatform_new;
 
 GO
     /* ============================================================
@@ -32,8 +32,7 @@ GO
      ============================================================ */
     IF OBJECT_ID(N'dbo.usp_SubmitQuestionAttempt', N'P') IS NOT NULL DROP PROCEDURE dbo.usp_SubmitQuestionAttempt;
 
-GO
-    IF OBJECT_ID(N'dbo.ExerciseAttempts', N'U') IS NOT NULL DROP TABLE dbo.ExerciseAttempts;
+IF OBJECT_ID(N'dbo.ExerciseAttempts', N'U') IS NOT NULL DROP TABLE dbo.ExerciseAttempts;
 
 IF OBJECT_ID(N'dbo.MiniTestItems', N'U') IS NOT NULL DROP TABLE dbo.MiniTestItems;
 
@@ -181,9 +180,7 @@ GO
     /* ----------------------------
      5.1 Questions
      - One word has many questions (1:N)
-     - OptionsJson stores:
-     + MCQ options A/B/C/D
-     + metadata for fill-in-blank, drag-drop, dictation, etc.
+     - OptionsJson stores MCQ options, fill-in-blank metadata, etc.
      - Enforced by ISJSON()
      ---------------------------- */
     CREATE TABLE dbo.Questions (
@@ -350,7 +347,6 @@ GO
 GO
     /* ============================================================
      8. INDEXES FOR PERFORMANCE
-     - Frequently queried columns: UserID, WordID, NextReviewDate
      ============================================================ */
     /* UserWordProgress indexes */
     CREATE NONCLUSTERED INDEX IX_UserWordProgress_UserID ON dbo.UserWordProgress (UserID);
@@ -411,16 +407,19 @@ GO
 
 GO
     /* ============================================================
-     9. STORED PROCEDURE
+     9. STORED PROCEDURE: usp_SubmitQuestionAttempt
      - ACID-compliant question submission
-     - Logs attempt
-     - Calculates score / memory state
-     - Updates NextReviewDate
+     - Logs attempt to ExerciseAttempts
+     - Updates UserWordProgress with SRS algorithm
+     - Backend tự tính IsCorrect và ScoreAwarded
      ============================================================ */
     CREATE PROCEDURE dbo.usp_SubmitQuestionAttempt (
         @UserID BIGINT,
         @QuestionID BIGINT,
+        @WordID BIGINT,
         @SubmittedAnswer NVARCHAR(1000),
+        @IsCorrect BIT,
+        @ScoreAwarded DECIMAL(5, 2),
         @ClientTimeZoneOffset NVARCHAR(10) = NULL,
         @AttemptMetadataJson NVARCHAR(MAX) = NULL
     ) AS BEGIN
@@ -430,158 +429,47 @@ SET
 SET
     XACT_ABORT ON;
 
-DECLARE @WordID BIGINT,
-@CorrectAnswer NVARCHAR(500),
-@QuestionType NVARCHAR(30),
-@IsCorrect BIT,
-@ScoreAwarded DECIMAL(5, 2),
-@Now DATETIMEOFFSET(7),
-@UserWordProgressID BIGINT,
+DECLARE @Now DATETIMEOFFSET(7) = SYSDATETIMEOFFSET();
+
+DECLARE @UserWordProgressID BIGINT,
 @MasteryLevel TINYINT,
 @EaseFactor DECIMAL(4, 2),
 @RepetitionCount INT,
 @ConsecutiveCorrect INT,
 @ConsecutiveWrong INT,
-@LastScore DECIMAL(5, 2),
 @MemoryStatus NVARCHAR(30),
 @NextReviewDate DATETIMEOFFSET(7),
 @IntervalDays INT;
 
 BEGIN TRY BEGIN TRAN;
 
-/* Validate JSON input if provided */
-IF @AttemptMetadataJson IS NOT NULL
-AND ISJSON(@AttemptMetadataJson) <> 1 BEGIN THROW 50001,
-N 'AttemptMetadataJson phải là JSON hợp lệ.',
-1;
-
-END
-SET
-    @Now = SYSDATETIMEOFFSET();
-
-/* Get question detail */
-SELECT
-    @WordID = q.WordID,
-    @CorrectAnswer = q.CorrectAnswer,
-    @QuestionType = q.QuestionType
-FROM
-    dbo.Questions AS q
-WHERE
-    q.QuestionID = @QuestionID;
-
-IF @WordID IS NULL BEGIN THROW 50002,
-N'QuestionID không tồn tại.',
-1;
-
-END
-/* Check user existence */
+-- Validate user
 IF NOT EXISTS (
     SELECT
         1
     FROM
-        dbo.Users AS u
+        dbo.Users
     WHERE
-        u.UserID = @UserID
-        AND u.IsActive = 1
+        UserID = @UserID
+        AND IsActive = 1
 ) BEGIN THROW 50003,
 N'UserID không hợp lệ hoặc đã bị vô hiệu hóa.',
 1;
 
-END
-/*
- Simple answer evaluation:
- - Normalize by trimming and lowercasing.
- - In real production, MCQ / dictation / fill blank may need more advanced scoring.
- */
-SET
-    @IsCorrect = CASE
-        WHEN LOWER(LTRIM(RTRIM(@SubmittedAnswer))) = LOWER(LTRIM(RTRIM(@CorrectAnswer))) THEN 1
-        ELSE 0
-    END;
+END -- Validate question
+IF NOT EXISTS (
+    SELECT
+        1
+    FROM
+        dbo.Questions
+    WHERE
+        QuestionID = @QuestionID
+        AND WordID = @WordID
+) BEGIN THROW 50002,
+N'QuestionID không tồn tại hoặc không khớp với WordID.',
+1;
 
-SET
-    @ScoreAwarded = CASE
-        WHEN @IsCorrect = 1 THEN 100.00
-        ELSE 0.00
-    END;
-
-/*
- Upsert-like handling for UserWordProgress.
- Locking hints are used to avoid race conditions when the same user submits
- multiple attempts concurrently for the same word.
- */
-SELECT
-    @UserWordProgressID = uwp.UserWordProgressID,
-    @MasteryLevel = uwp.MasteryLevel,
-    @EaseFactor = uwp.EaseFactor,
-    @RepetitionCount = uwp.RepetitionCount,
-    @ConsecutiveCorrect = uwp.ConsecutiveCorrect,
-    @ConsecutiveWrong = uwp.ConsecutiveWrong,
-    @LastScore = uwp.LastScore,
-    @MemoryStatus = uwp.MemoryStatus
-FROM
-    dbo.UserWordProgress AS uwp WITH (UPDLOCK, HOLDLOCK)
-WHERE
-    uwp.UserID = @UserID
-    AND uwp.WordID = @WordID;
-
-IF @UserWordProgressID IS NULL BEGIN
-INSERT INTO
-    dbo.UserWordProgress (
-        UserID,
-        WordID,
-        MasteryLevel,
-        EaseFactor,
-        RepetitionCount,
-        ConsecutiveCorrect,
-        ConsecutiveWrong,
-        LastReviewedAt,
-        NextReviewDate,
-        LastScore,
-        MemoryStatus,
-        CreatedAt,
-        UpdatedAt
-    )
-VALUES
-    (
-        @UserID,
-        @WordID,
-        0,
-        2.50,
-        0,
-        0,
-        0,
-        NULL,
-        NULL,
-        NULL,
-        N 'New',
-        @Now,
-        @Now
-    );
-
-SET
-    @UserWordProgressID = SCOPE_IDENTITY();
-
-SET
-    @MasteryLevel = 0;
-
-SET
-    @EaseFactor = 2.50;
-
-SET
-    @RepetitionCount = 0;
-
-SET
-    @ConsecutiveCorrect = 0;
-
-SET
-    @ConsecutiveWrong = 0;
-
-SET
-    @MemoryStatus = N 'New';
-
-END
-/* 1) Log attempt history */
+END -- 1) Log attempt history
 INSERT INTO
     dbo.ExerciseAttempts (
         UserID,
@@ -607,20 +495,73 @@ VALUES
         @AttemptMetadataJson
     );
 
-/*
- 2) Calculate memory metrics
- A lightweight spaced repetition policy:
- - Correct:
- + increase repetition count
- + increase mastery
- + reduce wrong streak
- + slightly improve ease factor
- - Wrong:
- + reset repetition count
- + reduce mastery
- + increase wrong streak
- + reduce ease factor
- */
+-- 2) Get or create UserWordProgress
+SELECT
+    @UserWordProgressID = UserWordProgressID,
+    @MasteryLevel = MasteryLevel,
+    @EaseFactor = EaseFactor,
+    @RepetitionCount = RepetitionCount,
+    @ConsecutiveCorrect = ConsecutiveCorrect,
+    @ConsecutiveWrong = ConsecutiveWrong,
+    @MemoryStatus = MemoryStatus
+FROM
+    dbo.UserWordProgress WITH (UPDLOCK, HOLDLOCK)
+WHERE
+    UserID = @UserID
+    AND WordID = @WordID;
+
+IF @UserWordProgressID IS NULL BEGIN
+INSERT INTO
+    dbo.UserWordProgress (
+        UserID,
+        WordID,
+        MasteryLevel,
+        EaseFactor,
+        RepetitionCount,
+        ConsecutiveCorrect,
+        ConsecutiveWrong,
+        LastReviewedAt,
+        NextReviewDate,
+        LastScore,
+        MemoryStatus
+    )
+VALUES
+    (
+        @UserID,
+        @WordID,
+        0,
+        2.50,
+        0,
+        0,
+        0,
+        NULL,
+        NULL,
+        NULL,
+        N 'New'
+    );
+
+SET
+    @UserWordProgressID = SCOPE_IDENTITY();
+
+SET
+    @MasteryLevel = 0;
+
+SET
+    @EaseFactor = 2.50;
+
+SET
+    @RepetitionCount = 0;
+
+SET
+    @ConsecutiveCorrect = 0;
+
+SET
+    @ConsecutiveWrong = 0;
+
+SET
+    @MemoryStatus = N 'New';
+
+END -- 3) Calculate SRS metrics
 IF @IsCorrect = 1 BEGIN
 SET
     @RepetitionCount = @RepetitionCount + 1;
@@ -641,6 +582,28 @@ SET
     @EaseFactor = CASE
         WHEN @EaseFactor + 0.10 > 3.50 THEN 3.50
         ELSE @EaseFactor + 0.10
+    END;
+
+SET
+    @IntervalDays = CASE
+        WHEN @RepetitionCount = 1 THEN 1
+        WHEN @RepetitionCount = 2 THEN 3
+        WHEN @RepetitionCount = 3 THEN 7
+        WHEN @RepetitionCount = 4 THEN 14
+        WHEN @RepetitionCount = 5 THEN 30
+        ELSE CAST(
+            ROUND((@RepetitionCount * @EaseFactor * 10.0), 0) AS INT
+        )
+    END;
+
+SET
+    @NextReviewDate = DATEADD(DAY, @IntervalDays, @Now);
+
+SET
+    @MemoryStatus = CASE
+        WHEN @MasteryLevel >= 8 THEN N'Mastered'
+        WHEN @MasteryLevel >= 5 THEN N'Reviewing'
+        ELSE N'Learning'
     END;
 
 END
@@ -666,49 +629,13 @@ SET
         ELSE @EaseFactor - 0.20
     END;
 
-END
-/*
- 3) Compute next review date
- Simple interval strategy:
- - Wrong  : review again very soon
- - Correct: interval grows with repetition count
- */
-IF @IsCorrect = 0 BEGIN
-SET
-    @IntervalDays = 0;
-
 SET
     @NextReviewDate = DATEADD(MINUTE, 30, @Now);
 
 SET
     @MemoryStatus = N'Lapsed';
 
-END
-ELSE BEGIN
-SET
-    @IntervalDays = CASE
-        WHEN @RepetitionCount = 1 THEN 1
-        WHEN @RepetitionCount = 2 THEN 3
-        WHEN @RepetitionCount = 3 THEN 7
-        WHEN @RepetitionCount = 4 THEN 14
-        WHEN @RepetitionCount = 5 THEN 30
-        ELSE CAST(
-            ROUND((@RepetitionCount * @EaseFactor * 10.0), 0) AS INT
-        )
-    END;
-
-SET
-    @NextReviewDate = DATEADD(DAY, @IntervalDays, @Now);
-
-SET
-    @MemoryStatus = CASE
-        WHEN @MasteryLevel >= 8 THEN N'Mastered'
-        WHEN @MasteryLevel >= 5 THEN N'Reviewing'
-        ELSE N'Learning'
-    END;
-
-END
-/* 4) Update learning progress */
+END -- 4) Update progress
 UPDATE
     dbo.UserWordProgress
 SET
@@ -727,7 +654,7 @@ WHERE
 
 COMMIT TRAN;
 
-/* Return result for application layer */
+-- Return result for application layer
 SELECT
     @UserID AS UserID,
     @QuestionID AS QuestionID,
@@ -743,44 +670,22 @@ SELECT
 
 END TRY BEGIN CATCH IF @ @TRANCOUNT > 0 ROLLBACK TRAN;
 
-DECLARE @ErrorNumber INT = ERROR_NUMBER(),
-@ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE(),
-@ErrorLine INT = ERROR_LINE(),
-@ErrorProcedure NVARCHAR(200) = ERROR_PROCEDURE();
+DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
 
--- Gán chuỗi báo lỗi vào một biến trước
-DECLARE @ThrowMsg NVARCHAR(2048);
+DECLARE @ErrorNumber INT = ERROR_NUMBER();
 
-SET
-    @ThrowMsg = CONCAT (
-        N 'usp_SubmitQuestionAttempt failed. ErrorNumber=',
-        @ErrorNumber,
-        N', Procedure=',
-        ISNULL(@ErrorProcedure, N''),
-        N', Line=',
-        @ErrorLine,
-        N', Message=',
-        @ErrorMessage
-    );
+DECLARE @ErrorLine INT = ERROR_LINE();
 
--- Truyền biến vào lệnh THROW
 THROW 51000,
-@ThrowMsg,
+@ErrorMessage,
 1;
 
 END CATCH
 END
 GO
     /* ============================================================
-     10. OPTIONAL SEED DATA FOR REFERENCE
+     SCRIPT COMPLETE
      ============================================================ */
-INSERT INTO
-    dbo.PartOfSpeeches (PartOfSpeechCode, PartOfSpeechName, Description)
-VALUES
-    (N'n', N 'Noun', N'Danh từ'),
-    (N'v', N'Verb', N'Động từ'),
-    (N'adj', N'Adjective', N'Tính từ'),
-    (N'adv', N'Adverb', N'Trạng từ'),
-    (N'prep', N'Preposition', N'Giới từ');
+    PRINT N'Database ToeicVocabularyPlatform_new created successfully!';
 
 GO

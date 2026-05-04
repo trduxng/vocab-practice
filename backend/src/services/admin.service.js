@@ -240,7 +240,7 @@ class AdminService {
   }
 
   static async getWeeklyActivity() {
-    const pool = await poolPromise();
+    const pool = await poolPromise;
     const result = await pool.request().query(`
       SELECT
         DATENAME(WEEKDAY, AttemptedAt) AS day,
@@ -252,15 +252,14 @@ class AdminService {
     `);
 
     // Map day names to Vietnamese
-    const dayMap = {
-      Monday: "T2",
-      Tuesday: "T3",
-      Wednesday: "T4",
-      Thursday: "T5",
-      Friday: "T6",
-      Saturday: "T7",
-      Sunday: "CN",
-    };
+    var dayMap = {};
+    dayMap["Monday"] = "T2";
+    dayMap["Tuesday"] = "T3";
+    dayMap["Wednesday"] = "T4";
+    dayMap["Thursday"] = "T5";
+    dayMap["Friday"] = "T6";
+    dayMap["Saturday"] = "T7";
+    dayMap["Sunday"] = "CN";
 
     return result.recordset.map((row) => ({
       day: dayMap[row.day] || row.day.substring(0, 2),
@@ -269,7 +268,7 @@ class AdminService {
   }
 
   static async getTodayActivity() {
-    const pool = await poolPromise();
+    const pool = await poolPromise;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -287,9 +286,10 @@ class AdminService {
   }
 
   static async getRecentUsers() {
-    const pool = await poolPromise();
+    const pool = await poolPromise;
     const result = await pool.request().query(`
       SELECT TOP 5
+        UserID AS id,
         FullName AS name,
         Email AS email,
         'TOEIC 800+' AS course,
@@ -311,7 +311,7 @@ class AdminService {
   }
 
   static async getTopCourses() {
-    const pool = await poolPromise();
+    const pool = await poolPromise;
     const result = await pool.request().query(`
       SELECT TOP 3
         t.TopicName AS name,

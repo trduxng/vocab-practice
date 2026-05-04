@@ -11,7 +11,7 @@ const adminRoutes = ["/admin"];
 // Các route cần login (cả user và admin)
 const protectedRoutes = ["/user", "/admin"];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Cho phép public routes và static files
