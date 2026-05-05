@@ -260,11 +260,14 @@ class AdminService {
   static async getStudents() {
     const pool = await poolPromise;
     const result = await pool.request().query(`
-      SELECT u.UserID AS id, u.FullName AS fullName, u.Email AS email, u.IsActive AS isActive, u.CreatedAt AS joinedAt,
+      SELECT u.UserID AS id, u.FullName AS fullName, u.Email AS email, u.UserRole AS role,
+             r.RoleName AS roleName, u.IsActive AS isActive, u.CreatedAt AS joinedAt,
              (SELECT COUNT(*) FROM UserWordProgress WHERE UserID = u.UserID AND MasteryLevel >= 8) AS masteredWords,
-             (SELECT COUNT(*) FROM UserWordProgress WHERE UserID = u.UserID) AS totalWords
+             (SELECT COUNT(*) FROM UserWordProgress WHERE UserID = u.UserID) AS totalWords,
+             (SELECT COUNT(*) FROM ExerciseAttempts WHERE UserID = u.UserID) AS totalAttempts,
+             (SELECT MAX(AttemptedAt) FROM ExerciseAttempts WHERE UserID = u.UserID) AS lastActiveAt
       FROM Users u
-      WHERE u.UserRole = 'Learner'
+      LEFT JOIN Roles r ON u.RoleID = r.RoleID
       ORDER BY u.CreatedAt DESC
     `);
     return result.recordset;
@@ -276,6 +279,33 @@ class AdminService {
       .input('UserID', sql.BigInt, userId)
       .query('UPDATE Users SET IsActive = CASE WHEN IsActive = 1 THEN 0 ELSE 1 END, UpdatedAt = SYSDATETIMEOFFSET() WHERE UserID = @UserID');
     return true;
+  }
+
+  static async updateUserRole(userId, roleName) {
+    const allowedRoles = ['Admin', 'Learner'];
+    if (!allowedRoles.includes(roleName)) {
+      throw new Error('Invalid role');
+    }
+
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('UserID', sql.BigInt, userId)
+      .input('RoleName', sql.NVarChar(50), roleName)
+      .query(`
+        DECLARE @RoleID INT;
+        SELECT @RoleID = RoleID FROM Roles WHERE RoleName = @RoleName;
+
+        IF @RoleID IS NULL
+          THROW 50002, 'Role not found', 1;
+
+        UPDATE Users
+        SET UserRole = @RoleName,
+            RoleID = @RoleID,
+            UpdatedAt = SYSDATETIMEOFFSET()
+        WHERE UserID = @UserID;
+      `);
+
+    return result.rowsAffected.some((count) => count > 0);
   }
 
   static async getAnalyticsData() {

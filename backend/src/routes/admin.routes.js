@@ -25,6 +25,7 @@ router.get('/stats', checkPermission('VIEW_DASHBOARD'), AdminController.getStats
 // Students
 router.get('/students', checkPermission('MANAGE_USERS'), AdminController.getStudents);
 router.patch('/students/:id/toggle', checkPermission('MANAGE_USERS'), AdminController.toggleStudentStatus);
+router.patch('/students/:id/role', checkPermission('MANAGE_USERS'), AdminController.updateUserRole);
 router.get('/analytics', checkPermission('VIEW_DASHBOARD'), AdminController.getAnalytics);
 
 module.exports = router;

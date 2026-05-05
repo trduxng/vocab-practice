@@ -118,6 +118,17 @@ class AdminController {
     }
   }
 
+  static async updateUserRole(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { role } = req.body;
+      await AdminService.updateUserRole(id, role);
+      res.status(200).json({ message: 'Cập nhật vai trò thành công' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async getAnalytics(req, res, next) {
     try {
       const data = await AdminService.getAnalyticsData();

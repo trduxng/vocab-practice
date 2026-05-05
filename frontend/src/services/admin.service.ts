@@ -31,6 +31,16 @@ export const adminService = {
     return response.data;
   },
 
+  async getMiniTests() {
+    const response = await apiClient.get('/admin/minitests');
+    return response.data;
+  },
+
+  async createMiniTest(data: any) {
+    const response = await apiClient.post('/admin/minitests', data);
+    return response.data;
+  },
+
   async getStats() {
     const response = await apiClient.get('/admin/stats');
     return response.data;
@@ -41,8 +51,13 @@ export const adminService = {
     return response.data;
   },
 
-  async toggleStudentStatus(id: number) {
+  async toggleStudentStatus(id: number | string) {
     const response = await apiClient.patch(`/admin/students/${id}/toggle`);
+    return response.data;
+  },
+
+  async updateStudentRole(id: number | string, role: 'Admin' | 'Learner') {
+    const response = await apiClient.patch(`/admin/students/${id}/role`, { role });
     return response.data;
   },
 
