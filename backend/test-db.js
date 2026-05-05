@@ -1,36 +1,26 @@
-const sql = require('mssql');
-require('dotenv').config();
+const { poolPromise } = require("./src/config/db");
 
-const serverClean = (process.env.DB_SERVER || '').replace(/"/g, '');
-const serverParts = serverClean.split('\\').filter(Boolean);
-const host = serverParts[0];
-const instance = serverParts[1];
+async function testDatabaseConnection() {
+  console.log("--- DIAGNOSTIC START ---");
 
-const config = {
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    server: host,
-    port: parseInt(process.env.DB_PORT) || 1433,
-    options: {
-        instanceName: instance,
-        encrypt: true,
-        trustServerCertificate: true
-    },
-    connectTimeout: 30000
-};
+  try {
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .query("SELECT DB_NAME() AS databaseName, SUSER_SNAME() AS loginName");
 
-console.log('--- DIAGNOSTIC START ---');
-console.log('Host:', host);
-console.log('Instance:', instance);
-console.log('Port:', config.port);
-console.log('Connecting...');
+    console.log("SUCCESS: Connected to SQL Server!");
+    console.log("Database:", result.recordset[0].databaseName);
+    console.log("Login:", result.recordset[0].loginName);
 
-sql.connect(config).then(() => {
-    console.log('✅ SUCCESS: Connected to SQL Server!');
+    await pool.close();
     process.exit(0);
-}).catch(err => {
-    console.error('❌ FAIL: Connection Error');
-    console.error(err);
+  } catch (err) {
+    console.error("FAIL: Connection Error");
+    console.error("Code:", err.code);
+    console.error("Message:", err.message);
     process.exit(1);
-});
+  }
+}
+
+testDatabaseConnection();
