@@ -1,5 +1,7 @@
 "use client";
-import { Bell, Search } from "lucide-react";
+
+import { useEffect, useState } from "react";
+import { Bell, Moon, Search, Sun } from "lucide-react";
 
 interface TopbarProps {
   title: string;
@@ -14,46 +16,49 @@ export default function Topbar({
   role,
   userName = "Admin",
 }: TopbarProps) {
+  const [darkMode, setDarkMode] = useState(true);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", darkMode);
+  }, [darkMode]);
+
   return (
-    <header className="h-16 bg-[#0d1526]/80 backdrop-blur-md border-b border-white/8 flex items-center justify-between px-6 sticky top-0 z-30">
-      <div>
-        <h1 className="text-white font-bold text-lg leading-tight">{title}</h1>
-        {subtitle && (
-          <p className="text-slate-500 text-xs mt-0.5">{subtitle}</p>
-        )}
+    <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-4 border-b border-slate-200 bg-white/85 px-4 py-3 backdrop-blur-xl md:px-6 dark:border-white/10 dark:bg-slate-950/75">
+      <div className="min-w-0">
+        <h1 className="truncate text-lg font-semibold tracking-tight text-slate-950 dark:text-white">{title}</h1>
+        {subtitle && <p className="mt-0.5 hidden truncate text-xs text-slate-500 sm:block dark:text-slate-400">{subtitle}</p>}
       </div>
 
-      <div className="flex items-center gap-3">
-        {/* Search */}
-        <div className="hidden md:flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2 w-48 hover:border-blue-500/40 transition-all">
-          <Search size={14} className="text-slate-500" />
+      <div className="flex items-center gap-2 md:gap-3">
+        <div className="hidden h-9 w-64 items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 lg:flex dark:border-white/10 dark:bg-white/5">
+          <Search className="h-4 w-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Tìm kiếm..."
-            className="bg-transparent text-sm text-slate-300 placeholder:text-slate-600 outline-none w-full"
+            placeholder="Search users, quizzes, reports"
+            className="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-200"
           />
         </div>
 
-        {/* Notification */}
-        <button className="relative w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:border-blue-500/40 transition-all">
-          <Bell size={16} />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-blue-500 rounded-full border border-[#0d1526]" />
+        <button
+          onClick={() => setDarkMode((value) => !value)}
+          className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 transition-colors hover:text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:text-white"
+          aria-label="Toggle dark mode"
+        >
+          {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
 
-        {/* Avatar */}
-        <div className="flex items-center gap-2.5 cursor-pointer group">
-          <div
-            className={`w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold ${role === "admin" ? "bg-linear-to-br from-amber-500 to-orange-600" : "bg-linear-to-br from-blue-500 to-cyan-500"}`}
-          >
+        <button className="relative flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 transition-colors hover:text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:text-white">
+          <Bell className="h-4 w-4" />
+          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-950" />
+        </button>
+
+        <div className="flex items-center gap-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-slate-950 text-xs font-semibold text-white dark:bg-white dark:text-slate-950">
             {userName.slice(0, 2).toUpperCase()}
           </div>
           <div className="hidden md:block">
-            <p className="text-white text-sm font-semibold leading-tight">
-              {userName}
-            </p>
-            <p className="text-slate-500 text-xs">
-              {role === "admin" ? "Quản trị viên" : "Học viên"}
-            </p>
+            <p className="text-sm font-medium leading-tight text-slate-950 dark:text-white">{userName}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">{role === "admin" ? "Administrator" : "Learner"}</p>
           </div>
         </div>
       </div>

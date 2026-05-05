@@ -1,45 +1,52 @@
 "use client";
-import { useState, Suspense } from "react";
+
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
-  Users,
-  BookOpen,
   BarChart3,
-  Settings,
+  Bell,
+  BookOpen,
+  Brain,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
+  FileQuestion,
+  FileText,
+  FileWarning,
+  Home,
+  LayoutDashboard,
+  ListChecks,
   LogOut,
+  Settings,
+  ShieldCheck,
   Target,
   Trophy,
-  Brain,
-  Home,
-  FileText,
-  Clock,
-  HelpCircle,
+  Users,
 } from "lucide-react";
 
 const adminLinks = [
-  { icon: LayoutDashboard, label: "Tổng quan", href: "/admin/dashboard" },
-  { icon: BookOpen, label: "Từ vựng", href: "/admin/words" },
-  { icon: HelpCircle, label: "Câu hỏi", href: "/admin/questions" },
-  { icon: Users, label: "Học viên", href: "/admin/students" },
-  { icon: BookOpen, label: "Khóa học", href: "/admin/courses" },
-  { icon: BarChart3, label: "Thống kê", href: "/admin/analytics" },
-  { icon: Settings, label: "Cài đặt", href: "/admin/settings" },
+  { icon: LayoutDashboard, label: "Overview", href: "/admin/dashboard" },
+  { icon: Users, label: "Users", href: "/admin/students" },
+  { icon: ClipboardList, label: "Content", href: "/admin/courses" },
+  { icon: BarChart3, label: "Analytics", href: "/admin/analytics" },
+  { icon: FileWarning, label: "Reports", href: "/admin/reports" },
+  { icon: Settings, label: "Settings", href: "/admin/settings" },
+  { icon: Bell, label: "Notifications", href: "/admin/notifications" },
+  { icon: BookOpen, label: "Vocabulary", href: "/admin/words" },
+  { icon: FileQuestion, label: "Questions", href: "/admin/questions" },
+  { icon: ListChecks, label: "Mini tests", href: "/admin/minitests" },
 ];
 
 const studentLinks = [
-  { icon: LayoutDashboard, label: "Tổng quan", href: "/user/dashboard" },
-  { icon: BookOpen, label: "Khóa học", href: "/user/courses" },
-  { icon: Brain, label: "Học từ vựng", href: "/user/learn" },
-  { icon: Target, label: "Luyện tập", href: "/user/practice" },
-  { icon: FileText, label: "Mini Tests", href: "/user/minitests" },
-  { icon: Clock, label: "Lịch sử thi", href: "/user/minitests/history" },
-  { icon: Trophy, label: "Thành tích", href: "/user/achievements" },
-  { icon: BarChart3, label: "Tiến độ", href: "/user/progress" },
-  { icon: Settings, label: "Cài đặt", href: "/user/settings" },
+  { icon: LayoutDashboard, label: "Overview", href: "/user/dashboard" },
+  { icon: BookOpen, label: "Courses", href: "/user/courses" },
+  { icon: Brain, label: "Learn", href: "/user/learn" },
+  { icon: Target, label: "Practice", href: "/user/practice" },
+  { icon: FileText, label: "Mini tests", href: "/user/minitests" },
+  { icon: Trophy, label: "Achievements", href: "/user/achievements" },
+  { icon: BarChart3, label: "Progress", href: "/user/progress" },
+  { icon: Settings, label: "Settings", href: "/user/settings" },
 ];
 
 interface NavLinksProps {
@@ -47,9 +54,9 @@ interface NavLinksProps {
   collapsed: boolean;
 }
 
-// Tách riêng phần dùng usePathname vào component con + wrap Suspense
 function NavLinks({ links, collapsed }: NavLinksProps) {
   const pathname = usePathname();
+
   return (
     <>
       {links.map((link) => {
@@ -58,24 +65,15 @@ function NavLinks({ links, collapsed }: NavLinksProps) {
           <Link
             key={link.href}
             href={link.href}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group
-              ${
-                active
-                  ? "bg-blue-600/20 text-blue-300 border border-blue-500/30"
-                  : "text-slate-400 hover:text-white hover:bg-white/6"
-              }
-              ${collapsed ? "justify-center" : ""}
-            `}
+            className={`group flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors ${
+              active
+                ? "bg-slate-950 text-white shadow-sm dark:bg-white dark:text-slate-950"
+                : "text-slate-500 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
+            } ${collapsed ? "justify-center" : "md:justify-start"} justify-center`}
             title={collapsed ? link.label : undefined}
           >
-            <link.icon
-              size={18}
-              className={`shrink-0 ${active ? "text-blue-400" : "group-hover:text-white"}`}
-            />
-            {!collapsed && <span>{link.label}</span>}
-            {!collapsed && active && (
-              <span className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400" />
-            )}
+            <link.icon className="h-4 w-4 shrink-0" />
+            <span className={`${collapsed ? "hidden" : "hidden md:inline"}`}>{link.label}</span>
           </Link>
         );
       })}
@@ -83,54 +81,50 @@ function NavLinks({ links, collapsed }: NavLinksProps) {
   );
 }
 
-interface SidebarProps {
-  role: "admin" | "student";
-}
-
-export default function Sidebar({ role }: SidebarProps) {
+export default function Sidebar({ role }: { role: "admin" | "student" }) {
   const [collapsed, setCollapsed] = useState(false);
   const links = role === "admin" ? adminLinks : studentLinks;
 
   return (
     <aside
-      className={`relative flex flex-col bg-[#0d1526] border-r border-white/8 transition-all duration-300 ${collapsed ? "w-16" : "w-60"} min-h-screen shrink-0`}
+      className={`sticky top-0 z-40 flex h-screen shrink-0 flex-col border-r border-slate-200 bg-white/95 backdrop-blur transition-all duration-300 dark:border-white/10 dark:bg-slate-950/90 ${
+        collapsed ? "w-16" : "w-16 md:w-64"
+      }`}
     >
-      {/* Logo */}
       <div
-        className={`flex items-center gap-3 px-4 h-16 border-b border-white/8 ${collapsed ? "justify-center" : ""}`}
+        className={`flex h-16 items-center gap-3 border-b border-slate-200 px-4 dark:border-white/10 ${
+          collapsed ? "justify-center" : "justify-center md:justify-start"
+        }`}
       >
-        <div className="w-8 h-8 bg-linear-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center shrink-0 shadow-lg shadow-blue-500/25">
-          <BookOpen size={15} className="text-white" />
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-slate-950 text-white dark:bg-white dark:text-slate-950">
+          <BookOpen className="h-4 w-4" />
         </div>
         {!collapsed && (
-          <span className="font-bold text-base text-white tracking-tight whitespace-nowrap">
-            Voca<span className="text-blue-400">Boost</span>
-          </span>
+          <div className="hidden md:block">
+            <p className="text-sm font-semibold tracking-tight text-slate-950 dark:text-white">VocaBoost</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Learning admin</p>
+          </div>
         )}
       </div>
 
-      {/* Role badge */}
       {!collapsed && (
-        <div className="mx-3 mt-3 mb-1 px-3 py-1.5 rounded-lg bg-white/4 border border-white/8 flex items-center gap-2">
-          <div
-            className={`w-2 h-2 rounded-full ${role === "admin" ? "bg-amber-400" : "bg-green-400"}`}
-          />
-          <span className="text-xs font-medium text-slate-400">
-            {role === "admin" ? "Quản trị viên" : "Học viên"}
-          </span>
+        <div className="mx-3 mt-3 hidden items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 md:flex dark:border-white/10 dark:bg-white/5">
+          <ShieldCheck className="h-4 w-4 text-emerald-500" />
+          <div>
+            <p className="text-xs font-medium text-slate-800 dark:text-slate-200">
+              {role === "admin" ? "Admin workspace" : "Student workspace"}
+            </p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">Production</p>
+          </div>
         </div>
       )}
 
-      {/* Nav links — wrap Suspense để tránh reload liên tục */}
-      <nav className="flex-1 px-2 py-3 flex flex-col gap-0.5">
+      <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-2 py-4">
         <Suspense
           fallback={
-            <div className="space-y-1 px-1">
-              {links.map((_, i) => (
-                <div
-                  key={i}
-                  className="h-10 rounded-xl bg-white/4 animate-pulse"
-                />
+            <div className="space-y-2">
+              {links.map((link) => (
+                <div key={link.href} className="h-10 rounded-md bg-slate-100 dark:bg-white/5" />
               ))}
             </div>
           }
@@ -139,37 +133,26 @@ export default function Sidebar({ role }: SidebarProps) {
         </Suspense>
       </nav>
 
-      {/* Back to site */}
-      {!collapsed && (
-        <div className="px-2 pb-2">
-          <Link
-            href="/"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-500 hover:text-slate-300 hover:bg-white/5 transition-all"
-          >
-            <Home size={16} />
-            Về trang chủ
-          </Link>
-        </div>
-      )}
-
-      {/* Logout */}
-      <div
-        className={`px-2 pb-4 border-t border-white/8 pt-3 ${collapsed ? "flex justify-center" : ""}`}
-      >
-        <button
-          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-500 hover:text-red-400 hover:bg-red-500/8 transition-all w-full ${collapsed ? "justify-center" : ""}`}
+      <div className="border-t border-slate-200 p-2 dark:border-white/10">
+        <Link
+          href="/"
+          className="flex h-10 items-center justify-center gap-3 rounded-md px-3 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-950 md:justify-start dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
         >
-          <LogOut size={16} />
-          {!collapsed && "Đăng xuất"}
+          <Home className="h-4 w-4" />
+          {!collapsed && <span className="hidden md:inline">Back to site</span>}
+        </Link>
+        <button className="flex h-10 w-full items-center justify-center gap-3 rounded-md px-3 text-sm font-medium text-slate-500 hover:bg-rose-50 hover:text-rose-600 md:justify-start dark:text-slate-400 dark:hover:bg-rose-500/10 dark:hover:text-rose-300">
+          <LogOut className="h-4 w-4" />
+          {!collapsed && <span className="hidden md:inline">Sign out</span>}
         </button>
       </div>
 
-      {/* Collapse toggle */}
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="absolute -right-3 top-20 w-6 h-6 bg-[#0d1526] border border-white/15 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:border-blue-500/50 transition-all z-10"
+        className="absolute -right-3 top-20 hidden h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:text-slate-950 md:flex dark:border-white/10 dark:bg-slate-950 dark:text-slate-400 dark:hover:text-white"
+        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
       >
-        {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
+        {collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
       </button>
     </aside>
   );
