@@ -1,17 +1,25 @@
 import apiClient from '../lib/api-client';
 
+export interface UserMutationPayload {
+  fullName: string;
+  email: string;
+  password?: string;
+  role: 'Admin' | 'Learner';
+  isActive: boolean;
+}
+
 export const adminService = {
   async getWords(page = 1, limit = 20) {
     const response = await apiClient.get('/admin/words', { params: { page, limit } });
     return response.data;
   },
 
-  async createWord(data: any) {
+  async createWord(data: unknown) {
     const response = await apiClient.post('/admin/words', data);
     return response.data;
   },
 
-  async updateWord(id: number, data: any) {
+  async updateWord(id: number, data: unknown) {
     const response = await apiClient.put(`/admin/words/${id}`, data);
     return response.data;
   },
@@ -26,7 +34,7 @@ export const adminService = {
     return response.data;
   },
 
-  async createQuestion(data: any) {
+  async createQuestion(data: unknown) {
     const response = await apiClient.post('/admin/questions', data);
     return response.data;
   },
@@ -36,7 +44,7 @@ export const adminService = {
     return response.data;
   },
 
-  async createMiniTest(data: any) {
+  async createMiniTest(data: unknown) {
     const response = await apiClient.post('/admin/minitests', data);
     return response.data;
   },
@@ -48,6 +56,21 @@ export const adminService = {
 
   async getStudents() {
     const response = await apiClient.get('/admin/students');
+    return response.data;
+  },
+
+  async createStudent(data: UserMutationPayload) {
+    const response = await apiClient.post('/admin/students', data);
+    return response.data;
+  },
+
+  async updateStudent(id: number | string, data: UserMutationPayload) {
+    const response = await apiClient.put(`/admin/students/${id}`, data);
+    return response.data;
+  },
+
+  async deleteStudent(id: number | string) {
+    const response = await apiClient.delete(`/admin/students/${id}`);
     return response.data;
   },
 

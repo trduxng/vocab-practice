@@ -1,4 +1,13 @@
 const { poolPromise, sql } = require('../config/db');
+const bcrypt = require('bcrypt');
+
+const USER_ROLES = ['Admin', 'Learner'];
+
+function assertValidUserRole(roleName) {
+  if (!USER_ROLES.includes(roleName)) {
+    throw new Error('Invalid role');
+  }
+}
 
 class AdminService {
   // --- WORDS ---
@@ -273,6 +282,139 @@ class AdminService {
     return result.recordset;
   }
 
+  static async createUser(userData) {
+    const {
+      fullName,
+      email,
+      password,
+      role = 'Learner',
+      isActive = true
+    } = userData;
+
+    assertValidUserRole(role);
+
+    if (!fullName || !email || !password || password.length < 6) {
+      throw new Error('Invalid user data');
+    }
+
+    const pool = await poolPromise;
+    const existing = await pool.request()
+      .input('Email', sql.NVarChar(255), email)
+      .query('SELECT UserID FROM Users WHERE Email = @Email');
+
+    if (existing.recordset.length > 0) {
+      throw new Error('Email already exists');
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const result = await pool.request()
+      .input('FullName', sql.NVarChar(200), fullName)
+      .input('Email', sql.NVarChar(255), email)
+      .input('PasswordHash', sql.NVarChar(500), passwordHash)
+      .input('RoleName', sql.NVarChar(50), role)
+      .input('IsActive', sql.Bit, Boolean(isActive))
+      .query(`
+        DECLARE @RoleID INT;
+        SELECT @RoleID = RoleID FROM Roles WHERE RoleName = @RoleName;
+
+        IF @RoleID IS NULL
+          THROW 50002, 'Role not found', 1;
+
+        INSERT INTO Users (FullName, Email, PasswordHash, UserRole, RoleID, IsActive, CreatedAt, UpdatedAt)
+        OUTPUT inserted.UserID AS id, inserted.FullName AS fullName, inserted.Email AS email, inserted.UserRole AS role, inserted.IsActive AS isActive
+        VALUES (@FullName, @Email, @PasswordHash, @RoleName, @RoleID, @IsActive, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET());
+      `);
+
+    return result.recordset[0];
+  }
+
+  static async updateUser(userId, userData) {
+    const {
+      fullName,
+      email,
+      password,
+      role = 'Learner',
+      isActive = true
+    } = userData;
+
+    assertValidUserRole(role);
+
+    if (!fullName || !email) {
+      throw new Error('Invalid user data');
+    }
+
+    const pool = await poolPromise;
+    const existing = await pool.request()
+      .input('UserID', sql.BigInt, userId)
+      .input('Email', sql.NVarChar(255), email)
+      .query('SELECT UserID FROM Users WHERE Email = @Email AND UserID <> @UserID');
+
+    if (existing.recordset.length > 0) {
+      throw new Error('Email already exists');
+    }
+
+    const request = pool.request()
+      .input('UserID', sql.BigInt, userId)
+      .input('FullName', sql.NVarChar(200), fullName)
+      .input('Email', sql.NVarChar(255), email)
+      .input('RoleName', sql.NVarChar(50), role)
+      .input('IsActive', sql.Bit, Boolean(isActive));
+
+    let passwordUpdate = '';
+    if (password) {
+      if (password.length < 6) {
+        throw new Error('Invalid user data');
+      }
+      const passwordHash = await bcrypt.hash(password, 10);
+      request.input('PasswordHash', sql.NVarChar(500), passwordHash);
+      passwordUpdate = ', PasswordHash = @PasswordHash';
+    }
+
+    const result = await request.query(`
+      DECLARE @RoleID INT;
+      SELECT @RoleID = RoleID FROM Roles WHERE RoleName = @RoleName;
+
+      IF @RoleID IS NULL
+        THROW 50002, 'Role not found', 1;
+
+      UPDATE Users
+      SET FullName = @FullName,
+          Email = @Email,
+          UserRole = @RoleName,
+          RoleID = @RoleID,
+          IsActive = @IsActive,
+          UpdatedAt = SYSDATETIMEOFFSET()
+          ${passwordUpdate}
+      WHERE UserID = @UserID;
+    `);
+
+    return result.rowsAffected.some((count) => count > 0);
+  }
+
+  static async deleteUser(userId) {
+    const pool = await poolPromise;
+    const dependencies = await pool.request()
+      .input('UserID', sql.BigInt, userId)
+      .query(`
+        SELECT
+          (SELECT COUNT(*) FROM Words WHERE CreatedByUserID = @UserID) AS words,
+          (SELECT COUNT(*) FROM Questions WHERE CreatedByUserID = @UserID) AS questions,
+          (SELECT COUNT(*) FROM MiniTests WHERE CreatedByUserID = @UserID) AS miniTests,
+          (SELECT COUNT(*) FROM Topics WHERE CreatedByUserID = @UserID) AS topics
+      `);
+
+    const ownedContent = dependencies.recordset[0];
+    if (ownedContent.words || ownedContent.questions || ownedContent.miniTests || ownedContent.topics) {
+      throw new Error('User owns content');
+    }
+
+    const result = await pool.request()
+      .input('UserID', sql.BigInt, userId)
+      .query('DELETE FROM Users WHERE UserID = @UserID');
+
+    return result.rowsAffected[0] > 0;
+  }
+
   static async toggleUserStatus(userId) {
     const pool = await poolPromise;
     await pool.request()
@@ -282,10 +424,7 @@ class AdminService {
   }
 
   static async updateUserRole(userId, roleName) {
-    const allowedRoles = ['Admin', 'Learner'];
-    if (!allowedRoles.includes(roleName)) {
-      throw new Error('Invalid role');
-    }
+    assertValidUserRole(roleName);
 
     const pool = await poolPromise;
     const result = await pool.request()

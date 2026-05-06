@@ -108,6 +108,56 @@ class AdminController {
     }
   }
 
+  static async createUser(req, res, next) {
+    try {
+      const result = await AdminService.createUser(req.body);
+      res.status(201).json({ message: 'Tao user thanh cong', data: result });
+    } catch (error) {
+      if (error.message === 'Email already exists' || error.message === 'Invalid role' || error.message === 'Invalid user data') {
+        return res.status(400).json({ message: error.message });
+      }
+      next(error);
+    }
+  }
+
+  static async updateUser(req, res, next) {
+    try {
+      const { id } = req.params;
+      const success = await AdminService.updateUser(id, req.body);
+
+      if (!success) {
+        return res.status(404).json({ message: 'Khong tim thay user' });
+      }
+
+      res.status(200).json({ message: 'Cap nhat user thanh cong' });
+    } catch (error) {
+      if (error.message === 'Email already exists' || error.message === 'Invalid role' || error.message === 'Invalid user data') {
+        return res.status(400).json({ message: error.message });
+      }
+      next(error);
+    }
+  }
+
+  static async deleteUser(req, res, next) {
+    try {
+      const { id } = req.params;
+      const success = await AdminService.deleteUser(id);
+
+      if (!success) {
+        return res.status(404).json({ message: 'Khong tim thay user' });
+      }
+
+      res.status(200).json({ message: 'Xoa user thanh cong' });
+    } catch (error) {
+      if (error.message === 'User owns content') {
+        return res.status(409).json({
+          message: 'Khong the xoa user da tao noi dung. Hay khoa tai khoan thay vi xoa.'
+        });
+      }
+      next(error);
+    }
+  }
+
   static async toggleStudentStatus(req, res, next) {
     try {
       const { id } = req.params;
