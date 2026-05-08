@@ -59,7 +59,7 @@ class AdminService {
   }
 
   static async createWord(wordData, adminId) {
-    const { term, meaning, phonetic, partOfSpeechId, topicIds, examples } = wordData;
+    const { term, meaning, phonetic = '', partOfSpeechId, topicIds, examples } = wordData;
     const pool = await poolPromise;
     const transaction = new sql.Transaction(pool);
 
@@ -104,9 +104,19 @@ class AdminService {
             .input('WordID', sql.BigInt, wordId)
             .input('SentenceText', sql.NVarChar(2000), ex.sentence)
             .input('SentenceTranslation', sql.NVarChar(2000), ex.meaning)
+            .input('ExampleSource', sql.NVarChar(50), ex.exampleSource || 'General')
+            .input('PartNumber', sql.Int, ex.partNumber || null)
             .query(`
-              INSERT INTO ExampleSentences (WordID, SentenceText, SentenceTranslation, CreatedAt, UpdatedAt)
-              VALUES (@WordID, @SentenceText, @SentenceTranslation, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
+              IF COL_LENGTH('dbo.ExampleSentences', 'ExampleSource') IS NOT NULL
+              BEGIN
+                INSERT INTO ExampleSentences (WordID, SentenceText, SentenceTranslation, ExampleSource, PartNumber, CreatedAt, UpdatedAt)
+                VALUES (@WordID, @SentenceText, @SentenceTranslation, @ExampleSource, @PartNumber, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
+              END
+              ELSE
+              BEGIN
+                INSERT INTO ExampleSentences (WordID, SentenceText, SentenceTranslation, CreatedAt, UpdatedAt)
+                VALUES (@WordID, @SentenceText, @SentenceTranslation, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
+              END
             `);
         }
       }
@@ -176,7 +186,7 @@ class AdminService {
   }
 
   static async createQuestion(questionData, adminId) {
-    const { wordId, questionType, questionText, optionsJson, correctAnswer, explanation } = questionData;
+    const { wordId, questionType, questionText, optionsJson = '[]', correctAnswer, explanation } = questionData;
     const pool = await poolPromise;
     const result = await pool.request()
       .input('WordID', sql.BigInt, wordId)
@@ -328,6 +338,106 @@ class AdminService {
     return result.recordset[0];
   }
 
+  static parseQuestionImport(input) {
+    if (Array.isArray(input)) {
+      return input;
+    }
+
+    if (typeof input === 'object' && input?.questions && Array.isArray(input.questions)) {
+      return input.questions;
+    }
+
+    if (typeof input !== 'string') {
+      throw new Error('Invalid import payload');
+    }
+
+    const lines = input
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    if (lines.length < 2) {
+      throw new Error('CSV must include a header and at least one data row');
+    }
+
+    const parseLine = (line) => {
+      const cells = [];
+      let cell = '';
+      let inQuotes = false;
+
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        const next = line[i + 1];
+
+        if (char === '"' && next === '"') {
+          cell += '"';
+          i++;
+        } else if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          cells.push(cell.trim());
+          cell = '';
+        } else {
+          cell += char;
+        }
+      }
+
+      cells.push(cell.trim());
+      return cells;
+    };
+
+    const headers = parseLine(lines[0]).map((header) => header.trim());
+    return lines.slice(1).map((line) => {
+      const cells = parseLine(line);
+      return headers.reduce((row, header, index) => {
+        row[header] = cells[index] ?? '';
+        return row;
+      }, {});
+    });
+  }
+
+  static async bulkInsertQuestions(input, adminId) {
+    const rows = this.parseQuestionImport(input);
+    const results = { success: 0, failed: 0, errors: [] };
+
+    for (let index = 0; index < rows.length; index++) {
+      const row = rows[index];
+      const wordId = Number(row.wordId ?? row.WordID ?? row.wordID);
+      const questionType = row.questionType ?? row.QuestionType;
+      const questionText = row.questionText ?? row.QuestionText;
+      const correctAnswer = row.correctAnswer ?? row.CorrectAnswer;
+      const optionsJson = row.optionsJson ?? row.OptionsJson ?? '[]';
+      const explanation = row.explanation ?? row.Explanation ?? null;
+
+      try {
+        if (!wordId || !questionType || !questionText || !correctAnswer) {
+          throw new Error('Missing required fields: wordId, questionType, questionText, correctAnswer');
+        }
+
+        JSON.parse(optionsJson || '[]');
+
+        await this.createQuestion({
+          wordId,
+          questionType,
+          questionText,
+          optionsJson: optionsJson || '[]',
+          correctAnswer,
+          explanation
+        }, adminId);
+
+        results.success += 1;
+      } catch (error) {
+        results.failed += 1;
+        results.errors.push({
+          row: index + 2,
+          message: error.message
+        });
+      }
+    }
+
+    return results;
+  }
+
   static async updateUser(userId, userData) {
     const {
       fullName,
@@ -474,6 +584,117 @@ class AdminService {
       })),
       wordDistribution: distributionResult.recordset
     };
+  }
+
+  static async getNotifications(limit = 50) {
+    const pool = await poolPromise;
+    const tableExists = await pool.request().query(`
+      SELECT OBJECT_ID(N'dbo.Notifications', N'U') AS tableId
+    `);
+
+    if (!tableExists.recordset[0].tableId) {
+      return [];
+    }
+
+    const result = await pool.request()
+      .input('Limit', sql.Int, limit)
+      .query(`
+        SELECT TOP (@Limit)
+          n.NotificationID AS id,
+          n.UserID AS userId,
+          u.FullName AS fullName,
+          u.Email AS email,
+          n.Title AS title,
+          n.Message AS message,
+          n.Type AS type,
+          n.DeliveryChannel AS deliveryChannel,
+          n.IsRead AS isRead,
+          n.CreatedAt AS createdAt,
+          n.ActionUrl AS actionUrl
+        FROM Notifications n
+        JOIN Users u ON n.UserID = u.UserID
+        ORDER BY n.CreatedAt DESC
+      `);
+
+    return result.recordset;
+  }
+
+  static async sendAnnouncement({ audience = 'All users', title, message, deliveryChannel = 'InApp', actionUrl = null }) {
+    if (!title || !message) {
+      throw new Error('Missing title or message');
+    }
+
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('Audience', sql.NVarChar(50), audience)
+      .input('Title', sql.NVarChar(200), title)
+      .input('Message', sql.NVarChar(2000), message)
+      .input('DeliveryChannel', sql.NVarChar(20), deliveryChannel)
+      .input('ActionUrl', sql.NVarChar(500), actionUrl)
+      .query(`
+        IF OBJECT_ID(N'dbo.Notifications', N'U') IS NULL
+          THROW 50020, 'Notifications table is missing. Run migration_alignment_improvements.sql first.', 1;
+
+        INSERT INTO Notifications (UserID, Title, Message, Type, DeliveryChannel, ActionUrl)
+        SELECT
+          UserID,
+          @Title,
+          @Message,
+          'Announcement',
+          CASE WHEN @DeliveryChannel = 'Both' THEN 'InApp' ELSE @DeliveryChannel END,
+          @ActionUrl
+        FROM Users
+        WHERE IsActive = 1
+          AND (
+            @Audience = 'All users'
+            OR (@Audience = 'Learners' AND UserRole = 'Learner')
+            OR (@Audience = 'Admins' AND UserRole = 'Admin')
+          );
+
+        SELECT @@ROWCOUNT AS inserted;
+      `);
+
+    return { inserted: result.recordset[0].inserted };
+  }
+
+  static async createDailyReminders() {
+    const pool = await poolPromise;
+    const result = await pool.request().query(`
+      IF OBJECT_ID(N'dbo.Notifications', N'U') IS NULL
+        THROW 50020, 'Notifications table is missing. Run migration_alignment_improvements.sql first.', 1;
+
+      INSERT INTO Notifications (UserID, Title, Message, Type, DeliveryChannel, ActionUrl)
+      SELECT
+        u.UserID,
+        N'Time to study!',
+        CONCAT(N'You have ', due.DueWords, N' words waiting for review today.'),
+        'DailyReminder',
+        'InApp',
+        '/user/learn'
+      FROM Users u
+      CROSS APPLY
+      (
+        SELECT COUNT(*) AS DueWords
+        FROM UserWordProgress uwp
+        WHERE uwp.UserID = u.UserID
+          AND (uwp.NextReviewDate IS NULL OR uwp.NextReviewDate <= SYSDATETIMEOFFSET())
+      ) due
+      WHERE u.IsActive = 1
+        AND u.UserRole = 'Learner'
+        AND due.DueWords > 0
+        AND NOT EXISTS
+        (
+          SELECT 1
+          FROM Notifications n
+          WHERE n.UserID = u.UserID
+            AND n.Type = 'DailyReminder'
+            AND CAST(n.CreatedAt AS DATE) = CAST(SYSDATETIMEOFFSET() AS DATE)
+        );
+
+      SELECT @@ROWCOUNT AS inserted;
+    `);
+
+    return { inserted: result.recordset[0].inserted };
   }
 }
 

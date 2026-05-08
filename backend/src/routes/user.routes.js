@@ -9,6 +9,7 @@ router.use(authMiddleware.verifyToken);
 router.post('/submit-answer', UserController.submitAnswer);
 router.get('/flashcards', UserController.getFlashcards);
 router.get('/stats', UserController.getStats);
+router.get('/dashboard/mastery-timeline', UserController.getMasteryTimeline);
 
 // Mini Tests
 router.get('/minitests', UserController.getMiniTests);

@@ -70,6 +70,22 @@ class AdminController {
     }
   }
 
+  static async bulkImportQuestions(req, res, next) {
+    try {
+      const adminId = req.user.id;
+      const result = await AdminService.bulkInsertQuestions(req.body, adminId);
+      res.status(200).json({
+        message: 'Bulk import completed',
+        ...result
+      });
+    } catch (error) {
+      if (error.message === 'Invalid import payload' || error.message.startsWith('CSV must include')) {
+        return res.status(400).json({ message: error.message });
+      }
+      next(error);
+    }
+  }
+
   // Mini Tests
   static async getMiniTests(req, res, next) {
     try {
@@ -183,6 +199,37 @@ class AdminController {
     try {
       const data = await AdminService.getAnalyticsData();
       res.status(200).json(data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getNotifications(req, res, next) {
+    try {
+      const limit = parseInt(req.query.limit, 10) || 50;
+      const data = await AdminService.getNotifications(limit);
+      res.status(200).json(data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async sendAnnouncement(req, res, next) {
+    try {
+      const result = await AdminService.sendAnnouncement(req.body);
+      res.status(201).json({ message: 'Announcement queued', data: result });
+    } catch (error) {
+      if (error.message === 'Missing title or message') {
+        return res.status(400).json({ message: error.message });
+      }
+      next(error);
+    }
+  }
+
+  static async createDailyReminders(req, res, next) {
+    try {
+      const result = await AdminService.createDailyReminders();
+      res.status(201).json({ message: 'Daily reminders queued', data: result });
     } catch (error) {
       next(error);
     }

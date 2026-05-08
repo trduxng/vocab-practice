@@ -6,7 +6,7 @@ import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/src/components/ui/card';
 import { Textarea } from '@/src/components/ui/textarea';
-import { HelpCircle, Plus, Search, BookOpen, Trash2, ListChecks } from 'lucide-react';
+import { HelpCircle, Plus, Search, BookOpen, Trash2, ListChecks, Upload } from 'lucide-react';
 import Topbar from '@/src/components/shared/Topbar';
 
 export default function AdminQuestionsPage() {
@@ -15,6 +15,8 @@ export default function AdminQuestionsPage() {
   const [loading, setLoading] = useState(true);
   const [selectedWord, setSelectedWord] = useState<any>(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [bulkImporting, setBulkImporting] = useState(false);
+  const [bulkResult, setBulkResult] = useState<any>(null);
 
   // New Question Form State
   const [newQuestion, setNewQuestion] = useState({
@@ -83,6 +85,26 @@ export default function AdminQuestionsPage() {
     }
   };
 
+  const handleBulkImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setBulkImporting(true);
+    setBulkResult(null);
+    try {
+      const csv = await file.text();
+      const result = await adminService.bulkImportQuestions(csv);
+      setBulkResult(result);
+      if (selectedWord) fetchExistingQuestions();
+    } catch (error) {
+      console.error("Failed to bulk import questions", error);
+      alert("Bulk import failed");
+    } finally {
+      setBulkImporting(false);
+      event.target.value = "";
+    }
+  };
+
   if (loading && words.length === 0) {
     return <div className="p-10 text-white bg-[#080d1a] min-h-screen">Đang tải dữ liệu...</div>;
   }
@@ -118,6 +140,25 @@ export default function AdminQuestionsPage() {
 
         {/* Right: Question Area */}
         <div className="lg:col-span-2 space-y-6">
+          <Card className="bg-white/3 border-white/8 text-white rounded-3xl">
+            <CardContent className="p-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-widest">Bulk import CSV</h3>
+                <p className="mt-1 text-xs text-slate-500">Columns: wordId, questionType, questionText, correctAnswer, optionsJson, explanation.</p>
+                {bulkResult && (
+                  <p className="mt-2 text-xs text-blue-300">
+                    Inserted {bulkResult.success}, failed {bulkResult.failed}
+                  </p>
+                )}
+              </div>
+              <label className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-[10px] font-bold uppercase tracking-widest text-white hover:bg-blue-700">
+                <Upload size={14} />
+                {bulkImporting ? "Importing..." : "Upload CSV"}
+                <input type="file" accept=".csv,text/csv,text/plain" className="hidden" disabled={bulkImporting} onChange={handleBulkImport} />
+              </label>
+            </CardContent>
+          </Card>
+
           {selectedWord ? (
             <>
               <div className="flex justify-between items-center bg-white/3 p-6 rounded-3xl border border-white/8 shadow-xl shadow-black/20">
@@ -150,6 +191,8 @@ export default function AdminQuestionsPage() {
                             <option value="MCQ">Trắc nghiệm (MCQ)</option>
                             <option value="FillBlank">Điền vào chỗ trống</option>
                             <option value="Dictation">Chính tả</option>
+                            <option value="DragDrop">Drag-drop</option>
+                            <option value="AudioRecognition">Audio recognition</option>
                           </select>
                         </div>
                         <div className="space-y-2">

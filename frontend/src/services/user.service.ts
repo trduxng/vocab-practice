@@ -11,6 +11,11 @@ export const userService = {
     return response.data;
   },
 
+  async getMasteryTimeline() {
+    const response = await apiClient.get('/user/dashboard/mastery-timeline');
+    return response.data;
+  },
+
   async submitAnswer(data: any) {
     const response = await apiClient.post('/user/submit-answer', data);
     return response.data;

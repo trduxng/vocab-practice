@@ -14,6 +14,7 @@ router.put('/words/:id', checkPermission('MANAGE_WORDS'), AdminController.update
 router.delete('/words/:id', checkPermission('MANAGE_WORDS'), AdminController.deleteWord);
 
 // Questions
+router.post('/questions/bulk-import', checkPermission('MANAGE_QUESTIONS'), express.text({ type: ['text/csv', 'text/plain'], limit: '2mb' }), AdminController.bulkImportQuestions);
 router.get('/questions/:wordId', checkPermission('MANAGE_QUESTIONS'), AdminController.getQuestionsByWord);
 router.post('/questions', checkPermission('MANAGE_QUESTIONS'), validate(schemas.createQuestion), AdminController.createQuestion);
 
@@ -30,5 +31,10 @@ router.delete('/students/:id', checkPermission('MANAGE_USERS'), AdminController.
 router.patch('/students/:id/toggle', checkPermission('MANAGE_USERS'), AdminController.toggleStudentStatus);
 router.patch('/students/:id/role', checkPermission('MANAGE_USERS'), AdminController.updateUserRole);
 router.get('/analytics', checkPermission('VIEW_DASHBOARD'), AdminController.getAnalytics);
+
+// Notifications
+router.get('/notifications', checkPermission('MANAGE_NOTIFICATIONS'), AdminController.getNotifications);
+router.post('/notifications', checkPermission('MANAGE_NOTIFICATIONS'), AdminController.sendAnnouncement);
+router.post('/notifications/daily-reminders', checkPermission('MANAGE_NOTIFICATIONS'), AdminController.createDailyReminders);
 
 module.exports = router;

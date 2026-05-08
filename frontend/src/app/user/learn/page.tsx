@@ -56,7 +56,7 @@ const StudentFlashcard = () => {
       await userService.submitAnswer({
         questionId: currentCard.questionId,
         wordId: currentCard.wordId,
-        submittedAnswer: isCorrect ? currentCard.term : "wrong",
+        submittedAnswer: isCorrect ? (currentCard.correctAnswer || currentCard.term) : "wrong",
         isCorrect: isCorrect,
         scoreAwarded: isCorrect ? 1.0 : 0.0
       });

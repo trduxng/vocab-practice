@@ -47,6 +47,16 @@ class UserController {
     }
   }
 
+  static async getMasteryTimeline(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const projection = await UserService.getMasteryTimeline(userId);
+      res.status(200).json(projection);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async getMiniTests(req, res, next) {
     try {
       const tests = await UserService.getMiniTests();

@@ -59,7 +59,10 @@ const StudentDashboard = () => {
     return <div className="flex items-center justify-center min-h-screen text-white bg-[#080d1a] font-mono">AUTHENTICATING...</div>;
   }
 
-  const progressPct = stats ? Math.min(100, Math.round((stats.totalLearned / 50) * 100)) : 0;
+  const masteryTimeline = stats?.masteryTimeline;
+  const progressPct = masteryTimeline
+    ? Math.min(100, Math.round(Number(masteryTimeline.completionPercentage || 0)))
+    : stats ? Math.min(100, Math.round((stats.totalLearned / 50) * 100)) : 0;
 
   return (
     <>
@@ -268,6 +271,39 @@ const StudentDashboard = () => {
               >
                 Luyện tập trắc nghiệm
               </button>
+            </div>
+            {/* Mastery timeline */}
+            <div className="bg-white/3 border border-white/8 rounded-[32px] p-8">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-white font-black text-sm uppercase tracking-widest">Mastery timeline</h3>
+                <RotateCcw size={16} className="text-blue-400" />
+              </div>
+              <div className="space-y-5">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Completion</span>
+                    <span className="text-white text-xs font-black">{loading ? '...' : `${progressPct}%`}</span>
+                  </div>
+                  <div className="h-2 bg-white/5 rounded-full overflow-hidden p-[1px]">
+                    <div className="h-full rounded-full bg-blue-500 transition-all duration-1000" style={{ width: `${loading ? 0 : progressPct}%` }} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest">Mastered</p>
+                    <p className="mt-2 text-white text-2xl font-black">{loading ? '...' : `${masteryTimeline?.masteredWords || 0}/${masteryTimeline?.totalWords || 0}`}</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest">ETA days</p>
+                    <p className="mt-2 text-white text-2xl font-black">{loading ? '...' : (masteryTimeline?.estimatedDaysToMastery ?? '-')}</p>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-500">
+                  {masteryTimeline?.projectedCompletionDate
+                    ? `Projected completion: ${new Date(masteryTimeline.projectedCompletionDate).toLocaleDateString()}`
+                    : 'Keep practicing to generate a reliable completion projection.'}
+                </p>
+              </div>
             </div>
           </div>
         </div>

@@ -27,10 +27,14 @@ class UserService {
           q.QuestionID AS questionId, 
           q.QuestionType AS questionType,
           q.QuestionText AS questionText, 
-          q.CorrectAnswer AS term, 
+          q.CorrectAnswer AS correctAnswer,
           q.OptionsJson AS optionsJson,
           w.Phonetic AS phonetic, 
           w.Meaning AS meaning,
+          w.Term AS term,
+          w.AudioUrlUK AS audioUrlUK,
+          w.AudioUrlUS AS audioUrlUS,
+          w.ImageUrl AS imageUrl,
           w.WordID AS wordId
         FROM Questions q
         JOIN Words w ON q.WordID = w.WordID
@@ -43,11 +47,12 @@ class UserService {
 
   static async submitAnswer({ userId, questionId, submittedAnswer }) {
     const pool = await poolPromise;
-    await pool.request()
+    const result = await pool.request()
       .input('UserID', sql.BigInt, userId)
       .input('QuestionID', sql.BigInt, questionId)
-      .input('SubmittedAnswer', sql.NVarChar, submittedAnswer)
+      .input('SubmittedAnswer', sql.NVarChar(1000), submittedAnswer || '')
       .execute('usp_SubmitQuestionAttempt');
+    return result.recordset[0];
   }
 
   static async getUserStats(userId) {
@@ -101,6 +106,8 @@ class UserService {
       streak: 5 
     };
 
+    stats.masteryTimeline = await this.getMasteryTimeline(userId);
+
     // 5. Daily trends (Last 7 days)
     const trendsResult = await pool.request()
       .input('UserID', sql.BigInt, userId)
@@ -130,6 +137,52 @@ class UserService {
     ];
 
     return stats;
+  }
+
+  static async getMasteryTimeline(userId) {
+    const pool = await poolPromise;
+    const viewExists = await pool.request().query(`
+      SELECT OBJECT_ID(N'dbo.vw_MasteryTimelineProjection', N'V') AS viewId
+    `);
+
+    if (viewExists.recordset[0].viewId) {
+      const result = await pool.request()
+        .input('UserID', sql.BigInt, userId)
+        .query(`
+          SELECT
+            TotalWords AS totalWords,
+            MasteredWords AS masteredWords,
+            ISNULL(CompletionPercentage, 0) AS completionPercentage,
+            EstimatedDaysToMastery AS estimatedDaysToMastery,
+            ProjectedCompletionDate AS projectedCompletionDate
+          FROM dbo.vw_MasteryTimelineProjection
+          WHERE UserID = @UserID
+        `);
+
+      if (result.recordset.length > 0) {
+        return result.recordset[0];
+      }
+    }
+
+    const result = await pool.request()
+      .input('UserID', sql.BigInt, userId)
+      .query(`
+        SELECT
+          COUNT(*) AS totalWords,
+          SUM(CASE WHEN MasteryLevel >= 8 THEN 1 ELSE 0 END) AS masteredWords,
+          CAST(SUM(CASE WHEN MasteryLevel >= 8 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0) AS DECIMAL(5,2)) AS completionPercentage
+        FROM UserWordProgress
+        WHERE UserID = @UserID
+      `);
+
+    const row = result.recordset[0] || {};
+    return {
+      totalWords: row.totalWords || 0,
+      masteredWords: row.masteredWords || 0,
+      completionPercentage: row.completionPercentage || 0,
+      estimatedDaysToMastery: null,
+      projectedCompletionDate: null
+    };
   }
 
   static async getMiniTests() {

@@ -90,6 +90,23 @@ BEGIN TRY
             -- Tạo câu hỏi Điền từ
             INSERT INTO Questions (WordID, QuestionType, QuestionText, CorrectAnswer, OptionsJson, CreatedByUserID)
             VALUES (@WordID, 'FillBlank', REPLACE(@Example, @Term, '______'), @Term, N'[]', @SysAdminID);
+
+            -- TOEIC alignment question types
+            INSERT INTO Questions (WordID, QuestionType, QuestionText, CorrectAnswer, OptionsJson, CreatedByUserID)
+            VALUES (@WordID, 'Dictation', N'Listen and type the vocabulary word.', @Term,
+            N'{"instruction":"Listen and type the exact word","maxAttempts":3}', @SysAdminID);
+
+            INSERT INTO Questions (WordID, QuestionType, QuestionText, CorrectAnswer, OptionsJson, CreatedByUserID)
+            VALUES (@WordID, 'DragDrop', N'Arrange the words into the correct sentence.', @Example,
+            N'{"items":["' + REPLACE(@Example, N' ', N'","') + N'"]}', @SysAdminID);
+
+            IF OBJECT_ID(N'dbo.WordPartsAssignment', N'U') IS NOT NULL
+            BEGIN
+                INSERT INTO WordPartsAssignment (WordID, PartID, RelevancyScore)
+                SELECT @WordID, PartID, 3
+                FROM PartsClassification
+                WHERE PartNumber IN (5, 7);
+            END
         END
 
         FETCH NEXT FROM cur INTO @Term, @Meaning, @Phonetic, @POSCode, @Example;

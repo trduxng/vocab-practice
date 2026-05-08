@@ -39,6 +39,13 @@ export const adminService = {
     return response.data;
   },
 
+  async bulkImportQuestions(csv: string) {
+    const response = await apiClient.post('/admin/questions/bulk-import', csv, {
+      headers: { 'Content-Type': 'text/csv' },
+    });
+    return response.data;
+  },
+
   async getMiniTests() {
     const response = await apiClient.get('/admin/minitests');
     return response.data;
@@ -86,6 +93,21 @@ export const adminService = {
 
   async getAnalytics() {
     const response = await apiClient.get('/admin/analytics');
+    return response.data;
+  },
+
+  async getNotifications(limit = 50) {
+    const response = await apiClient.get('/admin/notifications', { params: { limit } });
+    return response.data;
+  },
+
+  async sendAnnouncement(data: unknown) {
+    const response = await apiClient.post('/admin/notifications', data);
+    return response.data;
+  },
+
+  async createDailyReminders() {
+    const response = await apiClient.post('/admin/notifications/daily-reminders');
     return response.data;
   }
 };
