@@ -1,7 +1,8 @@
+// vocab-practice/backend/src/middlewares/errorHandler.js
 const errorHandler = (err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({
-    message: err.message || 'Lỗi server nội bộ'
+    message: err.message || "Lỗi server nội bộ",
   });
 };
 

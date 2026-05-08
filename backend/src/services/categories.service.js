@@ -1,4 +1,5 @@
-const { poolPromise, sql } = require('../config/db');
+// vocab-practice/backend/src/services/categories.service.js
+const { poolPromise, sql } = require("../config/db");
 
 class CategoriesService {
   static async getPartOfSpeeches() {

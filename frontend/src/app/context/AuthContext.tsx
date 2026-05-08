@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { authService } from '@/src/services/auth.service';
 
 interface User {
-  id: string;
+  id: string | number;
   fullName: string;
   email: string;
   role: 'Learner' | 'ContentCreator' | 'Admin';
@@ -58,7 +58,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     authService.logout();
     setUser(null);
     setToken(null);
-    router.push('/login');
+    router.replace('/login');
+    router.refresh();
   };
 
   const value = {

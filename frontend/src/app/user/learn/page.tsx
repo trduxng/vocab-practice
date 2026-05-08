@@ -18,6 +18,7 @@ const StudentFlashcard = () => {
 
   const speak = (text: string) => {
     if (typeof window !== 'undefined' && window.speechSynthesis && text) {
+      window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'en-US';
       window.speechSynthesis.speak(utterance);
@@ -135,8 +136,9 @@ const StudentFlashcard = () => {
           <div className="relative" style={{ perspective: "2000px" }}>
             <div
               onClick={() => setFlipped(!flipped)}
-              className="relative w-full h-[480px] cursor-pointer transition-all duration-700 ease-in-out transform-style-3d"
+              className="relative w-full h-[480px] cursor-pointer transition-all duration-700 ease-in-out"
               style={{
+                transformStyle: "preserve-3d",
                 transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
               }}
             >
@@ -187,9 +189,10 @@ const StudentFlashcard = () => {
         <div className="grid grid-cols-2 gap-8 mt-16">
           <button
             onClick={(e) => { e.stopPropagation(); handleAnswer(false); }}
+            disabled={!flipped}
             className="group flex flex-col items-center gap-4"
           >
-            <div className="w-20 h-20 rounded-[32px] bg-red-500/10 border-2 border-red-500/20 flex items-center justify-center text-red-500 group-hover:bg-red-500 group-hover:text-white transition-all shadow-xl group-active:scale-90">
+            <div className="w-20 h-20 rounded-[32px] bg-red-500/10 border-2 border-red-500/20 flex items-center justify-center text-red-500 group-hover:bg-red-500 group-hover:text-white transition-all shadow-xl group-active:scale-90 group-disabled:opacity-40 group-disabled:grayscale group-disabled:hover:bg-red-500/10 group-disabled:hover:text-red-500">
               <X size={32} strokeWidth={3} />
             </div>
             <span className="text-slate-600 text-[10px] font-black group-hover:text-red-500 transition-colors uppercase tracking-[0.2em]">Forgot</span>
@@ -197,9 +200,10 @@ const StudentFlashcard = () => {
 
           <button
             onClick={(e) => { e.stopPropagation(); handleAnswer(true); }}
+            disabled={!flipped}
             className="group flex flex-col items-center gap-4"
           >
-            <div className="w-20 h-20 rounded-[32px] bg-green-500/10 border-2 border-green-500/20 flex items-center justify-center text-green-500 group-hover:bg-green-500 group-hover:text-white transition-all shadow-xl group-active:scale-90">
+            <div className="w-20 h-20 rounded-[32px] bg-green-500/10 border-2 border-green-500/20 flex items-center justify-center text-green-500 group-hover:bg-green-500 group-hover:text-white transition-all shadow-xl group-active:scale-90 group-disabled:opacity-40 group-disabled:grayscale group-disabled:hover:bg-green-500/10 group-disabled:hover:text-green-500">
               <Check size={32} strokeWidth={3} />
             </div>
             <span className="text-slate-600 text-[10px] font-black group-hover:text-green-500 transition-colors uppercase tracking-[0.2em]">Remember</span>

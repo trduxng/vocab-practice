@@ -1,3 +1,4 @@
+// vocab-practice/frontend/src/components/Pricing.tsx
 "use client";
 import { useState } from "react";
 import { Check, Zap, Crown, Sparkles } from "lucide-react";

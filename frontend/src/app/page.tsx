@@ -1,3 +1,4 @@
+// vocab-practice/frontend/src/app/page.tsx
 import Navbar from "@/src/components/Navbar";
 import Hero from "@/src/components/Hero";
 import Features from "@/src/components/Features";

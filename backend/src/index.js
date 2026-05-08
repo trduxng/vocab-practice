@@ -16,6 +16,7 @@ const authRoutes = require('./routes/auth.routes');
 const categoriesRoutes = require('./routes/categories.routes');
 const adminRoutes = require('./routes/admin.routes');
 const userRoutes = require('./routes/user.routes');
+const progressRoutes = require('./routes/progress.routes');
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -69,6 +70,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/progress', progressRoutes);
 
 // Error Handler Middleware
 app.use(errorHandler);

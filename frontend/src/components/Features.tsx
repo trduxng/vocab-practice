@@ -1,3 +1,4 @@
+// vocab-practice/frontend/src/components/Features.tsx
 "use client";
 import {
   Brain,
@@ -90,12 +91,12 @@ export default function Features() {
             >
               {/* Background glow on hover */}
               <div
-                className={`absolute inset-0 bg-gradient-to-br ${f.color} opacity-0 group-hover:opacity-5 transition-opacity duration-300 rounded-2xl`}
+                className={`absolute inset-0 bg-linear-to-br ${f.color} opacity-0 group-hover:opacity-5 transition-opacity duration-300 rounded-2xl`}
               />
 
               {/* Icon */}
               <div
-                className={`w-12 h-12 rounded-xl bg-gradient-to-br ${f.color} flex items-center justify-center mb-5 shadow-lg group-hover:scale-110 transition-transform duration-300`}
+                className={`w-12 h-12 rounded-xl bg-linear-to-br ${f.color} flex items-center justify-center mb-5 shadow-lg group-hover:scale-110 transition-transform duration-300`}
               >
                 <f.icon size={22} className="text-white" />
               </div>
@@ -107,7 +108,7 @@ export default function Features() {
               <p className="text-slate-400 text-sm leading-relaxed">{f.desc}</p>
 
               {/* Shine effect */}
-              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute top-0 left-0 right-0 h-px bg-linear-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
           ))}
         </div>

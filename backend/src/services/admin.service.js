@@ -149,22 +149,61 @@ class AdminService {
 
   static async deleteWord(wordId) {
     const pool = await poolPromise;
-    // Note: Due to CASCADE in ExampleSentences and WordTopics, 
-    // we only need to delete from Words and Questions.
-    // However, MiniTestItems might reference Questions.
-    
     const transaction = new sql.Transaction(pool);
+
     try {
       await transaction.begin();
+
       const request = new sql.Request(transaction);
-      
-      // Delete from Words (cascades to WordTopics, ExampleSentences, Questions)
-      await request
+      const result = await request
         .input('WordID', sql.BigInt, wordId)
-        .query('DELETE FROM Words WHERE WordID = @WordID');
+        .query(`
+          IF NOT EXISTS (SELECT 1 FROM Words WHERE WordID = @WordID)
+          BEGIN
+            SELECT CAST(0 AS INT) AS deleted;
+            RETURN;
+          END
+
+          DELETE FROM MiniTestItems
+          WHERE QuestionID IN (
+            SELECT QuestionID FROM Questions WHERE WordID = @WordID
+          );
+
+          UPDATE mt
+          SET TotalQuestions = counts.TotalQuestions,
+              UpdatedAt = SYSDATETIMEOFFSET()
+          FROM MiniTests mt
+          CROSS APPLY (
+            SELECT COUNT(*) AS TotalQuestions
+            FROM MiniTestItems mti
+            WHERE mti.MiniTestID = mt.MiniTestID
+          ) counts;
+
+          DELETE FROM ExerciseAttempts
+          WHERE WordID = @WordID
+             OR QuestionID IN (
+               SELECT QuestionID FROM Questions WHERE WordID = @WordID
+             );
+
+          DELETE FROM UserWordProgress WHERE WordID = @WordID;
+
+          IF OBJECT_ID(N'dbo.WordPartsAssignment', N'U') IS NOT NULL
+            DELETE FROM WordPartsAssignment WHERE WordID = @WordID;
+
+          IF OBJECT_ID(N'dbo.WordCertifications', N'U') IS NOT NULL
+            DELETE FROM WordCertifications WHERE WordID = @WordID;
+
+          DELETE FROM Questions WHERE WordID = @WordID;
+          DELETE FROM ExampleSentences WHERE WordID = @WordID;
+          DELETE FROM WordTopics WHERE WordID = @WordID;
+
+          DELETE FROM Words WHERE WordID = @WordID;
+
+          SELECT @@ROWCOUNT AS deleted;
+        `);
 
       await transaction.commit();
-      return true;
+      return result.recordset[0]?.deleted > 0;
     } catch (error) {
       await transaction.rollback();
       throw error;

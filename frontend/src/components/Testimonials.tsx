@@ -1,3 +1,4 @@
+// frontend/src/components/Testimonials.tsx
 import { Star, Quote } from "lucide-react";
 
 const reviews = [

@@ -3,6 +3,7 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/src/app/context/AuthContext";
 import {
   BarChart3,
   Bell,
@@ -83,6 +84,7 @@ function NavLinks({ links, collapsed }: NavLinksProps) {
 
 export default function Sidebar({ role }: { role: "admin" | "student" }) {
   const [collapsed, setCollapsed] = useState(false);
+  const { logout } = useAuth();
   const links = role === "admin" ? adminLinks : studentLinks;
 
   return (
@@ -141,7 +143,11 @@ export default function Sidebar({ role }: { role: "admin" | "student" }) {
           <Home className="h-4 w-4" />
           {!collapsed && <span className="hidden md:inline">Back to site</span>}
         </Link>
-        <button className="flex h-10 w-full items-center justify-center gap-3 rounded-md px-3 text-sm font-medium text-slate-500 hover:bg-rose-50 hover:text-rose-600 md:justify-start dark:text-slate-400 dark:hover:bg-rose-500/10 dark:hover:text-rose-300">
+        <button
+          type="button"
+          onClick={logout}
+          className="flex h-10 w-full items-center justify-center gap-3 rounded-md px-3 text-sm font-medium text-slate-500 hover:bg-rose-50 hover:text-rose-600 md:justify-start dark:text-slate-400 dark:hover:bg-rose-500/10 dark:hover:text-rose-300"
+        >
           <LogOut className="h-4 w-4" />
           {!collapsed && <span className="hidden md:inline">Sign out</span>}
         </button>

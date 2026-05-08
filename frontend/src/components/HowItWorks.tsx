@@ -1,3 +1,4 @@
+// vocab-practice/frontend/src/components/HowItWorks.tsx
 "use client";
 import { useState } from "react";
 import { Volume2, RotateCcw, Check, X, ChevronRight } from "lucide-react";
@@ -81,7 +82,7 @@ export default function HowItWorks() {
           {/* Right: Interactive flashcard demo */}
           <div className="relative">
             {/* Phone mockup background */}
-            <div className="absolute inset-0 bg-gradient-to-br from-brand-900/20 to-violet-900/20 rounded-3xl blur-xl" />
+            <div className="absolute inset-0 bg-linear-to-br from-brand-900/20 to-violet-900/20 rounded-3xl blur-xl" />
 
             <div className="relative card-glass rounded-3xl p-6 max-w-sm mx-auto">
               {/* App header */}
@@ -102,7 +103,7 @@ export default function HowItWorks() {
               <div className="mb-6">
                 <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-brand-500 to-cyan-500 rounded-full"
+                    className="h-full bg-linear-to-r from-brand-500 to-cyan-500 rounded-full"
                     style={{ width: "60%" }}
                   />
                 </div>
@@ -117,7 +118,7 @@ export default function HowItWorks() {
                 }}
               >
                 <div
-                  className={`flip-card-inner relative w-full h-full ${flipped ? "[transform:rotateY(180deg)]" : ""}`}
+                  className={`flip-card-inner relative w-full h-full ${flipped ? "transform-[rotateY(180deg)]" : ""}`}
                   style={{
                     transition: "transform 0.6s",
                     transformStyle: "preserve-3d",
@@ -125,7 +126,7 @@ export default function HowItWorks() {
                 >
                   {/* Front */}
                   <div
-                    className="flip-card-front absolute inset-0 bg-gradient-to-br from-brand-800/60 to-brand-900/80 border border-brand-500/30 rounded-2xl flex flex-col items-center justify-center p-6"
+                    className="flip-card-front absolute inset-0 bg-linear-to-br from-brand-800/60 to-brand-900/80 border border-brand-500/30 rounded-2xl flex flex-col items-center justify-center p-6"
                     style={{ backfaceVisibility: "hidden" }}
                   >
                     <p className="text-slate-400 text-xs mb-3">
@@ -144,7 +145,7 @@ export default function HowItWorks() {
 
                   {/* Back */}
                   <div
-                    className="flip-card-back absolute inset-0 bg-gradient-to-br from-violet-800/60 to-violet-900/80 border border-violet-500/30 rounded-2xl flex flex-col items-center justify-center p-6 text-center"
+                    className="flip-card-back absolute inset-0 bg-linear-to-br from-violet-800/60 to-violet-900/80 border border-violet-500/30 rounded-2xl flex flex-col items-center justify-center p-6 text-center"
                     style={{
                       backfaceVisibility: "hidden",
                       transform: "rotateY(180deg)",
