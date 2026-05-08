@@ -10,6 +10,7 @@ router.use(verifyToken);
 // Words
 router.get('/words', checkPermission('MANAGE_WORDS'), AdminController.getWords);
 router.post('/words', checkPermission('MANAGE_WORDS'), validate(schemas.createWord), AdminController.createWord);
+router.post('/words/bulk-import', checkPermission('MANAGE_WORDS'), express.text({ type: ['text/csv', 'text/plain'], limit: '5mb' }), AdminController.bulkImportWords);
 router.put('/words/:id', checkPermission('MANAGE_WORDS'), AdminController.updateWord);
 router.delete('/words/:id', checkPermission('MANAGE_WORDS'), AdminController.deleteWord);
 

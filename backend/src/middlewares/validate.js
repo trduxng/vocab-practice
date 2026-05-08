@@ -2,16 +2,19 @@ const { z } = require('zod');
 
 const validate = (schema) => (req, res, next) => {
   try {
-    schema.parse({
+    const parsed = schema.parse({
       body: req.body,
       query: req.query,
       params: req.params,
     });
+    req.body = parsed.body;
+    req.query = parsed.query;
+    req.params = parsed.params;
     next();
   } catch (error) {
     return res.status(400).json({
       message: 'Dữ liệu không hợp lệ',
-      errors: error.errors
+      errors: error.issues || error.errors || []
     });
   }
 };
@@ -36,13 +39,13 @@ const schemas = {
   // Admin
   createWord: z.object({
     body: z.object({
-      term: z.string().min(1),
-      meaning: z.string().min(1),
+      term: z.string().trim().min(1),
+      meaning: z.string().trim().min(1),
       phonetic: z.string().optional(),
-      partOfSpeechId: z.number(),
-      topicIds: z.array(z.number()).optional(),
+      partOfSpeechId: z.coerce.number().int().positive(),
+      topicIds: z.array(z.coerce.number().int().positive()).optional(),
       examples: z.array(z.object({
-        sentence: z.string().min(1),
+        sentence: z.string(),
         meaning: z.string().optional()
       })).optional()
     })

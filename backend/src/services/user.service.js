@@ -18,16 +18,18 @@ class UserService {
     return result.recordset;
   }
 
-  static async getDueFlashcards(userId) {
+  static async getDueFlashcards(userId, { topicId = null, mode = null } = {}) {
     const pool = await poolPromise;
     const result = await pool.request()
       .input('UserID', sql.BigInt, userId)
+      .input('TopicID', sql.BigInt, topicId ? Number(topicId) : null)
+      .input('Mode', sql.NVarChar(20), mode || '')
       .query(`
         SELECT TOP 15 
           q.QuestionID AS questionId, 
           q.QuestionType AS questionType,
-          q.QuestionText AS questionText, 
-          q.CorrectAnswer AS correctAnswer,
+          COALESCE(q.QuestionText, w.Meaning) AS questionText, 
+          COALESCE(q.CorrectAnswer, w.Term) AS correctAnswer,
           q.OptionsJson AS optionsJson,
           w.Phonetic AS phonetic, 
           w.Meaning AS meaning,
@@ -35,12 +37,67 @@ class UserService {
           w.AudioUrlUK AS audioUrlUK,
           w.AudioUrlUS AS audioUrlUS,
           w.ImageUrl AS imageUrl,
-          w.WordID AS wordId
-        FROM Questions q
-        JOIN Words w ON q.WordID = w.WordID
+          w.WordID AS wordId,
+          p.PartOfSpeechName AS partOfSpeechName,
+          ISNULL(uwp.MasteryLevel, 0) AS masteryLevel,
+          ISNULL(uwp.MemoryStatus, N'New') AS memoryStatus
+        FROM Words w
+        LEFT JOIN PartOfSpeeches p ON w.PartOfSpeechID = p.PartOfSpeechID
+        OUTER APPLY (
+          SELECT TOP 1
+            QuestionID,
+            QuestionType,
+            QuestionText,
+            CorrectAnswer,
+            OptionsJson
+          FROM Questions
+          WHERE WordID = w.WordID
+          ORDER BY NEWID()
+        ) q
         LEFT JOIN UserWordProgress uwp ON w.WordID = uwp.WordID AND uwp.UserID = @UserID
-        WHERE uwp.NextReviewDate IS NULL OR uwp.NextReviewDate <= SYSDATETIMEOFFSET()
+        WHERE (@TopicID IS NULL OR EXISTS (
+            SELECT 1 FROM WordTopics wt WHERE wt.WordID = w.WordID AND wt.TopicID = @TopicID
+          ))
+          AND (
+            (@Mode = N'learned' AND uwp.UserWordProgressID IS NOT NULL)
+            OR
+            (@Mode <> N'learned' AND (uwp.NextReviewDate IS NULL OR uwp.NextReviewDate <= SYSDATETIMEOFFSET()))
+          )
         ORDER BY uwp.MasteryLevel ASC, NEWID()
+      `);
+    return result.recordset;
+  }
+
+  static async getTopicWords(userId, topicId) {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('UserID', sql.BigInt, userId)
+      .input('TopicID', sql.BigInt, topicId)
+      .query(`
+        SELECT
+          w.WordID AS wordId,
+          w.Term AS term,
+          w.Meaning AS meaning,
+          w.Phonetic AS phonetic,
+          p.PartOfSpeechName AS partOfSpeechName,
+          ISNULL(uwp.MasteryLevel, 0) AS masteryLevel,
+          ISNULL(uwp.MemoryStatus, N'New') AS memoryStatus,
+          uwp.LastReviewedAt AS lastReviewedAt,
+          uwp.NextReviewDate AS nextReviewDate,
+          ex.SentenceText AS exampleSentence,
+          ex.SentenceTranslation AS exampleMeaning
+        FROM WordTopics wt
+        JOIN Words w ON wt.WordID = w.WordID
+        LEFT JOIN PartOfSpeeches p ON w.PartOfSpeechID = p.PartOfSpeechID
+        LEFT JOIN UserWordProgress uwp ON w.WordID = uwp.WordID AND uwp.UserID = @UserID
+        OUTER APPLY (
+          SELECT TOP 1 SentenceText, SentenceTranslation
+          FROM ExampleSentences
+          WHERE WordID = w.WordID
+          ORDER BY ExampleSentenceID
+        ) ex
+        WHERE wt.TopicID = @TopicID
+        ORDER BY w.Term ASC
       `);
     return result.recordset;
   }
@@ -52,6 +109,72 @@ class UserService {
       .input('QuestionID', sql.BigInt, questionId)
       .input('SubmittedAnswer', sql.NVarChar(1000), submittedAnswer || '')
       .execute('usp_SubmitQuestionAttempt');
+    return result.recordset[0];
+  }
+
+  static async submitWordReview({ userId, wordId, isCorrect }) {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('UserID', sql.BigInt, userId)
+      .input('WordID', sql.BigInt, wordId)
+      .input('IsCorrect', sql.Bit, Boolean(isCorrect))
+      .query(`
+        DECLARE @Now DATETIMEOFFSET(7) = SYSDATETIMEOFFSET();
+
+        MERGE UserWordProgress WITH (HOLDLOCK) AS target
+        USING (SELECT @UserID AS UserID, @WordID AS WordID) AS source
+        ON target.UserID = source.UserID AND target.WordID = source.WordID
+        WHEN MATCHED THEN
+          UPDATE SET
+            MasteryLevel = CASE
+              WHEN @IsCorrect = 1 AND target.MasteryLevel < 10 THEN target.MasteryLevel + 1
+              WHEN @IsCorrect = 0 AND target.MasteryLevel > 0 THEN target.MasteryLevel - 1
+              ELSE target.MasteryLevel
+            END,
+            RepetitionCount = target.RepetitionCount + 1,
+            ConsecutiveCorrect = CASE WHEN @IsCorrect = 1 THEN target.ConsecutiveCorrect + 1 ELSE 0 END,
+            ConsecutiveWrong = CASE WHEN @IsCorrect = 0 THEN target.ConsecutiveWrong + 1 ELSE 0 END,
+            LastReviewedAt = @Now,
+            NextReviewDate = CASE
+              WHEN @IsCorrect = 1 THEN DATEADD(day,
+                CASE
+                  WHEN target.MasteryLevel >= 8 THEN 14
+                  WHEN target.MasteryLevel >= 5 THEN 7
+                  WHEN target.MasteryLevel >= 2 THEN 3
+                  ELSE 1
+                END,
+                @Now
+              )
+              ELSE @Now
+            END,
+            LastScore = CASE WHEN @IsCorrect = 1 THEN 100.00 ELSE 0.00 END,
+            MemoryStatus = CASE
+              WHEN @IsCorrect = 0 THEN N'Lapsed'
+              WHEN target.MasteryLevel >= 7 THEN N'Mastered'
+              WHEN target.MasteryLevel >= 2 THEN N'Reviewing'
+              ELSE N'Learning'
+            END,
+            UpdatedAt = @Now
+        WHEN NOT MATCHED THEN
+          INSERT (UserID, WordID, MasteryLevel, EaseFactor, RepetitionCount, ConsecutiveCorrect, ConsecutiveWrong, LastReviewedAt, NextReviewDate, LastScore, MemoryStatus, CreatedAt, UpdatedAt)
+          VALUES (
+            @UserID,
+            @WordID,
+            CASE WHEN @IsCorrect = 1 THEN 1 ELSE 0 END,
+            2.50,
+            1,
+            CASE WHEN @IsCorrect = 1 THEN 1 ELSE 0 END,
+            CASE WHEN @IsCorrect = 0 THEN 1 ELSE 0 END,
+            @Now,
+            CASE WHEN @IsCorrect = 1 THEN DATEADD(day, 1, @Now) ELSE @Now END,
+            CASE WHEN @IsCorrect = 1 THEN 100.00 ELSE 0.00 END,
+            CASE WHEN @IsCorrect = 1 THEN N'Learning' ELSE N'Lapsed' END,
+            @Now,
+            @Now
+          )
+        OUTPUT inserted.UserWordProgressID AS id, inserted.MasteryLevel AS masteryLevel, inserted.MemoryStatus AS memoryStatus;
+      `);
+
     return result.recordset[0];
   }
 

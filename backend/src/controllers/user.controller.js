@@ -4,17 +4,25 @@ class UserController {
   static async submitAnswer(req, res, next) {
     try {
       const userId = req.user.id;
-      const { questionId, submittedAnswer } = req.body;
+      const { questionId, wordId, submittedAnswer, isCorrect } = req.body;
 
-      if (!questionId) {
+      if (!questionId && !wordId) {
         return res.status(400).json({ message: 'Thiếu questionId' });
       }
 
-      await UserService.submitAnswer({
-        userId,
-        questionId,
-        submittedAnswer
-      });
+      if (questionId) {
+        await UserService.submitAnswer({
+          userId,
+          questionId,
+          submittedAnswer
+        });
+      } else {
+        await UserService.submitWordReview({
+          userId,
+          wordId,
+          isCorrect: Boolean(isCorrect)
+        });
+      }
 
       return res.status(200).json({ message: 'Lưu kết quả thành công' });
     } catch (error) {
@@ -30,8 +38,22 @@ class UserController {
   static async getFlashcards(req, res, next) {
     try {
       const userId = req.user.id;
-      const flashcards = await UserService.getDueFlashcards(userId);
+      const flashcards = await UserService.getDueFlashcards(userId, {
+        topicId: req.query.topicId,
+        mode: req.query.mode
+      });
       res.status(200).json(flashcards);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getTopicWords(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const { topicId } = req.params;
+      const words = await UserService.getTopicWords(userId, topicId);
+      res.status(200).json(words);
     } catch (error) {
       next(error);
     }

@@ -28,7 +28,10 @@ const StudentFlashcard = () => {
   useEffect(() => {
     const fetchFlashcards = async () => {
       try {
-        const data = await userService.getDueFlashcards();
+        const searchParams = new URLSearchParams(window.location.search);
+        const topicId = searchParams.get("topicId") || undefined;
+        const mode = searchParams.get("mode") || undefined;
+        const data = await userService.getDueFlashcards({ topicId, mode });
         setFlashcards(data);
       } catch (error) {
         console.error("Failed to fetch flashcards", error);
@@ -55,7 +58,7 @@ const StudentFlashcard = () => {
 
     try {
       await userService.submitAnswer({
-        questionId: currentCard.questionId,
+        questionId: currentCard.questionId || undefined,
         wordId: currentCard.wordId,
         submittedAnswer: isCorrect ? (currentCard.correctAnswer || currentCard.term) : "wrong",
         isCorrect: isCorrect,

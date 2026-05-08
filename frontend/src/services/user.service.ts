@@ -1,8 +1,13 @@
 import apiClient from '../lib/api-client';
 
 export const userService = {
-  async getDueFlashcards() {
-    const response = await apiClient.get('/user/flashcards');
+  async getDueFlashcards(params?: { topicId?: number | string; mode?: string }) {
+    const response = await apiClient.get('/user/flashcards', { params });
+    return response.data;
+  },
+
+  async getTopicWords(topicId: number | string) {
+    const response = await apiClient.get(`/user/topics/${topicId}/words`);
     return response.data;
   },
 

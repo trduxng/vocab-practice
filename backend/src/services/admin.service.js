@@ -10,6 +10,121 @@ function assertValidUserRole(roleName) {
 }
 
 class AdminService {
+  static normalizeImportKey(value) {
+    return String(value ?? '')
+      .replace(/^\uFEFF/, '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd')
+      .replace(/Đ/g, 'D')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
+  }
+
+  static parseDelimitedImport(input) {
+    if (Array.isArray(input)) {
+      return input;
+    }
+
+    if (typeof input === 'object' && input) {
+      if (Array.isArray(input.words)) return input.words;
+      if (Array.isArray(input.questions)) return input.questions;
+      if (Array.isArray(input.rows)) return input.rows;
+    }
+
+    if (typeof input !== 'string') {
+      throw new Error('Invalid import payload');
+    }
+
+    const trimmed = input.trim();
+    if (!trimmed) {
+      throw new Error('CSV must include a header and at least one data row');
+    }
+
+    const firstLine = trimmed.split(/\r?\n/)[0] || '';
+    const delimiters = [',', ';', '\t'];
+    const delimiter = delimiters.reduce((best, current) => {
+      const currentCount = firstLine.split(current).length;
+      const bestCount = firstLine.split(best).length;
+      return currentCount > bestCount ? current : best;
+    }, ',');
+
+    const records = [];
+    let row = [];
+    let cell = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < trimmed.length; i++) {
+      const char = trimmed[i];
+      const next = trimmed[i + 1];
+
+      if (char === '"' && next === '"') {
+        cell += '"';
+        i++;
+      } else if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === delimiter && !inQuotes) {
+        row.push(cell.trim());
+        cell = '';
+      } else if ((char === '\n' || char === '\r') && !inQuotes) {
+        if (char === '\r' && next === '\n') i++;
+        row.push(cell.trim());
+        if (row.some((value) => value !== '')) records.push(row);
+        row = [];
+        cell = '';
+      } else {
+        cell += char;
+      }
+    }
+
+    row.push(cell.trim());
+    if (row.some((value) => value !== '')) records.push(row);
+
+    if (records.length < 2) {
+      throw new Error('CSV must include a header and at least one data row');
+    }
+
+    const headers = records[0].map((header) => header.trim());
+    return records.slice(1).map((cells) => {
+      return headers.reduce((parsedRow, header, index) => {
+        parsedRow[header] = cells[index] ?? '';
+        return parsedRow;
+      }, {});
+    });
+  }
+
+  static getImportValue(row, aliases) {
+    const normalizedAliases = aliases.map((alias) => this.normalizeImportKey(alias));
+    const entries = Object.entries(row ?? {});
+
+    for (const [key, value] of entries) {
+      if (normalizedAliases.includes(this.normalizeImportKey(key))) {
+        return value;
+      }
+    }
+
+    return undefined;
+  }
+
+  static splitImportList(value) {
+    if (Array.isArray(value)) {
+      return value.map((item) => String(item).trim()).filter(Boolean);
+    }
+
+    return String(value ?? '')
+      .split(/[;,|]/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  static parseQuestionImport(input) {
+    return this.parseDelimitedImport(input);
+  }
+
+  static parseWordImport(input) {
+    return this.parseDelimitedImport(input);
+  }
+
   // --- WORDS ---
   static async getWords(page = 1, limit = 20) {
     const pool = await poolPromise;
@@ -60,6 +175,9 @@ class AdminService {
 
   static async createWord(wordData, adminId) {
     const { term, meaning, phonetic = '', partOfSpeechId, topicIds, examples } = wordData;
+    const validExamples = Array.isArray(examples)
+      ? examples.filter((ex) => String(ex?.sentence ?? '').trim())
+      : [];
     const pool = await poolPromise;
     const transaction = new sql.Transaction(pool);
 
@@ -97,26 +215,16 @@ class AdminService {
       }
 
       // Insert ExampleSentences
-      if (examples && examples.length > 0) {
-        for (const ex of examples) {
+      if (validExamples.length > 0) {
+        for (const ex of validExamples) {
           const exReq = new sql.Request(transaction);
           await exReq
             .input('WordID', sql.BigInt, wordId)
             .input('SentenceText', sql.NVarChar(2000), ex.sentence)
             .input('SentenceTranslation', sql.NVarChar(2000), ex.meaning)
-            .input('ExampleSource', sql.NVarChar(50), ex.exampleSource || 'General')
-            .input('PartNumber', sql.Int, ex.partNumber || null)
             .query(`
-              IF COL_LENGTH('dbo.ExampleSentences', 'ExampleSource') IS NOT NULL
-              BEGIN
-                INSERT INTO ExampleSentences (WordID, SentenceText, SentenceTranslation, ExampleSource, PartNumber, CreatedAt, UpdatedAt)
-                VALUES (@WordID, @SentenceText, @SentenceTranslation, @ExampleSource, @PartNumber, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
-              END
-              ELSE
-              BEGIN
-                INSERT INTO ExampleSentences (WordID, SentenceText, SentenceTranslation, CreatedAt, UpdatedAt)
-                VALUES (@WordID, @SentenceText, @SentenceTranslation, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
-              END
+              INSERT INTO ExampleSentences (WordID, SentenceText, SentenceTranslation, CreatedAt, UpdatedAt)
+              VALUES (@WordID, @SentenceText, @SentenceTranslation, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
             `);
         }
       }
@@ -208,6 +316,116 @@ class AdminService {
       await transaction.rollback();
       throw error;
     }
+  }
+
+  static async bulkInsertWords(input, adminId) {
+    const rows = this.parseWordImport(input);
+    const results = { success: 0, failed: 0, errors: [] };
+    const pool = await poolPromise;
+
+    const referenceData = await pool.request().query(`
+      SELECT PartOfSpeechID AS id, PartOfSpeechName AS name, PartOfSpeechCode AS code
+      FROM PartOfSpeeches;
+
+      SELECT TopicID AS id, TopicName AS name, TopicCode AS code
+      FROM Topics;
+    `);
+
+    const partsOfSpeech = referenceData.recordsets[0] || [];
+    const topics = referenceData.recordsets[1] || [];
+    const partOfSpeechById = new Map(partsOfSpeech.map((item) => [Number(item.id), Number(item.id)]));
+    const partOfSpeechByName = new Map();
+    const topicById = new Map(topics.map((item) => [Number(item.id), Number(item.id)]));
+    const topicByName = new Map();
+
+    for (const item of partsOfSpeech) {
+      partOfSpeechByName.set(this.normalizeImportKey(item.name), Number(item.id));
+      partOfSpeechByName.set(this.normalizeImportKey(item.code), Number(item.id));
+    }
+
+    for (const item of topics) {
+      topicByName.set(this.normalizeImportKey(item.name), Number(item.id));
+      topicByName.set(this.normalizeImportKey(item.code), Number(item.id));
+    }
+
+    for (let index = 0; index < rows.length; index++) {
+      const row = rows[index];
+
+      try {
+        const term = String(this.getImportValue(row, ['term', 'word', 'vocabulary', 'tu vung', 'tu']) ?? '').trim();
+        const meaning = String(this.getImportValue(row, ['meaning', 'definition', 'dinh nghia', 'nghia']) ?? '').trim();
+        const phonetic = String(this.getImportValue(row, ['phonetic', 'pronunciation', 'phien am']) ?? '').trim();
+        const rawPartOfSpeechId = this.getImportValue(row, ['partOfSpeechId', 'posId', 'part of speech id', 'loai tu id']);
+        const rawPartOfSpeechName = this.getImportValue(row, ['partOfSpeech', 'partOfSpeechName', 'pos', 'part of speech', 'loai tu', 'tu loai']);
+        const rawTopicIds = this.getImportValue(row, ['topicIds', 'topicId', 'topic ids', 'chu de ids', 'chu de id']);
+        const rawTopics = this.getImportValue(row, ['topics', 'topic', 'topicNames', 'topicName', 'chu de', 'ten chu de']);
+        const rawExampleSentence = this.getImportValue(row, ['exampleSentence', 'sentence', 'example', 'cau vi du', 'vi du']);
+        const rawExampleMeaning = this.getImportValue(row, ['exampleMeaning', 'sentenceTranslation', 'translation', 'nghia cau vi du', 'dich']);
+
+        if (!term || !meaning) {
+          throw new Error('Missing required fields: term, meaning');
+        }
+
+        let partOfSpeechId = Number(rawPartOfSpeechId);
+        if (!partOfSpeechId && rawPartOfSpeechName) {
+          partOfSpeechId = partOfSpeechByName.get(this.normalizeImportKey(rawPartOfSpeechName));
+        }
+
+        if (!partOfSpeechId || !partOfSpeechById.has(Number(partOfSpeechId))) {
+          throw new Error('Invalid or missing partOfSpeechId/partOfSpeech');
+        }
+
+        const topicIds = new Set();
+        for (const value of this.splitImportList(rawTopicIds)) {
+          const id = Number(value);
+          if (!id || !topicById.has(id)) {
+            throw new Error(`Invalid topicId: ${value}`);
+          }
+          topicIds.add(id);
+        }
+
+        for (const value of this.splitImportList(rawTopics)) {
+          const id = Number(value);
+          if (id && topicById.has(id)) {
+            topicIds.add(id);
+            continue;
+          }
+
+          const mappedTopicId = topicByName.get(this.normalizeImportKey(value));
+          if (!mappedTopicId) {
+            throw new Error(`Invalid topic: ${value}`);
+          }
+          topicIds.add(mappedTopicId);
+        }
+
+        const examples = [];
+        if (String(rawExampleSentence ?? '').trim()) {
+          examples.push({
+            sentence: String(rawExampleSentence).trim(),
+            meaning: String(rawExampleMeaning ?? '').trim()
+          });
+        }
+
+        await this.createWord({
+          term,
+          meaning,
+          phonetic,
+          partOfSpeechId: Number(partOfSpeechId),
+          topicIds: [...topicIds],
+          examples
+        }, adminId);
+
+        results.success += 1;
+      } catch (error) {
+        results.failed += 1;
+        results.errors.push({
+          row: index + 2,
+          message: error.message
+        });
+      }
+    }
+
+    return results;
   }
 
   // --- QUESTIONS ---
@@ -375,64 +593,6 @@ class AdminService {
       `);
 
     return result.recordset[0];
-  }
-
-  static parseQuestionImport(input) {
-    if (Array.isArray(input)) {
-      return input;
-    }
-
-    if (typeof input === 'object' && input?.questions && Array.isArray(input.questions)) {
-      return input.questions;
-    }
-
-    if (typeof input !== 'string') {
-      throw new Error('Invalid import payload');
-    }
-
-    const lines = input
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean);
-
-    if (lines.length < 2) {
-      throw new Error('CSV must include a header and at least one data row');
-    }
-
-    const parseLine = (line) => {
-      const cells = [];
-      let cell = '';
-      let inQuotes = false;
-
-      for (let i = 0; i < line.length; i++) {
-        const char = line[i];
-        const next = line[i + 1];
-
-        if (char === '"' && next === '"') {
-          cell += '"';
-          i++;
-        } else if (char === '"') {
-          inQuotes = !inQuotes;
-        } else if (char === ',' && !inQuotes) {
-          cells.push(cell.trim());
-          cell = '';
-        } else {
-          cell += char;
-        }
-      }
-
-      cells.push(cell.trim());
-      return cells;
-    };
-
-    const headers = parseLine(lines[0]).map((header) => header.trim());
-    return lines.slice(1).map((line) => {
-      const cells = parseLine(line);
-      return headers.reduce((row, header, index) => {
-        row[header] = cells[index] ?? '';
-        return row;
-      }, {});
-    });
   }
 
   static async bulkInsertQuestions(input, adminId) {

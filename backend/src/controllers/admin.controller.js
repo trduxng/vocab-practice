@@ -25,6 +25,25 @@ class AdminController {
     }
   }
 
+  static async bulkImportWords(req, res, next) {
+    try {
+      const adminId = req.user.id;
+      const result = await AdminService.bulkInsertWords(req.body, adminId);
+      res.status(200).json({
+        message: 'Bulk word import completed',
+        ...result
+      });
+    } catch (error) {
+      if (
+        error.message === 'Invalid import payload' ||
+        error.message.startsWith('CSV must include')
+      ) {
+        return res.status(400).json({ message: error.message });
+      }
+      next(error);
+    }
+  }
+
   static async updateWord(req, res, next) {
     try {
       const { id } = req.params;

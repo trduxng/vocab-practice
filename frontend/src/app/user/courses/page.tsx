@@ -2,17 +2,40 @@
 
 import React, { useEffect, useState } from "react";
 import { categoriesService } from "@/src/services/categories.service";
+import { userService } from "@/src/services/user.service";
 import { useAuth } from "@/src/app/context/AuthContext";
 import Topbar from "@/src/components/shared/Topbar";
 import { Card, CardContent } from "@/src/components/ui/card";
 import { Button } from "@/src/components/ui/button";
-import { BookOpen, GraduationCap, ChevronRight, Zap, Star } from "lucide-react";
+import { BookOpen, GraduationCap, ChevronRight, Zap, Star, Play, RefreshCw, ListChecks } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
+type Topic = {
+  id: number;
+  name: string;
+  code?: string;
+  description?: string;
+};
+
+type TopicWord = {
+  wordId: number;
+  term: string;
+  meaning: string;
+  phonetic?: string;
+  partOfSpeechName?: string;
+  masteryLevel: number;
+  memoryStatus: string;
+  exampleSentence?: string;
+  exampleMeaning?: string;
+};
+
 const UserCoursesPage = () => {
   const { user, loading: authLoading } = useAuth();
-  const [topics, setTopics] = useState<any[]>([]);
+  const [topics, setTopics] = useState<Topic[]>([]);
+  const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
+  const [courseWords, setCourseWords] = useState<TopicWord[]>([]);
+  const [wordsLoading, setWordsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -37,6 +60,20 @@ const UserCoursesPage = () => {
 
   if (authLoading || loading) return <div className="min-h-screen flex items-center justify-center bg-[#080d1a] text-white">Đang tải danh sách lộ trình...</div>;
 
+  const handleOpenCourse = async (topic: Topic) => {
+    setSelectedTopic(topic);
+    setWordsLoading(true);
+    try {
+      const data = await userService.getTopicWords(topic.id);
+      setCourseWords(data);
+    } catch (error) {
+      console.error("Failed to fetch course words", error);
+      setCourseWords([]);
+    } finally {
+      setWordsLoading(false);
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-[#080d1a]">
       <Topbar title="Lộ trình học tập" role="student" userName={user?.fullName} />
@@ -56,7 +93,7 @@ const UserCoursesPage = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
            {topics.map((t) => (
-             <Card key={t.id} className="bg-white/3 border border-white/8 hover:border-blue-500/30 transition-all rounded-[32px] overflow-hidden group">
+             <Card key={t.id} onClick={() => handleOpenCourse(t)} className="bg-white/3 border border-white/8 hover:border-blue-500/30 transition-all rounded-[32px] overflow-hidden group cursor-pointer">
                 <CardContent className="p-0">
                    <div className="h-32 bg-linear-to-br from-blue-600/20 to-indigo-600/20 flex items-center justify-center relative">
                       <div className="absolute inset-0 bg-grid opacity-10" />
@@ -84,7 +121,10 @@ const UserCoursesPage = () => {
                             </div>
                          </div>
                          <Button 
-                          onClick={() => handleEnroll(t.id, t.name)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            router.push(`/user/learn?topicId=${t.id}`);
+                          }}
                           className="bg-white text-slate-900 hover:bg-blue-600 hover:text-white font-black text-xs uppercase tracking-widest px-6 py-5 rounded-2xl transition-all flex items-center gap-2"
                          >
                             Học ngay <ChevronRight size={14} />
@@ -95,6 +135,69 @@ const UserCoursesPage = () => {
              </Card>
            ))}
         </div>
+
+        {selectedTopic && (
+          <div className="bg-white/3 border border-white/8 rounded-[32px] overflow-hidden">
+            <div className="flex flex-col gap-4 border-b border-white/5 bg-white/5 p-6 md:flex-row md:items-center md:justify-between">
+              <div>
+                <div className="mb-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-blue-400">
+                  <ListChecks size={14} /> {selectedTopic.code || "COURSE"}
+                </div>
+                <h2 className="text-2xl font-black text-white">{selectedTopic.name}</h2>
+                <p className="mt-1 text-sm text-slate-500">{courseWords.length} tu vung trong khoa hoc</p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  onClick={() => router.push(`/user/learn?topicId=${selectedTopic.id}`)}
+                  className="h-11 rounded-xl bg-blue-600 px-5 text-xs font-black uppercase tracking-widest text-white hover:bg-blue-500"
+                >
+                  <Play size={14} /> Hoc khoa nay
+                </Button>
+                <Button
+                  onClick={() => router.push(`/user/learn?topicId=${selectedTopic.id}&mode=learned`)}
+                  className="h-11 rounded-xl bg-white/10 px-5 text-xs font-black uppercase tracking-widest text-white hover:bg-white/15"
+                >
+                  <RefreshCw size={14} /> On tap da hoc
+                </Button>
+              </div>
+            </div>
+
+            {wordsLoading ? (
+              <div className="p-8 text-center text-sm font-bold text-slate-500">Dang tai tu vung...</div>
+            ) : courseWords.length === 0 ? (
+              <div className="p-8 text-center text-sm font-bold text-slate-500">Khoa hoc nay chua co tu vung.</div>
+            ) : (
+              <div className="divide-y divide-white/5">
+                {courseWords.map((word) => (
+                  <div key={word.wordId} className="grid gap-4 p-5 md:grid-cols-[1.2fr_1.6fr_120px] md:items-center">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-lg font-black text-white">{word.term}</h3>
+                        {word.partOfSpeechName && (
+                          <span className="rounded-lg border border-blue-500/20 bg-blue-500/10 px-2 py-0.5 text-[9px] font-black uppercase text-blue-400">
+                            {word.partOfSpeechName}
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 font-mono text-xs text-slate-500">{word.phonetic}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-300">{word.meaning}</p>
+                      {word.exampleSentence && (
+                        <p className="mt-2 line-clamp-1 text-xs italic text-slate-600">{word.exampleSentence}</p>
+                      )}
+                    </div>
+                    <div className="md:text-right">
+                      <span className="rounded-lg border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        {word.memoryStatus || "New"} {word.masteryLevel || 0}/10
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="bg-white/3 border border-white/8 rounded-[40px] p-12 relative overflow-hidden flex flex-col items-center text-center">
            <div className="absolute top-0 right-0 p-8 opacity-5"><Zap size={200} /></div>

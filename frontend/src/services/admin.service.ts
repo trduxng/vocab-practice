@@ -29,6 +29,16 @@ export const adminService = {
     return response.data;
   },
 
+  async bulkImportWords(data: unknown[] | string) {
+    const isCsv = typeof data === 'string';
+    const response = await apiClient.post(
+      '/admin/words/bulk-import',
+      isCsv ? data : { words: data },
+      isCsv ? { headers: { 'Content-Type': 'text/csv' } } : undefined
+    );
+    return response.data;
+  },
+
   async getQuestionsByWord(wordId: number) {
     const response = await apiClient.get(`/admin/questions/${wordId}`);
     return response.data;

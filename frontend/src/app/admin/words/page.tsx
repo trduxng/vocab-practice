@@ -1,23 +1,50 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { adminService } from '@/src/services/admin.service';
 import { categoriesService } from '@/src/services/categories.service';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/src/components/ui/card';
-import { Plus, Search, Edit2, Trash2, BookOpen, X, Check } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, BookOpen, X, Check, Upload } from 'lucide-react';
 import { Skeleton } from '@/src/components/ui/skeleton';
 import Topbar from '@/src/components/shared/Topbar';
 import { toast } from 'sonner';
+import axios from 'axios';
+
+type CategoryOption = {
+  id: number;
+  name: string;
+  code?: string;
+  description?: string;
+};
+
+type WordExample = {
+  id?: number;
+  sentence: string;
+  meaning?: string;
+};
+
+type WordItem = {
+  id: number;
+  term: string;
+  meaning: string;
+  phonetic?: string;
+  partOfSpeechId: number;
+  partOfSpeechName?: string;
+  topics?: CategoryOption[];
+  examples?: WordExample[];
+};
 
 export default function AdminWordsPage() {
-  const [words, setWords] = useState<any[]>([]);
-  const [partsOfSpeech, setPartOfSpeeches] = useState<any[]>([]);
-  const [topics, setTopics] = useState<any[]>([]);
+  const [words, setWords] = useState<WordItem[]>([]);
+  const [partsOfSpeech, setPartOfSpeeches] = useState<CategoryOption[]>([]);
+  const [topics, setTopics] = useState<CategoryOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowAddForm] = useState(false);
-  const [editingWord, setEditingWord] = useState<any>(null);
+  const [editingWord, setEditingWord] = useState<WordItem | null>(null);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Word Form State
   const [formData, setFormData] = useState({
@@ -29,11 +56,7 @@ export default function AdminWordsPage() {
     examples: [{ sentence: '', meaning: '' }]
   });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const [wordsData, posData, topicsData] = await Promise.all([
@@ -50,18 +73,25 @@ export default function AdminWordsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handleEdit = (word: any) => {
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchData();
+  }, [fetchData]);
+
+  const handleEdit = (word: WordItem) => {
+    const wordExamples = word.examples ?? [];
+
     setEditingWord(word);
     setFormData({
       term: word.term,
       meaning: word.meaning,
       phonetic: word.phonetic || '',
       partOfSpeechId: word.partOfSpeechId.toString(),
-      topicIds: word.topics?.map((t: any) => t.id) || [],
-      examples: word.examples?.length > 0 
-        ? word.examples.map((ex: any) => ({ sentence: ex.sentence, meaning: ex.meaning }))
+      topicIds: word.topics?.map((t) => t.id) || [],
+      examples: wordExamples.length > 0 
+        ? wordExamples.map((ex) => ({ sentence: ex.sentence, meaning: ex.meaning || '' }))
         : [{ sentence: '', meaning: '' }]
     });
     setShowAddForm(true);
@@ -78,12 +108,73 @@ export default function AdminWordsPage() {
     }
   };
 
+  const handleImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) return;
+
+    setImporting(true);
+    try {
+      const extension = file.name.split('.').pop()?.toLowerCase();
+      let payload: unknown[] | string;
+
+      if (extension === 'csv' || file.type === 'text/csv') {
+        payload = await file.text();
+      } else if (extension === 'xlsx' || extension === 'xls') {
+        const XLSX = await import('xlsx');
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        payload = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, { defval: '' });
+      } else {
+        toast.error('Vui long chon file CSV, XLS hoac XLSX');
+        return;
+      }
+
+      if (Array.isArray(payload) && payload.length === 0) {
+        toast.error('File khong co du lieu de import');
+        return;
+      }
+
+      const result = await adminService.bulkImportWords(payload);
+      const message = `Import thanh cong ${result.success || 0} dong, loi ${result.failed || 0} dong`;
+
+      if (result.failed > 0) {
+        console.warn('Word import errors', result.errors);
+        toast.warning(message);
+      } else {
+        toast.success(message);
+      }
+
+      fetchData();
+    } catch (error) {
+      console.error('Import words failed', error);
+      toast.error('Import tu vung that bai');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const partOfSpeechId = Number(formData.partOfSpeechId);
+      if (!partOfSpeechId) {
+        toast.error('Vui long chon loai tu');
+        return;
+      }
+
       const data = {
         ...formData,
-        partOfSpeechId: parseInt(formData.partOfSpeechId)
+        partOfSpeechId,
+        examples: formData.examples
+          .map((example) => ({
+            sentence: example.sentence.trim(),
+            meaning: example.meaning.trim()
+          }))
+          .filter((example) => example.sentence)
       };
 
       if (editingWord) {
@@ -106,7 +197,11 @@ export default function AdminWordsPage() {
       });
       fetchData();
     } catch (error) {
-      console.error("Operation failed", error);
+      const message = axios.isAxiosError(error)
+        ? error.response?.data?.message || 'Loi khi luu du lieu'
+        : 'Loi khi luu du lieu';
+
+      console.error("Operation failed", message, axios.isAxiosError(error) ? error.response?.data : error);
       toast.error("Lỗi khi lưu dữ liệu");
     }
   };
@@ -130,9 +225,26 @@ export default function AdminWordsPage() {
             <Input className="pl-10 bg-white/5 border-white/10 text-white rounded-xl" placeholder="Tìm kiếm từ vựng..." />
           </div>
           {!showForm && (
-            <Button onClick={() => { setEditingWord(null); setShowAddForm(true); }} className="bg-blue-600 hover:bg-blue-700 gap-2">
+            <div className="flex items-center gap-3">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                className="hidden"
+                onChange={handleImportFile}
+              />
+              <Button
+                type="button"
+                disabled={importing}
+                onClick={() => fileInputRef.current?.click()}
+                className="bg-white/5 hover:bg-white/10 border-white/10 text-white gap-2"
+              >
+                <Upload size={16} /> {importing ? 'Dang import...' : 'Import CSV/Excel'}
+              </Button>
+              <Button onClick={() => { setEditingWord(null); setShowAddForm(true); }} className="bg-blue-600 hover:bg-blue-700 gap-2">
               <Plus size={16} /> Thêm từ mới
-            </Button>
+              </Button>
+            </div>
           )}
         </div>
 
@@ -303,7 +415,7 @@ export default function AdminWordsPage() {
                   </td>
                   <td className="px-6 py-6">
                     <div className="flex flex-wrap gap-1.5">
-                      {w.topics?.map((t: any) => (
+                      {w.topics?.map((t) => (
                         <span key={t.id} className="text-[9px] px-2 py-0.5 bg-white/5 text-slate-400 rounded-md border border-white/5 font-bold">
                           {t.name}
                         </span>

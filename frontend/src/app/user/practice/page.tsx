@@ -27,7 +27,10 @@ export default function UserPractice() {
   useEffect(() => {
     const fetchQuestions = async () => {
       try {
-        const data = await userService.getDueFlashcards();
+        const searchParams = new URLSearchParams(window.location.search);
+        const topicId = searchParams.get("topicId") || undefined;
+        const mode = searchParams.get("mode") || undefined;
+        const data = await userService.getDueFlashcards({ topicId, mode });
         setQuestions(data.sort(() => Math.random() - 0.5));
       } catch (error) {
         console.error("Failed to fetch questions", error);
