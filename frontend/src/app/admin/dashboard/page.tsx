@@ -1,80 +1,33 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import Topbar from "@/src/components/shared/Topbar";
 import ChartFrame from "@/src/components/admin/ChartFrame";
-import {
-  AdminPage,
-  AdminPanel,
-  KpiCard,
-  StatusBadge,
-  chartColors,
-} from "@/src/components/admin/AdminPrimitives";
-import {
-  Activity,
-  CheckCircle2,
-  ClipboardList,
-  Clock3,
-  PieChart as PieChartIcon,
-  Sparkles,
-  UserPlus,
-  Users,
-} from "lucide-react";
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { AdminPage, AdminPanel, KpiCard, StatusBadge, chartColors } from "@/src/components/admin/AdminPrimitives";
+import { adminService } from "@/src/services/admin.service";
+import { Activity, CheckCircle2, ClipboardList, Clock3, PieChart as PieChartIcon, Sparkles, UserPlus, Users } from "lucide-react";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
-const kpis = [
-  { label: "Total users", value: "128,420", change: "+12.8% vs last month", icon: Users, tone: "blue" as const },
-  { label: "Daily active users", value: "18,742", change: "+7.1% today", icon: Activity, tone: "emerald" as const },
-  { label: "New signups", value: "2,184", change: "+438 this week", icon: UserPlus, tone: "violet" as const },
-  { label: "Quizzes taken", value: "842,910", change: "+18.4% vs last month", icon: ClipboardList, tone: "amber" as const },
-  { label: "Completion rate", value: "74.6%", change: "-1.2% vs target", trend: "down" as const, icon: CheckCircle2, tone: "rose" as const },
-];
+type Tone = "slate" | "blue" | "emerald" | "amber" | "rose" | "violet";
 
-const userGrowth = [
-  { date: "Apr 01", users: 101000 },
-  { date: "Apr 05", users: 104800 },
-  { date: "Apr 09", users: 109200 },
-  { date: "Apr 13", users: 113900 },
-  { date: "Apr 17", users: 118300 },
-  { date: "Apr 21", users: 123600 },
-  { date: "Apr 25", users: 128420 },
-];
-
-const quizActivity = [
-  { day: "Mon", quizzes: 17800, flashcards: 25600 },
-  { day: "Tue", quizzes: 21400, flashcards: 28100 },
-  { day: "Wed", quizzes: 23600, flashcards: 30900 },
-  { day: "Thu", quizzes: 19800, flashcards: 27600 },
-  { day: "Fri", quizzes: 25100, flashcards: 32600 },
-  { day: "Sat", quizzes: 29200, flashcards: 38100 },
-  { day: "Sun", quizzes: 26400, flashcards: 34700 },
-];
-
-const userTypes = [
-  { name: "Free learners", value: 58, color: chartColors.blue },
-  { name: "Premium", value: 24, color: chartColors.emerald },
-  { name: "Teachers", value: 12, color: chartColors.amber },
-  { name: "Schools", value: 6, color: chartColors.violet },
-];
-
-const recentActivity = [
-  { title: "IELTS Vocabulary Sprint passed moderation", detail: "Published by Linh Tran", time: "4 min ago", tone: "emerald" as const },
-  { title: "14 reports opened for duplicate flashcards", detail: "Content team queue", time: "18 min ago", tone: "amber" as const },
-  { title: "Premium plan conversion spike detected", detail: "Starter plan trial cohort", time: "41 min ago", tone: "blue" as const },
-  { title: "User ban appeal requires review", detail: "Policy violation: spam", time: "1 hr ago", tone: "rose" as const },
-];
+type DashboardStats = {
+  totalUsers?: number;
+  totalStudents?: number;
+  totalCreators?: number;
+  totalWords?: number;
+  totalTopics?: number;
+  totalQuestions?: number;
+  totalAttempts?: number;
+  masteredRecords?: number;
+  dueReviews?: number;
+  newUsersThisWeek?: number;
+  activeUsersToday?: number;
+  averageAccuracy?: number | null;
+  userGrowth?: Array<{ date: string; users: number }>;
+  weeklyActivity?: Array<{ day: string; attempts: number; correct: number }>;
+  userTypes?: Array<{ name: string; value: number }>;
+  recentActivity?: Array<{ title: string; detail: string; createdAt: string; tone: Tone }>;
+};
 
 const tooltipStyle = {
   background: "rgb(15 23 42)",
@@ -83,107 +36,174 @@ const tooltipStyle = {
   color: "white",
 };
 
+const roleColors = [chartColors.blue, chartColors.emerald, chartColors.amber, chartColors.violet, chartColors.rose];
+
+function compactNumber(value?: number | null) {
+  return Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(Number(value || 0));
+}
+
+function formatRelative(value?: string) {
+  if (!value) return "No activity";
+  const diffMs = Date.now() - new Date(value).getTime();
+  const minutes = Math.max(1, Math.round(diffMs / 60000));
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} hr ago`;
+  return `${Math.round(hours / 24)} days ago`;
+}
+
 export default function AdminDashboard() {
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchStats() {
+      try {
+        const data = await adminService.getStats();
+        if (!cancelled) setStats(data);
+      } catch (error) {
+        console.error("Failed to fetch dashboard stats", error);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    fetchStats();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const userGrowth = useMemo(() => {
+    return (stats?.userGrowth || []).reduce<Array<{ date: string; users: number }>>((items, item) => {
+      const previous = items.at(-1)?.users || 0;
+      return [...items, { date: item.date?.slice(5) || "", users: previous + Number(item.users || 0) }];
+    }, []);
+  }, [stats]);
+
+  const userTypes = useMemo(() => {
+    const total = (stats?.userTypes || []).reduce((sum, item) => sum + Number(item.value || 0), 0);
+    return (stats?.userTypes || []).map((item, index) => ({
+      ...item,
+      color: roleColors[index % roleColors.length],
+      percent: total ? Math.round((Number(item.value || 0) / total) * 100) : 0,
+    }));
+  }, [stats]);
+
+  const weeklyActivity = stats?.weeklyActivity || [];
+  const recentActivity = stats?.recentActivity || [];
+
   return (
     <>
-      <Topbar
-        title="Overview"
-        subtitle="Live operating snapshot for users, study activity, content quality, and growth."
-        role="admin"
-        userName="Admin"
-      />
+      <Topbar title="Overview" subtitle="Live data from ToeicVocabularyPlatform." role="admin" userName="Admin" />
 
       <AdminPage>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          {kpis.map((kpi) => <KpiCard key={kpi.label} {...kpi} />)}
-        </div>
-
-        <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
-          <AdminPanel
-            title="User growth"
-            description="Cumulative accounts over the current month."
-            className="xl:col-span-2"
-            action={<StatusBadge tone="blue"><Sparkles className="mr-1 h-3 w-3" />Healthy growth</StatusBadge>}
-          >
-            <ChartFrame className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={userGrowth}>
-                  <defs>
-                    <linearGradient id="users" x1="0" x2="0" y1="0" y2="1">
-                      <stop offset="0%" stopColor={chartColors.blue} stopOpacity={0.28} />
-                      <stop offset="100%" stopColor={chartColors.blue} stopOpacity={0.02} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,.18)" />
-                  <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                  <YAxis tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} width={48} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Area type="monotone" dataKey="users" stroke={chartColors.blue} strokeWidth={2} fill="url(#users)" name="Total users" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </ChartFrame>
+        {loading ? (
+          <AdminPanel>
+            <div className="py-12 text-center text-sm text-slate-500 dark:text-slate-400">Loading admin data...</div>
           </AdminPanel>
-
-          <AdminPanel title="User types" description="Active user mix by account segment." action={<PieChartIcon className="h-4 w-4 text-slate-400" />}>
-            <ChartFrame className="h-56">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={userTypes} dataKey="value" innerRadius={52} outerRadius={88} paddingAngle={4}>
-                    {userTypes.map((item) => <Cell key={item.name} fill={item.color} />)}
-                  </Pie>
-                  <Tooltip contentStyle={tooltipStyle} />
-                </PieChart>
-              </ResponsiveContainer>
-            </ChartFrame>
-            <div className="space-y-2">
-              {userTypes.map((item) => (
-                <div key={item.name} className="flex items-center justify-between text-sm">
-                  <span className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                    {item.name}
-                  </span>
-                  <span className="font-medium text-slate-950 dark:text-white">{item.value}%</span>
-                </div>
-              ))}
+        ) : (
+          <>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+              <KpiCard label="Total users" value={compactNumber(stats?.totalUsers)} change={`${compactNumber(stats?.totalCreators)} creators`} icon={Users} tone="blue" />
+              <KpiCard label="Active today" value={compactNumber(stats?.activeUsersToday)} change="Unique learners in 24h" icon={Activity} tone="emerald" />
+              <KpiCard label="New signups" value={compactNumber(stats?.newUsersThisWeek)} change="Last 7 days" icon={UserPlus} tone="violet" />
+              <KpiCard label="Attempts" value={compactNumber(stats?.totalAttempts)} change={`${compactNumber(stats?.totalQuestions)} questions`} icon={ClipboardList} tone="amber" />
+              <KpiCard label="Accuracy" value={`${Math.round(Number(stats?.averageAccuracy || 0))}%`} change={`${compactNumber(stats?.dueReviews)} due reviews`} trend="down" icon={CheckCircle2} tone="rose" />
             </div>
-          </AdminPanel>
-        </div>
 
-        <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
-          <AdminPanel title="Quiz activity" description="Quizzes and flashcard study sessions by weekday." className="xl:col-span-2">
-            <ChartFrame className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={quizActivity}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,.18)" />
-                  <XAxis dataKey="day" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                  <YAxis tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} width={48} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Bar dataKey="quizzes" fill={chartColors.blue} radius={[6, 6, 0, 0]} name="Quizzes" />
-                  <Bar dataKey="flashcards" fill={chartColors.emerald} radius={[6, 6, 0, 0]} name="Flashcards" />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartFrame>
-          </AdminPanel>
+            <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+              <AdminPanel
+                title="User growth"
+                description="New accounts by date from the Users table."
+                className="xl:col-span-2"
+                action={<StatusBadge tone="blue"><Sparkles className="mr-1 h-3 w-3" />Live database</StatusBadge>}
+              >
+                <ChartFrame className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={userGrowth}>
+                      <defs>
+                        <linearGradient id="users" x1="0" x2="0" y1="0" y2="1">
+                          <stop offset="0%" stopColor={chartColors.blue} stopOpacity={0.28} />
+                          <stop offset="100%" stopColor={chartColors.blue} stopOpacity={0.02} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,.18)" />
+                      <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                      <YAxis tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} width={48} />
+                      <Tooltip contentStyle={tooltipStyle} />
+                      <Area type="monotone" dataKey="users" stroke={chartColors.blue} strokeWidth={2} fill="url(#users)" name="New users" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </ChartFrame>
+              </AdminPanel>
 
-          <AdminPanel title="Recent activity" description="Latest events requiring attention.">
-            <div className="space-y-4">
-              {recentActivity.map((item) => (
-                <div key={item.title} className="flex gap-3">
-                  <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-white/5">
-                    <Clock3 className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-3">
-                      <p className="text-sm font-medium text-slate-950 dark:text-white">{item.title}</p>
-                      <StatusBadge tone={item.tone}>{item.time}</StatusBadge>
+              <AdminPanel title="User roles" description="Current account mix by role." action={<PieChartIcon className="h-4 w-4 text-slate-400" />}>
+                <ChartFrame className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={userTypes} dataKey="value" innerRadius={52} outerRadius={88} paddingAngle={4}>
+                        {userTypes.map((item) => <Cell key={item.name} fill={item.color} />)}
+                      </Pie>
+                      <Tooltip contentStyle={tooltipStyle} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </ChartFrame>
+                <div className="space-y-2">
+                  {userTypes.map((item) => (
+                    <div key={item.name} className="flex items-center justify-between text-sm">
+                      <span className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                        {item.name}
+                      </span>
+                      <span className="font-medium text-slate-950 dark:text-white">{item.percent}%</span>
                     </div>
-                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{item.detail}</p>
-                  </div>
+                  ))}
                 </div>
-              ))}
+              </AdminPanel>
             </div>
-          </AdminPanel>
-        </div>
+
+            <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+              <AdminPanel title="Study activity" description="Exercise attempts and correct answers by day." className="xl:col-span-2">
+                <ChartFrame className="h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={weeklyActivity}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,.18)" />
+                      <XAxis dataKey="day" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                      <YAxis tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} width={48} />
+                      <Tooltip contentStyle={tooltipStyle} />
+                      <Bar dataKey="attempts" fill={chartColors.blue} radius={[6, 6, 0, 0]} name="Attempts" />
+                      <Bar dataKey="correct" fill={chartColors.emerald} radius={[6, 6, 0, 0]} name="Correct" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ChartFrame>
+              </AdminPanel>
+
+              <AdminPanel title="Recent activity" description="Latest exercise attempts.">
+                <div className="space-y-4">
+                  {recentActivity.length === 0 ? (
+                    <p className="text-sm text-slate-500 dark:text-slate-400">No recent exercise activity.</p>
+                  ) : recentActivity.map((item) => (
+                    <div key={`${item.title}-${item.createdAt}`} className="flex gap-3">
+                      <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-white/5">
+                        <Clock3 className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="text-sm font-medium text-slate-950 dark:text-white">{item.title}</p>
+                          <StatusBadge tone={item.tone || "slate"}>{formatRelative(item.createdAt)}</StatusBadge>
+                        </div>
+                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{item.detail}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </AdminPanel>
+            </div>
+          </>
+        )}
       </AdminPage>
     </>
   );

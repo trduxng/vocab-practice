@@ -4,7 +4,7 @@ export interface UserMutationPayload {
   fullName: string;
   email: string;
   password?: string;
-  role: 'Admin' | 'Learner';
+  role: 'Admin' | 'Learner' | 'ContentCreator';
   isActive: boolean;
 }
 
@@ -96,13 +96,28 @@ export const adminService = {
     return response.data;
   },
 
-  async updateStudentRole(id: number | string, role: 'Admin' | 'Learner') {
+  async updateStudentRole(id: number | string, role: 'Admin' | 'Learner' | 'ContentCreator') {
     const response = await apiClient.patch(`/admin/students/${id}/role`, { role });
     return response.data;
   },
 
   async getAnalytics() {
     const response = await apiClient.get('/admin/analytics');
+    return response.data;
+  },
+
+  async getContentManagement() {
+    const response = await apiClient.get('/admin/content-management');
+    return response.data;
+  },
+
+  async getModeration() {
+    const response = await apiClient.get('/admin/moderation');
+    return response.data;
+  },
+
+  async getSystemSettings() {
+    const response = await apiClient.get('/admin/system-settings');
     return response.data;
   },
 

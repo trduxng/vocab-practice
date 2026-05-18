@@ -272,6 +272,33 @@ class AdminController {
     }
   }
 
+  static async getContentManagement(req, res, next) {
+    try {
+      const data = await AdminService.getContentManagementData();
+      res.status(200).json(data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getModeration(req, res, next) {
+    try {
+      const data = await AdminService.getModerationData();
+      res.status(200).json(data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getSystemSettings(req, res, next) {
+    try {
+      const data = await AdminService.getSystemSettingsData();
+      res.status(200).json(data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async getNotifications(req, res, next) {
     try {
       const limit = parseInt(req.query.limit, 10) || 50;
