@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import Topbar from "@/src/components/shared/Topbar";
 import { AdminPage, AdminPanel, IconButton, KpiCard, StatusBadge, TableShell, ToolbarButton } from "@/src/components/admin/AdminPrimitives";
 import { adminService } from "@/src/services/admin.service";
@@ -67,6 +68,7 @@ export default function AdminCourses() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [refreshIndex, setRefreshIndex] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -86,7 +88,23 @@ export default function AdminCourses() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshIndex]);
+
+  async function updateStatus(item: LearningContent, status: ContentStatus) {
+    try {
+      await adminService.updateContentStatus({
+        entityType: item.type,
+        entityId: item.entityId,
+        status,
+        comment: `Updated from content management to ${status}`
+      });
+      toast.success(`Updated ${item.type} status`);
+      setRefreshIndex((value) => value + 1);
+    } catch (error) {
+      console.error("Failed to update content status", error);
+      toast.error("Cap nhat trang thai that bai");
+    }
+  }
 
   const content = useMemo(() => data?.content || [], [data]);
   const categories = ["All", ...Array.from(new Set(content.map((item) => item.category).filter(Boolean)))];
@@ -154,7 +172,8 @@ export default function AdminCourses() {
                           <td className="px-4 py-4">
                             <div className="flex gap-2">
                               <IconButton label="Open management page" onClick={() => router.push(targetRoute(item.type))}><Edit3 className="h-4 w-4" /></IconButton>
-                              <IconButton label="Published content" tone="emerald"><CheckCircle2 className="h-4 w-4" /></IconButton>
+                              <IconButton label="Publish content" tone="emerald" onClick={() => updateStatus(item, "Published")}><CheckCircle2 className="h-4 w-4" /></IconButton>
+                              <IconButton label="Archive content" tone="rose" onClick={() => updateStatus(item, "Archived")}><Archive className="h-4 w-4" /></IconButton>
                             </div>
                           </td>
                         </tr>
@@ -178,7 +197,10 @@ export default function AdminCourses() {
                       <div key={`${log.type}-${log.entityId}-${log.createdAt}`} className="rounded-md border border-slate-200 p-3 dark:border-white/10">
                         <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-medium text-slate-950 dark:text-white">{log.type} #{log.entityId}</p><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{formatDate(log.createdAt)}</p></div><StatusBadge tone={statusTone[log.status] || "slate"}>{log.status}</StatusBadge></div>
                         <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">{log.reason || "No comment"}</p>
-                        <div className="mt-3 flex gap-2"><ToolbarButton><CheckCircle2 className="h-4 w-4" />Review</ToolbarButton><ToolbarButton><Archive className="h-4 w-4" />Archive</ToolbarButton></div>
+                        <div className="mt-3 flex gap-2">
+                          <ToolbarButton onClick={() => router.push(targetRoute(log.type as LearningContent["type"]))}><CheckCircle2 className="h-4 w-4" />Review</ToolbarButton>
+                          <ToolbarButton onClick={() => updateStatus({ type: log.type as LearningContent["type"], entityId: log.entityId, id: `${log.type}-${log.entityId}`, title: log.type, category: "", itemCount: 0, attempts: 0, accuracy: null, status: log.status, updatedAt: log.createdAt }, "Archived")}><Archive className="h-4 w-4" />Archive</ToolbarButton>
+                        </div>
                       </div>
                     ))}
                   </div>

@@ -1,10 +1,10 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import Topbar from "@/src/components/shared/Topbar";
 import { adminService } from "@/src/services/admin.service";
-import type { UserMutationPayload } from "@/src/services/admin.service";
+import type { PaginationMeta, UserMutationPayload } from "@/src/services/admin.service";
 import {
   AdminPage,
   AdminPanel,
@@ -153,13 +153,20 @@ export default function AdminStudents() {
   const [form, setForm] = useState<UserFormState>(emptyForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const pageSize = 4;
+  const [pagination, setPagination] = useState<PaginationMeta | null>(null);
+  const pageSize = 10;
 
-  async function fetchUsers() {
+  const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await adminService.getStudents();
-      const mapped: ManagedUser[] = data.map((user: ApiUser) => mapUser(user));
+      const data = await adminService.getStudentsPage<ApiUser>({
+        page,
+        limit: pageSize,
+        search: query.trim(),
+        status,
+      });
+      const mapped: ManagedUser[] = data.items.map((user: ApiUser) => mapUser(user));
+      setPagination(data.pagination);
       setUsers(mapped);
       setSelectedUser((current) => {
         if (!mapped.length) return null;
@@ -173,22 +180,14 @@ export default function AdminStudents() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [page, query, status]);
 
   useEffect(() => {
     void Promise.resolve().then(fetchUsers);
-  }, []);
+  }, [fetchUsers]);
 
-  const filteredUsers = useMemo(() => {
-    return users.filter((user) => {
-      const matchesQuery = `${user.name} ${user.email} ${user.role}`.toLowerCase().includes(query.toLowerCase());
-      const matchesStatus = status === "all" || user.status === status;
-      return matchesQuery && matchesStatus;
-    });
-  }, [users, query, status]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
-  const visibleUsers = filteredUsers.slice((page - 1) * pageSize, page * pageSize);
+  const totalPages = pagination?.totalPages ?? 1;
+  const visibleUsers = users;
   const activeUsers = users.filter((user) => user.status === "active").length;
   const bannedUsers = users.length - activeUsers;
   const learners = users.filter((user) => user.role === "Learner").length;
@@ -419,7 +418,7 @@ export default function AdminStudents() {
                 </tbody>
               </table>
               <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-white/10">
-                <p className="text-sm text-slate-500 dark:text-slate-400">Showing {visibleUsers.length} of {filteredUsers.length} users</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Showing {visibleUsers.length} of {pagination?.total ?? visibleUsers.length} users</p>
                 <div className="flex items-center gap-2">
                   <IconButton label="Previous page" onClick={() => setPage(Math.max(1, page - 1))}><ChevronLeft className="h-4 w-4" /></IconButton>
                   <span className="text-sm text-slate-600 dark:text-slate-300">Page {page} of {totalPages}</span>

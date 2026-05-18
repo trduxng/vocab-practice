@@ -1,27 +1,41 @@
 const express = require('express');
 const AdminController = require('../controllers/admin.controller');
-const { verifyToken, verifyAdmin, checkPermission } = require('../middlewares/auth');
+const { verifyToken, checkPermission, checkAnyPermission } = require('../middlewares/auth');
 const { validate, schemas } = require('../middlewares/validate');
 
 const router = express.Router();
 
 router.use(verifyToken);
 
+// Topics
+router.post('/topics', checkAnyPermission(['MANAGE_TOPICS', 'MANAGE_WORDS']), validate(schemas.createTopic), AdminController.createTopic);
+router.put('/topics/:id', checkAnyPermission(['MANAGE_TOPICS', 'MANAGE_WORDS']), validate(schemas.updateTopic), AdminController.updateTopic);
+router.delete('/topics/:id', checkAnyPermission(['MANAGE_TOPICS', 'MANAGE_WORDS']), AdminController.deleteTopic);
+router.post('/topic-categories', checkAnyPermission(['MANAGE_TOPIC_CATEGORIES', 'MANAGE_TOPICS']), validate(schemas.topicCategory), AdminController.createTopicCategory);
+router.put('/topic-categories/:id', checkAnyPermission(['MANAGE_TOPIC_CATEGORIES', 'MANAGE_TOPICS']), validate(schemas.topicCategory), AdminController.updateTopicCategory);
+router.delete('/topic-categories/:id', checkAnyPermission(['MANAGE_TOPIC_CATEGORIES', 'MANAGE_TOPICS']), AdminController.deleteTopicCategory);
+
 // Words
 router.get('/words', checkPermission('MANAGE_WORDS'), AdminController.getWords);
 router.post('/words', checkPermission('MANAGE_WORDS'), validate(schemas.createWord), AdminController.createWord);
 router.post('/words/bulk-import', checkPermission('MANAGE_WORDS'), express.text({ type: ['text/csv', 'text/plain'], limit: '5mb' }), AdminController.bulkImportWords);
-router.put('/words/:id', checkPermission('MANAGE_WORDS'), AdminController.updateWord);
+router.put('/words/:id', checkPermission('MANAGE_WORDS'), validate(schemas.createWord), AdminController.updateWord);
 router.delete('/words/:id', checkPermission('MANAGE_WORDS'), AdminController.deleteWord);
 
 // Questions
 router.post('/questions/bulk-import', checkPermission('MANAGE_QUESTIONS'), express.text({ type: ['text/csv', 'text/plain'], limit: '2mb' }), AdminController.bulkImportQuestions);
 router.get('/questions/:wordId', checkPermission('MANAGE_QUESTIONS'), AdminController.getQuestionsByWord);
 router.post('/questions', checkPermission('MANAGE_QUESTIONS'), validate(schemas.createQuestion), AdminController.createQuestion);
+router.put('/questions/:id', checkPermission('MANAGE_QUESTIONS'), validate(schemas.createQuestion), AdminController.updateQuestion);
+router.delete('/questions/:id', checkPermission('MANAGE_QUESTIONS'), AdminController.deleteQuestion);
 
 // Mini Tests
 router.get('/minitests', checkPermission('MANAGE_TESTS'), AdminController.getMiniTests);
-router.post('/minitests', checkPermission('MANAGE_TESTS'), AdminController.createMiniTest);
+router.post('/minitests', checkPermission('MANAGE_TESTS'), validate(schemas.miniTest), AdminController.createMiniTest);
+router.put('/minitests/:id', checkPermission('MANAGE_TESTS'), validate(schemas.miniTest), AdminController.updateMiniTest);
+router.delete('/minitests/:id', checkPermission('MANAGE_TESTS'), AdminController.deleteMiniTest);
+router.patch('/minitests/:id/publish', checkPermission('MANAGE_TESTS'), AdminController.publishMiniTest);
+router.patch('/minitests/:id/archive', checkPermission('MANAGE_TESTS'), AdminController.archiveMiniTest);
 router.get('/stats', checkPermission('VIEW_DASHBOARD'), AdminController.getStats);
 
 // Students
@@ -34,7 +48,9 @@ router.patch('/students/:id/role', checkPermission('MANAGE_USERS'), AdminControl
 router.get('/analytics', checkPermission('VIEW_DASHBOARD'), AdminController.getAnalytics);
 router.get('/content-management', checkPermission('VIEW_DASHBOARD'), AdminController.getContentManagement);
 router.get('/moderation', checkPermission('VIEW_DASHBOARD'), AdminController.getModeration);
+router.patch('/content-status', checkAnyPermission(['MANAGE_SYSTEM_SETTINGS', 'MANAGE_TOPICS', 'MANAGE_WORDS', 'MANAGE_QUESTIONS', 'MANAGE_TESTS']), validate(schemas.contentStatus), AdminController.updateContentStatus);
 router.get('/system-settings', checkPermission('VIEW_DASHBOARD'), AdminController.getSystemSettings);
+router.get('/audit-logs', checkAnyPermission(['MANAGE_SYSTEM_SETTINGS', 'MANAGE_USERS']), AdminController.getAuditLogs);
 
 // Notifications
 router.get('/notifications', checkPermission('MANAGE_NOTIFICATIONS'), AdminController.getNotifications);

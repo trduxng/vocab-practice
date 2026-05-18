@@ -2,12 +2,102 @@
 const AdminService = require("../services/admin.service");
 
 class AdminController {
+  // Topics
+  static async createTopic(req, res, next) {
+    try {
+      const adminId = req.user.id;
+      const result = await AdminService.createTopic(req.body, adminId);
+      res.status(201).json({ message: "Tao chu de thanh cong", data: result });
+    } catch (error) {
+      if (
+        error.message === 'Invalid topic data' ||
+        error.message === 'Topic already exists' ||
+        error.message === 'Topic code already exists'
+      ) {
+        return res.status(400).json({ message: error.message });
+      }
+      next(error);
+    }
+  }
+
+  static async updateTopic(req, res, next) {
+    try {
+      const success = await AdminService.updateTopic(req.params.id, req.body, req.user.id);
+      if (!success) {
+        return res.status(404).json({ message: 'Khong tim thay chu de' });
+      }
+      res.status(200).json({ message: 'Cap nhat chu de thanh cong' });
+    } catch (error) {
+      if (['Invalid topic data', 'Topic already exists', 'Topic code already exists'].includes(error.message)) {
+        return res.status(400).json({ message: error.message });
+      }
+      next(error);
+    }
+  }
+
+  static async deleteTopic(req, res, next) {
+    try {
+      const result = await AdminService.deleteTopic(req.params.id, req.user.id);
+      if (!result.success) {
+        return res.status(404).json({ message: 'Khong tim thay chu de' });
+      }
+      res.status(200).json({
+        message: result.archived ? 'Da luu tru chu de vi dang co noi dung lien quan' : 'Xoa chu de thanh cong',
+        archived: result.archived
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async createTopicCategory(req, res, next) {
+    try {
+      const result = await AdminService.createTopicCategory(req.body, req.user.id);
+      res.status(201).json({ message: 'Tao danh muc chu de thanh cong', data: result });
+    } catch (error) {
+      if (['Invalid topic category data', 'Topic category code already exists'].includes(error.message)) {
+        return res.status(400).json({ message: error.message });
+      }
+      next(error);
+    }
+  }
+
+  static async updateTopicCategory(req, res, next) {
+    try {
+      const success = await AdminService.updateTopicCategory(req.params.id, req.body, req.user.id);
+      if (!success) {
+        return res.status(404).json({ message: 'Khong tim thay danh muc chu de' });
+      }
+      res.status(200).json({ message: 'Cap nhat danh muc chu de thanh cong' });
+    } catch (error) {
+      if (['Invalid topic category data', 'Topic category code already exists'].includes(error.message)) {
+        return res.status(400).json({ message: error.message });
+      }
+      next(error);
+    }
+  }
+
+  static async deleteTopicCategory(req, res, next) {
+    try {
+      const success = await AdminService.deleteTopicCategory(req.params.id, req.user.id);
+      if (!success) {
+        return res.status(404).json({ message: 'Khong tim thay danh muc chu de' });
+      }
+      res.status(200).json({ message: 'Da tat danh muc chu de' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   // Words
   static async getWords(req, res, next) {
     try {
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 20;
-      const words = await AdminService.getWords(page, limit);
+      const words = await AdminService.getWords(page, limit, {
+        topicId: req.query.topicId,
+        search: req.query.search
+      });
       res.status(200).json(words);
     } catch (error) {
       next(error);
@@ -48,7 +138,7 @@ class AdminController {
     try {
       const { id } = req.params;
       const wordData = req.body;
-      const success = await AdminService.updateWord(id, wordData);
+      const success = await AdminService.updateWord(id, wordData, req.user.id);
       if (success) {
         res.status(200).json({ message: "Cập nhật thành công" });
       } else {
@@ -62,7 +152,7 @@ class AdminController {
   static async deleteWord(req, res, next) {
     try {
       const { id } = req.params;
-      const success = await AdminService.deleteWord(id);
+      const success = await AdminService.deleteWord(id, req.user.id);
       if (!success) {
         return res.status(404).json({ message: "Khong tim thay tu vung" });
       }
@@ -76,7 +166,13 @@ class AdminController {
   static async getQuestionsByWord(req, res, next) {
     try {
       const { wordId } = req.params;
-      const questions = await AdminService.getQuestionsByWord(wordId);
+      const page = parseInt(req.query.page, 10) || 1;
+      const limit = parseInt(req.query.limit, 10) || 20;
+      const questions = await AdminService.getQuestionsByWord(wordId, page, limit, {
+        search: req.query.search,
+        type: req.query.type,
+        status: req.query.status
+      });
       res.status(200).json(questions);
     } catch (error) {
       next(error);
@@ -88,6 +184,30 @@ class AdminController {
       const adminId = req.user.id;
       const result = await AdminService.createQuestion(req.body, adminId);
       res.status(201).json({ message: "Tạo câu hỏi thành công", data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async updateQuestion(req, res, next) {
+    try {
+      const success = await AdminService.updateQuestion(req.params.id, req.body, req.user.id);
+      if (!success) {
+        return res.status(404).json({ message: 'Khong tim thay cau hoi' });
+      }
+      res.status(200).json({ message: 'Cap nhat cau hoi thanh cong' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async deleteQuestion(req, res, next) {
+    try {
+      const success = await AdminService.deleteQuestion(req.params.id, req.user.id);
+      if (!success) {
+        return res.status(404).json({ message: 'Khong tim thay cau hoi' });
+      }
+      res.status(200).json({ message: 'Xoa cau hoi thanh cong' });
     } catch (error) {
       next(error);
     }
@@ -157,7 +277,13 @@ class AdminController {
   // Mini Tests
   static async getMiniTests(req, res, next) {
     try {
-      const tests = await AdminService.getMiniTests();
+      const page = parseInt(req.query.page, 10) || 1;
+      const limit = parseInt(req.query.limit, 10) || 20;
+      const tests = await AdminService.getMiniTests(page, limit, {
+        search: req.query.search,
+        topicId: req.query.topicId,
+        status: req.query.status
+      });
       res.status(200).json(tests);
     } catch (error) {
       next(error);
@@ -174,6 +300,54 @@ class AdminController {
     }
   }
 
+  static async updateMiniTest(req, res, next) {
+    try {
+      const success = await AdminService.updateMiniTest(req.params.id, req.body, req.user.id);
+      if (!success) {
+        return res.status(404).json({ message: 'Khong tim thay mini test' });
+      }
+      res.status(200).json({ message: 'Cap nhat mini test thanh cong' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async deleteMiniTest(req, res, next) {
+    try {
+      const success = await AdminService.deleteMiniTest(req.params.id, req.user.id);
+      if (!success) {
+        return res.status(404).json({ message: 'Khong tim thay mini test' });
+      }
+      res.status(200).json({ message: 'Xoa mini test thanh cong' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async publishMiniTest(req, res, next) {
+    try {
+      const success = await AdminService.setMiniTestStatus(req.params.id, 'Published', req.user.id, 'Published from mini test manager');
+      if (!success) {
+        return res.status(404).json({ message: 'Khong tim thay mini test' });
+      }
+      res.status(200).json({ message: 'Xuat ban mini test thanh cong' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async archiveMiniTest(req, res, next) {
+    try {
+      const success = await AdminService.setMiniTestStatus(req.params.id, 'Archived', req.user.id, 'Archived from mini test manager');
+      if (!success) {
+        return res.status(404).json({ message: 'Khong tim thay mini test' });
+      }
+      res.status(200).json({ message: 'Luu tru mini test thanh cong' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async getStats(req, res, next) {
     try {
       const stats = await AdminService.getDashboardStats();
@@ -185,7 +359,13 @@ class AdminController {
 
   static async getStudents(req, res, next) {
     try {
-      const students = await AdminService.getStudents();
+      const page = parseInt(req.query.page, 10) || 1;
+      const limit = parseInt(req.query.limit, 10) || 20;
+      const students = await AdminService.getStudents(page, limit, {
+        search: req.query.search,
+        status: req.query.status,
+        role: req.query.role
+      });
       res.status(200).json(students);
     } catch (error) {
       next(error);
@@ -290,6 +470,18 @@ class AdminController {
     }
   }
 
+  static async updateContentStatus(req, res, next) {
+    try {
+      const success = await AdminService.updateContentStatus(req.body, req.user.id);
+      if (!success) {
+        return res.status(404).json({ message: 'Khong tim thay noi dung' });
+      }
+      res.status(200).json({ message: 'Cap nhat trang thai noi dung thanh cong' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async getSystemSettings(req, res, next) {
     try {
       const data = await AdminService.getSystemSettingsData();
@@ -301,8 +493,30 @@ class AdminController {
 
   static async getNotifications(req, res, next) {
     try {
+      const page = parseInt(req.query.page, 10) || 1;
       const limit = parseInt(req.query.limit, 10) || 50;
-      const data = await AdminService.getNotifications(limit);
+      const data = await AdminService.getNotifications(page, limit, {
+        search: req.query.search,
+        type: req.query.type,
+        deliveryChannel: req.query.deliveryChannel,
+        isRead: req.query.isRead
+      });
+      res.status(200).json(data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getAuditLogs(req, res, next) {
+    try {
+      const page = parseInt(req.query.page, 10) || 1;
+      const limit = parseInt(req.query.limit, 10) || 50;
+      const data = await AdminService.getAuditLogs(page, limit, {
+        search: req.query.search,
+        action: req.query.action,
+        entityType: req.query.entityType,
+        adminId: req.query.adminId
+      });
       res.status(200).json(data);
     } catch (error) {
       next(error);

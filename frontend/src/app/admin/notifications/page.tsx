@@ -1,34 +1,57 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Topbar from "@/src/components/shared/Topbar";
 import { AdminPage, AdminPanel, KpiCard, StatusBadge, TableShell, ToolbarButton } from "@/src/components/admin/AdminPrimitives";
-import { adminService } from "@/src/services/admin.service";
+import { adminService, type PaginationMeta } from "@/src/services/admin.service";
 import { BellRing, CalendarClock, MailCheck, Megaphone, Send, UsersRound } from "lucide-react";
+
+type NotificationItem = {
+  id: number | string;
+  userId?: number | string;
+  fullName?: string;
+  email?: string;
+  title: string;
+  message: string;
+  type: string;
+  deliveryChannel: string;
+  isRead: boolean;
+  createdAt: string;
+};
 
 export default function NotificationsPage() {
   const [channel, setChannel] = useState("InApp");
   const [audience, setAudience] = useState("All users");
   const [subject, setSubject] = useState("New quiz recommendations are ready");
   const [message, setMessage] = useState("Fresh quizzes, streak goals, and review words are ready.");
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [pagination, setPagination] = useState<PaginationMeta | null>(null);
+  const pageSize = 20;
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
+    setLoading(true);
     try {
-      const data = await adminService.getNotifications(50);
-      setNotifications(data);
+      const data = await adminService.getNotificationsPage<NotificationItem>({
+        page,
+        limit: pageSize,
+        search: search.trim(),
+      });
+      setNotifications(data.items);
+      setPagination(data.pagination);
     } catch (error) {
       console.error("Failed to fetch notifications", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, search]);
 
   useEffect(() => {
-    fetchNotifications();
-  }, []);
+    void Promise.resolve().then(fetchNotifications);
+  }, [fetchNotifications]);
 
   const sendAnnouncement = async () => {
     setSending(true);
@@ -130,6 +153,19 @@ export default function NotificationsPage() {
           </AdminPanel>
 
           <div className="space-y-5">
+            <AdminPanel>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <input
+                  value={search}
+                  onChange={(event) => {
+                    setSearch(event.target.value);
+                    setPage(1);
+                  }}
+                  placeholder="Search notification, user, or email"
+                  className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none dark:border-white/10 dark:bg-slate-950 dark:text-slate-200"
+                />
+              </div>
+            </AdminPanel>
             <TableShell>
               <table className="w-full min-w-[760px] text-left text-sm">
                 <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
@@ -165,6 +201,20 @@ export default function NotificationsPage() {
                   ))}
                 </tbody>
               </table>
+              {pagination && (
+                <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between dark:border-white/10">
+                  <span>Showing {notifications.length} of {pagination.total} notifications</span>
+                  <div className="flex items-center gap-2">
+                    <ToolbarButton onClick={() => setPage((current) => Math.max(1, current - 1))}>
+                      Previous
+                    </ToolbarButton>
+                    <span>Page {pagination.page} of {pagination.totalPages}</span>
+                    <ToolbarButton onClick={() => setPage((current) => Math.min(pagination.totalPages, current + 1))}>
+                      Next
+                    </ToolbarButton>
+                  </div>
+                </div>
+              )}
             </TableShell>
 
             <AdminPanel title="Reminder rules" description="Daily reminders are generated only once per learner per day when review words are due." action={<UsersRound className="h-4 w-4 text-slate-400" />}>

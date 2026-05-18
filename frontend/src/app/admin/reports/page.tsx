@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import Topbar from "@/src/components/shared/Topbar";
 import { AdminPage, AdminPanel, KpiCard, StatusBadge, TableShell, ToolbarButton } from "@/src/components/admin/AdminPrimitives";
 import { adminService } from "@/src/services/admin.service";
@@ -64,6 +65,7 @@ export default function ReportsPage() {
   const [selectedAction, setSelectedAction] = useState("Review content");
   const [data, setData] = useState<ModerationData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshIndex, setRefreshIndex] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,7 +85,24 @@ export default function ReportsPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshIndex]);
+
+  async function updateReportStatus(report: NonNullable<ModerationData["reports"]>[number], status: ContentStatus) {
+    try {
+      const entityId = Number(report.id.split("-")[1]);
+      await adminService.updateContentStatus({
+        entityType: report.type as "Topic" | "Word" | "Question" | "MiniTest",
+        entityId,
+        status,
+        comment: selectedAction
+      });
+      toast.success("Cap nhat moderation thanh cong");
+      setRefreshIndex((value) => value + 1);
+    } catch (error) {
+      console.error("Failed to update moderation status", error);
+      toast.error("Cap nhat moderation that bai");
+    }
+  }
 
   const reports = data?.reports || [];
   const actionLogs = data?.actionLogs || [];
@@ -123,7 +142,12 @@ export default function ReportsPage() {
                           <td className="px-4 py-4 text-slate-600 dark:text-slate-300">User #{report.reporterId}</td>
                           <td className="px-4 py-4"><StatusBadge tone={severityInfo.tone}>{severityInfo.label}</StatusBadge></td>
                           <td className="px-4 py-4"><StatusBadge tone={statusTone[report.status] || "slate"}>{report.status}</StatusBadge></td>
-                          <td className="px-4 py-4"><div className="flex gap-2"><ToolbarButton><Gavel className="h-4 w-4" />Review</ToolbarButton><ToolbarButton><CheckCircle2 className="h-4 w-4" />Resolve</ToolbarButton></div></td>
+                          <td className="px-4 py-4">
+                            <div className="flex gap-2">
+                              <ToolbarButton onClick={() => updateReportStatus(report, "PendingReview")}><Gavel className="h-4 w-4" />Review</ToolbarButton>
+                              <ToolbarButton onClick={() => updateReportStatus(report, "Published")}><CheckCircle2 className="h-4 w-4" />Resolve</ToolbarButton>
+                            </div>
+                          </td>
                         </tr>
                       );
                     })}
