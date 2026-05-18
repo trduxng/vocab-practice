@@ -9,32 +9,32 @@ class ProgressService {
     const totalResult = await pool.request().input("UserID", sql.BigInt, userId)
       .query(`
         SELECT COUNT(*) AS totalLearned
-        FROM UserWordProgress
-        WHERE UserID = @UserID
+        FROM TienDoTuVungNguoiDung
+        WHERE NguoiDungID = @UserID
       `);
 
     // Số câu đúng/sai
     const statsResult = await pool.request().input("UserID", sql.BigInt, userId)
       .query(`
         SELECT
-          COUNT(CASE WHEN IsCorrect = 1 THEN 1 END) AS correct,
-          COUNT(CASE WHEN IsCorrect = 0 THEN 1 END) AS wrong
-        FROM ExerciseAttempts
-        WHERE UserID = @UserID
+          COUNT(CASE WHEN DungSai = 1 THEN 1 END) AS correct,
+          COUNT(CASE WHEN DungSai = 0 THEN 1 END) AS wrong
+        FROM LanLamBaiTap
+        WHERE NguoiDungID = @UserID
       `);
 
     // Từ yếu (trả lời sai nhiều nhất)
     const weakResult = await pool.request().input("UserID", sql.BigInt, userId)
       .query(`
         SELECT TOP 10
-          w.Term AS word,
-          w.Meaning AS meaning,
-          COUNT(CASE WHEN ea.IsCorrect = 0 THEN 1 END) AS wrongCount
-        FROM ExerciseAttempts ea
-        JOIN Words w ON ea.WordID = w.WordID
-        WHERE ea.UserID = @UserID
-        GROUP BY w.Term, w.Meaning
-        HAVING COUNT(CASE WHEN ea.IsCorrect = 0 THEN 1 END) > 0
+          w.Tu AS word,
+          w.Nghia AS meaning,
+          COUNT(CASE WHEN ea.DungSai = 0 THEN 1 END) AS wrongCount
+        FROM LanLamBaiTap ea
+        JOIN TuVung w ON ea.TuVungID = w.TuVungID
+        WHERE ea.NguoiDungID = @UserID
+        GROUP BY w.Tu, w.Nghia
+        HAVING COUNT(CASE WHEN ea.DungSai = 0 THEN 1 END) > 0
         ORDER BY wrongCount DESC
       `);
 
@@ -43,9 +43,9 @@ class ProgressService {
       .request()
       .input("UserID", sql.BigInt, userId).query(`
         WITH DailyActivity AS (
-          SELECT DISTINCT CAST(AttemptedAt AS DATE) AS StudyDate
-          FROM ExerciseAttempts
-          WHERE UserID = @UserID
+          SELECT DISTINCT CAST(ThoiDiemLam AS DATE) AS StudyDate
+          FROM LanLamBaiTap
+          WHERE NguoiDungID = @UserID
         ),
         RankedDates AS (
           SELECT
@@ -88,11 +88,11 @@ class ProgressService {
       .request()
       .input("UserID", sql.BigInt, userId).query(`
         SELECT
-          MemoryStatus,
+          TrangThaiGhiNho AS MemoryStatus,
           COUNT(*) AS count
-        FROM UserWordProgress
-        WHERE UserID = @UserID
-        GROUP BY MemoryStatus
+        FROM TienDoTuVungNguoiDung
+        WHERE NguoiDungID = @UserID
+        GROUP BY TrangThaiGhiNho
       `);
 
     // Hoạt động 7 ngày gần đây
@@ -100,12 +100,12 @@ class ProgressService {
       .request()
       .input("UserID", sql.BigInt, userId).query(`
         SELECT
-          CAST(AttemptedAt AS DATE) AS date,
+          CAST(ThoiDiemLam AS DATE) AS date,
           COUNT(*) AS attempts
-        FROM ExerciseAttempts
-        WHERE UserID = @UserID
-          AND AttemptedAt >= DATEADD(DAY, -7, SYSDATETIMEOFFSET())
-        GROUP BY CAST(AttemptedAt AS DATE)
+        FROM LanLamBaiTap
+        WHERE NguoiDungID = @UserID
+          AND ThoiDiemLam >= DATEADD(DAY, -7, SYSDATETIMEOFFSET())
+        GROUP BY CAST(ThoiDiemLam AS DATE)
         ORDER BY date
       `);
 

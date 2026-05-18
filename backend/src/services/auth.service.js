@@ -10,7 +10,7 @@ class AuthService {
     const checkUser = await pool.request()
       .input('Email', sql.NVarChar(255), email)
       .query(`
-        SELECT UserID FROM Users WHERE Email = @Email
+        SELECT NguoiDungID FROM NguoiDung WHERE Email = @Email
       `);
       
     if (checkUser.recordset.length > 0) {
@@ -24,16 +24,16 @@ class AuthService {
       .input('Email', sql.NVarChar(255), email)
       .input('PasswordHash', sql.NVarChar(500), hashedPassword)
       .query(`
-        DECLARE @DefaultRoleID INT;
-        SELECT @DefaultRoleID = RoleID FROM Roles WHERE RoleName = 'Learner';
+        DECLARE @DefaultVaiTroID INT;
+        SELECT @DefaultVaiTroID = VaiTroID FROM VaiTro WHERE TenVaiTro = 'NguoiHoc';
 
-        INSERT INTO Users (FullName, Email, PasswordHash, UserRole, RoleID, IsActive, CreatedAt, UpdatedAt)
-        OUTPUT inserted.UserID AS id, inserted.FullName AS fullName, inserted.Email AS email
-        VALUES (@FullName, @Email, @PasswordHash, 'Learner', @DefaultRoleID, 1, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
+        INSERT INTO NguoiDung (HoTen, Email, MatKhauHash, VaiTroNguoiDung, VaiTroID, DangHoatDong, ThoiDiemTao, ThoiDiemCapNhat)
+        OUTPUT inserted.NguoiDungID AS id, inserted.HoTen AS fullName, inserted.Email AS email
+        VALUES (@FullName, @Email, @PasswordHash, 'NguoiHoc', @DefaultVaiTroID, 1, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
       `);
 
     const user = result.recordset[0];
-    return { ...user, role: 'Learner', permissions: ['VIEW_DASHBOARD', 'LEARN_VOCAB'] };
+    return { ...user, role: 'NguoiHoc', permissions: ['XEM_BANG_DIEU_KHIEN', 'HOC_TU_VUNG'] };
   }
 
   static async login(email, password) {
@@ -42,11 +42,11 @@ class AuthService {
     const result = await pool.request()
       .input('Email', sql.NVarChar(255), email)
       .query(`
-        SELECT u.UserID AS id, u.FullName AS fullName, u.Email AS email, 
-               u.PasswordHash AS passwordHash, r.RoleName AS role 
-        FROM Users u
-        JOIN Roles r ON u.RoleID = r.RoleID
-        WHERE u.Email = @Email AND u.IsActive = 1
+        SELECT u.NguoiDungID AS id, u.HoTen AS fullName, u.Email AS email, 
+               u.MatKhauHash AS passwordHash, r.TenVaiTro AS role 
+        FROM NguoiDung u
+        JOIN VaiTro r ON u.VaiTroID = r.VaiTroID
+        WHERE u.Email = @Email AND u.DangHoatDong = 1
       `);
 
     const user = result.recordset[0];
@@ -63,11 +63,11 @@ class AuthService {
     const permResult = await pool.request()
       .input('UserID', sql.BigInt, user.id)
       .query(`
-        SELECT p.PermissionCode
-        FROM RolePermissions rp
-        JOIN Permissions p ON rp.PermissionID = p.PermissionID
-        JOIN Users u ON rp.RoleID = u.RoleID
-        WHERE u.UserID = @UserID
+        SELECT p.MaQuyen AS PermissionCode
+        FROM QuyenVaiTro rp
+        JOIN Quyen p ON rp.QuyenID = p.QuyenID
+        JOIN NguoiDung u ON rp.VaiTroID = u.VaiTroID
+        WHERE u.NguoiDungID = @UserID
       `);
     
     const permissions = permResult.recordset.map(r => r.PermissionCode);

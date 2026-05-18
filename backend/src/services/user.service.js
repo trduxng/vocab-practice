@@ -6,13 +6,13 @@ class UserService {
     const result = await pool.request()
       .input('UserID', sql.BigInt, userId)
       .query(`
-        SELECT TOP 10 q.QuestionID AS questionId, q.QuestionText AS questionText, 
-               q.CorrectAnswer AS term, w.Phonetic AS phonetic, w.Meaning AS meaning,
-               w.WordID AS wordId
-        FROM Questions q
-        JOIN Words w ON q.WordID = w.WordID
-        LEFT JOIN UserWordProgress uwp ON w.WordID = uwp.WordID AND uwp.UserID = @UserID
-        WHERE uwp.NextReviewDate IS NULL OR uwp.NextReviewDate <= SYSDATETIMEOFFSET()
+        SELECT TOP 10 q.CauHoiID AS questionId, q.NoiDungCauHoi AS questionText, 
+               q.DapAnDung AS term, w.PhienAm AS phonetic, w.Nghia AS meaning,
+               w.TuVungID AS wordId
+        FROM CauHoi q
+        JOIN TuVung w ON q.TuVungID = w.TuVungID
+        LEFT JOIN TienDoTuVungNguoiDung uwp ON w.TuVungID = uwp.TuVungID AND uwp.NguoiDungID = @UserID
+        WHERE uwp.NgayOnTapTiepTheo IS NULL OR uwp.NgayOnTapTiepTheo <= SYSDATETIMEOFFSET()
         ORDER BY NEWID()
       `);
     return result.recordset;
@@ -26,44 +26,44 @@ class UserService {
       .input('Mode', sql.NVarChar(20), mode || '')
       .query(`
         SELECT TOP 15 
-          q.QuestionID AS questionId, 
-          q.QuestionType AS questionType,
-          COALESCE(q.QuestionText, w.Meaning) AS questionText, 
-          COALESCE(q.CorrectAnswer, w.Term) AS correctAnswer,
-          q.OptionsJson AS optionsJson,
-          w.Phonetic AS phonetic, 
-          w.Meaning AS meaning,
-          w.Term AS term,
-          w.AudioUrlUK AS audioUrlUK,
-          w.AudioUrlUS AS audioUrlUS,
-          w.ImageUrl AS imageUrl,
-          w.WordID AS wordId,
-          p.PartOfSpeechName AS partOfSpeechName,
-          ISNULL(uwp.MasteryLevel, 0) AS masteryLevel,
-          ISNULL(uwp.MemoryStatus, N'New') AS memoryStatus
-        FROM Words w
-        LEFT JOIN PartOfSpeeches p ON w.PartOfSpeechID = p.PartOfSpeechID
+          q.CauHoiID AS questionId, 
+          q.LoaiCauHoi AS questionType,
+          COALESCE(q.NoiDungCauHoi, w.Nghia) AS questionText, 
+          COALESCE(q.DapAnDung, w.Tu) AS correctAnswer,
+          q.LuaChonJSON AS optionsJson,
+          w.PhienAm AS phonetic, 
+          w.Nghia AS meaning,
+          w.Tu AS term,
+          w.AudioURLUK AS audioUrlUK,
+          w.AudioURLUS AS audioUrlUS,
+          w.HinhAnhURL AS imageUrl,
+          w.TuVungID AS wordId,
+          p.TenTuLoai AS partOfSpeechName,
+          ISNULL(uwp.MucDoThanhThao, 0) AS masteryLevel,
+          ISNULL(uwp.TrangThaiGhiNho, N'Moi') AS memoryStatus
+        FROM TuVung w
+        LEFT JOIN TuLoai p ON w.TuLoaiID = p.TuLoaiID
         OUTER APPLY (
           SELECT TOP 1
-            QuestionID,
-            QuestionType,
-            QuestionText,
-            CorrectAnswer,
-            OptionsJson
-          FROM Questions
-          WHERE WordID = w.WordID
+            CauHoiID,
+            LoaiCauHoi,
+            NoiDungCauHoi,
+            DapAnDung,
+            LuaChonJSON
+          FROM CauHoi
+          WHERE TuVungID = w.TuVungID
           ORDER BY NEWID()
         ) q
-        LEFT JOIN UserWordProgress uwp ON w.WordID = uwp.WordID AND uwp.UserID = @UserID
+        LEFT JOIN TienDoTuVungNguoiDung uwp ON w.TuVungID = uwp.TuVungID AND uwp.NguoiDungID = @UserID
         WHERE (@TopicID IS NULL OR EXISTS (
-            SELECT 1 FROM WordTopics wt WHERE wt.WordID = w.WordID AND wt.TopicID = @TopicID
+            SELECT 1 FROM TuVungChuDe wt WHERE wt.TuVungID = w.TuVungID AND wt.ChuDeID = @TopicID
           ))
           AND (
-            (@Mode = N'learned' AND uwp.UserWordProgressID IS NOT NULL)
+            (@Mode = N'learned' AND uwp.TienDoTuVungNguoiDungID IS NOT NULL)
             OR
-            (@Mode <> N'learned' AND (uwp.NextReviewDate IS NULL OR uwp.NextReviewDate <= SYSDATETIMEOFFSET()))
+            (@Mode <> N'learned' AND (uwp.NgayOnTapTiepTheo IS NULL OR uwp.NgayOnTapTiepTheo <= SYSDATETIMEOFFSET()))
           )
-        ORDER BY uwp.MasteryLevel ASC, NEWID()
+        ORDER BY uwp.MucDoThanhThao ASC, NEWID()
       `);
     return result.recordset;
   }
@@ -75,29 +75,29 @@ class UserService {
       .input('TopicID', sql.BigInt, topicId)
       .query(`
         SELECT
-          w.WordID AS wordId,
-          w.Term AS term,
-          w.Meaning AS meaning,
-          w.Phonetic AS phonetic,
-          p.PartOfSpeechName AS partOfSpeechName,
-          ISNULL(uwp.MasteryLevel, 0) AS masteryLevel,
-          ISNULL(uwp.MemoryStatus, N'New') AS memoryStatus,
-          uwp.LastReviewedAt AS lastReviewedAt,
-          uwp.NextReviewDate AS nextReviewDate,
-          ex.SentenceText AS exampleSentence,
-          ex.SentenceTranslation AS exampleMeaning
-        FROM WordTopics wt
-        JOIN Words w ON wt.WordID = w.WordID
-        LEFT JOIN PartOfSpeeches p ON w.PartOfSpeechID = p.PartOfSpeechID
-        LEFT JOIN UserWordProgress uwp ON w.WordID = uwp.WordID AND uwp.UserID = @UserID
+          w.TuVungID AS wordId,
+          w.Tu AS term,
+          w.Nghia AS meaning,
+          w.PhienAm AS phonetic,
+          p.TenTuLoai AS partOfSpeechName,
+          ISNULL(uwp.MucDoThanhThao, 0) AS masteryLevel,
+          ISNULL(uwp.TrangThaiGhiNho, N'Moi') AS memoryStatus,
+          uwp.ThoiDiemOnTapGanNhat AS lastReviewedAt,
+          uwp.NgayOnTapTiepTheo AS nextReviewDate,
+          ex.CauTiengAnh AS exampleSentence,
+          ex.DichNghia AS exampleMeaning
+        FROM TuVungChuDe wt
+        JOIN TuVung w ON wt.TuVungID = w.TuVungID
+        LEFT JOIN TuLoai p ON w.TuLoaiID = p.TuLoaiID
+        LEFT JOIN TienDoTuVungNguoiDung uwp ON w.TuVungID = uwp.TuVungID AND uwp.NguoiDungID = @UserID
         OUTER APPLY (
-          SELECT TOP 1 SentenceText, SentenceTranslation
-          FROM ExampleSentences
-          WHERE WordID = w.WordID
-          ORDER BY ExampleSentenceID
+          SELECT TOP 1 CauTiengAnh, DichNghia
+          FROM CauViDu
+          WHERE TuVungID = w.TuVungID
+          ORDER BY CauViDuID
         ) ex
-        WHERE wt.TopicID = @TopicID
-        ORDER BY w.Term ASC
+        WHERE wt.ChuDeID = @TopicID
+        ORDER BY w.Tu ASC
       `);
     return result.recordset;
   }
@@ -105,10 +105,10 @@ class UserService {
   static async submitAnswer({ userId, questionId, submittedAnswer }) {
     const pool = await poolPromise;
     const result = await pool.request()
-      .input('UserID', sql.BigInt, userId)
-      .input('QuestionID', sql.BigInt, questionId)
-      .input('SubmittedAnswer', sql.NVarChar(1000), submittedAnswer || '')
-      .execute('usp_SubmitQuestionAttempt');
+      .input('NguoiDungID', sql.BigInt, userId)
+      .input('CauHoiID', sql.BigInt, questionId)
+      .input('DapAnDaNop', sql.NVarChar(1000), submittedAnswer || '')
+      .execute('usp_GhiNhanLanTraLoiCauHoi');
     return result.recordset[0];
   }
 
@@ -121,42 +121,42 @@ class UserService {
       .query(`
         DECLARE @Now DATETIMEOFFSET(7) = SYSDATETIMEOFFSET();
 
-        MERGE UserWordProgress WITH (HOLDLOCK) AS target
-        USING (SELECT @UserID AS UserID, @WordID AS WordID) AS source
-        ON target.UserID = source.UserID AND target.WordID = source.WordID
+        MERGE TienDoTuVungNguoiDung WITH (HOLDLOCK) AS target
+        USING (SELECT @UserID AS NguoiDungID, @WordID AS TuVungID) AS source
+        ON target.NguoiDungID = source.NguoiDungID AND target.TuVungID = source.TuVungID
         WHEN MATCHED THEN
           UPDATE SET
-            MasteryLevel = CASE
-              WHEN @IsCorrect = 1 AND target.MasteryLevel < 10 THEN target.MasteryLevel + 1
-              WHEN @IsCorrect = 0 AND target.MasteryLevel > 0 THEN target.MasteryLevel - 1
-              ELSE target.MasteryLevel
+            MucDoThanhThao = CASE
+              WHEN @IsCorrect = 1 AND target.MucDoThanhThao < 10 THEN target.MucDoThanhThao + 1
+              WHEN @IsCorrect = 0 AND target.MucDoThanhThao > 0 THEN target.MucDoThanhThao - 1
+              ELSE target.MucDoThanhThao
             END,
-            RepetitionCount = target.RepetitionCount + 1,
-            ConsecutiveCorrect = CASE WHEN @IsCorrect = 1 THEN target.ConsecutiveCorrect + 1 ELSE 0 END,
-            ConsecutiveWrong = CASE WHEN @IsCorrect = 0 THEN target.ConsecutiveWrong + 1 ELSE 0 END,
-            LastReviewedAt = @Now,
-            NextReviewDate = CASE
+            SoLanLapLai = target.SoLanLapLai + 1,
+            SoLanDungLienTiep = CASE WHEN @IsCorrect = 1 THEN target.SoLanDungLienTiep + 1 ELSE 0 END,
+            SoLanSaiLienTiep = CASE WHEN @IsCorrect = 0 THEN target.SoLanSaiLienTiep + 1 ELSE 0 END,
+            ThoiDiemOnTapGanNhat = @Now,
+            NgayOnTapTiepTheo = CASE
               WHEN @IsCorrect = 1 THEN DATEADD(day,
                 CASE
-                  WHEN target.MasteryLevel >= 8 THEN 14
-                  WHEN target.MasteryLevel >= 5 THEN 7
-                  WHEN target.MasteryLevel >= 2 THEN 3
+                  WHEN target.MucDoThanhThao >= 8 THEN 14
+                  WHEN target.MucDoThanhThao >= 5 THEN 7
+                  WHEN target.MucDoThanhThao >= 2 THEN 3
                   ELSE 1
                 END,
                 @Now
               )
               ELSE @Now
             END,
-            LastScore = CASE WHEN @IsCorrect = 1 THEN 100.00 ELSE 0.00 END,
-            MemoryStatus = CASE
-              WHEN @IsCorrect = 0 THEN N'Lapsed'
-              WHEN target.MasteryLevel >= 7 THEN N'Mastered'
-              WHEN target.MasteryLevel >= 2 THEN N'Reviewing'
-              ELSE N'Learning'
+            DiemGanNhat = CASE WHEN @IsCorrect = 1 THEN 100.00 ELSE 0.00 END,
+            TrangThaiGhiNho = CASE
+              WHEN @IsCorrect = 0 THEN N'BiQuen'
+              WHEN target.MucDoThanhThao >= 7 THEN N'DaThanhThao'
+              WHEN target.MucDoThanhThao >= 2 THEN N'DangOnTap'
+              ELSE N'DangHoc'
             END,
-            UpdatedAt = @Now
+            ThoiDiemCapNhat = @Now
         WHEN NOT MATCHED THEN
-          INSERT (UserID, WordID, MasteryLevel, EaseFactor, RepetitionCount, ConsecutiveCorrect, ConsecutiveWrong, LastReviewedAt, NextReviewDate, LastScore, MemoryStatus, CreatedAt, UpdatedAt)
+          INSERT (NguoiDungID, TuVungID, MucDoThanhThao, HeSoDeNho, SoLanLapLai, SoLanDungLienTiep, SoLanSaiLienTiep, ThoiDiemOnTapGanNhat, NgayOnTapTiepTheo, DiemGanNhat, TrangThaiGhiNho, ThoiDiemTao, ThoiDiemCapNhat)
           VALUES (
             @UserID,
             @WordID,
@@ -168,11 +168,11 @@ class UserService {
             @Now,
             CASE WHEN @IsCorrect = 1 THEN DATEADD(day, 1, @Now) ELSE @Now END,
             CASE WHEN @IsCorrect = 1 THEN 100.00 ELSE 0.00 END,
-            CASE WHEN @IsCorrect = 1 THEN N'Learning' ELSE N'Lapsed' END,
+            CASE WHEN @IsCorrect = 1 THEN N'DangHoc' ELSE N'BiQuen' END,
             @Now,
             @Now
           )
-        OUTPUT inserted.UserWordProgressID AS id, inserted.MasteryLevel AS masteryLevel, inserted.MemoryStatus AS memoryStatus;
+        OUTPUT inserted.TienDoTuVungNguoiDungID AS id, inserted.MucDoThanhThao AS masteryLevel, inserted.TrangThaiGhiNho AS memoryStatus;
       `);
 
     return result.recordset[0];
@@ -184,39 +184,39 @@ class UserService {
     // 1. Total words learned
     const learnedResult = await pool.request()
       .input('UserID', sql.BigInt, userId)
-      .query('SELECT COUNT(*) AS total FROM UserWordProgress WHERE UserID = @UserID AND MasteryLevel >= 3');
+      .query('SELECT COUNT(*) AS total FROM TienDoTuVungNguoiDung WHERE NguoiDungID = @UserID AND MucDoThanhThao >= 3');
 
     // 2. Accuracy rate
     const accuracyResult = await pool.request()
       .input('UserID', sql.BigInt, userId)
       .query(`
         SELECT 
-          CAST(SUM(CASE WHEN IsCorrect = 1 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0) AS DECIMAL(5,2)) AS accuracy,
-          SUM(CASE WHEN IsCorrect = 1 THEN 1 ELSE 0 END) AS correct,
-          SUM(CASE WHEN IsCorrect = 0 THEN 1 ELSE 0 END) AS wrong
-        FROM ExerciseAttempts WHERE UserID = @UserID
+          CAST(SUM(CASE WHEN DungSai = 1 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0) AS DECIMAL(5,2)) AS accuracy,
+          SUM(CASE WHEN DungSai = 1 THEN 1 ELSE 0 END) AS correct,
+          SUM(CASE WHEN DungSai = 0 THEN 1 ELSE 0 END) AS wrong
+        FROM LanLamBaiTap WHERE NguoiDungID = @UserID
       `);
 
     // 3. Weak words
     const weakWordsResult = await pool.request()
       .input('UserID', sql.BigInt, userId)
       .query(`
-        SELECT TOP 5 w.Term AS word, w.Meaning AS meaning
-        FROM UserWordProgress uwp
-        JOIN Words w ON uwp.WordID = w.WordID
-        WHERE uwp.UserID = @UserID AND (uwp.MemoryStatus = 'Lapsed' OR uwp.MasteryLevel < 3)
-        ORDER BY uwp.MasteryLevel ASC
+        SELECT TOP 5 w.Tu AS word, w.Nghia AS meaning
+        FROM TienDoTuVungNguoiDung uwp
+        JOIN TuVung w ON uwp.TuVungID = w.TuVungID
+        WHERE uwp.NguoiDungID = @UserID AND (uwp.TrangThaiGhiNho = 'BiQuen' OR uwp.MucDoThanhThao < 3)
+        ORDER BY uwp.MucDoThanhThao ASC
       `);
 
     // 4. Recent attempts
     const recentAttemptsResult = await pool.request()
       .input('UserID', sql.BigInt, userId)
       .query(`
-        SELECT TOP 10 ea.SubmittedAnswer AS answer, ea.IsCorrect AS isCorrect, ea.AttemptedAt AS date, w.Term AS term
-        FROM ExerciseAttempts ea
-        JOIN Words w ON ea.WordID = w.WordID
-        WHERE ea.UserID = @UserID
-        ORDER BY ea.AttemptedAt DESC
+        SELECT TOP 10 ea.DapAnDaNop AS answer, ea.DungSai AS isCorrect, ea.ThoiDiemLam AS date, w.Tu AS term
+        FROM LanLamBaiTap ea
+        JOIN TuVung w ON ea.TuVungID = w.TuVungID
+        WHERE ea.NguoiDungID = @UserID
+        ORDER BY ea.ThoiDiemLam DESC
       `);
 
     const stats = {
@@ -235,10 +235,10 @@ class UserService {
     const trendsResult = await pool.request()
       .input('UserID', sql.BigInt, userId)
       .query(`
-        SELECT CAST(AttemptedAt AS DATE) AS date, COUNT(*) AS count
-        FROM ExerciseAttempts
-        WHERE UserID = @UserID AND AttemptedAt >= DATEADD(day, -7, SYSDATETIMEOFFSET())
-        GROUP BY CAST(AttemptedAt AS DATE)
+        SELECT CAST(ThoiDiemLam AS DATE) AS date, COUNT(*) AS count
+        FROM LanLamBaiTap
+        WHERE NguoiDungID = @UserID AND ThoiDiemLam >= DATEADD(day, -7, SYSDATETIMEOFFSET())
+        GROUP BY CAST(ThoiDiemLam AS DATE)
         ORDER BY date ASC
       `);
     
@@ -279,7 +279,7 @@ class UserService {
             EstimatedDaysToMastery AS estimatedDaysToMastery,
             ProjectedCompletionDate AS projectedCompletionDate
           FROM dbo.vw_MasteryTimelineProjection
-          WHERE UserID = @UserID
+          WHERE NguoiDungID = @UserID
         `);
 
       if (result.recordset.length > 0) {
@@ -292,10 +292,10 @@ class UserService {
       .query(`
         SELECT
           COUNT(*) AS totalWords,
-          SUM(CASE WHEN MasteryLevel >= 8 THEN 1 ELSE 0 END) AS masteredWords,
-          CAST(SUM(CASE WHEN MasteryLevel >= 8 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0) AS DECIMAL(5,2)) AS completionPercentage
-        FROM UserWordProgress
-        WHERE UserID = @UserID
+          SUM(CASE WHEN MucDoThanhThao >= 8 THEN 1 ELSE 0 END) AS masteredWords,
+          CAST(SUM(CASE WHEN MucDoThanhThao >= 8 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0) AS DECIMAL(5,2)) AS completionPercentage
+        FROM TienDoTuVungNguoiDung
+        WHERE NguoiDungID = @UserID
       `);
 
     const row = result.recordset[0] || {};
@@ -311,11 +311,11 @@ class UserService {
   static async getMiniTests() {
     const pool = await poolPromise;
     const result = await pool.request().query(`
-      SELECT mt.MiniTestID AS id, mt.TestTitle AS title, mt.Description AS description,
-             t.TopicName AS topicName, t.TopicCode AS topicCode
-      FROM MiniTests mt
-      LEFT JOIN Topics t ON mt.TopicID = t.TopicID
-      WHERE mt.IsPublished = 1
+      SELECT mt.BaiKiemTraNhoID AS id, mt.TieuDeBaiKiemTra AS title, mt.MoTa AS description,
+             t.TenChuDe AS topicName, t.MaChuDe AS topicCode
+      FROM BaiKiemTraNho mt
+      LEFT JOIN ChuDe t ON mt.ChuDeID = t.ChuDeID
+      WHERE mt.DaXuatBan = 1
     `);
     return result.recordset;
   }
@@ -325,14 +325,14 @@ class UserService {
     const result = await pool.request()
       .input('MiniTestID', sql.BigInt, testId)
       .query(`
-        SELECT q.QuestionID AS questionId, q.QuestionType AS questionType, 
-               q.QuestionText AS questionText, q.OptionsJson AS optionsJson, 
-               q.CorrectAnswer AS correctAnswer, w.Term AS term
-        FROM MiniTestItems mti
-        JOIN Questions q ON mti.QuestionID = q.QuestionID
-        JOIN Words w ON q.WordID = w.WordID
-        WHERE mti.MiniTestID = @MiniTestID
-        ORDER BY mti.DisplayOrder
+        SELECT q.CauHoiID AS questionId, q.LoaiCauHoi AS questionType, 
+               q.NoiDungCauHoi AS questionText, q.LuaChonJSON AS optionsJson, 
+               q.DapAnDung AS correctAnswer, w.Tu AS term
+        FROM CauHoiBaiKiemTraNho mti
+        JOIN CauHoi q ON mti.CauHoiID = q.CauHoiID
+        JOIN TuVung w ON q.TuVungID = w.TuVungID
+        WHERE mti.BaiKiemTraNhoID = @MiniTestID
+        ORDER BY mti.ThuTuHienThi
       `);
     return result.recordset;
   }
@@ -342,7 +342,7 @@ class UserService {
     await pool.request()
       .input('UserID', sql.BigInt, userId)
       .input('FullName', sql.NVarChar(200), fullName)
-      .query('UPDATE Users SET FullName = @FullName, UpdatedAt = SYSDATETIMEOFFSET() WHERE UserID = @UserID');
+      .query('UPDATE NguoiDung SET HoTen = @FullName, ThoiDiemCapNhat = SYSDATETIMEOFFSET() WHERE NguoiDungID = @UserID');
     return { id: userId, fullName };
   }
 
@@ -352,17 +352,17 @@ class UserService {
       .input('UserID', sql.BigInt, userId)
       .query(`
         SELECT 
-          CAST(ea.AttemptedAt AS DATE) AS date,
-          mt.MiniTestID AS testId,
-          mt.TestTitle AS testTitle,
+          CAST(ea.ThoiDiemLam AS DATE) AS date,
+          mt.BaiKiemTraNhoID AS testId,
+          mt.TieuDeBaiKiemTra AS testTitle,
           COUNT(*) AS totalQuestions,
-          SUM(CASE WHEN ea.IsCorrect = 1 THEN 1 ELSE 0 END) AS correctAnswers
-        FROM ExerciseAttempts ea
-        JOIN Questions q ON ea.QuestionID = q.QuestionID
-        JOIN MiniTestItems mti ON q.QuestionID = mti.QuestionID
-        JOIN MiniTests mt ON mti.MiniTestID = mt.MiniTestID
-        WHERE ea.UserID = @UserID
-        GROUP BY CAST(ea.AttemptedAt AS DATE), mt.TestTitle, mt.MiniTestID
+          SUM(CASE WHEN ea.DungSai = 1 THEN 1 ELSE 0 END) AS correctAnswers
+        FROM LanLamBaiTap ea
+        JOIN CauHoi q ON ea.CauHoiID = q.CauHoiID
+        JOIN CauHoiBaiKiemTraNho mti ON q.CauHoiID = mti.CauHoiID
+        JOIN BaiKiemTraNho mt ON mti.BaiKiemTraNhoID = mt.BaiKiemTraNhoID
+        WHERE ea.NguoiDungID = @UserID
+        GROUP BY CAST(ea.ThoiDiemLam AS DATE), mt.TieuDeBaiKiemTra, mt.BaiKiemTraNhoID
         ORDER BY date DESC
       `);
     return result.recordset;
@@ -376,21 +376,21 @@ class UserService {
       .input('Date', sql.Date, date)
       .query(`
         SELECT 
-          q.QuestionText AS questionText,
-          q.QuestionType AS questionType,
-          q.OptionsJson AS optionsJson,
-          q.CorrectAnswer AS correctAnswer,
-          ea.SubmittedAnswer AS submittedAnswer,
-          ea.IsCorrect AS isCorrect,
-          w.Term AS term,
-          w.Meaning AS meaning
-        FROM ExerciseAttempts ea
-        JOIN Questions q ON ea.QuestionID = q.QuestionID
-        JOIN MiniTestItems mti ON q.QuestionID = mti.QuestionID
-        JOIN Words w ON q.WordID = w.WordID
-        WHERE ea.UserID = @UserID 
-          AND mti.MiniTestID = @MiniTestID
-          AND CAST(ea.AttemptedAt AS DATE) = @Date
+          q.NoiDungCauHoi AS questionText,
+          q.LoaiCauHoi AS questionType,
+          q.LuaChonJSON AS optionsJson,
+          q.DapAnDung AS correctAnswer,
+          ea.DapAnDaNop AS submittedAnswer,
+          ea.DungSai AS isCorrect,
+          w.Tu AS term,
+          w.Nghia AS meaning
+        FROM LanLamBaiTap ea
+        JOIN CauHoi q ON ea.CauHoiID = q.CauHoiID
+        JOIN CauHoiBaiKiemTraNho mti ON q.CauHoiID = mti.CauHoiID
+        JOIN TuVung w ON q.TuVungID = w.TuVungID
+        WHERE ea.NguoiDungID = @UserID 
+          AND mti.BaiKiemTraNhoID = @MiniTestID
+          AND CAST(ea.ThoiDiemLam AS DATE) = @Date
       `);
     return result.recordset;
   }

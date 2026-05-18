@@ -1,11 +1,11 @@
 const { poolPromise, sql } = require('../config/db');
 const bcrypt = require('bcrypt');
 
-const USER_ROLES = ['Admin', 'Learner', 'ContentCreator'];
+const VAI_TRO_NGUOI_DUNG = ['QuanTriVien', 'NguoiHoc', 'BienTapVien'];
 
-function assertValidUserRole(roleName) {
-  if (!USER_ROLES.includes(roleName)) {
-    throw new Error('Invalid role');
+function xacThucVaiTroNguoiDung(tenVaiTro) {
+  if (!VAI_TRO_NGUOI_DUNG.includes(tenVaiTro)) {
+    throw new Error('Vai trò không hợp lệ');
   }
 }
 
@@ -33,12 +33,12 @@ class AdminService {
     }
 
     if (typeof input !== 'string') {
-      throw new Error('Invalid import payload');
+      throw new Error('Dữ liệu nhập không hợp lệ');
     }
 
     const trimmed = input.trim();
     if (!trimmed) {
-      throw new Error('CSV must include a header and at least one data row');
+      throw new Error('CSV phải bao gồm tiêu đề và ít nhất một dòng dữ liệu');
     }
 
     const firstLine = trimmed.split(/\r?\n/)[0] || '';
@@ -81,7 +81,7 @@ class AdminService {
     if (row.some((value) => value !== '')) records.push(row);
 
     if (records.length < 2) {
-      throw new Error('CSV must include a header and at least one data row');
+      throw new Error('CSV phải bao gồm tiêu đề và ít nhất một dòng dữ liệu');
     }
 
     const headers = records[0].map((header) => header.trim());
@@ -125,47 +125,47 @@ class AdminService {
     return this.parseDelimitedImport(input);
   }
 
-  // --- WORDS ---
+  // --- TU VUNG ---
   static async getWords(page = 1, limit = 20) {
     const pool = await poolPromise;
     const offset = (page - 1) * limit;
     
-    // Fetch main words
+    // Lay danh sach tu vung chinh
     const result = await pool.request()
       .input('Offset', sql.Int, offset)
       .input('Limit', sql.Int, limit)
       .query(`
-        SELECT w.WordID AS id, w.Term AS term, w.Meaning AS meaning, w.Phonetic AS phonetic, 
-               w.PartOfSpeechID AS partOfSpeechId, p.PartOfSpeechName AS partOfSpeechName,
-               w.CreatedAt AS createdAt 
-        FROM Words w
-        LEFT JOIN PartOfSpeeches p ON w.PartOfSpeechID = p.PartOfSpeechID
-        ORDER BY w.CreatedAt DESC
+        SELECT w.TuVungID AS id, w.Tu AS term, w.Nghia AS meaning, w.PhienAm AS phonetic, 
+               w.TuLoaiID AS partOfSpeechId, p.TenTuLoai AS partOfSpeechName,
+               w.ThoiDiemTao AS createdAt 
+        FROM TuVung w
+        LEFT JOIN TuLoai p ON w.TuLoaiID = p.TuLoaiID
+        ORDER BY w.ThoiDiemTao DESC
         OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY
       `);
     
     const words = result.recordset;
 
-    // Fetch related data for each word (Note: In production, optimize this with a JOIN or separate batch query)
+    // Lay du lieu lien quan cho moi tu vung
     for (let word of words) {
-      // Topics
+      // Chu de
       const topicsResult = await pool.request()
-        .input('WordID', sql.BigInt, word.id)
+        .input('TuVungID', sql.BigInt, word.id)
         .query(`
-          SELECT t.TopicID AS id, t.TopicName AS name 
-          FROM WordTopics wt
-          JOIN Topics t ON wt.TopicID = t.TopicID
-          WHERE wt.WordID = @WordID
+          SELECT t.ChuDeID AS id, t.TenChuDe AS name 
+          FROM TuVungChuDe wt
+          JOIN ChuDe t ON wt.ChuDeID = t.ChuDeID
+          WHERE wt.TuVungID = @TuVungID
         `);
       word.topics = topicsResult.recordset;
 
-      // Examples
+      // Cau vi du
       const examplesResult = await pool.request()
-        .input('WordID', sql.BigInt, word.id)
+        .input('TuVungID', sql.BigInt, word.id)
         .query(`
-          SELECT ExampleSentenceID AS id, SentenceText AS sentence, SentenceTranslation AS meaning
-          FROM ExampleSentences
-          WHERE WordID = @WordID
+          SELECT CauViDuID AS id, CauTiengAnh AS sentence, DichNghia AS meaning
+          FROM CauViDu
+          WHERE TuVungID = @TuVungID
         `);
       word.examples = examplesResult.recordset;
     }
@@ -185,46 +185,46 @@ class AdminService {
       await transaction.begin();
 
       const request = new sql.Request(transaction);
-      // Insert Word
+      // Them Tu vung
       const wordResult = await request
-        .input('Term', sql.NVarChar(200), term)
-        .input('Meaning', sql.NVarChar(1000), meaning)
-        .input('Phonetic', sql.NVarChar(255), phonetic)
-        .input('PartOfSpeechID', sql.Int, partOfSpeechId)
-        .input('CreatedByUserID', sql.BigInt, adminId)
+        .input('Tu', sql.NVarChar(200), term)
+        .input('Nghia', sql.NVarChar(1000), meaning)
+        .input('PhienAm', sql.NVarChar(255), phonetic)
+        .input('TuLoaiID', sql.Int, partOfSpeechId)
+        .input('NguoiTaoID', sql.BigInt, adminId)
         .query(`
-          INSERT INTO Words (Term, Meaning, Phonetic, PartOfSpeechID, CreatedByUserID, CreatedAt, UpdatedAt)
-          OUTPUT inserted.WordID AS id
-          VALUES (@Term, @Meaning, @Phonetic, @PartOfSpeechID, @CreatedByUserID, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
+          INSERT INTO TuVung (Tu, Nghia, PhienAm, TuLoaiID, NguoiTaoID, ThoiDiemTao, ThoiDiemCapNhat)
+          OUTPUT inserted.TuVungID AS id
+          VALUES (@Tu, @Nghia, @Phonetic, @TuLoaiID, @NguoiTaoID, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
         `);
       
       const wordId = wordResult.recordset[0].id;
 
-      // Insert WordTopics
+      // Them TuVungChuDe
       if (topicIds && topicIds.length > 0) {
         for (const topicId of topicIds) {
           const topicReq = new sql.Request(transaction);
           await topicReq
-            .input('WordID', sql.BigInt, wordId)
-            .input('TopicID', sql.BigInt, topicId)
+            .input('TuVungID', sql.BigInt, wordId)
+            .input('ChuDeID', sql.BigInt, topicId)
             .query(`
-              INSERT INTO WordTopics (WordID, TopicID, AssignedAt) 
-              VALUES (@WordID, @TopicID, SYSDATETIMEOFFSET())
+              INSERT INTO TuVungChuDe (TuVungID, ChuDeID, ThoiDiemGan) 
+              VALUES (@TuVungID, @ChuDeID, SYSDATETIMEOFFSET())
             `);
         }
       }
 
-      // Insert ExampleSentences
+      // Them CauViDu
       if (validExamples.length > 0) {
         for (const ex of validExamples) {
           const exReq = new sql.Request(transaction);
           await exReq
-            .input('WordID', sql.BigInt, wordId)
-            .input('SentenceText', sql.NVarChar(2000), ex.sentence)
-            .input('SentenceTranslation', sql.NVarChar(2000), ex.meaning)
+            .input('TuVungID', sql.BigInt, wordId)
+            .input('CauTiengAnh', sql.NVarChar(2000), ex.sentence)
+            .input('DichNghia', sql.NVarChar(2000), ex.meaning)
             .query(`
-              INSERT INTO ExampleSentences (WordID, SentenceText, SentenceTranslation, CreatedAt, UpdatedAt)
-              VALUES (@WordID, @SentenceText, @SentenceTranslation, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
+              INSERT INTO CauViDu (TuVungID, CauTiengAnh, DichNghia, ThoiDiemTao, ThoiDiemCapNhat)
+              VALUES (@TuVungID, @CauTiengAnh, @DichNghia, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
             `);
         }
       }
@@ -241,16 +241,16 @@ class AdminService {
     const { term, meaning, phonetic, partOfSpeechId } = wordData;
     const pool = await poolPromise;
     const result = await pool.request()
-      .input('WordID', sql.BigInt, wordId)
-      .input('Term', sql.NVarChar(200), term)
-      .input('Meaning', sql.NVarChar(1000), meaning)
-      .input('Phonetic', sql.NVarChar(255), phonetic)
-      .input('PartOfSpeechID', sql.Int, partOfSpeechId)
+      .input('TuVungID', sql.BigInt, wordId)
+      .input('Tu', sql.NVarChar(200), term)
+      .input('Nghia', sql.NVarChar(1000), meaning)
+      .input('PhienAm', sql.NVarChar(255), phonetic)
+      .input('TuLoaiID', sql.Int, partOfSpeechId)
       .query(`
-        UPDATE Words 
-        SET Term = @Term, Meaning = @Meaning, Phonetic = @Phonetic, 
-            PartOfSpeechID = @PartOfSpeechID, UpdatedAt = SYSDATETIMEOFFSET()
-        WHERE WordID = @WordID
+        UPDATE TuVung 
+        SET Tu = @Tu, Nghia = @Nghia, PhienAm = @PhienAm, 
+            TuLoaiID = @TuLoaiID, ThoiDiemCapNhat = SYSDATETIMEOFFSET()
+        WHERE TuVungID = @TuVungID
       `);
     return result.rowsAffected[0] > 0;
   }
@@ -264,48 +264,48 @@ class AdminService {
 
       const request = new sql.Request(transaction);
       const result = await request
-        .input('WordID', sql.BigInt, wordId)
+        .input('TuVungID', sql.BigInt, wordId)
         .query(`
-          IF NOT EXISTS (SELECT 1 FROM Words WHERE WordID = @WordID)
+          IF NOT EXISTS (SELECT 1 FROM TuVung WHERE TuVungID = @TuVungID)
           BEGIN
             SELECT CAST(0 AS INT) AS deleted;
             RETURN;
           END
 
-          DELETE FROM MiniTestItems
-          WHERE QuestionID IN (
-            SELECT QuestionID FROM Questions WHERE WordID = @WordID
+          DELETE FROM CauHoiBaiKiemTraNho
+          WHERE CauHoiID IN (
+            SELECT CauHoiID FROM CauHoi WHERE TuVungID = @TuVungID
           );
 
           UPDATE mt
-          SET TotalQuestions = counts.TotalQuestions,
-              UpdatedAt = SYSDATETIMEOFFSET()
-          FROM MiniTests mt
+          SET TongSoCauHoi = counts.TongSoCauHoi,
+              ThoiDiemCapNhat = SYSDATETIMEOFFSET()
+          FROM BaiKiemTraNho mt
           CROSS APPLY (
-            SELECT COUNT(*) AS TotalQuestions
-            FROM MiniTestItems mti
-            WHERE mti.MiniTestID = mt.MiniTestID
+            SELECT COUNT(*) AS TongSoCauHoi
+            FROM CauHoiBaiKiemTraNho mti
+            WHERE mti.BaiKiemTraNhoID = mt.BaiKiemTraNhoID
           ) counts;
 
-          DELETE FROM ExerciseAttempts
-          WHERE WordID = @WordID
-             OR QuestionID IN (
-               SELECT QuestionID FROM Questions WHERE WordID = @WordID
+          DELETE FROM LanLamBaiTap
+          WHERE TuVungID = @TuVungID
+             OR CauHoiID IN (
+               SELECT CauHoiID FROM CauHoi WHERE TuVungID = @TuVungID
              );
 
-          DELETE FROM UserWordProgress WHERE WordID = @WordID;
+          DELETE FROM TienDoTuVungNguoiDung WHERE TuVungID = @TuVungID;
 
-          IF OBJECT_ID(N'dbo.WordPartsAssignment', N'U') IS NOT NULL
-            DELETE FROM WordPartsAssignment WHERE WordID = @WordID;
+          IF OBJECT_ID(N'dbo.TuVungPartsAssignment', N'U') IS NOT NULL
+            DELETE FROM TuVungPartsAssignment WHERE TuVungID = @TuVungID;
 
-          IF OBJECT_ID(N'dbo.WordCertifications', N'U') IS NOT NULL
-            DELETE FROM WordCertifications WHERE WordID = @WordID;
+          IF OBJECT_ID(N'dbo.ChungChiTuVung', N'U') IS NOT NULL
+            DELETE FROM ChungChiTuVung WHERE TuVungID = @TuVungID;
 
-          DELETE FROM Questions WHERE WordID = @WordID;
-          DELETE FROM ExampleSentences WHERE WordID = @WordID;
-          DELETE FROM WordTopics WHERE WordID = @WordID;
+          DELETE FROM CauHoi WHERE TuVungID = @TuVungID;
+          DELETE FROM CauViDu WHERE TuVungID = @TuVungID;
+          DELETE FROM TuVungChuDe WHERE TuVungID = @TuVungID;
 
-          DELETE FROM Words WHERE WordID = @WordID;
+          DELETE FROM TuVung WHERE TuVungID = @TuVungID;
 
           SELECT @@ROWCOUNT AS deleted;
         `);
@@ -324,11 +324,11 @@ class AdminService {
     const pool = await poolPromise;
 
     const referenceData = await pool.request().query(`
-      SELECT PartOfSpeechID AS id, PartOfSpeechName AS name, PartOfSpeechCode AS code
-      FROM PartOfSpeeches;
+      SELECT TuLoaiID AS id, TenTuLoai AS name, MaTuLoai AS code
+      FROM TuLoai;
 
-      SELECT TopicID AS id, TopicName AS name, TopicCode AS code
-      FROM Topics;
+      SELECT ChuDeID AS id, TenChuDe AS name, MaChuDe AS code
+      FROM ChuDe;
     `);
 
     const partsOfSpeech = referenceData.recordsets[0] || [];
@@ -355,7 +355,7 @@ class AdminService {
         const term = String(this.getImportValue(row, ['term', 'word', 'vocabulary', 'tu vung', 'tu']) ?? '').trim();
         const meaning = String(this.getImportValue(row, ['meaning', 'definition', 'dinh nghia', 'nghia']) ?? '').trim();
         const phonetic = String(this.getImportValue(row, ['phonetic', 'pronunciation', 'phien am']) ?? '').trim();
-        const rawPartOfSpeechId = this.getImportValue(row, ['partOfSpeechId', 'posId', 'part of speech id', 'loai tu id']);
+        const rawPartOfSpeechId = this.getImportValue(row, ['partOfSpeechId', 'posId', 'part of speech id', 'loai tu id', 'tu loai id']);
         const rawPartOfSpeechName = this.getImportValue(row, ['partOfSpeech', 'partOfSpeechName', 'pos', 'part of speech', 'loai tu', 'tu loai']);
         const rawTopicIds = this.getImportValue(row, ['topicIds', 'topicId', 'topic ids', 'chu de ids', 'chu de id']);
         const rawTopics = this.getImportValue(row, ['topics', 'topic', 'topicNames', 'topicName', 'chu de', 'ten chu de']);
@@ -363,7 +363,7 @@ class AdminService {
         const rawExampleMeaning = this.getImportValue(row, ['exampleMeaning', 'sentenceTranslation', 'translation', 'nghia cau vi du', 'dich']);
 
         if (!term || !meaning) {
-          throw new Error('Missing required fields: term, meaning');
+          throw new Error('Thiếu các trường bắt buộc: từ, nghĩa');
         }
 
         let partOfSpeechId = Number(rawPartOfSpeechId);
@@ -372,14 +372,14 @@ class AdminService {
         }
 
         if (!partOfSpeechId || !partOfSpeechById.has(Number(partOfSpeechId))) {
-          throw new Error('Invalid or missing partOfSpeechId/partOfSpeech');
+          throw new Error('Loại từ không hợp lệ hoặc bị thiếu');
         }
 
         const topicIds = new Set();
         for (const value of this.splitImportList(rawTopicIds)) {
           const id = Number(value);
           if (!id || !topicById.has(id)) {
-            throw new Error(`Invalid topicId: ${value}`);
+            throw new Error(`Mã chủ đề không hợp lệ: ${value}`);
           }
           topicIds.add(id);
         }
@@ -393,7 +393,7 @@ class AdminService {
 
           const mappedTopicId = topicByName.get(this.normalizeImportKey(value));
           if (!mappedTopicId) {
-            throw new Error(`Invalid topic: ${value}`);
+            throw new Error(`Chủ đề không hợp lệ: ${value}`);
           }
           topicIds.add(mappedTopicId);
         }
@@ -428,16 +428,16 @@ class AdminService {
     return results;
   }
 
-  // --- QUESTIONS ---
+  // --- CAU HOI ---
   static async getQuestionsByWord(wordId) {
     const pool = await poolPromise;
     const result = await pool.request()
-      .input('WordID', sql.BigInt, wordId)
+      .input('TuVungID', sql.BigInt, wordId)
       .query(`
-        SELECT QuestionID AS id, QuestionType AS questionType, QuestionText AS questionText, 
-               OptionsJson AS optionsJson, CorrectAnswer AS correctAnswer, Explanation AS explanation
-        FROM Questions
-        WHERE WordID = @WordID
+        SELECT CauHoiID AS id, LoaiCauHoi AS questionType, NoiDungCauHoi AS questionText, 
+               LuaChonJSON AS optionsJson, DapAnDung AS correctAnswer, GiaiThich AS explanation
+        FROM CauHoi
+        WHERE TuVungID = @TuVungID
       `);
     return result.recordset;
   }
@@ -446,30 +446,30 @@ class AdminService {
     const { wordId, questionType, questionText, optionsJson = '[]', correctAnswer, explanation } = questionData;
     const pool = await poolPromise;
     const result = await pool.request()
-      .input('WordID', sql.BigInt, wordId)
-      .input('QuestionType', sql.NVarChar(30), questionType)
-      .input('QuestionText', sql.NVarChar(2000), questionText)
-      .input('OptionsJson', sql.NVarChar(sql.MAX), optionsJson)
-      .input('CorrectAnswer', sql.NVarChar(500), correctAnswer)
-      .input('Explanation', sql.NVarChar(2000), explanation)
-      .input('CreatedByUserID', sql.BigInt, adminId)
+      .input('TuVungID', sql.BigInt, wordId)
+      .input('LoaiCauHoi', sql.NVarChar(30), questionType)
+      .input('NoiDungCauHoi', sql.NVarChar(2000), questionText)
+      .input('LuaChonJSON', sql.NVarChar(sql.MAX), optionsJson)
+      .input('DapAnDung', sql.NVarChar(500), correctAnswer)
+      .input('GiaiThich', sql.NVarChar(2000), explanation)
+      .input('NguoiTaoID', sql.BigInt, adminId)
       .query(`
-        INSERT INTO Questions (WordID, QuestionType, QuestionText, OptionsJson, CorrectAnswer, Explanation, CreatedByUserID, CreatedAt, UpdatedAt)
-        OUTPUT inserted.QuestionID AS id
-        VALUES (@WordID, @QuestionType, @QuestionText, @OptionsJson, @CorrectAnswer, @Explanation, @CreatedByUserID, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
+        INSERT INTO CauHoi (TuVungID, LoaiCauHoi, NoiDungCauHoi, LuaChonJSON, DapAnDung, GiaiThich, NguoiTaoID, ThoiDiemTao, ThoiDiemCapNhat)
+        OUTPUT inserted.CauHoiID AS id
+        VALUES (@TuVungID, @LoaiCauHoi, @NoiDungCauHoi, @LuaChonJSON, @DapAnDung, @GiaiThich, @NguoiTaoID, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
       `);
     return result.recordset[0];
   }
 
-  // --- MINI TESTS ---
+  // --- BAI KIEM TRA NHO ---
   static async getMiniTests() {
     const pool = await poolPromise;
     const result = await pool.request().query(`
-      SELECT mt.MiniTestID AS id, mt.TestTitle AS title, mt.Description AS description, 
-             t.TopicName AS topicName, mt.TotalQuestions AS totalQuestions, mt.IsPublished AS isPublished
-      FROM MiniTests mt
-      LEFT JOIN Topics t ON mt.TopicID = t.TopicID
-      ORDER BY mt.CreatedAt DESC
+      SELECT mt.BaiKiemTraNhoID AS id, mt.TieuDeBaiKiemTra AS title, mt.MoTa AS description, 
+             t.TenChuDe AS topicName, mt.TongSoCauHoi AS totalQuestions, mt.DaXuatBan AS isPublished
+      FROM BaiKiemTraNho mt
+      LEFT JOIN ChuDe t ON mt.ChuDeID = t.ChuDeID
+      ORDER BY mt.ThoiDiemTao DESC
     `);
     return result.recordset;
   }
@@ -484,15 +484,15 @@ class AdminService {
       const request = new sql.Request(transaction);
       
       const testResult = await request
-        .input('Title', sql.NVarChar(255), title)
-        .input('Description', sql.NVarChar(1000), description)
-        .input('TopicID', sql.BigInt, topicId)
-        .input('CreatedByUserID', sql.BigInt, adminId)
-        .input('TotalQuestions', sql.Int, questionIds.length)
+        .input('TieuDeBaiKiemTra', sql.NVarChar(255), title)
+        .input('MoTa', sql.NVarChar(1000), description)
+        .input('ChuDeID', sql.BigInt, topicId)
+        .input('NguoiTaoID', sql.BigInt, adminId)
+        .input('TongSoCauHoi', sql.Int, questionIds.length)
         .query(`
-          INSERT INTO MiniTests (TestTitle, Description, TopicID, CreatedByUserID, TotalQuestions, IsPublished, CreatedAt, UpdatedAt)
-          OUTPUT inserted.MiniTestID AS id
-          VALUES (@Title, @Description, @TopicID, @CreatedByUserID, @TotalQuestions, 1, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
+          INSERT INTO BaiKiemTraNho (TieuDeBaiKiemTra, MoTa, ChuDeID, NguoiTaoID, TongSoCauHoi, DaXuatBan, ThoiDiemTao, ThoiDiemCapNhat)
+          OUTPUT inserted.BaiKiemTraNhoID AS id
+          VALUES (@TieuDeBaiKiemTra, @MoTa, @ChuDeID, @NguoiTaoID, @TongSoCauHoi, 1, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
         `);
       
       const testId = testResult.recordset[0].id;
@@ -500,12 +500,12 @@ class AdminService {
       for (let i = 0; i < questionIds.length; i++) {
         const itemReq = new sql.Request(transaction);
         await itemReq
-          .input('MiniTestID', sql.BigInt, testId)
-          .input('QuestionID', sql.BigInt, questionIds[i])
-          .input('DisplayOrder', sql.Int, i + 1)
+          .input('BaiKiemTraNhoID', sql.BigInt, testId)
+          .input('CauHoiID', sql.BigInt, questionIds[i])
+          .input('ThuTuHienThi', sql.Int, i + 1)
           .query(`
-            INSERT INTO MiniTestItems (MiniTestID, QuestionID, DisplayOrder)
-            VALUES (@MiniTestID, @QuestionID, @DisplayOrder)
+            INSERT INTO CauHoiBaiKiemTraNho (BaiKiemTraNhoID, CauHoiID, ThuTuHienThi)
+            VALUES (@BaiKiemTraNhoID, @CauHoiID, @ThuTuHienThi)
           `);
       }
 
@@ -521,52 +521,52 @@ class AdminService {
     const pool = await poolPromise;
     const result = await pool.request().query(`
       SELECT
-        (SELECT COUNT(*) FROM Users) AS totalUsers,
-        (SELECT COUNT(*) FROM Users WHERE UserRole = 'Learner') AS totalStudents,
-        (SELECT COUNT(*) FROM Users WHERE UserRole = 'ContentCreator') AS totalCreators,
-        (SELECT COUNT(*) FROM Words) AS totalWords,
-        (SELECT COUNT(*) FROM Topics) AS totalTopics,
-        (SELECT COUNT(*) FROM Questions) AS totalQuestions,
-        (SELECT COUNT(*) FROM ExerciseAttempts) AS totalAttempts,
-        (SELECT COUNT(*) FROM MiniTests) AS totalMiniTests,
-        (SELECT COUNT(*) FROM UserWordProgress WHERE MemoryStatus = 'Mastered') AS masteredRecords,
-        (SELECT COUNT(*) FROM UserWordProgress WHERE NextReviewDate <= SYSDATETIMEOFFSET() OR NextReviewDate IS NULL) AS dueReviews,
-        (SELECT COUNT(*) FROM Users WHERE CreatedAt >= DATEADD(day, -7, SYSDATETIMEOFFSET())) AS newUsersThisWeek,
-        (SELECT COUNT(DISTINCT UserID) FROM ExerciseAttempts WHERE AttemptedAt >= DATEADD(day, -1, SYSDATETIMEOFFSET())) AS activeUsersToday,
-        (SELECT CAST(SUM(CASE WHEN IsCorrect = 1 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0) AS DECIMAL(5,2)) FROM ExerciseAttempts) AS averageAccuracy;
+        (SELECT COUNT(*) FROM NguoiDung) AS totalUsers,
+        (SELECT COUNT(*) FROM NguoiDung WHERE VaiTroNguoiDung = 'NguoiHoc') AS totalStudents,
+        (SELECT COUNT(*) FROM NguoiDung WHERE VaiTroNguoiDung = 'BienTapVien') AS totalCreators,
+        (SELECT COUNT(*) FROM TuVung) AS totalWords,
+        (SELECT COUNT(*) FROM ChuDe) AS totalTopics,
+        (SELECT COUNT(*) FROM CauHoi) AS totalQuestions,
+        (SELECT COUNT(*) FROM LanLamBaiTap) AS totalAttempts,
+        (SELECT COUNT(*) FROM BaiKiemTraNho) AS totalMiniTests,
+        (SELECT COUNT(*) FROM TienDoTuVungNguoiDung WHERE TrangThaiGhiNho = 'DaThanhThao') AS masteredRecords,
+        (SELECT COUNT(*) FROM TienDoTuVungNguoiDung WHERE NgayOnTapTiepTheo <= SYSDATETIMEOFFSET() OR NgayOnTapTiepTheo IS NULL) AS dueReviews,
+        (SELECT COUNT(*) FROM NguoiDung WHERE ThoiDiemTao >= DATEADD(day, -7, SYSDATETIMEOFFSET())) AS newUsersThisWeek,
+        (SELECT COUNT(DISTINCT NguoiDungID) FROM LanLamBaiTap WHERE ThoiDiemLam >= DATEADD(day, -1, SYSDATETIMEOFFSET())) AS activeUsersToday,
+        (SELECT CAST(SUM(CASE WHEN DungSai = 1 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0) AS DECIMAL(5,2)) FROM LanLamBaiTap) AS averageAccuracy;
 
       SELECT
-        CONVERT(varchar(10), CAST(CreatedAt AS date), 120) AS date,
+        CONVERT(varchar(10), CAST(ThoiDiemTao AS date), 120) AS date,
         COUNT(*) AS users
-      FROM Users
-      WHERE CreatedAt >= DATEADD(day, -30, SYSDATETIMEOFFSET())
-      GROUP BY CAST(CreatedAt AS date)
-      ORDER BY CAST(CreatedAt AS date);
+      FROM NguoiDung
+      WHERE ThoiDiemTao >= DATEADD(day, -30, SYSDATETIMEOFFSET())
+      GROUP BY CAST(ThoiDiemTao AS date)
+      ORDER BY CAST(ThoiDiemTao AS date);
 
       SELECT
-        FORMAT(CAST(AttemptedAt AS date), 'ddd', 'en-US') AS day,
+        FORMAT(CAST(ThoiDiemLam AS date), 'ddd', 'en-US') AS day,
         COUNT(*) AS attempts,
-        SUM(CASE WHEN IsCorrect = 1 THEN 1 ELSE 0 END) AS correct
-      FROM ExerciseAttempts
-      WHERE AttemptedAt >= DATEADD(day, -7, SYSDATETIMEOFFSET())
-      GROUP BY CAST(AttemptedAt AS date)
-      ORDER BY CAST(AttemptedAt AS date);
+        SUM(CASE WHEN DungSai = 1 THEN 1 ELSE 0 END) AS correct
+      FROM LanLamBaiTap
+      WHERE ThoiDiemLam >= DATEADD(day, -7, SYSDATETIMEOFFSET())
+      GROUP BY CAST(ThoiDiemLam AS date)
+      ORDER BY CAST(ThoiDiemLam AS date);
 
-      SELECT UserRole AS name, COUNT(*) AS value
-      FROM Users
-      GROUP BY UserRole
-      ORDER BY UserRole;
+      SELECT VaiTroNguoiDung AS name, COUNT(*) AS value
+      FROM NguoiDung
+      GROUP BY VaiTroNguoiDung
+      ORDER BY VaiTroNguoiDung;
 
       SELECT TOP 8
         'ExerciseAttempt' AS type,
-        CONCAT(u.FullName, ' answered ', w.Term) AS title,
-        CASE WHEN ea.IsCorrect = 1 THEN 'Correct answer' ELSE 'Needs review' END AS detail,
-        ea.AttemptedAt AS createdAt,
-        CASE WHEN ea.IsCorrect = 1 THEN 'emerald' ELSE 'amber' END AS tone
-      FROM ExerciseAttempts ea
-      JOIN Users u ON ea.UserID = u.UserID
-      JOIN Words w ON ea.WordID = w.WordID
-      ORDER BY ea.AttemptedAt DESC;
+        CONCAT(u.HoTen, ' answered ', w.Tu) AS title,
+        CASE WHEN ea.DungSai = 1 THEN 'Correct answer' ELSE 'Needs review' END AS detail,
+        ea.ThoiDiemLam AS createdAt,
+        CASE WHEN ea.DungSai = 1 THEN 'emerald' ELSE 'amber' END AS tone
+      FROM LanLamBaiTap ea
+      JOIN NguoiDung u ON ea.NguoiDungID = u.NguoiDungID
+      JOIN TuVung w ON ea.TuVungID = w.TuVungID
+      ORDER BY ea.ThoiDiemLam DESC;
     `);
 
     return {
@@ -581,15 +581,15 @@ class AdminService {
   static async getStudents() {
     const pool = await poolPromise;
     const result = await pool.request().query(`
-      SELECT u.UserID AS id, u.FullName AS fullName, u.Email AS email, u.UserRole AS role,
-             r.RoleName AS roleName, u.IsActive AS isActive, u.CreatedAt AS joinedAt,
-             (SELECT COUNT(*) FROM UserWordProgress WHERE UserID = u.UserID AND MasteryLevel >= 8) AS masteredWords,
-             (SELECT COUNT(*) FROM UserWordProgress WHERE UserID = u.UserID) AS totalWords,
-             (SELECT COUNT(*) FROM ExerciseAttempts WHERE UserID = u.UserID) AS totalAttempts,
-             (SELECT MAX(AttemptedAt) FROM ExerciseAttempts WHERE UserID = u.UserID) AS lastActiveAt
-      FROM Users u
-      LEFT JOIN Roles r ON u.RoleID = r.RoleID
-      ORDER BY u.CreatedAt DESC
+      SELECT u.NguoiDungID AS id, u.HoTen AS fullName, u.Email AS email, u.VaiTroNguoiDung AS role,
+             r.TenVaiTro AS roleName, u.DangHoatDong AS isActive, u.ThoiDiemTao AS joinedAt,
+             (SELECT COUNT(*) FROM TienDoTuVungNguoiDung WHERE NguoiDungID = u.NguoiDungID AND MucDoThanhThao >= 8) AS masteredWords,
+             (SELECT COUNT(*) FROM TienDoTuVungNguoiDung WHERE NguoiDungID = u.NguoiDungID) AS totalWords,
+             (SELECT COUNT(*) FROM LanLamBaiTap WHERE NguoiDungID = u.NguoiDungID) AS totalAttempts,
+             (SELECT MAX(ThoiDiemLam) FROM LanLamBaiTap WHERE NguoiDungID = u.NguoiDungID) AS lastActiveAt
+      FROM NguoiDung u
+      LEFT JOIN VaiTro r ON u.VaiTroID = r.VaiTroID
+      ORDER BY u.ThoiDiemTao DESC
     `);
     return result.recordset;
   }
@@ -599,42 +599,42 @@ class AdminService {
       fullName,
       email,
       password,
-      role = 'Learner',
+      role = 'NguoiHoc',
       isActive = true
     } = userData;
 
-    assertValidUserRole(role);
+    xacThucVaiTroNguoiDung(role);
 
     if (!fullName || !email || !password || password.length < 6) {
-      throw new Error('Invalid user data');
+      throw new Error('Dữ liệu người dùng không hợp lệ');
     }
 
     const pool = await poolPromise;
     const existing = await pool.request()
       .input('Email', sql.NVarChar(255), email)
-      .query('SELECT UserID FROM Users WHERE Email = @Email');
+      .query('SELECT NguoiDungID FROM NguoiDung WHERE Email = @Email');
 
     if (existing.recordset.length > 0) {
-      throw new Error('Email already exists');
+      throw new Error('Email đã tồn tại');
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
     const result = await pool.request()
-      .input('FullName', sql.NVarChar(200), fullName)
+      .input('HoTen', sql.NVarChar(200), fullName)
       .input('Email', sql.NVarChar(255), email)
-      .input('PasswordHash', sql.NVarChar(500), passwordHash)
-      .input('RoleName', sql.NVarChar(50), role)
-      .input('IsActive', sql.Bit, Boolean(isActive))
+      .input('MatKhauHash', sql.NVarChar(500), passwordHash)
+      .input('TenVaiTro', sql.NVarChar(50), role)
+      .input('DangHoatDong', sql.Bit, Boolean(isActive))
       .query(`
-        DECLARE @RoleID INT;
-        SELECT @RoleID = RoleID FROM Roles WHERE RoleName = @RoleName;
+        DECLARE @VaiTroID INT;
+        SELECT @VaiTroID = VaiTroID FROM VaiTro WHERE TenVaiTro = @TenVaiTro;
 
-        IF @RoleID IS NULL
-          THROW 50002, 'Role not found', 1;
+        IF @VaiTroID IS NULL
+          THROW 50002, 'Không tìm thấy vai trò', 1;
 
-        INSERT INTO Users (FullName, Email, PasswordHash, UserRole, RoleID, IsActive, CreatedAt, UpdatedAt)
-        OUTPUT inserted.UserID AS id, inserted.FullName AS fullName, inserted.Email AS email, inserted.UserRole AS role, inserted.IsActive AS isActive
-        VALUES (@FullName, @Email, @PasswordHash, @RoleName, @RoleID, @IsActive, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET());
+        INSERT INTO NguoiDung (HoTen, Email, MatKhauHash, VaiTroNguoiDung, VaiTroID, DangHoatDong, ThoiDiemTao, ThoiDiemCapNhat)
+        OUTPUT inserted.NguoiDungID AS id, inserted.HoTen AS fullName, inserted.Email AS email, inserted.VaiTroNguoiDung AS role, inserted.DangHoatDong AS isActive
+        VALUES (@HoTen, @Email, @MatKhauHash, @TenVaiTro, @VaiTroID, @DangHoatDong, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET());
       `);
 
     return result.recordset[0];
@@ -646,16 +646,16 @@ class AdminService {
 
     for (let index = 0; index < rows.length; index++) {
       const row = rows[index];
-      const wordId = Number(row.wordId ?? row.WordID ?? row.wordID);
-      const questionType = row.questionType ?? row.QuestionType;
-      const questionText = row.questionText ?? row.QuestionText;
-      const correctAnswer = row.correctAnswer ?? row.CorrectAnswer;
-      const optionsJson = row.optionsJson ?? row.OptionsJson ?? '[]';
-      const explanation = row.explanation ?? row.Explanation ?? null;
+      const wordId = Number(row.wordId ?? row.TuVungID ?? row.tuVungId);
+      const questionType = row.questionType ?? row.LoaiCauHoi ?? row.loaiCauHoi;
+      const questionText = row.questionText ?? row.NoiDungCauHoi ?? row.noiDungCauHoi;
+      const correctAnswer = row.correctAnswer ?? row.DapAnDung ?? row.dapAnDung;
+      const optionsJson = row.optionsJson ?? row.LuaChonJSON ?? row.luaChonJSON ?? '[]';
+      const explanation = row.explanation ?? row.GiaiThich ?? row.giaiThich ?? null;
 
       try {
         if (!wordId || !questionType || !questionText || !correctAnswer) {
-          throw new Error('Missing required fields: wordId, questionType, questionText, correctAnswer');
+          throw new Error('Thiếu các trường bắt buộc: từ vựng ID, loại câu hỏi, nội dung câu hỏi, đáp án đúng');
         }
 
         JSON.parse(optionsJson || '[]');
@@ -687,59 +687,59 @@ class AdminService {
       fullName,
       email,
       password,
-      role = 'Learner',
+      role = 'NguoiHoc',
       isActive = true
     } = userData;
 
-    assertValidUserRole(role);
+    xacThucVaiTroNguoiDung(role);
 
     if (!fullName || !email) {
-      throw new Error('Invalid user data');
+      throw new Error('Dữ liệu người dùng không hợp lệ');
     }
 
     const pool = await poolPromise;
     const existing = await pool.request()
-      .input('UserID', sql.BigInt, userId)
+      .input('NguoiDungID', sql.BigInt, userId)
       .input('Email', sql.NVarChar(255), email)
-      .query('SELECT UserID FROM Users WHERE Email = @Email AND UserID <> @UserID');
+      .query('SELECT NguoiDungID FROM NguoiDung WHERE Email = @Email AND NguoiDungID <> @NguoiDungID');
 
     if (existing.recordset.length > 0) {
-      throw new Error('Email already exists');
+      throw new Error('Email đã tồn tại');
     }
 
     const request = pool.request()
-      .input('UserID', sql.BigInt, userId)
-      .input('FullName', sql.NVarChar(200), fullName)
+      .input('NguoiDungID', sql.BigInt, userId)
+      .input('HoTen', sql.NVarChar(200), fullName)
       .input('Email', sql.NVarChar(255), email)
-      .input('RoleName', sql.NVarChar(50), role)
-      .input('IsActive', sql.Bit, Boolean(isActive));
+      .input('TenVaiTro', sql.NVarChar(50), role)
+      .input('DangHoatDong', sql.Bit, Boolean(isActive));
 
     let passwordUpdate = '';
     if (password) {
       if (password.length < 6) {
-        throw new Error('Invalid user data');
+        throw new Error('Mật khẩu phải có ít nhất 6 ký tự');
       }
       const passwordHash = await bcrypt.hash(password, 10);
-      request.input('PasswordHash', sql.NVarChar(500), passwordHash);
-      passwordUpdate = ', PasswordHash = @PasswordHash';
+      request.input('MatKhauHash', sql.NVarChar(500), passwordHash);
+      passwordUpdate = ', MatKhauHash = @MatKhauHash';
     }
 
     const result = await request.query(`
-      DECLARE @RoleID INT;
-      SELECT @RoleID = RoleID FROM Roles WHERE RoleName = @RoleName;
+      DECLARE @VaiTroID INT;
+      SELECT @VaiTroID = VaiTroID FROM VaiTro WHERE TenVaiTro = @TenVaiTro;
 
-      IF @RoleID IS NULL
-        THROW 50002, 'Role not found', 1;
+      IF @VaiTroID IS NULL
+        THROW 50002, 'Không tìm thấy vai trò', 1;
 
-      UPDATE Users
-      SET FullName = @FullName,
+      UPDATE NguoiDung
+      SET HoTen = @HoTen,
           Email = @Email,
-          UserRole = @RoleName,
-          RoleID = @RoleID,
-          IsActive = @IsActive,
-          UpdatedAt = SYSDATETIMEOFFSET()
+          VaiTroNguoiDung = @TenVaiTro,
+          VaiTroID = @VaiTroID,
+          DangHoatDong = @DangHoatDong,
+          ThoiDiemCapNhat = SYSDATETIMEOFFSET()
           ${passwordUpdate}
-      WHERE UserID = @UserID;
+      WHERE NguoiDungID = @NguoiDungID;
     `);
 
     return result.rowsAffected.some((count) => count > 0);
@@ -748,23 +748,23 @@ class AdminService {
   static async deleteUser(userId) {
     const pool = await poolPromise;
     const dependencies = await pool.request()
-      .input('UserID', sql.BigInt, userId)
+      .input('NguoiDungID', sql.BigInt, userId)
       .query(`
         SELECT
-          (SELECT COUNT(*) FROM Words WHERE CreatedByUserID = @UserID) AS words,
-          (SELECT COUNT(*) FROM Questions WHERE CreatedByUserID = @UserID) AS questions,
-          (SELECT COUNT(*) FROM MiniTests WHERE CreatedByUserID = @UserID) AS miniTests,
-          (SELECT COUNT(*) FROM Topics WHERE CreatedByUserID = @UserID) AS topics
+          (SELECT COUNT(*) FROM TuVung WHERE NguoiTaoID = @NguoiDungID) AS words,
+          (SELECT COUNT(*) FROM CauHoi WHERE NguoiTaoID = @NguoiDungID) AS questions,
+          (SELECT COUNT(*) FROM BaiKiemTraNho WHERE NguoiTaoID = @NguoiDungID) AS miniTests,
+          (SELECT COUNT(*) FROM ChuDe WHERE NguoiTaoID = @NguoiDungID) AS topics
       `);
 
     const ownedContent = dependencies.recordset[0];
     if (ownedContent.words || ownedContent.questions || ownedContent.miniTests || ownedContent.topics) {
-      throw new Error('User owns content');
+      throw new Error('Người dùng đang sở hữu nội dung, không thể xóa');
     }
 
     const result = await pool.request()
-      .input('UserID', sql.BigInt, userId)
-      .query('DELETE FROM Users WHERE UserID = @UserID');
+      .input('NguoiDungID', sql.BigInt, userId)
+      .query('DELETE FROM NguoiDung WHERE NguoiDungID = @NguoiDungID');
 
     return result.rowsAffected[0] > 0;
   }
@@ -772,30 +772,30 @@ class AdminService {
   static async toggleUserStatus(userId) {
     const pool = await poolPromise;
     await pool.request()
-      .input('UserID', sql.BigInt, userId)
-      .query('UPDATE Users SET IsActive = CASE WHEN IsActive = 1 THEN 0 ELSE 1 END, UpdatedAt = SYSDATETIMEOFFSET() WHERE UserID = @UserID');
+      .input('NguoiDungID', sql.BigInt, userId)
+      .query('UPDATE NguoiDung SET DangHoatDong = CASE WHEN DangHoatDong = 1 THEN 0 ELSE 1 END, ThoiDiemCapNhat = SYSDATETIMEOFFSET() WHERE NguoiDungID = @NguoiDungID');
     return true;
   }
 
   static async updateUserRole(userId, roleName) {
-    assertValidUserRole(roleName);
+    xacThucVaiTroNguoiDung(roleName);
 
     const pool = await poolPromise;
     const result = await pool.request()
-      .input('UserID', sql.BigInt, userId)
-      .input('RoleName', sql.NVarChar(50), roleName)
+      .input('NguoiDungID', sql.BigInt, userId)
+      .input('TenVaiTro', sql.NVarChar(50), roleName)
       .query(`
-        DECLARE @RoleID INT;
-        SELECT @RoleID = RoleID FROM Roles WHERE RoleName = @RoleName;
+        DECLARE @VaiTroID INT;
+        SELECT @VaiTroID = VaiTroID FROM VaiTro WHERE TenVaiTro = @TenVaiTro;
 
-        IF @RoleID IS NULL
-          THROW 50002, 'Role not found', 1;
+        IF @VaiTroID IS NULL
+          THROW 50002, 'Không tìm thấy vai trò', 1;
 
-        UPDATE Users
-        SET UserRole = @RoleName,
-            RoleID = @RoleID,
-            UpdatedAt = SYSDATETIMEOFFSET()
-        WHERE UserID = @UserID;
+        UPDATE NguoiDung
+        SET VaiTroNguoiDung = @TenVaiTro,
+            VaiTroID = @VaiTroID,
+            ThoiDiemCapNhat = SYSDATETIMEOFFSET()
+        WHERE NguoiDungID = @NguoiDungID;
       `);
 
     return result.rowsAffected.some((count) => count > 0);
@@ -805,58 +805,58 @@ class AdminService {
     const pool = await poolPromise;
     const result = await pool.request().query(`
       SELECT
-        CAST(COALESCE(AVG(CAST(CASE WHEN ea.IsCorrect = 1 THEN 100.0 ELSE 0.0 END AS DECIMAL(5,2))), 0) AS DECIMAL(5,2)) AS averageAccuracy,
-        COUNT(ea.ExerciseAttemptID) AS totalAttempts,
-        COUNT(DISTINCT ea.UserID) AS activeLearners,
-        SUM(CASE WHEN ea.IsCorrect = 0 THEN 1 ELSE 0 END) AS wrongAttempts
-      FROM ExerciseAttempts ea;
+        CAST(COALESCE(AVG(CAST(CASE WHEN ea.DungSai = 1 THEN 100.0 ELSE 0.0 END AS DECIMAL(5,2))), 0) AS DECIMAL(5,2)) AS averageAccuracy,
+        COUNT(ea.LanLamBaiTapID) AS totalAttempts,
+        COUNT(DISTINCT ea.NguoiDungID) AS activeLearners,
+        SUM(CASE WHEN ea.DungSai = 0 THEN 1 ELSE 0 END) AS wrongAttempts
+      FROM LanLamBaiTap ea;
 
       SELECT TOP 8
-        COALESCE(t.TopicName, 'Uncategorized') AS name,
-        COUNT(ea.ExerciseAttemptID) AS attempts,
-        CAST(SUM(CASE WHEN ea.IsCorrect = 1 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(ea.ExerciseAttemptID), 0) AS DECIMAL(5,2)) AS completion
-      FROM ExerciseAttempts ea
-      JOIN Words w ON ea.WordID = w.WordID
-      LEFT JOIN WordTopics wt ON w.WordID = wt.WordID
-      LEFT JOIN Topics t ON wt.TopicID = t.TopicID
-      GROUP BY COALESCE(t.TopicName, 'Uncategorized')
-      ORDER BY COUNT(ea.ExerciseAttemptID) DESC;
+        COALESCE(t.TenChuDe, 'Uncategorized') AS name,
+        COUNT(ea.LanLamBaiTapID) AS attempts,
+        CAST(SUM(CASE WHEN ea.DungSai = 1 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(ea.LanLamBaiTapID), 0) AS DECIMAL(5,2)) AS completion
+      FROM LanLamBaiTap ea
+      JOIN TuVung w ON ea.TuVungID = w.TuVungID
+      LEFT JOIN TuVungChuDe wt ON w.TuVungID = wt.TuVungID
+      LEFT JOIN ChuDe t ON wt.ChuDeID = t.ChuDeID
+      GROUP BY COALESCE(t.TenChuDe, 'Uncategorized')
+      ORDER BY COUNT(ea.LanLamBaiTapID) DESC;
 
       SELECT TOP 8
-        CONCAT('Q', q.QuestionID) AS question,
-        q.QuestionText AS questionText,
-        w.Term AS term,
-        COUNT(ea.ExerciseAttemptID) AS attempts,
-        CAST(SUM(CASE WHEN ea.IsCorrect = 1 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(ea.ExerciseAttemptID), 0) AS DECIMAL(5,2)) AS accuracy
-      FROM Questions q
-      JOIN Words w ON q.WordID = w.WordID
-      LEFT JOIN ExerciseAttempts ea ON q.QuestionID = ea.QuestionID
-      GROUP BY q.QuestionID, q.QuestionText, w.Term
+        CONCAT('Q', q.CauHoiID) AS question,
+        q.NoiDungCauHoi AS questionText,
+        w.Tu AS term,
+        COUNT(ea.LanLamBaiTapID) AS attempts,
+        CAST(SUM(CASE WHEN ea.DungSai = 1 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(ea.LanLamBaiTapID), 0) AS DECIMAL(5,2)) AS accuracy
+      FROM CauHoi q
+      JOIN TuVung w ON q.TuVungID = w.TuVungID
+      LEFT JOIN LanLamBaiTap ea ON q.CauHoiID = ea.CauHoiID
+      GROUP BY q.CauHoiID, q.NoiDungCauHoi, w.Tu
       ORDER BY accuracy ASC, attempts DESC;
 
       SELECT
-        FORMAT(CAST(AttemptedAt AS date), 'ddd', 'en-US') AS day,
+        FORMAT(CAST(ThoiDiemLam AS date), 'ddd', 'en-US') AS day,
         COUNT(*) AS attempts,
-        CAST(SUM(CASE WHEN IsCorrect = 1 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0) AS DECIMAL(5,2)) AS accuracy
-      FROM ExerciseAttempts
-      WHERE AttemptedAt >= DATEADD(day, -7, SYSDATETIMEOFFSET())
-      GROUP BY CAST(AttemptedAt AS date)
-      ORDER BY CAST(AttemptedAt AS date);
+        CAST(SUM(CASE WHEN DungSai = 1 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0) AS DECIMAL(5,2)) AS accuracy
+      FROM LanLamBaiTap
+      WHERE ThoiDiemLam >= DATEADD(day, -7, SYSDATETIMEOFFSET())
+      GROUP BY CAST(ThoiDiemLam AS date)
+      ORDER BY CAST(ThoiDiemLam AS date);
 
-      SELECT p.PartOfSpeechName AS name, COUNT(w.WordID) AS value
-      FROM PartOfSpeeches p
-      LEFT JOIN Words w ON p.PartOfSpeechID = w.PartOfSpeechID
-      GROUP BY p.PartOfSpeechName
-      ORDER BY p.PartOfSpeechName;
+      SELECT p.TenTuLoai AS name, COUNT(w.TuVungID) AS value
+      FROM TuLoai p
+      LEFT JOIN TuVung w ON p.TuLoaiID = w.TuLoaiID
+      GROUP BY p.TenTuLoai
+      ORDER BY p.TenTuLoai;
 
       SELECT TOP 5
-        COALESCE(t.TopicName, 'Uncategorized') AS label,
-        CAST(SUM(CASE WHEN ea.IsCorrect = 1 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(ea.ExerciseAttemptID), 0) AS DECIMAL(5,2)) AS accuracy
-      FROM ExerciseAttempts ea
-      JOIN Words w ON ea.WordID = w.WordID
-      LEFT JOIN WordTopics wt ON w.WordID = wt.WordID
-      LEFT JOIN Topics t ON wt.TopicID = t.TopicID
-      GROUP BY COALESCE(t.TopicName, 'Uncategorized')
+        COALESCE(t.TenChuDe, 'Uncategorized') AS label,
+        CAST(SUM(CASE WHEN ea.DungSai = 1 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(ea.LanLamBaiTapID), 0) AS DECIMAL(5,2)) AS accuracy
+      FROM LanLamBaiTap ea
+      JOIN TuVung w ON ea.TuVungID = w.TuVungID
+      LEFT JOIN TuVungChuDe wt ON w.TuVungID = wt.TuVungID
+      LEFT JOIN ChuDe t ON wt.ChuDeID = t.ChuDeID
+      GROUP BY COALESCE(t.TenChuDe, 'Uncategorized')
       ORDER BY accuracy ASC;
     `);
 
@@ -874,109 +874,109 @@ class AdminService {
     const pool = await poolPromise;
     const result = await pool.request().query(`
       SELECT
-        (SELECT COUNT(*) FROM Topics WHERE ContentStatus = 'Published') +
-        (SELECT COUNT(*) FROM Words WHERE ContentStatus = 'Published') +
-        (SELECT COUNT(*) FROM Questions WHERE ContentStatus = 'Published') +
-        (SELECT COUNT(*) FROM MiniTests WHERE ContentStatus = 'Published') AS publishedItems,
-        (SELECT COUNT(*) FROM Words) AS totalWords,
-        (SELECT COUNT(*) FROM Questions) AS totalQuestions,
-        (SELECT COUNT(*) FROM TopicCategories WHERE IsActive = 1) AS activeCategories,
-        (SELECT COUNT(*) FROM Topics WHERE ContentStatus IN ('Draft','PendingReview','Rejected')) +
-        (SELECT COUNT(*) FROM Words WHERE ContentStatus IN ('Draft','PendingReview','Rejected')) +
-        (SELECT COUNT(*) FROM Questions WHERE ContentStatus IN ('Draft','PendingReview','Rejected')) +
-        (SELECT COUNT(*) FROM MiniTests WHERE ContentStatus IN ('Draft','PendingReview','Rejected')) AS reviewItems;
+        (SELECT COUNT(*) FROM ChuDe WHERE TrangThaiNoiDung = 'DaXuatBan') +
+        (SELECT COUNT(*) FROM TuVung WHERE TrangThaiNoiDung = 'DaXuatBan') +
+        (SELECT COUNT(*) FROM CauHoi WHERE TrangThaiNoiDung = 'DaXuatBan') +
+        (SELECT COUNT(*) FROM BaiKiemTraNho WHERE TrangThaiNoiDung = 'DaXuatBan') AS publishedItems,
+        (SELECT COUNT(*) FROM TuVung) AS totalWords,
+        (SELECT COUNT(*) FROM CauHoi) AS totalQuestions,
+        (SELECT COUNT(*) FROM DanhMucChuDe WHERE DangHoatDong = 1) AS activeCategories,
+        (SELECT COUNT(*) FROM ChuDe WHERE TrangThaiNoiDung IN ('BanNhap','ChoDuyet','BiTuChoi')) +
+        (SELECT COUNT(*) FROM TuVung WHERE TrangThaiNoiDung IN ('BanNhap','ChoDuyet','BiTuChoi')) +
+        (SELECT COUNT(*) FROM CauHoi WHERE TrangThaiNoiDung IN ('BanNhap','ChoDuyet','BiTuChoi')) +
+        (SELECT COUNT(*) FROM BaiKiemTraNho WHERE TrangThaiNoiDung IN ('BanNhap','ChoDuyet','BiTuChoi')) AS reviewItems;
 
       SELECT TOP 100 *
       FROM (
         SELECT
-          CONCAT('TOPIC-', t.TopicID) AS id,
-          t.TopicID AS entityId,
+          CONCAT('TOPIC-', t.ChuDeID) AS id,
+          t.ChuDeID AS entityId,
           'Topic' AS type,
-          t.TopicName AS title,
-          COALESCE(tc.CategoryName, 'Uncategorized') AS category,
-          t.TopicCode AS code,
-          t.ContentStatus AS status,
-          COUNT(DISTINCT wt.WordID) AS itemCount,
+          t.TenChuDe AS title,
+          COALESCE(tc.TenDanhMuc, 'Uncategorized') AS category,
+          t.MaChuDe AS code,
+          t.TrangThaiNoiDung AS status,
+          COUNT(DISTINCT wt.TuVungID) AS itemCount,
           0 AS attempts,
           CAST(NULL AS DECIMAL(5,2)) AS accuracy,
-          t.UpdatedAt AS updatedAt
-        FROM Topics t
-        LEFT JOIN TopicCategories tc ON t.TopicCategoryID = tc.TopicCategoryID
-        LEFT JOIN WordTopics wt ON t.TopicID = wt.TopicID
-        GROUP BY t.TopicID, t.TopicName, tc.CategoryName, t.TopicCode, t.ContentStatus, t.UpdatedAt
+          t.ThoiDiemCapNhat AS updatedAt
+        FROM ChuDe t
+        LEFT JOIN DanhMucChuDe tc ON t.DanhMucChuDeID = tc.DanhMucChuDeID
+        LEFT JOIN TuVungChuDe wt ON t.ChuDeID = wt.ChuDeID
+        GROUP BY t.ChuDeID, t.TenChuDe, tc.TenDanhMuc, t.MaChuDe, t.TrangThaiNoiDung, t.ThoiDiemCapNhat
 
         UNION ALL
 
         SELECT
-          CONCAT('WORD-', w.WordID) AS id,
-          w.WordID AS entityId,
+          CONCAT('WORD-', w.TuVungID) AS id,
+          w.TuVungID AS entityId,
           'Word' AS type,
-          w.Term AS title,
-          COALESCE(p.PartOfSpeechName, 'Vocabulary') AS category,
-          CAST(w.DifficultyLevel AS nvarchar(20)) AS code,
-          w.ContentStatus AS status,
-          COUNT(DISTINCT q.QuestionID) AS itemCount,
-          COUNT(DISTINCT ea.ExerciseAttemptID) AS attempts,
-          CAST(SUM(CASE WHEN ea.IsCorrect = 1 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(ea.ExerciseAttemptID), 0) AS DECIMAL(5,2)) AS accuracy,
-          w.UpdatedAt AS updatedAt
-        FROM Words w
-        LEFT JOIN PartOfSpeeches p ON w.PartOfSpeechID = p.PartOfSpeechID
-        LEFT JOIN Questions q ON w.WordID = q.WordID
-        LEFT JOIN ExerciseAttempts ea ON w.WordID = ea.WordID
-        GROUP BY w.WordID, w.Term, p.PartOfSpeechName, w.DifficultyLevel, w.ContentStatus, w.UpdatedAt
+          w.Tu AS title,
+          COALESCE(p.TenTuLoai, 'Vocabulary') AS category,
+          CAST(w.MucDoKho AS nvarchar(20)) AS code,
+          w.TrangThaiNoiDung AS status,
+          COUNT(DISTINCT q.CauHoiID) AS itemCount,
+          COUNT(DISTINCT ea.LanLamBaiTapID) AS attempts,
+          CAST(SUM(CASE WHEN ea.DungSai = 1 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(ea.LanLamBaiTapID), 0) AS DECIMAL(5,2)) AS accuracy,
+          w.ThoiDiemCapNhat AS updatedAt
+        FROM TuVung w
+        LEFT JOIN TuLoai p ON w.TuLoaiID = p.TuLoaiID
+        LEFT JOIN CauHoi q ON w.TuVungID = q.TuVungID
+        LEFT JOIN LanLamBaiTap ea ON w.TuVungID = ea.TuVungID
+        GROUP BY w.TuVungID, w.Tu, p.TenTuLoai, w.MucDoKho, w.TrangThaiNoiDung, w.ThoiDiemCapNhat
 
         UNION ALL
 
         SELECT
-          CONCAT('QUESTION-', q.QuestionID) AS id,
-          q.QuestionID AS entityId,
+          CONCAT('QUESTION-', q.CauHoiID) AS id,
+          q.CauHoiID AS entityId,
           'Question' AS type,
-          q.QuestionText AS title,
-          q.QuestionType AS category,
-          w.Term AS code,
-          q.ContentStatus AS status,
+          q.NoiDungCauHoi AS title,
+          q.LoaiCauHoi AS category,
+          w.Tu AS code,
+          q.TrangThaiNoiDung AS status,
           1 AS itemCount,
-          COUNT(ea.ExerciseAttemptID) AS attempts,
-          CAST(SUM(CASE WHEN ea.IsCorrect = 1 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(ea.ExerciseAttemptID), 0) AS DECIMAL(5,2)) AS accuracy,
-          q.UpdatedAt AS updatedAt
-        FROM Questions q
-        JOIN Words w ON q.WordID = w.WordID
-        LEFT JOIN ExerciseAttempts ea ON q.QuestionID = ea.QuestionID
-        GROUP BY q.QuestionID, q.QuestionText, q.QuestionType, w.Term, q.ContentStatus, q.UpdatedAt
+          COUNT(ea.LanLamBaiTapID) AS attempts,
+          CAST(SUM(CASE WHEN ea.DungSai = 1 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(ea.LanLamBaiTapID), 0) AS DECIMAL(5,2)) AS accuracy,
+          q.ThoiDiemCapNhat AS updatedAt
+        FROM CauHoi q
+        JOIN TuVung w ON q.TuVungID = w.TuVungID
+        LEFT JOIN LanLamBaiTap ea ON q.CauHoiID = ea.CauHoiID
+        GROUP BY q.CauHoiID, q.NoiDungCauHoi, q.LoaiCauHoi, w.Tu, q.TrangThaiNoiDung, q.ThoiDiemCapNhat
 
         UNION ALL
 
         SELECT
-          CONCAT('MINITEST-', mt.MiniTestID) AS id,
-          mt.MiniTestID AS entityId,
+          CONCAT('MINITEST-', mt.BaiKiemTraNhoID) AS id,
+          mt.BaiKiemTraNhoID AS entityId,
           'MiniTest' AS type,
-          mt.TestTitle AS title,
-          COALESCE(t.TopicName, 'General') AS category,
-          CAST(mt.TotalQuestions AS nvarchar(20)) AS code,
-          mt.ContentStatus AS status,
-          mt.TotalQuestions AS itemCount,
-          COUNT(mta.MiniTestAttemptID) AS attempts,
-          CAST(AVG(mta.Score) AS DECIMAL(5,2)) AS accuracy,
-          mt.UpdatedAt AS updatedAt
-        FROM MiniTests mt
-        LEFT JOIN Topics t ON mt.TopicID = t.TopicID
-        LEFT JOIN MiniTestAttempts mta ON mt.MiniTestID = mta.MiniTestID
-        GROUP BY mt.MiniTestID, mt.TestTitle, t.TopicName, mt.TotalQuestions, mt.ContentStatus, mt.UpdatedAt
+          mt.TieuDeBaiKiemTra AS title,
+          COALESCE(t.TenChuDe, 'General') AS category,
+          CAST(mt.TongSoCauHoi AS nvarchar(20)) AS code,
+          mt.TrangThaiNoiDung AS status,
+          mt.TongSoCauHoi AS itemCount,
+          COUNT(mta.LanLamBaiKiemTraNhoID) AS attempts,
+          CAST(AVG(mta.Diem) AS DECIMAL(5,2)) AS accuracy,
+          mt.ThoiDiemCapNhat AS updatedAt
+        FROM BaiKiemTraNho mt
+        LEFT JOIN ChuDe t ON mt.ChuDeID = t.ChuDeID
+        LEFT JOIN LanLamBaiKiemTraNho mta ON mt.BaiKiemTraNhoID = mta.BaiKiemTraNhoID
+        GROUP BY mt.BaiKiemTraNhoID, mt.TieuDeBaiKiemTra, t.TenChuDe, mt.TongSoCauHoi, mt.TrangThaiNoiDung, mt.ThoiDiemCapNhat
       ) content
       ORDER BY updatedAt DESC;
 
-      SELECT CategoryName AS name, CategoryCode AS code, DisplayOrder, IsActive
-      FROM TopicCategories
-      ORDER BY DisplayOrder, CategoryName;
+      SELECT TenDanhMuc AS name, MaDanhMuc AS code, ThuTuHienThi AS DisplayOrder, DangHoatDong AS IsActive
+      FROM DanhMucChuDe
+      ORDER BY DisplayOrder, TenDanhMuc;
 
       SELECT TOP 10
-        EntityType AS type,
-        EntityID AS entityId,
-        NewStatus AS status,
-        Comment AS reason,
-        CreatedAt AS createdAt
-      FROM ContentReviewLogs
-      ORDER BY CreatedAt DESC;
+        LoaiDoiTuong AS type,
+        DoiTuongID AS entityId,
+        TrangThaiMoi AS status,
+        GhiChu AS reason,
+        ThoiDiemTao AS createdAt
+      FROM NhatKyDuyetNoiDung
+      ORDER BY ThoiDiemTao DESC;
     `);
 
     return {
@@ -991,42 +991,42 @@ class AdminService {
     const pool = await poolPromise;
     const result = await pool.request().query(`
       SELECT
-        (SELECT COUNT(*) FROM ContentReviewLogs WHERE NewStatus IN ('Draft','PendingReview','Rejected')) AS openReports,
-        (SELECT COUNT(*) FROM Users WHERE IsActive = 0) AS restrictedUsers,
-        (SELECT COUNT(*) FROM Words WHERE ContentStatus <> 'Published') +
-        (SELECT COUNT(*) FROM Questions WHERE ContentStatus <> 'Published') +
-        (SELECT COUNT(*) FROM Topics WHERE ContentStatus <> 'Published') +
-        (SELECT COUNT(*) FROM MiniTests WHERE ContentStatus <> 'Published') AS reportedContent,
-        (SELECT COUNT(*) FROM ContentReviewLogs WHERE NewStatus = 'Published' AND CreatedAt >= DATEADD(day, -7, SYSDATETIMEOFFSET())) AS resolvedThisWeek;
+        (SELECT COUNT(*) FROM NhatKyDuyetNoiDung WHERE TrangThaiMoi IN ('BanNhap','ChoDuyet','BiTuChoi')) AS openReports,
+        (SELECT COUNT(*) FROM NguoiDung WHERE DangHoatDong = 0) AS restrictedUsers,
+        (SELECT COUNT(*) FROM TuVung WHERE TrangThaiNoiDung <> 'DaXuatBan') +
+        (SELECT COUNT(*) FROM CauHoi WHERE TrangThaiNoiDung <> 'DaXuatBan') +
+        (SELECT COUNT(*) FROM ChuDe WHERE TrangThaiNoiDung <> 'DaXuatBan') +
+        (SELECT COUNT(*) FROM BaiKiemTraNho WHERE TrangThaiNoiDung <> 'DaXuatBan') AS reportedContent,
+        (SELECT COUNT(*) FROM NhatKyDuyetNoiDung WHERE TrangThaiMoi = 'DaXuatBan' AND ThoiDiemTao >= DATEADD(day, -7, SYSDATETIMEOFFSET())) AS resolvedThisWeek;
 
       SELECT TOP 50 *
       FROM (
-        SELECT CONCAT('WORD-', WordID) AS id, 'Word' AS type, Term AS target, ContentStatus AS status, CreatedAt AS receivedAt, CreatedByUserID AS reporterId, DifficultyLevel AS severityScore
-        FROM Words WHERE ContentStatus <> 'Published'
+        SELECT CONCAT('WORD-', TuVungID) AS id, 'Word' AS type, Tu AS target, TrangThaiNoiDung AS status, ThoiDiemTao AS receivedAt, NguoiTaoID AS reporterId, MucDoKho AS severityScore
+        FROM TuVung WHERE TrangThaiNoiDung <> 'DaXuatBan'
         UNION ALL
-        SELECT CONCAT('QUESTION-', QuestionID), 'Question', LEFT(QuestionText, 160), ContentStatus, CreatedAt, CreatedByUserID, DifficultyLevel
-        FROM Questions WHERE ContentStatus <> 'Published'
+        SELECT CONCAT('QUESTION-', CauHoiID), 'Question', LEFT(NoiDungCauHoi, 160), TrangThaiNoiDung, ThoiDiemTao, NguoiTaoID, MucDoKho
+        FROM CauHoi WHERE TrangThaiNoiDung <> 'DaXuatBan'
         UNION ALL
-        SELECT CONCAT('TOPIC-', TopicID), 'Topic', TopicName, ContentStatus, CreatedAt, CreatedByUserID, 1
-        FROM Topics WHERE ContentStatus <> 'Published'
+        SELECT CONCAT('TOPIC-', ChuDeID), 'Topic', TenChuDe, TrangThaiNoiDung, ThoiDiemTao, NguoiTaoID, 1
+        FROM ChuDe WHERE TrangThaiNoiDung <> 'DaXuatBan'
         UNION ALL
-        SELECT CONCAT('MINITEST-', MiniTestID), 'MiniTest', TestTitle, ContentStatus, CreatedAt, CreatedByUserID, 1
-        FROM MiniTests WHERE ContentStatus <> 'Published'
+        SELECT CONCAT('MINITEST-', BaiKiemTraNhoID), 'MiniTest', TieuDeBaiKiemTra, TrangThaiNoiDung, ThoiDiemTao, NguoiTaoID, 1
+        FROM BaiKiemTraNho WHERE TrangThaiNoiDung <> 'DaXuatBan'
       ) queue
       ORDER BY receivedAt DESC;
 
       SELECT TOP 20
-        crl.ContentReviewLogID AS id,
-        crl.EntityType AS type,
-        crl.EntityID AS entityId,
-        crl.OldStatus AS oldStatus,
-        crl.NewStatus AS newStatus,
-        crl.Comment AS comment,
-        crl.CreatedAt AS createdAt,
-        u.FullName AS actor
-      FROM ContentReviewLogs crl
-      JOIN Users u ON crl.ActionByUserID = u.UserID
-      ORDER BY crl.CreatedAt DESC;
+        crl.NhatKyDuyetNoiDungID AS id,
+        crl.LoaiDoiTuong AS type,
+        crl.DoiTuongID AS entityId,
+        crl.TrangThaiCu AS oldStatus,
+        crl.TrangThaiMoi AS newStatus,
+        crl.GhiChu AS comment,
+        crl.ThoiDiemTao AS createdAt,
+        u.HoTen AS actor
+      FROM NhatKyDuyetNoiDung crl
+      JOIN NguoiDung u ON crl.NguoiThucHienID = u.NguoiDungID
+      ORDER BY crl.ThoiDiemTao DESC;
     `);
 
     return {
@@ -1040,32 +1040,32 @@ class AdminService {
     const pool = await poolPromise;
     const result = await pool.request().query(`
       SELECT
-        (SELECT COUNT(*) FROM Roles) AS totalRoles,
-        (SELECT COUNT(*) FROM Permissions) AS totalPermissions,
-        (SELECT COUNT(*) FROM RolePermissions) AS assignedPermissions,
-        (SELECT COUNT(*) FROM Users WHERE IsActive = 1) AS activeUsers,
-        (SELECT COUNT(*) FROM MediaAssets) AS mediaAssets;
+        (SELECT COUNT(*) FROM VaiTro) AS totalRoles,
+        (SELECT COUNT(*) FROM Quyen) AS totalPermissions,
+        (SELECT COUNT(*) FROM QuyenVaiTro) AS assignedPermissions,
+        (SELECT COUNT(*) FROM NguoiDung WHERE DangHoatDong = 1) AS activeUsers,
+        (SELECT COUNT(*) FROM TepMedia) AS mediaAssets;
 
-      SELECT r.RoleID AS id, r.RoleName AS name, r.Description AS description, COUNT(rp.PermissionID) AS permissionCount
-      FROM Roles r
-      LEFT JOIN RolePermissions rp ON r.RoleID = rp.RoleID
-      GROUP BY r.RoleID, r.RoleName, r.Description
-      ORDER BY r.RoleName;
+      SELECT r.VaiTroID AS id, r.TenVaiTro AS name, r.MoTa AS description, COUNT(rp.QuyenID) AS permissionCount
+      FROM VaiTro r
+      LEFT JOIN QuyenVaiTro rp ON r.VaiTroID = rp.VaiTroID
+      GROUP BY r.VaiTroID, r.TenVaiTro, r.MoTa
+      ORDER BY r.TenVaiTro;
 
-      SELECT r.RoleName AS roleName, p.PermissionCode AS permissionCode, p.Description AS description
-      FROM Roles r
-      JOIN RolePermissions rp ON r.RoleID = rp.RoleID
-      JOIN Permissions p ON rp.PermissionID = p.PermissionID
-      ORDER BY r.RoleName, p.PermissionCode;
+      SELECT r.TenVaiTro AS roleName, p.MaQuyen AS permissionCode, p.MoTa AS description
+      FROM VaiTro r
+      JOIN QuyenVaiTro rp ON r.VaiTroID = rp.VaiTroID
+      JOIN Quyen p ON rp.QuyenID = p.QuyenID
+      ORDER BY r.TenVaiTro, p.MaQuyen;
 
       SELECT v.Name AS name, CASE WHEN o.object_id IS NULL THEN 0 ELSE 1 END AS existsInDatabase
       FROM (VALUES
         ('Notifications'),
         ('Achievements'),
         ('UserAchievements'),
-        ('MediaAssets'),
-        ('ContentReviewLogs'),
-        ('MiniTestAttempts')
+        ('TepMedia'),
+        ('NhatKyDuyetNoiDung'),
+        ('LanLamBaiKiemTraNho')
       ) v(Name)
       LEFT JOIN sys.objects o ON o.name = v.Name AND SCHEMA_NAME(o.schema_id) = 'dbo'
       ORDER BY v.Name;
@@ -1093,55 +1093,55 @@ class AdminService {
       .input('Limit', sql.Int, limit)
       .query(`
         SELECT TOP (@Limit)
-          n.NotificationID AS id,
-          n.UserID AS userId,
-          u.FullName AS fullName,
+          n.ThongBaoID AS id,
+          n.NguoiDungID AS userId,
+          u.HoTen AS fullName,
           u.Email AS email,
-          n.Title AS title,
-          n.Message AS message,
-          n.Type AS type,
-          n.DeliveryChannel AS deliveryChannel,
-          n.IsRead AS isRead,
-          n.CreatedAt AS createdAt,
-          n.ActionUrl AS actionUrl
-        FROM Notifications n
-        JOIN Users u ON n.UserID = u.UserID
-        ORDER BY n.CreatedAt DESC
+          n.TieuDe AS title,
+          n.NoiDung AS message,
+          n.LoaiThongBao AS type,
+          n.KenhGiaoHang AS deliveryChannel,
+          n.DaDoc AS isRead,
+          n.ThoiDiemTao AS createdAt,
+          n.HanhDongURL AS actionUrl
+        FROM ThongBao n
+        JOIN NguoiDung u ON n.NguoiDungID = u.NguoiDungID
+        ORDER BY n.ThoiDiemTao DESC
       `);
 
     return result.recordset;
   }
 
-  static async sendAnnouncement({ audience = 'All users', title, message, deliveryChannel = 'InApp', actionUrl = null }) {
+  static async sendAnnouncement({ audience = 'Tất cả người dùng', title, message, deliveryChannel = 'InApp', actionUrl = null }) {
     if (!title || !message) {
-      throw new Error('Missing title or message');
+      throw new Error('Thiếu tiêu đề hoặc nội dung');
     }
 
     const pool = await poolPromise;
     const result = await pool.request()
       .input('Audience', sql.NVarChar(50), audience)
-      .input('Title', sql.NVarChar(200), title)
-      .input('Message', sql.NVarChar(2000), message)
-      .input('DeliveryChannel', sql.NVarChar(20), deliveryChannel)
-      .input('ActionUrl', sql.NVarChar(500), actionUrl)
+      .input('TieuDe', sql.NVarChar(200), title)
+      .input('NoiDung', sql.NVarChar(2000), message)
+      .input('KenhGiaoHang', sql.NVarChar(20), deliveryChannel)
+      .input('HanhDongURL', sql.NVarChar(500), actionUrl)
       .query(`
-        IF OBJECT_ID(N'dbo.Notifications', N'U') IS NULL
-          THROW 50020, 'Notifications table is missing. Run migration_alignment_improvements.sql first.', 1;
+        IF OBJECT_ID(N'dbo.ThongBao', N'U') IS NULL
+          THROW 50020, 'Bảng ThongBao bị thiếu.', 1;
 
-        INSERT INTO Notifications (UserID, Title, Message, Type, DeliveryChannel, ActionUrl)
+        INSERT INTO ThongBao (NguoiDungID, TieuDe, NoiDung, LoaiThongBao, KenhGiaoHang, HanhDongURL)
         SELECT
-          UserID,
-          @Title,
-          @Message,
-          'Announcement',
-          CASE WHEN @DeliveryChannel = 'Both' THEN 'InApp' ELSE @DeliveryChannel END,
-          @ActionUrl
-        FROM Users
-        WHERE IsActive = 1
+          NguoiDungID,
+          @TieuDe,
+          @NoiDung,
+          N'Thông báo',
+          CASE WHEN @KenhGiaoHang = 'Both' THEN 'InApp' ELSE @KenhGiaoHang END,
+          @HanhDongURL
+        FROM NguoiDung
+        WHERE DangHoatDong = 1
           AND (
-            @Audience = 'All users'
-            OR (@Audience = 'Learners' AND UserRole = 'Learner')
-            OR (@Audience = 'Admins' AND UserRole = 'Admin')
+            @Audience = N'Tất cả người dùng'
+            OR (@Audience = 'Learners' AND VaiTroNguoiDung = 'NguoiHoc')
+            OR (@Audience = 'Admins' AND VaiTroNguoiDung = 'QuanTriVien')
           );
 
         SELECT @@ROWCOUNT AS inserted;
@@ -1153,35 +1153,35 @@ class AdminService {
   static async createDailyReminders() {
     const pool = await poolPromise;
     const result = await pool.request().query(`
-      IF OBJECT_ID(N'dbo.Notifications', N'U') IS NULL
-        THROW 50020, 'Notifications table is missing. Run migration_alignment_improvements.sql first.', 1;
+      IF OBJECT_ID(N'dbo.ThongBao', N'U') IS NULL
+        THROW 50020, 'Bảng ThongBao bị thiếu.', 1;
 
-      INSERT INTO Notifications (UserID, Title, Message, Type, DeliveryChannel, ActionUrl)
+      INSERT INTO ThongBao (NguoiDungID, TieuDe, NoiDung, LoaiThongBao, KenhGiaoHang, HanhDongURL)
       SELECT
-        u.UserID,
-        N'Time to study!',
-        CONCAT(N'You have ', due.DueWords, N' words waiting for review today.'),
-        'DailyReminder',
+        u.NguoiDungID,
+        N'Đã đến lúc học bài!',
+        CONCAT(N'Bạn có ', due.DueWords, N' từ vựng đang chờ ôn tập hôm nay.'),
+        'Nhắc nhở hàng ngày',
         'InApp',
         '/user/learn'
-      FROM Users u
+      FROM NguoiDung u
       CROSS APPLY
       (
         SELECT COUNT(*) AS DueWords
-        FROM UserWordProgress uwp
-        WHERE uwp.UserID = u.UserID
-          AND (uwp.NextReviewDate IS NULL OR uwp.NextReviewDate <= SYSDATETIMEOFFSET())
+        FROM TienDoTuVungNguoiDung uwp
+        WHERE uwp.NguoiDungID = u.NguoiDungID
+          AND (uwp.NgayOnTapTiepTheo IS NULL OR uwp.NgayOnTapTiepTheo <= SYSDATETIMEOFFSET())
       ) due
-      WHERE u.IsActive = 1
-        AND u.UserRole = 'Learner'
+      WHERE u.DangHoatDong = 1
+        AND u.VaiTroNguoiDung = 'NguoiHoc'
         AND due.DueWords > 0
         AND NOT EXISTS
         (
           SELECT 1
-          FROM Notifications n
-          WHERE n.UserID = u.UserID
-            AND n.Type = 'DailyReminder'
-            AND CAST(n.CreatedAt AS DATE) = CAST(SYSDATETIMEOFFSET() AS DATE)
+          FROM ThongBao n
+          WHERE n.NguoiDungID = u.NguoiDungID
+            AND n.LoaiThongBao = 'Nhắc nhở hàng ngày'
+            AND CAST(n.ThoiDiemTao AS DATE) = CAST(SYSDATETIMEOFFSET() AS DATE)
         );
 
       SELECT @@ROWCOUNT AS inserted;

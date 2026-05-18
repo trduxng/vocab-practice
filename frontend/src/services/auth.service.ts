@@ -18,7 +18,7 @@ type AuthResponse = {
     id: number;
     fullName: string;
     email: string;
-    role: "Admin" | "Learner" | "ContentCreator";
+    role: "QuanTriVien" | "NguoiHoc" | "BienTapVien";
   };
 };
 

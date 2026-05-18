@@ -4,7 +4,7 @@ export interface UserMutationPayload {
   fullName: string;
   email: string;
   password?: string;
-  role: 'Admin' | 'Learner' | 'ContentCreator';
+  role: 'QuanTriVien' | 'NguoiHoc' | 'BienTapVien';
   isActive: boolean;
 }
 

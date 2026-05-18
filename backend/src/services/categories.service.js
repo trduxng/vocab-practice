@@ -5,7 +5,7 @@ class CategoriesService {
   static async getPartOfSpeeches() {
     const pool = await poolPromise;
     const result = await pool.request().query(`
-      SELECT PartOfSpeechID AS id, PartOfSpeechName AS name, Description AS description FROM PartOfSpeeches
+      SELECT TuLoaiID AS id, TenTuLoai AS name, MoTa AS description FROM TuLoai
     `);
     return result.recordset;
   }
@@ -13,7 +13,7 @@ class CategoriesService {
   static async getTopics() {
     const pool = await poolPromise;
     const result = await pool.request().query(`
-      SELECT TopicID AS id, TopicName AS name, TopicCode AS code, Description AS description FROM Topics
+      SELECT ChuDeID AS id, TenChuDe AS name, MaChuDe AS code, MoTa AS description FROM ChuDe
     `);
     return result.recordset;
   }

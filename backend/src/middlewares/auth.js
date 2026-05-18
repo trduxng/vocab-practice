@@ -17,7 +17,7 @@ const verifyToken = (req, res, next) => {
 };
 
 const verifyAdmin = (req, res, next) => {
-  if (!req.user || req.user.role !== 'Admin') {
+  if (!req.user || req.user.role !== 'QuanTriVien') {
     return res.status(403).json({ message: 'Không có quyền truy cập' });
   }
   next();
