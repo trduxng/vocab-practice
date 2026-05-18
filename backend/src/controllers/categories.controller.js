@@ -13,7 +13,7 @@ class CategoriesController {
 
   static async getTopics(req, res, next) {
     try {
-      const topics = await CategoriesService.getTopics();
+      const topics = await CategoriesService.getTopics(req.user?.id);
       res.status(200).json(topics);
     } catch (error) {
       next(error);

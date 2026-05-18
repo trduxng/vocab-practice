@@ -1,19 +1,39 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowLeft, CheckCircle2, Clock, GripVertical, RefreshCw, Volume2, XCircle } from "lucide-react";
 import { userService } from "@/src/services/user.service";
 import { useAuth } from "@/src/app/context/AuthContext";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 import { Card } from "@/src/components/ui/card";
-import { ArrowLeft, CheckCircle2, Clock, GripVertical, RefreshCw, Volume2, XCircle } from "lucide-react";
 
 const QUESTION_TIME = 20;
 
+type PracticeQuestion = {
+  questionId: number;
+  wordId: number;
+  questionType?: "MCQ" | "Dictation" | "DragDrop" | "FillBlank" | string;
+  questionText?: string;
+  optionsJson?: string;
+  correctAnswer?: string;
+  term?: string;
+  meaning?: string;
+};
+
+const shuffle = <T,>(items: T[]) => {
+  const nextItems = [...items];
+  for (let index = nextItems.length - 1; index > 0; index -= 1) {
+    const swapIndex = (index * 7 + 3) % (index + 1);
+    [nextItems[index], nextItems[swapIndex]] = [nextItems[swapIndex], nextItems[index]];
+  }
+  return nextItems;
+};
+
 export default function UserPractice() {
   const { user, loading: authLoading } = useAuth();
-  const [questions, setQuestions] = useState<any[]>([]);
+  const [questions, setQuestions] = useState<PracticeQuestion[]>([]);
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState("");
   const [checked, setChecked] = useState(false);
@@ -31,7 +51,7 @@ export default function UserPractice() {
         const topicId = searchParams.get("topicId") || undefined;
         const mode = searchParams.get("mode") || undefined;
         const data = await userService.getDueFlashcards({ topicId, mode });
-        setQuestions(data.sort(() => Math.random() - 0.5));
+        setQuestions(shuffle(data));
       } catch (error) {
         console.error("Failed to fetch questions", error);
       } finally {
@@ -61,28 +81,26 @@ export default function UserPractice() {
       const parsed = JSON.parse(current.optionsJson || "{}");
       if (Array.isArray(parsed.items)) return parsed.items;
     } catch {
-      // Fallback below.
+      // Use fallback below.
     }
-    return expectedAnswer.split(/\s+/).filter(Boolean).sort(() => Math.random() - 0.5);
+    return shuffle(expectedAnswer.split(/\s+/).filter(Boolean));
   }, [current, expectedAnswer]);
 
-  useEffect(() => {
+  const resetQuestionState = useCallback((items: string[] = []) => {
     setSelected("");
     setChecked(false);
     setTimeLeft(QUESTION_TIME);
-    setOrderedItems(dragItems);
-  }, [index, dragItems]);
+    setOrderedItems(items);
+    setDraggedIndex(null);
+  }, []);
 
   useEffect(() => {
-    if (checked || !current) return;
-    if (timeLeft <= 0) {
-      handleCheck(true);
-      return;
+    if (current?.questionType === "DragDrop") {
+      void Promise.resolve().then(() => resetQuestionState(dragItems));
+    } else {
+      void Promise.resolve().then(() => resetQuestionState());
     }
-
-    const timer = setTimeout(() => setTimeLeft((value) => value - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [timeLeft, checked, current]);
+  }, [current?.questionId, current?.questionType, dragItems, resetQuestionState]);
 
   const speak = (text: string) => {
     if (typeof window !== "undefined" && window.speechSynthesis && text) {
@@ -98,18 +116,7 @@ export default function UserPractice() {
     ? selected === expectedAnswer
     : submittedAnswer.toLowerCase().trim() === expectedAnswer.toLowerCase().trim();
 
-  const moveDraggedItem = (targetIndex: number) => {
-    if (draggedIndex === null || draggedIndex === targetIndex) return;
-    setOrderedItems((items) => {
-      const nextItems = [...items];
-      const [moved] = nextItems.splice(draggedIndex, 1);
-      nextItems.splice(targetIndex, 0, moved);
-      return nextItems;
-    });
-    setDraggedIndex(targetIndex);
-  };
-
-  const handleCheck = async (isTimeout = false) => {
+  const handleCheck = useCallback(async (isTimeout = false) => {
     if (!current || checked) return;
     const correct = !isTimeout && isCorrect;
 
@@ -127,6 +134,28 @@ export default function UserPractice() {
     } catch (error) {
       console.error("Failed to submit answer", error);
     }
+  }, [checked, current, isCorrect, submittedAnswer]);
+
+  useEffect(() => {
+    if (checked || !current) return;
+    if (timeLeft <= 0) {
+      void Promise.resolve().then(() => handleCheck(true));
+      return;
+    }
+
+    const timer = setTimeout(() => setTimeLeft((value) => value - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [timeLeft, checked, current, handleCheck]);
+
+  const moveDraggedItem = (targetIndex: number) => {
+    if (draggedIndex === null || draggedIndex === targetIndex) return;
+    setOrderedItems((items) => {
+      const nextItems = [...items];
+      const [moved] = nextItems.splice(draggedIndex, 1);
+      nextItems.splice(targetIndex, 0, moved);
+      return nextItems;
+    });
+    setDraggedIndex(targetIndex);
   };
 
   const next = () => {
@@ -138,16 +167,16 @@ export default function UserPractice() {
   };
 
   if (authLoading || loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-[#0a0f1e] text-white">Dang tai cau hoi...</div>;
+    return <div className="min-h-screen flex items-center justify-center bg-[#0a0f1e] text-white">Đang tải câu hỏi...</div>;
   }
 
   if (questions.length === 0) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#0a0f1e] text-white p-6 text-center">
         <CheckCircle2 size={64} className="text-green-500 mb-6 opacity-20" />
-        <h2 className="text-2xl font-bold mb-2">Khong co cau hoi</h2>
-        <p className="text-slate-400 mb-8">Ban da hoan thanh het muc tieu luyen tap hom nay.</p>
-        <Button onClick={() => router.push("/user/dashboard")} className="bg-blue-600">Quay ve Dashboard</Button>
+        <h2 className="text-2xl font-bold mb-2">Không có câu hỏi</h2>
+        <p className="text-slate-400 mb-8">Bạn đã hoàn thành hết mục tiêu luyện tập hôm nay.</p>
+        <Button onClick={() => router.push("/user/dashboard")} className="bg-blue-600">Quay về tổng quan</Button>
       </div>
     );
   }
@@ -160,19 +189,19 @@ export default function UserPractice() {
           <div className="w-20 h-20 bg-blue-600/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-blue-500/30">
             <RefreshCw size={40} className="text-blue-400" />
           </div>
-          <h1 className="text-3xl font-bold mb-2 text-white">Hoan thanh</h1>
+          <h1 className="text-3xl font-bold mb-2 text-white">Hoàn thành</h1>
           <div className="flex justify-center gap-8 my-8">
             <div>
-              <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1">Diem so</p>
+              <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1">Điểm số</p>
               <p className="text-2xl font-black text-white">{score}/{questions.length}</p>
             </div>
             <div>
-              <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1">Chinh xac</p>
+              <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1">Chính xác</p>
               <p className="text-2xl font-black text-green-400">{accuracy}%</p>
             </div>
           </div>
           <div className="flex gap-4">
-            <Button variant="outline" onClick={() => window.location.reload()} className="flex-1 border-white/10 text-white h-12 rounded-xl">Lam lai</Button>
+            <Button variant="outline" onClick={() => window.location.reload()} className="flex-1 border-white/10 text-white h-12 rounded-xl">Làm lại</Button>
             <Button onClick={() => router.push("/user/dashboard")} className="flex-1 bg-blue-600 h-12 rounded-xl font-bold uppercase text-[10px] tracking-widest">Xong</Button>
           </div>
         </Card>
@@ -182,24 +211,24 @@ export default function UserPractice() {
 
   const progress = ((index + 1) / questions.length) * 100;
   const questionLabel = current.questionType === "MCQ"
-    ? "Multiple Choice"
+    ? "Trắc nghiệm"
     : current.questionType === "Dictation"
-      ? "Dictation"
+      ? "Nghe và gõ lại"
       : current.questionType === "DragDrop"
-        ? "Sentence Ordering"
-        : "Fill In The Blank";
+        ? "Sắp xếp câu"
+        : "Điền từ vào chỗ trống";
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0a0f1e] px-4 py-10 relative">
       <button onClick={() => router.push("/user/dashboard")} className="absolute top-8 left-8 text-slate-500 hover:text-white transition-colors flex items-center gap-2 text-xs font-bold uppercase tracking-widest">
-        <ArrowLeft size={16} /> Thoat
+        <ArrowLeft size={16} /> Thoát
       </button>
 
       <div className="w-full max-w-2xl">
         <div className="flex justify-between items-center mb-8">
           <div className="flex-1 mr-6">
             <div className="flex justify-between text-[10px] text-slate-500 font-black uppercase tracking-widest mb-2">
-              <span>Tien trinh</span>
+              <span>Tiến trình</span>
               <span>{index + 1} / {questions.length}</span>
             </div>
             <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
@@ -216,20 +245,20 @@ export default function UserPractice() {
           <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-600 shadow-glow" />
           <p className="text-blue-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4">{questionLabel}</p>
           <h1 className="text-4xl sm:text-5xl text-white font-black mb-4 tracking-tight">
-            {current.questionType === "MCQ" ? current.term : current.questionType === "Dictation" ? "Listen and type" : current.meaning}
+            {current.questionType === "MCQ" ? current.term : current.questionType === "Dictation" ? "Nghe và nhập từ" : current.meaning}
           </h1>
           <p className="text-slate-500 text-sm font-medium italic">{current.questionText}</p>
         </Card>
 
         {current.questionType === "MCQ" ? (
           <div className="grid gap-3">
-            {mcqOptions.map((opt: string, optionIndex: number) => {
-              const isSelected = selected === opt;
-              const isAnswer = opt === expectedAnswer;
+            {mcqOptions.map((option: string, optionIndex: number) => {
+              const isSelected = selected === option;
+              const isAnswer = option === expectedAnswer;
               return (
-                <button key={optionIndex} disabled={checked} onClick={() => setSelected(opt)} className={`group relative p-6 rounded-3xl border-2 text-left transition-all ${checked ? (isAnswer ? "bg-green-500/10 border-green-500/40 text-white" : (isSelected ? "bg-red-500/10 border-red-500/40 text-white" : "bg-white/2 border-white/5 text-slate-700")) : (isSelected ? "bg-blue-600 border-blue-500 text-white scale-[1.02] shadow-2xl shadow-blue-900/40" : "bg-white/3 border-white/5 text-slate-400 hover:bg-white/5 hover:border-white/10")}`}>
+                <button key={`${option}-${optionIndex}`} disabled={checked} onClick={() => setSelected(option)} className={`group relative p-6 rounded-3xl border-2 text-left transition-all ${checked ? (isAnswer ? "bg-green-500/10 border-green-500/40 text-white" : (isSelected ? "bg-red-500/10 border-red-500/40 text-white" : "bg-white/2 border-white/5 text-slate-700")) : (isSelected ? "bg-blue-600 border-blue-500 text-white scale-[1.02] shadow-2xl shadow-blue-900/40" : "bg-white/3 border-white/5 text-slate-400 hover:bg-white/5 hover:border-white/10")}`}>
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-lg">{opt}</span>
+                    <span className="font-bold text-lg">{option}</span>
                     {checked && isAnswer && <CheckCircle2 size={24} className="text-green-400" />}
                     {checked && isSelected && !isAnswer && <XCircle size={24} className="text-red-400" />}
                   </div>
@@ -261,7 +290,7 @@ export default function UserPractice() {
             </div>
             {checked && !isCorrect && (
               <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl text-center">
-                <p className="text-slate-500 text-[10px] uppercase font-bold mb-1">Correct order</p>
+                <p className="text-slate-500 text-[10px] uppercase font-bold mb-1">Thứ tự đúng</p>
                 <p className="text-red-400 text-xl font-black">{expectedAnswer}</p>
               </div>
             )}
@@ -269,12 +298,7 @@ export default function UserPractice() {
         ) : (
           <div className="space-y-6">
             {current.questionType === "Dictation" && (
-              <button
-                type="button"
-                onClick={() => speak(expectedAnswer)}
-                className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-blue-500/30 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20"
-                aria-label="Play dictation audio"
-              >
+              <button type="button" onClick={() => speak(expectedAnswer)} className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-blue-500/30 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20" aria-label="Phát âm thanh chính tả">
                 <Volume2 size={28} />
               </button>
             )}
@@ -283,12 +307,12 @@ export default function UserPractice() {
               disabled={checked}
               autoFocus
               onChange={(event) => setSelected(event.target.value)}
-              placeholder="Type your answer..."
+              placeholder="Nhập câu trả lời..."
               className={`h-24 text-4xl font-black text-center rounded-[32px] bg-white/3 border-4 transition-all ${checked ? (isCorrect ? "border-green-500 text-green-400 shadow-glow-green" : "border-red-500 text-red-400 shadow-glow-red") : "border-white/5 focus:border-blue-600 focus:bg-white/5 text-white"}`}
             />
             {checked && !isCorrect && (
               <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl text-center">
-                <p className="text-slate-500 text-[10px] uppercase font-bold mb-1">Correct answer</p>
+                <p className="text-slate-500 text-[10px] uppercase font-bold mb-1">Đáp án đúng</p>
                 <p className="text-red-400 text-2xl font-black">{expectedAnswer}</p>
               </div>
             )}
@@ -298,11 +322,11 @@ export default function UserPractice() {
         <div className="mt-12">
           {!checked ? (
             <Button disabled={current.questionType !== "DragDrop" && !selected} onClick={() => handleCheck()} className="w-full py-8 bg-blue-600 hover:bg-blue-500 text-white rounded-3xl text-xl font-black uppercase tracking-widest shadow-2xl shadow-blue-900/40 transition-all disabled:opacity-20">
-              Kiem tra
+              Kiểm tra
             </Button>
           ) : (
             <Button onClick={next} className="w-full py-8 bg-white text-slate-900 hover:bg-slate-200 rounded-3xl text-xl font-black uppercase tracking-widest shadow-2xl transition-all animate-in zoom-in-95">
-              {index < questions.length - 1 ? "Tiep tuc" : "Ket qua"}
+              {index < questions.length - 1 ? "Tiếp tục" : "Kết quả"}
             </Button>
           )}
         </div>

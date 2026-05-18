@@ -40,14 +40,14 @@ const adminLinks = [
 ];
 
 const studentLinks = [
-  { icon: LayoutDashboard, label: "Overview", href: "/user/dashboard" },
-  { icon: BookOpen, label: "Courses", href: "/user/courses" },
-  { icon: Brain, label: "Learn", href: "/user/learn" },
-  { icon: Target, label: "Practice", href: "/user/practice" },
-  { icon: FileText, label: "Mini tests", href: "/user/minitests" },
-  { icon: Trophy, label: "Achievements", href: "/user/achievements" },
-  { icon: BarChart3, label: "Progress", href: "/user/progress" },
-  { icon: Settings, label: "Settings", href: "/user/settings" },
+  { icon: LayoutDashboard, label: "Tổng quan", href: "/user/dashboard" },
+  { icon: BookOpen, label: "Lộ trình", href: "/user/courses" },
+  { icon: Brain, label: "Học từ", href: "/user/learn" },
+  { icon: Target, label: "Luyện tập", href: "/user/practice" },
+  { icon: FileText, label: "Bài kiểm tra", href: "/user/minitests" },
+  { icon: Trophy, label: "Thành tích", href: "/user/achievements" },
+  { icon: BarChart3, label: "Tiến độ", href: "/user/progress" },
+  { icon: Settings, label: "Cài đặt", href: "/user/settings" },
 ];
 
 interface NavLinksProps {
@@ -104,7 +104,7 @@ export default function Sidebar({ role }: { role: "admin" | "student" }) {
         {!collapsed && (
           <div className="hidden md:block">
             <p className="text-sm font-semibold tracking-tight text-slate-950 dark:text-white">VocaBoost</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Learning admin</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Học từ vựng TOEIC</p>
           </div>
         )}
       </div>
@@ -114,9 +114,9 @@ export default function Sidebar({ role }: { role: "admin" | "student" }) {
           <ShieldCheck className="h-4 w-4 text-emerald-500" />
           <div>
             <p className="text-xs font-medium text-slate-800 dark:text-slate-200">
-              {role === "admin" ? "Admin workspace" : "Student workspace"}
+              {role === "admin" ? "Khu vực quản trị" : "Khu vực học tập"}
             </p>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">Production</p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">Sẵn sàng học</p>
           </div>
         </div>
       )}
@@ -141,7 +141,7 @@ export default function Sidebar({ role }: { role: "admin" | "student" }) {
           className="flex h-10 items-center justify-center gap-3 rounded-md px-3 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-950 md:justify-start dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
         >
           <Home className="h-4 w-4" />
-          {!collapsed && <span className="hidden md:inline">Back to site</span>}
+          {!collapsed && <span className="hidden md:inline">Về trang chủ</span>}
         </Link>
         <button
           type="button"
@@ -149,14 +149,14 @@ export default function Sidebar({ role }: { role: "admin" | "student" }) {
           className="flex h-10 w-full items-center justify-center gap-3 rounded-md px-3 text-sm font-medium text-slate-500 hover:bg-rose-50 hover:text-rose-600 md:justify-start dark:text-slate-400 dark:hover:bg-rose-500/10 dark:hover:text-rose-300"
         >
           <LogOut className="h-4 w-4" />
-          {!collapsed && <span className="hidden md:inline">Sign out</span>}
+          {!collapsed && <span className="hidden md:inline">Đăng xuất</span>}
         </button>
       </div>
 
       <button
         onClick={() => setCollapsed(!collapsed)}
         className="absolute -right-3 top-20 hidden h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:text-slate-950 md:flex dark:border-white/10 dark:bg-slate-950 dark:text-slate-400 dark:hover:text-white"
-        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        aria-label={collapsed ? "Mở rộng thanh menu" : "Thu gọn thanh menu"}
       >
         {collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
       </button>
