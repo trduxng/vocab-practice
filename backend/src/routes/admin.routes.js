@@ -32,6 +32,9 @@ router.delete('/students/:id', checkPermission('MANAGE_USERS'), AdminController.
 router.patch('/students/:id/toggle', checkPermission('MANAGE_USERS'), AdminController.toggleStudentStatus);
 router.patch('/students/:id/role', checkPermission('MANAGE_USERS'), AdminController.updateUserRole);
 router.get('/analytics', checkPermission('VIEW_DASHBOARD'), AdminController.getAnalytics);
+router.get('/content-management', checkPermission('VIEW_DASHBOARD'), AdminController.getContentManagement);
+router.get('/moderation', checkPermission('VIEW_DASHBOARD'), AdminController.getModeration);
+router.get('/system-settings', checkPermission('VIEW_DASHBOARD'), AdminController.getSystemSettings);
 
 // Notifications
 router.get('/notifications', checkPermission('MANAGE_NOTIFICATIONS'), AdminController.getNotifications);

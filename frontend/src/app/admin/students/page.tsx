@@ -34,7 +34,7 @@ import {
 } from "lucide-react";
 
 type UserStatus = "active" | "banned";
-type UserRole = "Learner" | "Admin";
+type UserRole = "Learner" | "Admin" | "ContentCreator";
 type PanelMode = "view" | "create" | "edit";
 
 interface ManagedUser {
@@ -193,6 +193,7 @@ export default function AdminStudents() {
   const bannedUsers = users.length - activeUsers;
   const learners = users.filter((user) => user.role === "Learner").length;
   const admins = users.filter((user) => user.role === "Admin").length;
+  const creators = users.filter((user) => user.role === "ContentCreator").length;
 
   function openCreateForm() {
     setPanelMode("create");
@@ -311,7 +312,7 @@ export default function AdminStudents() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <KpiCard label="Total users" value={users.length.toString()} change="From database" icon={Users} tone="blue" />
           <KpiCard label="Active users" value={activeUsers.toString()} change={`${bannedUsers} banned`} icon={UserCheck} tone="emerald" />
-          <KpiCard label="Learners" value={learners.toString()} change="UserRole = Learner" icon={Users} tone="violet" />
+          <KpiCard label="Learners" value={learners.toString()} change={`${creators} content creators`} icon={Users} tone="violet" />
           <KpiCard label="Admins" value={admins.toString()} change="UserRole = Admin" icon={Shield} tone="amber" />
         </div>
 
@@ -471,7 +472,7 @@ export default function AdminStudents() {
                       onChange={(event) => setForm((current) => ({ ...current, role: event.target.value as UserRole }))}
                       className="mt-2 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none dark:border-white/10 dark:bg-slate-950 dark:text-slate-200"
                     >
-                      {(["Learner", "Admin"] as const).map((role) => <option key={role} value={role}>{role}</option>)}
+                      {(["Learner", "ContentCreator", "Admin"] as const).map((role) => <option key={role} value={role}>{role}</option>)}
                     </select>
                   </div>
                   <div>
@@ -548,7 +549,7 @@ export default function AdminStudents() {
                     onChange={(event) => updateRole(selectedUser.id, event.target.value as UserRole)}
                     className="mt-2 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none dark:border-white/10 dark:bg-slate-950 dark:text-slate-200"
                   >
-                    {(["Learner", "Admin"] as const).map((role) => <option key={role} value={role}>{role}</option>)}
+                    {(["Learner", "ContentCreator", "Admin"] as const).map((role) => <option key={role} value={role}>{role}</option>)}
                   </select>
                 </div>
 
