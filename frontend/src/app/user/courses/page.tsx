@@ -1,21 +1,27 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { BookOpen, CheckCircle2, Clock3, ListChecks, Play, RefreshCw, Search, Target, X } from "lucide-react";
+import { toast } from "sonner";
 import { categoriesService } from "@/src/services/categories.service";
 import { userService } from "@/src/services/user.service";
 import { useAuth } from "@/src/app/context/AuthContext";
 import Topbar from "@/src/components/shared/Topbar";
-import { Card, CardContent } from "@/src/components/ui/card";
 import { Button } from "@/src/components/ui/button";
-import { BookOpen, GraduationCap, ChevronRight, Zap, Star, Play, RefreshCw, ListChecks } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 
 type Topic = {
   id: number;
   name: string;
   code?: string;
   description?: string;
+  status?: string;
+  wordCount?: number;
+  learnedCount?: number;
+  masteredCount?: number;
+  dueCount?: number;
+  averageMastery?: number | string | null;
+  progressPercent?: number | string | null;
 };
 
 type TopicWord = {
@@ -30,6 +36,27 @@ type TopicWord = {
   exampleMeaning?: string;
 };
 
+const numberValue = (value: unknown) => Number(value ?? 0) || 0;
+
+const getStage = (topic: Topic, index: number) => {
+  const code = String(topic.code || "").toLowerCase();
+  if (code.includes("starter")) return "Nền tảng";
+  if (code.includes("office")) return "Công sở";
+  if (code.includes("part")) return "Kỹ năng TOEIC";
+  return `Chặng ${index + 1}`;
+};
+
+const getTopicTone = (index: number) => {
+  const tones = [
+    "border-cyan-400/25 bg-cyan-400/[0.08] text-cyan-200",
+    "border-emerald-400/25 bg-emerald-400/[0.08] text-emerald-200",
+    "border-amber-400/25 bg-amber-400/[0.08] text-amber-200",
+    "border-rose-400/25 bg-rose-400/[0.08] text-rose-200",
+  ];
+
+  return tones[index % tones.length];
+};
+
 const UserCoursesPage = () => {
   const { user, loading: authLoading } = useAuth();
   const [topics, setTopics] = useState<Topic[]>([]);
@@ -37,6 +64,7 @@ const UserCoursesPage = () => {
   const [courseWords, setCourseWords] = useState<TopicWord[]>([]);
   const [wordsLoading, setWordsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
   const router = useRouter();
 
   useEffect(() => {
@@ -46,166 +74,288 @@ const UserCoursesPage = () => {
         setTopics(data);
       } catch (error) {
         console.error("Failed to fetch topics", error);
+        toast.error("Không tải được lộ trình học.");
       } finally {
         setLoading(false);
       }
     };
+
     if (user) fetchTopics();
   }, [user]);
 
-  const handleEnroll = (topicId: number, topicName: string) => {
-    toast.success(`Đã ghi danh vào khóa ${topicName}! Bắt đầu học ngay.`);
-    router.push('/user/learn');
-  };
-
-  if (authLoading || loading) return <div className="min-h-screen flex items-center justify-center bg-[#080d1a] text-white">Đang tải danh sách lộ trình...</div>;
-
-  const handleOpenCourse = async (topic: Topic) => {
-    setSelectedTopic(topic);
-    setWordsLoading(true);
-    try {
-      const data = await userService.getTopicWords(topic.id);
-      setCourseWords(data);
-    } catch (error) {
-      console.error("Failed to fetch course words", error);
-      setCourseWords([]);
-    } finally {
-      setWordsLoading(false);
+  useEffect(() => {
+    if (!selectedTopic) {
+      return;
     }
-  };
+
+    const fetchCourseWords = async () => {
+      setWordsLoading(true);
+      try {
+        const data = await userService.getTopicWords(selectedTopic.id);
+        setCourseWords(data);
+      } catch (error) {
+        console.error("Failed to fetch course words", error);
+        setCourseWords([]);
+        toast.error("Không tải được danh sách từ vựng.");
+      } finally {
+        setWordsLoading(false);
+      }
+    };
+
+    fetchCourseWords();
+  }, [selectedTopic]);
+
+  const filteredTopics = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) return topics;
+
+    return topics.filter((topic) => {
+      const haystack = `${topic.name} ${topic.code || ""} ${topic.description || ""}`.toLowerCase();
+      return haystack.includes(normalizedQuery);
+    });
+  }, [topics, query]);
+
+  const totals = useMemo(() => {
+    return topics.reduce(
+      (summary, topic) => {
+        summary.words += numberValue(topic.wordCount);
+        summary.learned += numberValue(topic.learnedCount);
+        summary.mastered += numberValue(topic.masteredCount);
+        summary.due += numberValue(topic.dueCount);
+        return summary;
+      },
+      { words: 0, learned: 0, mastered: 0, due: 0 },
+    );
+  }, [topics]);
+
+  const selectedProgress = selectedTopic ? Math.min(100, numberValue(selectedTopic.progressPercent)) : 0;
+
+  if (authLoading || loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#080d1a] text-sm font-semibold text-slate-200">
+        Đang tải lộ trình học...
+      </div>
+    );
+  }
 
   return (
-    <div className="flex-1 flex flex-col bg-[#080d1a]">
-      <Topbar title="Lộ trình học tập" role="student" userName={user?.fullName} />
-      
-      <main className="p-6 space-y-8 overflow-auto max-w-6xl mx-auto w-full py-12">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-           <div>
-              <h1 className="text-white text-3xl font-black uppercase tracking-tighter mb-2">Chọn mục tiêu của bạn</h1>
-              <p className="text-slate-500 text-sm">Khám phá các bộ từ vựng được biên soạn chuyên sâu.</p>
-           </div>
-           <div className="flex gap-2">
-              <div className="bg-white/5 border border-white/10 px-4 py-2 rounded-xl text-slate-400 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
-                 <Star size={14} className="text-amber-500" /> 120,000+ Học viên
-              </div>
-           </div>
-        </div>
+    <div className="flex flex-1 flex-col bg-[#080d1a]">
+      <Topbar title="Lộ trình TOEIC" role="student" userName={user?.fullName} />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-           {topics.map((t) => (
-             <Card key={t.id} onClick={() => handleOpenCourse(t)} className="bg-white/3 border border-white/8 hover:border-blue-500/30 transition-all rounded-[32px] overflow-hidden group cursor-pointer">
-                <CardContent className="p-0">
-                   <div className="h-32 bg-linear-to-br from-blue-600/20 to-indigo-600/20 flex items-center justify-center relative">
-                      <div className="absolute inset-0 bg-grid opacity-10" />
-                      <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white backdrop-blur-xl group-hover:scale-110 transition-transform">
-                         <GraduationCap size={32} />
-                      </div>
-                      <div className="absolute top-4 right-4 bg-green-500/20 text-green-400 text-[10px] font-black px-2 py-1 rounded-full uppercase tracking-tighter border border-green-500/20">
-                         Mới cập nhật
-                      </div>
-                   </div>
-                   <div className="p-8">
-                      <div className="flex items-center gap-2 text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-3">
-                         <BookOpen size={12} /> {t.code || "COURSE"}
-                      </div>
-                      <h3 className="text-white font-bold text-xl mb-3 group-hover:text-blue-400 transition-colors">{t.name}</h3>
-                      <p className="text-slate-500 text-sm leading-relaxed mb-8 h-10 line-clamp-2">{t.description || "Nâng cao vốn từ vựng chuyên sâu và ứng dụng vào thực tế."}</p>
-                      
-                      <div className="flex items-center justify-between pt-6 border-t border-white/5">
-                         <div className="flex flex-col">
-                            <span className="text-[10px] text-slate-600 font-black uppercase tracking-tighter">Độ khó</span>
-                            <div className="flex gap-0.5 mt-1">
-                               {[...Array(5)].map((_, i) => (
-                                 <div key={i} className={`w-1.5 h-1.5 rounded-full ${i < 3 ? 'bg-amber-500' : 'bg-white/10'}`} />
-                               ))}
-                            </div>
-                         </div>
-                         <Button 
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            router.push(`/user/learn?topicId=${t.id}`);
-                          }}
-                          className="bg-white text-slate-900 hover:bg-blue-600 hover:text-white font-black text-xs uppercase tracking-widest px-6 py-5 rounded-2xl transition-all flex items-center gap-2"
-                         >
-                            Học ngay <ChevronRight size={14} />
-                         </Button>
-                      </div>
-                   </div>
-                </CardContent>
-             </Card>
-           ))}
-        </div>
+      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 overflow-auto px-4 py-6 sm:px-6 lg:px-8">
+        <section className="rounded-lg border border-white/10 bg-[#111827] p-5">
+          <div className="mb-5 flex justify-end">
+            <Button
+              onClick={() => router.push("/user/learn")}
+              className="h-10 rounded-lg bg-cyan-400 px-4 text-sm font-semibold text-slate-950 hover:bg-cyan-300"
+            >
+              <Play className="h-4 w-4" />
+              Ôn tập hôm nay
+            </Button>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Metric icon={BookOpen} label="Tổng từ" value={totals.words} />
+            <Metric icon={CheckCircle2} label="Đã học" value={totals.learned} />
+            <Metric icon={Target} label="Đã nắm chắc" value={totals.mastered} />
+            <Metric icon={Clock3} label="Cần ôn" value={totals.due} />
+          </div>
+        </section>
+
+        <section className="space-y-4">
+          <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-[#111827] px-4 py-3">
+            <Search className="h-4 w-4 text-slate-500" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Tìm topic, mã khóa học..."
+              className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
+            />
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            {filteredTopics.map((topic, index) => {
+              const isSelected = selectedTopic?.id === topic.id;
+              const progress = Math.min(100, numberValue(topic.progressPercent));
+              const tone = getTopicTone(index);
+
+              return (
+                <button
+                  key={topic.id}
+                  onClick={() => setSelectedTopic(topic)}
+                  className={`rounded-lg border p-4 text-left transition ${
+                    isSelected
+                      ? "border-cyan-400/50 bg-cyan-400/10"
+                      : "border-white/10 bg-[#111827] hover:border-white/20 hover:bg-white/5"
+                  }`}
+                >
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <span className={`mb-2 inline-flex rounded-md border px-2 py-1 text-xs font-semibold ${tone}`}>
+                        {getStage(topic, index)}
+                      </span>
+                      <h2 className="truncate text-base font-bold text-white">{topic.name}</h2>
+                      <p className="mt-1 text-xs text-slate-500">{topic.code || "TOEIC"}</p>
+                    </div>
+                    <span className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs font-semibold text-slate-300">
+                      {numberValue(topic.wordCount)} từ
+                    </span>
+                  </div>
+
+                  <p className="mb-4 line-clamp-2 text-sm leading-6 text-slate-400">
+                    {topic.description || "Bộ từ vựng TOEIC cho quá trình học và ôn tập ngắn mỗi ngày."}
+                  </p>
+
+                  <div className="mb-2 flex items-center justify-between text-xs text-slate-400">
+                    <span>{numberValue(topic.masteredCount)} đã nắm chắc</span>
+                    <span>{Math.round(progress)}%</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-white/[0.08]">
+                    <div className="h-full rounded-full bg-cyan-400" style={{ width: `${progress}%` }} />
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {filteredTopics.length === 0 && (
+            <div className="rounded-lg border border-white/10 bg-[#111827] p-6 text-center text-sm text-slate-400">
+              Không tìm thấy topic phù hợp.
+            </div>
+          )}
+        </section>
 
         {selectedTopic && (
-          <div className="bg-white/3 border border-white/8 rounded-[32px] overflow-hidden">
-            <div className="flex flex-col gap-4 border-b border-white/5 bg-white/5 p-6 md:flex-row md:items-center md:justify-between">
-              <div>
-                <div className="mb-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-blue-400">
-                  <ListChecks size={14} /> {selectedTopic.code || "COURSE"}
+          <section className="rounded-lg border border-white/10 bg-[#111827]">
+            <div className="border-b border-white/10 p-5">
+              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-cyan-200">
+                    <ListChecks className="h-4 w-4" />
+                    {selectedTopic.code || "Topic TOEIC"}
+                  </div>
+                  <h2 className="text-2xl font-bold text-white">{selectedTopic.name}</h2>
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+                    {selectedTopic.description || "Học bằng flashcard, xem ví dụ, rồi ôn lại các từ đến hạn."}
+                  </p>
                 </div>
-                <h2 className="text-2xl font-black text-white">{selectedTopic.name}</h2>
-                <p className="mt-1 text-sm text-slate-500">{courseWords.length} tu vung trong khoa hoc</p>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    onClick={() => router.push(`/user/learn?topicId=${selectedTopic.id}`)}
+                    className="h-10 rounded-lg bg-cyan-400 px-4 text-sm font-semibold text-slate-950 hover:bg-cyan-300"
+                  >
+                    <Play className="h-4 w-4" />
+                    Học ngay
+                  </Button>
+                  <Button
+                    onClick={() => router.push(`/user/learn?topicId=${selectedTopic.id}&mode=learned`)}
+                    className="h-10 rounded-lg bg-white/10 px-4 text-sm font-semibold text-white hover:bg-white/15"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Ôn đã học
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setSelectedTopic(null);
+                      setCourseWords([]);
+                    }}
+                    className="h-10 rounded-lg bg-white/5 px-3 text-sm font-semibold text-white hover:bg-white/10"
+                    aria-label="Đóng chi tiết topic"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-              <div className="flex flex-wrap gap-3">
-                <Button
-                  onClick={() => router.push(`/user/learn?topicId=${selectedTopic.id}`)}
-                  className="h-11 rounded-xl bg-blue-600 px-5 text-xs font-black uppercase tracking-widest text-white hover:bg-blue-500"
-                >
-                  <Play size={14} /> Hoc khoa nay
-                </Button>
-                <Button
-                  onClick={() => router.push(`/user/learn?topicId=${selectedTopic.id}&mode=learned`)}
-                  className="h-11 rounded-xl bg-white/10 px-5 text-xs font-black uppercase tracking-widest text-white hover:bg-white/15"
-                >
-                  <RefreshCw size={14} /> On tap da hoc
-                </Button>
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-4">
+                <Metric compact icon={BookOpen} label="Từ" value={numberValue(selectedTopic.wordCount)} />
+                <Metric compact icon={CheckCircle2} label="Đã học" value={numberValue(selectedTopic.learnedCount)} />
+                <Metric compact icon={Target} label="Chắc" value={numberValue(selectedTopic.masteredCount)} />
+                <Metric compact icon={Clock3} label="Cần ôn" value={numberValue(selectedTopic.dueCount)} />
+              </div>
+
+              <div className="mt-5">
+                <div className="mb-2 flex justify-between text-xs text-slate-400">
+                  <span>Hoàn thành topic</span>
+                  <span>{Math.round(selectedProgress)}%</span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-white/[0.08]">
+                  <div className="h-full rounded-full bg-emerald-400" style={{ width: `${selectedProgress}%` }} />
+                </div>
               </div>
             </div>
 
-            {wordsLoading ? (
-              <div className="p-8 text-center text-sm font-bold text-slate-500">Dang tai tu vung...</div>
-            ) : courseWords.length === 0 ? (
-              <div className="p-8 text-center text-sm font-bold text-slate-500">Khoa hoc nay chua co tu vung.</div>
-            ) : (
-              <div className="divide-y divide-white/5">
-                {courseWords.map((word) => (
-                  <div key={word.wordId} className="grid gap-4 p-5 md:grid-cols-[1.2fr_1.6fr_120px] md:items-center">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="text-lg font-black text-white">{word.term}</h3>
-                        {word.partOfSpeechName && (
-                          <span className="rounded-lg border border-blue-500/20 bg-blue-500/10 px-2 py-0.5 text-[9px] font-black uppercase text-blue-400">
-                            {word.partOfSpeechName}
-                          </span>
-                        )}
-                      </div>
-                      <p className="mt-1 font-mono text-xs text-slate-500">{word.phonetic}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-slate-300">{word.meaning}</p>
-                      {word.exampleSentence && (
-                        <p className="mt-2 line-clamp-1 text-xs italic text-slate-600">{word.exampleSentence}</p>
-                      )}
-                    </div>
-                    <div className="md:text-right">
-                      <span className="rounded-lg border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                        {word.memoryStatus || "New"} {word.masteryLevel || 0}/10
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+            <div className="max-h-[560px] overflow-auto">
+              {wordsLoading ? (
+                <div className="p-8 text-center text-sm font-semibold text-slate-400">Đang tải từ vựng...</div>
+              ) : courseWords.length === 0 ? (
+                <div className="p-8 text-center text-sm font-semibold text-slate-400">Topic này chưa có từ vựng.</div>
+              ) : (
+                <div className="divide-y divide-white/[0.08]">
+                  {courseWords.map((word) => (
+                    <WordRow key={word.wordId} word={word} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
         )}
-
-        <div className="bg-white/3 border border-white/8 rounded-[40px] p-12 relative overflow-hidden flex flex-col items-center text-center">
-           <div className="absolute top-0 right-0 p-8 opacity-5"><Zap size={200} /></div>
-           <h3 className="text-white font-black text-2xl uppercase tracking-tighter mb-4">Bạn muốn học chủ đề khác?</h3>
-           <p className="text-slate-500 text-sm max-w-md mb-8">Chúng tôi luôn cập nhật các bộ từ vựng mới hàng tuần. Hãy gửi yêu cầu nếu bạn cần một lộ trình riêng biệt.</p>
-           <Button variant="outline" className="border-white/10 text-white hover:bg-white/5 h-12 px-8 rounded-xl font-bold uppercase text-[10px] tracking-widest">Yêu cầu chủ đề mới</Button>
-        </div>
       </main>
+    </div>
+  );
+};
+
+type MetricProps = {
+  icon: React.ElementType;
+  label: string;
+  value: number;
+  compact?: boolean;
+};
+
+const Metric = ({ icon: Icon, label, value, compact = false }: MetricProps) => (
+  <div className={`rounded-lg border border-white/10 bg-white/[0.04] ${compact ? "p-3" : "p-4"}`}>
+    <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-slate-400">
+      <Icon className="h-4 w-4 text-cyan-300" />
+      {label}
+    </div>
+    <div className={`${compact ? "text-xl" : "text-2xl"} font-bold text-white`}>{value}</div>
+  </div>
+);
+
+const WordRow = ({ word }: { word: TopicWord }) => {
+  const mastery = Math.min(10, numberValue(word.masteryLevel));
+
+  return (
+    <div className="grid gap-4 p-4 md:grid-cols-[1fr_1.4fr_130px] md:items-center">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="truncate text-base font-bold text-white">{word.term}</h3>
+          {word.partOfSpeechName && (
+            <span className="rounded-md border border-cyan-400/20 bg-cyan-400/10 px-2 py-1 text-xs font-semibold text-cyan-200">
+              {word.partOfSpeechName}
+            </span>
+          )}
+        </div>
+        {word.phonetic && <p className="mt-1 text-xs text-slate-500">{word.phonetic}</p>}
+      </div>
+
+      <div className="min-w-0">
+        <p className="text-sm font-medium leading-6 text-slate-200">{word.meaning}</p>
+        {word.exampleSentence && (
+          <p className="mt-1 truncate text-xs text-slate-500">{word.exampleSentence}</p>
+        )}
+      </div>
+
+      <div>
+        <div className="mb-2 flex justify-between text-xs text-slate-500">
+          <span>{word.memoryStatus || "Mới"}</span>
+          <span>{mastery}/10</span>
+        </div>
+        <div className="h-2 overflow-hidden rounded-full bg-white/[0.08]">
+          <div className="h-full rounded-full bg-emerald-400" style={{ width: `${mastery * 10}%` }} />
+        </div>
+      </div>
     </div>
   );
 };

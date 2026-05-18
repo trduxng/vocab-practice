@@ -34,7 +34,7 @@ export default function Topbar({
           <Search className="h-4 w-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Search users, quizzes, reports"
+            placeholder={role === "admin" ? "Tìm người dùng, bài kiểm tra, báo cáo" : "Tìm bài học, từ vựng, bài kiểm tra"}
             className="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-200"
           />
         </div>
@@ -42,7 +42,7 @@ export default function Topbar({
         <button
           onClick={() => setDarkMode((value) => !value)}
           className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 transition-colors hover:text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:text-white"
-          aria-label="Toggle dark mode"
+          aria-label="Bật hoặc tắt giao diện tối"
         >
           {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
@@ -58,7 +58,7 @@ export default function Topbar({
           </div>
           <div className="hidden md:block">
             <p className="text-sm font-medium leading-tight text-slate-950 dark:text-white">{userName}</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">{role === "admin" ? "Administrator" : "Learner"}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">{role === "admin" ? "Quản trị viên" : "Người học"}</p>
           </div>
         </div>
       </div>
