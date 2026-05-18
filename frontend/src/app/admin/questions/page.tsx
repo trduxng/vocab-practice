@@ -1,22 +1,49 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { adminService } from '@/src/services/admin.service';
+import React, { useState, useEffect, useCallback } from 'react';
+import { adminService, type PaginationMeta } from '@/src/services/admin.service';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/src/components/ui/card';
 import { Textarea } from '@/src/components/ui/textarea';
 import { HelpCircle, Plus, Search, BookOpen, Trash2, ListChecks, Upload } from 'lucide-react';
 import Topbar from '@/src/components/shared/Topbar';
+import { toast } from 'sonner';
+
+type WordItem = {
+  id: number;
+  term: string;
+  meaning: string;
+  partOfSpeechName?: string;
+};
+
+type QuestionItem = {
+  id: number;
+  questionType: string;
+  questionText: string;
+  optionsJson?: string;
+  correctAnswer: string;
+  explanation?: string;
+};
+
+type BulkImportResult = {
+  success: number;
+  failed: number;
+};
 
 export default function AdminQuestionsPage() {
-  const [words, setWords] = useState<any[]>([]);
-  const [existingQuestions, setExistingQuestions] = useState<any[]>([]);
+  const [words, setWords] = useState<WordItem[]>([]);
+  const [existingQuestions, setExistingQuestions] = useState<QuestionItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedWord, setSelectedWord] = useState<any>(null);
+  const [selectedWord, setSelectedWord] = useState<WordItem | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [bulkImporting, setBulkImporting] = useState(false);
-  const [bulkResult, setBulkResult] = useState<any>(null);
+  const [bulkResult, setBulkResult] = useState<BulkImportResult | null>(null);
+  const [wordQuery, setWordQuery] = useState('');
+  const [wordPage, setWordPage] = useState(1);
+  const [wordPagination, setWordPagination] = useState<PaginationMeta | null>(null);
+  const [questionsPage, setQuestionsPage] = useState(1);
+  const [questionsPagination, setQuestionsPagination] = useState<PaginationMeta | null>(null);
 
   // New Question Form State
   const [newQuestion, setNewQuestion] = useState({
@@ -27,39 +54,45 @@ export default function AdminQuestionsPage() {
     explanation: ''
   });
 
-  useEffect(() => {
-    fetchWords();
-  }, []);
-
-  useEffect(() => {
-    if (selectedWord) {
-      fetchExistingQuestions();
-    }
-  }, [selectedWord]);
-
-  const fetchWords = async () => {
+  const fetchWords = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await adminService.getWords(1, 100);
-      setWords(data);
+      const data = await adminService.getWordsPage<WordItem>(wordPage, 20, { search: wordQuery.trim() });
+      setWords(data.items);
+      setWordPagination(data.pagination);
     } catch (error) {
       console.error("Failed to fetch words", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [wordPage, wordQuery]);
 
-  const fetchExistingQuestions = async () => {
+  const fetchExistingQuestions = useCallback(async () => {
+    if (!selectedWord) return;
+
     try {
-      const data = await adminService.getQuestionsByWord(selectedWord.id);
-      setExistingQuestions(data);
+      const data = await adminService.getQuestionsByWordPage<QuestionItem>(selectedWord.id, questionsPage, 10);
+      setExistingQuestions(data.items);
+      setQuestionsPagination(data.pagination);
     } catch (error) {
       console.error("Failed to fetch existing questions", error);
     }
-  };
+  }, [questionsPage, selectedWord]);
+
+  useEffect(() => {
+    void Promise.resolve().then(fetchWords);
+  }, [fetchWords]);
+
+  useEffect(() => {
+    if (selectedWord) {
+      void Promise.resolve().then(fetchExistingQuestions);
+    }
+  }, [fetchExistingQuestions, selectedWord]);
 
   const handleAddQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedWord) return;
+
     try {
       await adminService.createQuestion({
         wordId: selectedWord.id,
@@ -82,6 +115,19 @@ export default function AdminQuestionsPage() {
     } catch (error) {
       console.error("Failed to create question", error);
       alert("Lỗi khi tạo câu hỏi");
+    }
+  };
+
+  const handleDeleteQuestion = async (questionId: number) => {
+    if (!confirm("Xoa cau hoi nay? Cau hoi se bi go khoi cac mini test lien quan.")) return;
+
+    try {
+      await adminService.deleteQuestion(questionId);
+      toast.success("Xoa cau hoi thanh cong");
+      fetchExistingQuestions();
+    } catch (error) {
+      console.error("Failed to delete question", error);
+      toast.error("Xoa cau hoi that bai");
     }
   };
 
@@ -122,13 +168,21 @@ export default function AdminQuestionsPage() {
           </div>
           <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
-            <Input className="pl-9 bg-white/5 border-white/10 text-xs text-white rounded-xl" placeholder="Tìm từ..." />
+            <Input
+              value={wordQuery}
+              onChange={(event) => {
+                setWordQuery(event.target.value);
+                setWordPage(1);
+              }}
+              className="pl-9 bg-white/5 border-white/10 text-xs text-white rounded-xl"
+              placeholder="Tìm từ..."
+            />
           </div>
           <div className="space-y-2 max-h-[calc(100vh-250px)] overflow-y-auto pr-2 no-scrollbar">
             {words.map((w) => (
               <div 
                 key={w.id} 
-                onClick={() => { setSelectedWord(w); setShowAddForm(false); }}
+                onClick={() => { setSelectedWord(w); setQuestionsPage(1); setShowAddForm(false); }}
                 className={`p-4 rounded-2xl border cursor-pointer transition-all ${selectedWord?.id === w.id ? 'bg-blue-600/20 border-blue-500/50 text-white' : 'bg-white/3 border-white/5 text-slate-400 hover:bg-white/5'}`}
               >
                 <div className="font-bold text-sm">{w.term}</div>
@@ -136,6 +190,17 @@ export default function AdminQuestionsPage() {
               </div>
             ))}
           </div>
+          {wordPagination && (
+            <div className="flex items-center justify-between gap-2 text-xs text-slate-500">
+              <Button type="button" variant="ghost" disabled={wordPage <= 1 || loading} onClick={() => setWordPage((current) => Math.max(1, current - 1))}>
+                Truoc
+              </Button>
+              <span>Trang {wordPagination.page}/{wordPagination.totalPages}</span>
+              <Button type="button" variant="ghost" disabled={wordPage >= wordPagination.totalPages || loading} onClick={() => setWordPage((current) => Math.min(wordPagination.totalPages, current + 1))}>
+                Sau
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Right: Question Area */}
@@ -266,14 +331,14 @@ export default function AdminQuestionsPage() {
               {/* List existing questions */}
               <div className="space-y-4">
                  <h4 className="text-white font-bold text-xs uppercase tracking-widest flex items-center gap-2">
-                    <ListChecks size={16} className="text-blue-400" /> Câu hỏi hiện có ({existingQuestions.length})
+                    <ListChecks size={16} className="text-blue-400" /> Câu hỏi hiện có ({questionsPagination?.total ?? existingQuestions.length})
                  </h4>
                  <div className="grid grid-cols-1 gap-3">
                     {existingQuestions.map((q) => (
                       <div key={q.id} className="p-5 bg-white/3 border border-white/5 rounded-2xl group hover:border-white/10 transition-all">
                         <div className="flex justify-between items-start mb-3">
                            <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 font-bold border border-blue-500/20">{q.questionType}</span>
-                           <button className="text-slate-700 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={14}/></button>
+                           <button onClick={() => handleDeleteQuestion(q.id)} className="text-slate-700 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={14}/></button>
                         </div>
                         <p className="text-white text-sm font-semibold mb-2">{q.questionText}</p>
                         <p className="text-[10px] text-green-400 font-bold uppercase tracking-tighter">Đáp án: {q.correctAnswer}</p>
@@ -283,6 +348,17 @@ export default function AdminQuestionsPage() {
                       <div className="py-20 text-center text-slate-700 border border-dashed border-white/5 rounded-[32px]">
                          <HelpCircle size={40} className="mx-auto mb-3 opacity-10" />
                          <p className="text-sm">Chưa có câu hỏi nào cho từ này.</p>
+                      </div>
+                    )}
+                    {questionsPagination && questionsPagination.total > 0 && (
+                      <div className="flex items-center justify-between gap-2 pt-2 text-xs text-slate-500">
+                        <Button type="button" variant="ghost" disabled={questionsPage <= 1} onClick={() => setQuestionsPage((current) => Math.max(1, current - 1))}>
+                          Truoc
+                        </Button>
+                        <span>Trang {questionsPagination.page}/{questionsPagination.totalPages}</span>
+                        <Button type="button" variant="ghost" disabled={questionsPage >= questionsPagination.totalPages} onClick={() => setQuestionsPage((current) => Math.min(questionsPagination.totalPages, current + 1))}>
+                          Sau
+                        </Button>
                       </div>
                     )}
                  </div>

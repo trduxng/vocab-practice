@@ -1,0 +1,21 @@
+
+> vocab-practice@1.0.0 dev
+> nodemon --watch src src/index.js
+
+[33m[nodemon] 3.1.14[39m
+[33m[nodemon] to restart at any time, enter `rs`[39m
+[33m[nodemon] watching path(s): src\**\*[39m
+[33m[nodemon] watching extensions: js,mjs,cjs,json[39m
+[32m[nodemon] starting `node src/index.js`[39m
+◇ injected env (6) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+◇ injected env (0) from .env // tip: ⌘ suppress logs { quiet: true }
+Connecting DB: {
+  server: 'TUNGLAI',
+  instance: null,
+  port: null,
+  database: 'ToeicVocabularyPlatform',
+  auth: 'windows'
+}
+Attempting to start server...
+Server successfully started on port 3001
+[32m[nodemon] clean exit - waiting for changes before restart[39m

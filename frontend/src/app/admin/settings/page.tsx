@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Topbar from "@/src/components/shared/Topbar";
 import { AdminPage, AdminPanel, KpiCard, StatusBadge, TableShell, ToolbarButton } from "@/src/components/admin/AdminPrimitives";
-import { adminService } from "@/src/services/admin.service";
+import { adminService, type PaginationMeta } from "@/src/services/admin.service";
 import { Check, Database, KeyRound, PlugZap, Save, Settings2, ShieldCheck, SlidersHorizontal, UsersRound } from "lucide-react";
 
 type SettingsData = {
@@ -19,6 +19,16 @@ type SettingsData = {
   modules?: Array<{ name: string; existsInDatabase: boolean }>;
 };
 
+type AuditLog = {
+  id: number | string;
+  adminName?: string;
+  adminEmail?: string;
+  action: string;
+  entityType: string;
+  entityId?: number | string;
+  createdAt: string;
+};
+
 function compactNumber(value?: number | null) {
   return Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(Number(value || 0));
 }
@@ -30,6 +40,11 @@ export default function AdminSettings() {
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [data, setData] = useState<SettingsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [auditSearch, setAuditSearch] = useState("");
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditPagination, setAuditPagination] = useState<PaginationMeta | null>(null);
+  const auditPageSize = 10;
 
   useEffect(() => {
     let cancelled = false;
@@ -50,6 +65,24 @@ export default function AdminSettings() {
       cancelled = true;
     };
   }, []);
+
+  const fetchAuditLogs = useCallback(async () => {
+    try {
+      const response = await adminService.getAuditLogsPage<AuditLog>({
+        page: auditPage,
+        limit: auditPageSize,
+        search: auditSearch.trim(),
+      });
+      setAuditLogs(response.items);
+      setAuditPagination(response.pagination);
+    } catch (error) {
+      console.error("Failed to fetch audit logs", error);
+    }
+  }, [auditPage, auditSearch]);
+
+  useEffect(() => {
+    void Promise.resolve().then(fetchAuditLogs);
+  }, [fetchAuditLogs]);
 
   const permissionsByRole = useMemo(() => {
     const map = new Map<string, Array<{ permissionCode: string; description?: string }>>();
@@ -139,6 +172,53 @@ export default function AdminSettings() {
                 </div>
               </AdminPanel>
             </div>
+
+            <TableShell>
+              <div className="border-b border-slate-200 px-4 py-4 dark:border-white/10">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="font-semibold text-slate-950 dark:text-white">Audit logs</h2>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Admin actions with server-side search and pagination.</p>
+                  </div>
+                  <input
+                    value={auditSearch}
+                    onChange={(event) => {
+                      setAuditSearch(event.target.value);
+                      setAuditPage(1);
+                    }}
+                    placeholder="Search action, entity, admin"
+                    className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none sm:w-72 dark:border-white/10 dark:bg-slate-950 dark:text-slate-200"
+                  />
+                </div>
+              </div>
+              <table className="w-full min-w-[760px] text-left text-sm">
+                <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
+                  <tr><th className="px-4 py-3 font-medium">Time</th><th className="px-4 py-3 font-medium">Admin</th><th className="px-4 py-3 font-medium">Action</th><th className="px-4 py-3 font-medium">Entity</th></tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-white/10">
+                  {auditLogs.length === 0 ? (
+                    <tr><td className="px-4 py-6 text-slate-500" colSpan={4}>No audit logs found.</td></tr>
+                  ) : auditLogs.map((log) => (
+                    <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-white/5">
+                      <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{new Date(log.createdAt).toLocaleString()}</td>
+                      <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{log.adminName || log.adminEmail || "System"}</td>
+                      <td className="px-4 py-4"><StatusBadge tone="blue">{log.action}</StatusBadge></td>
+                      <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{log.entityType}{log.entityId ? ` #${log.entityId}` : ""}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {auditPagination && (
+                <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between dark:border-white/10">
+                  <span>Showing {auditLogs.length} of {auditPagination.total} logs</span>
+                  <div className="flex items-center gap-2">
+                    <ToolbarButton onClick={() => setAuditPage((current) => Math.max(1, current - 1))}>Previous</ToolbarButton>
+                    <span>Page {auditPagination.page} of {auditPagination.totalPages}</span>
+                    <ToolbarButton onClick={() => setAuditPage((current) => Math.min(auditPagination.totalPages, current + 1))}>Next</ToolbarButton>
+                  </div>
+                </div>
+              )}
+            </TableShell>
 
             <TableShell>
               <table className="w-full min-w-[760px] text-left text-sm">

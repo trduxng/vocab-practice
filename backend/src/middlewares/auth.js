@@ -32,8 +32,19 @@ const checkPermission = (permissionCode) => {
   };
 };
 
+const checkAnyPermission = (permissionCodes) => {
+  return (req, res, next) => {
+    const userPermissions = req.user?.permissions || [];
+    if (!permissionCodes.some((permissionCode) => userPermissions.includes(permissionCode))) {
+      return res.status(403).json({ message: `Ban khong co quyen thuc hien hanh dong nay (${permissionCodes.join(' / ')})` });
+    }
+    next();
+  };
+};
+
 module.exports = {
   verifyToken,
   verifyAdmin,
-  checkPermission
+  checkPermission,
+  checkAnyPermission
 };

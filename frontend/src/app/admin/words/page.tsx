@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { adminService } from '@/src/services/admin.service';
+import { adminService, type PaginationMeta } from '@/src/services/admin.service';
 import { categoriesService } from '@/src/services/categories.service';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
@@ -44,7 +44,14 @@ export default function AdminWordsPage() {
   const [showForm, setShowAddForm] = useState(false);
   const [editingWord, setEditingWord] = useState<WordItem | null>(null);
   const [importing, setImporting] = useState(false);
+  const [selectedTopicId, setSelectedTopicId] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginationMeta | null>(null);
+  const [showTopicForm, setShowTopicForm] = useState(false);
+  const [creatingTopic, setCreatingTopic] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pageSize = 20;
 
   // Word Form State
   const [formData, setFormData] = useState({
@@ -55,30 +62,52 @@ export default function AdminWordsPage() {
     topicIds: [] as number[],
     examples: [{ sentence: '', meaning: '' }]
   });
+  const [topicFormData, setTopicFormData] = useState({
+    name: '',
+    code: '',
+    description: ''
+  });
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const fetchOptions = useCallback(async () => {
     try {
-      const [wordsData, posData, topicsData] = await Promise.all([
-        adminService.getWords(1, 100),
+      const [posData, topicsData] = await Promise.all([
         categoriesService.getPartOfSpeeches(),
         categoriesService.getTopics()
       ]);
-      setWords(wordsData);
       setPartOfSpeeches(posData);
       setTopics(topicsData);
     } catch (error) {
       console.error("Failed to fetch admin data", error);
       toast.error("Không thể tải dữ liệu");
-    } finally {
-      setLoading(false);
     }
   }, []);
 
+  const fetchWords = useCallback(async () => {
+    setLoading(true);
+    try {
+      const wordsData = await adminService.getWordsPage<WordItem>(page, pageSize, {
+        topicId: selectedTopicId,
+        search: searchTerm.trim()
+      });
+      setWords(wordsData.items);
+      setPagination(wordsData.pagination);
+    } catch (error) {
+      console.error("Failed to fetch admin data", error);
+      toast.error("Khong the tai du lieu");
+    } finally {
+      setLoading(false);
+    }
+  }, [page, searchTerm, selectedTopicId]);
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchData();
-  }, [fetchData]);
+    fetchOptions();
+  }, [fetchOptions]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchWords();
+  }, [fetchWords]);
 
   const handleEdit = (word: WordItem) => {
     const wordExamples = word.examples ?? [];
@@ -102,8 +131,8 @@ export default function AdminWordsPage() {
     try {
       await adminService.deleteWord(id);
       toast.success("Xóa từ vựng thành công");
-      fetchData();
-    } catch (error) {
+      fetchWords();
+    } catch {
       toast.error("Xóa thất bại");
     }
   };
@@ -148,7 +177,7 @@ export default function AdminWordsPage() {
         toast.success(message);
       }
 
-      fetchData();
+      fetchWords();
     } catch (error) {
       console.error('Import words failed', error);
       toast.error('Import tu vung that bai');
@@ -195,7 +224,7 @@ export default function AdminWordsPage() {
         topicIds: [],
         examples: [{ sentence: '', meaning: '' }]
       });
-      fetchData();
+      fetchWords();
     } catch (error) {
       const message = axios.isAxiosError(error)
         ? error.response?.data?.message || 'Loi khi luu du lieu'
@@ -214,15 +243,96 @@ export default function AdminWordsPage() {
     setFormData({ ...formData, examples: formData.examples.filter((_, i) => i !== index) });
   };
 
+  const handleCreateTopic = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const name = topicFormData.name.trim();
+    if (!name) {
+      toast.error('Vui long nhap ten chu de');
+      return;
+    }
+
+    setCreatingTopic(true);
+    try {
+      const result = await adminService.createTopic({
+        name,
+        code: topicFormData.code.trim() || undefined,
+        description: topicFormData.description.trim() || undefined
+      });
+      const createdTopic = result.data;
+
+      setTopicFormData({ name: '', code: '', description: '' });
+      setShowTopicForm(false);
+      setTopics((currentTopics) => [...currentTopics, createdTopic]);
+      setSelectedTopicId(String(createdTopic.id));
+      setFormData((current) => ({
+        ...current,
+        topicIds: current.topicIds.includes(createdTopic.id)
+          ? current.topicIds
+          : [...current.topicIds, createdTopic.id]
+      }));
+      toast.success('Tao chu de thanh cong');
+      fetchOptions();
+    } catch (error) {
+      const message = axios.isAxiosError(error)
+        ? error.response?.data?.message || 'Tao chu de that bai'
+        : 'Tao chu de that bai';
+
+      console.error('Create topic failed', message, axios.isAxiosError(error) ? error.response?.data : error);
+      toast.error(message);
+    } finally {
+      setCreatingTopic(false);
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-[#080d1a]">
       <Topbar title="Quản lý từ vựng" role="admin" />
       
       <main className="p-6 space-y-6 overflow-auto">
-        <div className="flex justify-between items-center">
-          <div className="relative w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
-            <Input className="pl-10 bg-white/5 border-white/10 text-white rounded-xl" placeholder="Tìm kiếm từ vựng..." />
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative w-72">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+              <Input
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setPage(1);
+                }}
+                className="pl-10 bg-white/5 border-white/10 text-white rounded-xl"
+                placeholder="Tìm kiếm từ vựng..."
+              />
+            </div>
+            <select
+              value={selectedTopicId}
+              onChange={(e) => {
+                setSelectedTopicId(e.target.value);
+                setPage(1);
+              }}
+              className="h-10 min-w-56 bg-white/5 border border-white/10 rounded-xl px-4 text-sm text-white outline-none"
+            >
+              <option value="">Tất cả chủ đề</option>
+              {topics.map((topic) => (
+                <option key={topic.id} value={topic.id}>
+                  {topic.name}
+                </option>
+              ))}
+            </select>
+            {(selectedTopicId || searchTerm) && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setSelectedTopicId('');
+                  setSearchTerm('');
+                  setPage(1);
+                }}
+                className="h-10 px-3 rounded-xl text-slate-400 hover:text-white"
+              >
+                <X size={16} />
+              </Button>
+            )}
           </div>
           {!showForm && (
             <div className="flex items-center gap-3">
@@ -241,12 +351,93 @@ export default function AdminWordsPage() {
               >
                 <Upload size={16} /> {importing ? 'Dang import...' : 'Import CSV/Excel'}
               </Button>
+              <Button
+                type="button"
+                onClick={() => setShowTopicForm((value) => !value)}
+                className="bg-white/5 hover:bg-white/10 border-white/10 text-white gap-2"
+              >
+                <Plus size={16} /> Them chu de
+              </Button>
               <Button onClick={() => { setEditingWord(null); setShowAddForm(true); }} className="bg-blue-600 hover:bg-blue-700 gap-2">
               <Plus size={16} /> Thêm từ mới
               </Button>
             </div>
           )}
+          {pagination && (
+            <div className="flex flex-col gap-3 border-t border-white/8 px-6 py-4 text-sm text-slate-400 sm:flex-row sm:items-center sm:justify-between">
+              <span>Hien thi {words.length} / {pagination.total} tu vung</span>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={page <= 1 || loading}
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  className="h-9 rounded-xl"
+                >
+                  Truoc
+                </Button>
+                <span className="min-w-24 text-center">Trang {pagination.page} / {pagination.totalPages}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={page >= pagination.totalPages || loading}
+                  onClick={() => setPage((current) => Math.min(pagination.totalPages, current + 1))}
+                  className="h-9 rounded-xl"
+                >
+                  Sau
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
+
+        {showTopicForm && (
+          <Card className="bg-white/5 border-white/10 text-white rounded-2xl overflow-hidden">
+            <CardContent className="p-5">
+              <form onSubmit={handleCreateTopic} className="grid grid-cols-1 gap-3 lg:grid-cols-[1.2fr_0.8fr_1.5fr_auto] lg:items-end">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Ten chu de</label>
+                  <Input
+                    value={topicFormData.name}
+                    onChange={(e) => setTopicFormData({ ...topicFormData, name: e.target.value })}
+                    className="bg-white/5 border-white/10 h-11 px-4 rounded-xl"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Ma chu de</label>
+                  <Input
+                    value={topicFormData.code}
+                    onChange={(e) => setTopicFormData({ ...topicFormData, code: e.target.value })}
+                    className="bg-white/5 border-white/10 h-11 px-4 rounded-xl"
+                    placeholder="Tu dong neu bo trong"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Mo ta</label>
+                  <Input
+                    value={topicFormData.description}
+                    onChange={(e) => setTopicFormData({ ...topicFormData, description: e.target.value })}
+                    className="bg-white/5 border-white/10 h-11 px-4 rounded-xl"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button type="submit" disabled={creatingTopic} className="h-11 rounded-xl bg-blue-600 hover:bg-blue-700">
+                    {creatingTopic ? 'Dang tao...' : 'Luu'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setShowTopicForm(false)}
+                    className="h-11 rounded-xl"
+                  >
+                    Huy
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        )}
 
         {showForm && (
           <Card className="bg-white/5 border-white/10 text-white rounded-[32px] overflow-hidden">

@@ -10,6 +10,105 @@ function assertValidUserRole(roleName) {
 }
 
 class AdminService {
+  static CONTENT_STATUSES = ['Draft', 'PendingReview', 'Published', 'Rejected', 'Archived'];
+
+  static normalizePagination(page = 1, limit = 20, maxLimit = 100) {
+    const normalizedPage = Math.max(parseInt(page, 10) || 1, 1);
+    const normalizedLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), maxLimit);
+
+    return {
+      page: normalizedPage,
+      limit: normalizedLimit,
+      offset: (normalizedPage - 1) * normalizedLimit
+    };
+  }
+
+  static paginate(items, total, page, limit) {
+    const normalizedTotal = Number(total) || 0;
+
+    return {
+      items,
+      pagination: {
+        page,
+        limit,
+        total: normalizedTotal,
+        totalPages: Math.max(1, Math.ceil(normalizedTotal / limit))
+      }
+    };
+  }
+
+  static buildTopicCode(name) {
+    const code = String(name ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/Ä‘/g, 'd')
+      .replace(/Ä/g, 'D')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 50);
+
+    return code || `TOPIC_${Date.now()}`;
+  }
+
+  static assertContentStatus(status) {
+    if (!this.CONTENT_STATUSES.includes(status)) {
+      throw new Error('Invalid content status');
+    }
+  }
+
+  static async logAdminAction(adminId, action, entityType, entityId, details = null) {
+    try {
+      const pool = await poolPromise;
+      await pool.request().query(`
+        IF OBJECT_ID(N'dbo.AdminAuditLogs', N'U') IS NULL
+        BEGIN
+          CREATE TABLE dbo.AdminAuditLogs
+          (
+            AdminAuditLogID BIGINT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+            ActionByUserID BIGINT NOT NULL,
+            Action NVARCHAR(100) NOT NULL,
+            EntityType NVARCHAR(50) NOT NULL,
+            EntityID BIGINT NULL,
+            Details NVARCHAR(MAX) NULL,
+            CreatedAt DATETIMEOFFSET(7) NOT NULL CONSTRAINT DF_AdminAuditLogs_CreatedAt DEFAULT (SYSDATETIMEOFFSET())
+          );
+        END
+      `);
+
+      await pool.request()
+        .input('ActionByUserID', sql.BigInt, adminId)
+        .input('Action', sql.NVarChar(100), action)
+        .input('EntityType', sql.NVarChar(50), entityType)
+        .input('EntityID', sql.BigInt, entityId ? Number(entityId) : null)
+        .input('Details', sql.NVarChar(sql.MAX), details ? JSON.stringify(details) : null)
+        .query(`
+          INSERT INTO AdminAuditLogs (ActionByUserID, Action, EntityType, EntityID, Details)
+          VALUES (@ActionByUserID, @Action, @EntityType, @EntityID, @Details)
+        `);
+    } catch (error) {
+      console.warn('Failed to write admin audit log', error.message);
+    }
+  }
+
+  static async logContentReview(entityType, entityId, oldStatus, newStatus, adminId, comment = null) {
+    const pool = await poolPromise;
+    await pool.request()
+      .input('EntityType', sql.NVarChar(30), entityType)
+      .input('EntityID', sql.BigInt, entityId)
+      .input('ActionByUserID', sql.BigInt, adminId)
+      .input('OldStatus', sql.NVarChar(30), oldStatus || null)
+      .input('NewStatus', sql.NVarChar(30), newStatus)
+      .input('Comment', sql.NVarChar(2000), comment || null)
+      .query(`
+        IF OBJECT_ID(N'dbo.ContentReviewLogs', N'U') IS NOT NULL
+        BEGIN
+          INSERT INTO ContentReviewLogs (EntityType, EntityID, ActionByUserID, OldStatus, NewStatus, Comment)
+          VALUES (@EntityType, @EntityID, @ActionByUserID, @OldStatus, @NewStatus, @Comment)
+        END
+      `);
+  }
+
   static normalizeImportKey(value) {
     return String(value ?? '')
       .replace(/^\uFEFF/, '')
@@ -125,26 +224,326 @@ class AdminService {
     return this.parseDelimitedImport(input);
   }
 
-  // --- WORDS ---
-  static async getWords(page = 1, limit = 20) {
+  // --- TOPICS ---
+  static async createTopic(topicData, adminId) {
+    const name = String(topicData?.name ?? '').trim();
+    const description = String(topicData?.description ?? '').trim();
+    const code = this.buildTopicCode(topicData?.code || name);
+    const topicCategoryId = topicData?.topicCategoryId ? Number(topicData.topicCategoryId) : null;
+
+    if (!name || !adminId) {
+      throw new Error('Invalid topic data');
+    }
+
     const pool = await poolPromise;
-    const offset = (page - 1) * limit;
+    const duplicate = await pool.request()
+      .input('TopicName', sql.NVarChar(200), name)
+      .input('TopicCode', sql.NVarChar(50), code)
+      .query(`
+        SELECT
+          SUM(CASE WHEN TopicName = @TopicName THEN 1 ELSE 0 END) AS nameCount,
+          SUM(CASE WHEN TopicCode = @TopicCode THEN 1 ELSE 0 END) AS codeCount
+        FROM Topics
+        WHERE TopicName = @TopicName OR TopicCode = @TopicCode
+      `);
+
+    const existing = duplicate.recordset[0] || {};
+    if (existing.nameCount > 0) {
+      throw new Error('Topic already exists');
+    }
+    if (existing.codeCount > 0) {
+      throw new Error('Topic code already exists');
+    }
+
+    const result = await pool.request()
+      .input('TopicName', sql.NVarChar(200), name)
+      .input('TopicCode', sql.NVarChar(50), code)
+      .input('Description', sql.NVarChar(1000), description || null)
+      .input('TopicCategoryID', sql.BigInt, topicCategoryId)
+      .input('CreatedByUserID', sql.BigInt, adminId)
+      .query(`
+        IF @TopicCategoryID IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM TopicCategories WHERE TopicCategoryID = @TopicCategoryID)
+          THROW 50010, 'Invalid topic category', 1;
+
+        INSERT INTO Topics (
+          TopicName,
+          TopicCode,
+          Description,
+          TopicCategoryID,
+          CreatedByUserID,
+          ContentStatus,
+          CreatedAt,
+          UpdatedAt
+        )
+        OUTPUT
+          inserted.TopicID AS id,
+          inserted.TopicName AS name,
+          inserted.TopicCode AS code,
+          inserted.Description AS description,
+          inserted.ContentStatus AS status
+        VALUES (
+          @TopicName,
+          @TopicCode,
+          @Description,
+          @TopicCategoryID,
+          @CreatedByUserID,
+          N'Published',
+          SYSDATETIMEOFFSET(),
+          SYSDATETIMEOFFSET()
+        );
+      `);
+
+    const created = result.recordset[0];
+    await this.logAdminAction(adminId, 'CREATE_TOPIC', 'Topic', created.id, created);
+    return created;
+  }
+
+  static async updateTopic(topicId, topicData, adminId) {
+    const name = topicData.name ? String(topicData.name).trim() : null;
+    const description = topicData.description !== undefined ? String(topicData.description ?? '').trim() : null;
+    const code = topicData.code ? this.buildTopicCode(topicData.code) : null;
+    const topicCategoryId = topicData.topicCategoryId === undefined ? undefined : (topicData.topicCategoryId ? Number(topicData.topicCategoryId) : null);
+    const status = topicData.status || null;
+
+    if (!name && description === null && !code && topicCategoryId === undefined && !status) {
+      throw new Error('Invalid topic data');
+    }
+    if (status) this.assertContentStatus(status);
+
+    const pool = await poolPromise;
+    if (name || code) {
+      const duplicate = await pool.request()
+        .input('TopicID', sql.BigInt, topicId)
+        .input('TopicName', sql.NVarChar(200), name)
+        .input('TopicCode', sql.NVarChar(50), code)
+        .query(`
+          SELECT
+            SUM(CASE WHEN @TopicName IS NOT NULL AND TopicName = @TopicName THEN 1 ELSE 0 END) AS nameCount,
+            SUM(CASE WHEN @TopicCode IS NOT NULL AND TopicCode = @TopicCode THEN 1 ELSE 0 END) AS codeCount
+          FROM Topics
+          WHERE TopicID <> @TopicID
+            AND ((@TopicName IS NOT NULL AND TopicName = @TopicName) OR (@TopicCode IS NOT NULL AND TopicCode = @TopicCode))
+        `);
+
+      const existing = duplicate.recordset[0] || {};
+      if (existing.nameCount > 0) throw new Error('Topic already exists');
+      if (existing.codeCount > 0) throw new Error('Topic code already exists');
+    }
+
+    const oldStatusResult = await pool.request()
+      .input('TopicID', sql.BigInt, topicId)
+      .query('SELECT ContentStatus FROM Topics WHERE TopicID = @TopicID');
+
+    if (oldStatusResult.recordset.length === 0) return false;
+
+    const request = pool.request()
+      .input('TopicID', sql.BigInt, topicId)
+      .input('TopicName', sql.NVarChar(200), name)
+      .input('TopicCode', sql.NVarChar(50), code)
+      .input('Description', sql.NVarChar(1000), description)
+      .input('TopicCategoryID', sql.BigInt, topicCategoryId === undefined ? null : topicCategoryId)
+      .input('HasTopicCategoryID', sql.Bit, topicCategoryId !== undefined)
+      .input('ContentStatus', sql.NVarChar(30), status);
+
+    const result = await request.query(`
+      IF @HasTopicCategoryID = 1 AND @TopicCategoryID IS NOT NULL
+         AND NOT EXISTS (SELECT 1 FROM TopicCategories WHERE TopicCategoryID = @TopicCategoryID)
+        THROW 50010, 'Invalid topic category', 1;
+
+      UPDATE Topics
+      SET TopicName = COALESCE(@TopicName, TopicName),
+          TopicCode = COALESCE(@TopicCode, TopicCode),
+          Description = CASE WHEN @Description IS NULL THEN Description ELSE @Description END,
+          TopicCategoryID = CASE WHEN @HasTopicCategoryID = 1 THEN @TopicCategoryID ELSE TopicCategoryID END,
+          ContentStatus = COALESCE(@ContentStatus, ContentStatus),
+          UpdatedAt = SYSDATETIMEOFFSET()
+      WHERE TopicID = @TopicID
+    `);
+
+    if (result.rowsAffected[0] > 0) {
+      await this.logAdminAction(adminId, 'UPDATE_TOPIC', 'Topic', topicId, topicData);
+      if (status) {
+        await this.logContentReview('Topic', topicId, oldStatusResult.recordset[0].ContentStatus, status, adminId, 'Updated from topic manager');
+      }
+    }
+
+    return result.rowsAffected[0] > 0;
+  }
+
+  static async deleteTopic(topicId, adminId) {
+    const pool = await poolPromise;
+    const dependencies = await pool.request()
+      .input('TopicID', sql.BigInt, topicId)
+      .query(`
+        SELECT
+          (SELECT COUNT(*) FROM Topics WHERE TopicID = @TopicID) AS existsCount,
+          (SELECT COUNT(*) FROM WordTopics WHERE TopicID = @TopicID) AS wordCount,
+          (SELECT COUNT(*) FROM MiniTests WHERE TopicID = @TopicID) AS miniTestCount
+      `);
+
+    const row = dependencies.recordset[0];
+    if (!row?.existsCount) return { success: false, archived: false };
+
+    if (row.wordCount > 0 || row.miniTestCount > 0) {
+      await this.updateTopic(topicId, { status: 'Archived' }, adminId);
+      return { success: true, archived: true };
+    }
+
+    const result = await pool.request()
+      .input('TopicID', sql.BigInt, topicId)
+      .query('DELETE FROM Topics WHERE TopicID = @TopicID');
+
+    if (result.rowsAffected[0] > 0) {
+      await this.logAdminAction(adminId, 'DELETE_TOPIC', 'Topic', topicId);
+    }
+
+    return { success: result.rowsAffected[0] > 0, archived: false };
+  }
+
+  static async createTopicCategory(categoryData, adminId) {
+    const name = String(categoryData?.name ?? '').trim();
+    const code = this.buildTopicCode(categoryData?.code || name);
+    const description = String(categoryData?.description ?? '').trim();
+    const iconUrl = String(categoryData?.iconUrl ?? '').trim();
+    const displayOrder = Number(categoryData?.displayOrder) || 1;
+    const isActive = categoryData?.isActive === undefined ? true : Boolean(categoryData.isActive);
+
+    if (!name) throw new Error('Invalid topic category data');
+
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('CategoryName', sql.NVarChar(255), name)
+      .input('CategoryCode', sql.NVarChar(100), code)
+      .input('Description', sql.NVarChar(1000), description || null)
+      .input('IconUrl', sql.NVarChar(1000), iconUrl || null)
+      .input('DisplayOrder', sql.Int, displayOrder)
+      .input('IsActive', sql.Bit, isActive)
+      .input('CreatedByUserID', sql.BigInt, adminId)
+      .query(`
+        IF EXISTS (SELECT 1 FROM TopicCategories WHERE CategoryCode = @CategoryCode)
+          THROW 50011, 'Topic category code already exists', 1;
+
+        INSERT INTO TopicCategories (CategoryName, CategoryCode, Description, IconUrl, DisplayOrder, IsActive, CreatedByUserID, CreatedAt, UpdatedAt)
+        OUTPUT inserted.TopicCategoryID AS id, inserted.CategoryName AS name, inserted.CategoryCode AS code, inserted.Description AS description, inserted.IsActive AS isActive
+        VALUES (@CategoryName, @CategoryCode, @Description, @IconUrl, @DisplayOrder, @IsActive, @CreatedByUserID, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
+      `);
+
+    const created = result.recordset[0];
+    await this.logAdminAction(adminId, 'CREATE_TOPIC_CATEGORY', 'TopicCategory', created.id, created);
+    return created;
+  }
+
+  static async updateTopicCategory(categoryId, categoryData, adminId) {
+    const name = String(categoryData?.name ?? '').trim();
+    const code = this.buildTopicCode(categoryData?.code || name);
+    const description = String(categoryData?.description ?? '').trim();
+    const iconUrl = String(categoryData?.iconUrl ?? '').trim();
+    const displayOrder = Number(categoryData?.displayOrder) || 1;
+    const isActive = categoryData?.isActive === undefined ? true : Boolean(categoryData.isActive);
+
+    if (!name) throw new Error('Invalid topic category data');
+
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('TopicCategoryID', sql.BigInt, categoryId)
+      .input('CategoryName', sql.NVarChar(255), name)
+      .input('CategoryCode', sql.NVarChar(100), code)
+      .input('Description', sql.NVarChar(1000), description || null)
+      .input('IconUrl', sql.NVarChar(1000), iconUrl || null)
+      .input('DisplayOrder', sql.Int, displayOrder)
+      .input('IsActive', sql.Bit, isActive)
+      .query(`
+        IF EXISTS (SELECT 1 FROM TopicCategories WHERE CategoryCode = @CategoryCode AND TopicCategoryID <> @TopicCategoryID)
+          THROW 50011, 'Topic category code already exists', 1;
+
+        UPDATE TopicCategories
+        SET CategoryName = @CategoryName,
+            CategoryCode = @CategoryCode,
+            Description = @Description,
+            IconUrl = @IconUrl,
+            DisplayOrder = @DisplayOrder,
+            IsActive = @IsActive,
+            UpdatedAt = SYSDATETIMEOFFSET()
+        WHERE TopicCategoryID = @TopicCategoryID
+      `);
+
+    if (result.rowsAffected[0] > 0) {
+      await this.logAdminAction(adminId, 'UPDATE_TOPIC_CATEGORY', 'TopicCategory', categoryId, categoryData);
+    }
+
+    return result.rowsAffected[0] > 0;
+  }
+
+  static async deleteTopicCategory(categoryId, adminId) {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('TopicCategoryID', sql.BigInt, categoryId)
+      .query(`
+        UPDATE Topics SET TopicCategoryID = NULL, UpdatedAt = SYSDATETIMEOFFSET()
+        WHERE TopicCategoryID = @TopicCategoryID;
+
+        UPDATE TopicCategories
+        SET IsActive = 0, UpdatedAt = SYSDATETIMEOFFSET()
+        WHERE TopicCategoryID = @TopicCategoryID;
+      `);
+
+    const success = result.rowsAffected.some((count) => count > 0);
+    if (success) {
+      await this.logAdminAction(adminId, 'DISABLE_TOPIC_CATEGORY', 'TopicCategory', categoryId);
+    }
+    return success;
+  }
+
+  // --- WORDS ---
+  static async getWords(page = 1, limit = 20, filters = {}) {
+    const pool = await poolPromise;
+    const paging = this.normalizePagination(page, limit, 100);
+    const topicId = Number(filters.topicId) || null;
+    const search = String(filters.search ?? '').trim();
+    const conditions = [];
+    const request = pool.request()
+      .input('Offset', sql.Int, paging.offset)
+      .input('Limit', sql.Int, paging.limit);
+
+    if (topicId) {
+      request.input('TopicID', sql.BigInt, topicId);
+      conditions.push(`
+        EXISTS (
+          SELECT 1
+          FROM WordTopics wtFilter
+          WHERE wtFilter.WordID = w.WordID
+            AND wtFilter.TopicID = @TopicID
+        )
+      `);
+    }
+
+    if (search) {
+      request.input('Search', sql.NVarChar(250), `%${search}%`);
+      conditions.push('(w.Term LIKE @Search OR w.Meaning LIKE @Search OR w.Phonetic LIKE @Search)');
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
     
     // Fetch main words
-    const result = await pool.request()
-      .input('Offset', sql.Int, offset)
-      .input('Limit', sql.Int, limit)
-      .query(`
+    const result = await request.query(`
+        SELECT COUNT_BIG(1) AS total
+        FROM Words w
+        LEFT JOIN PartOfSpeeches p ON w.PartOfSpeechID = p.PartOfSpeechID
+        ${whereClause};
+
         SELECT w.WordID AS id, w.Term AS term, w.Meaning AS meaning, w.Phonetic AS phonetic, 
                w.PartOfSpeechID AS partOfSpeechId, p.PartOfSpeechName AS partOfSpeechName,
                w.CreatedAt AS createdAt 
         FROM Words w
         LEFT JOIN PartOfSpeeches p ON w.PartOfSpeechID = p.PartOfSpeechID
+        ${whereClause}
         ORDER BY w.CreatedAt DESC
         OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY
       `);
     
-    const words = result.recordset;
+    const total = result.recordsets[0][0]?.total || 0;
+    const words = result.recordsets[1];
 
     // Fetch related data for each word (Note: In production, optimize this with a JOIN or separate batch query)
     for (let word of words) {
@@ -170,11 +569,14 @@ class AdminService {
       word.examples = examplesResult.recordset;
     }
 
-    return words;
+    return this.paginate(words, total, paging.page, paging.limit);
   }
 
   static async createWord(wordData, adminId) {
     const { term, meaning, phonetic = '', partOfSpeechId, topicIds, examples } = wordData;
+    const normalizedTopicIds = Array.isArray(topicIds)
+      ? [...new Set(topicIds.map((topicId) => Number(topicId)).filter(Boolean))]
+      : [];
     const validExamples = Array.isArray(examples)
       ? examples.filter((ex) => String(ex?.sentence ?? '').trim())
       : [];
@@ -201,8 +603,8 @@ class AdminService {
       const wordId = wordResult.recordset[0].id;
 
       // Insert WordTopics
-      if (topicIds && topicIds.length > 0) {
-        for (const topicId of topicIds) {
+      if (normalizedTopicIds.length > 0) {
+        for (const topicId of normalizedTopicIds) {
           const topicReq = new sql.Request(transaction);
           await topicReq
             .input('WordID', sql.BigInt, wordId)
@@ -230,6 +632,7 @@ class AdminService {
       }
 
       await transaction.commit();
+      await this.logAdminAction(adminId, 'CREATE_WORD', 'Word', wordId, { term, topicIds: normalizedTopicIds });
       return { id: wordId, term, meaning };
     } catch (error) {
       await transaction.rollback();
@@ -237,25 +640,88 @@ class AdminService {
     }
   }
 
-  static async updateWord(wordId, wordData) {
-    const { term, meaning, phonetic, partOfSpeechId } = wordData;
+  static async updateWord(wordId, wordData, adminId = null) {
+    const { term, meaning, phonetic = '', partOfSpeechId, topicIds, examples } = wordData;
+    const normalizedTopicIds = Array.isArray(topicIds)
+      ? [...new Set(topicIds.map((topicId) => Number(topicId)).filter(Boolean))]
+      : null;
+    const validExamples = Array.isArray(examples)
+      ? examples.filter((ex) => String(ex?.sentence ?? '').trim())
+      : null;
     const pool = await poolPromise;
-    const result = await pool.request()
-      .input('WordID', sql.BigInt, wordId)
-      .input('Term', sql.NVarChar(200), term)
-      .input('Meaning', sql.NVarChar(1000), meaning)
-      .input('Phonetic', sql.NVarChar(255), phonetic)
-      .input('PartOfSpeechID', sql.Int, partOfSpeechId)
-      .query(`
-        UPDATE Words 
-        SET Term = @Term, Meaning = @Meaning, Phonetic = @Phonetic, 
-            PartOfSpeechID = @PartOfSpeechID, UpdatedAt = SYSDATETIMEOFFSET()
-        WHERE WordID = @WordID
-      `);
-    return result.rowsAffected[0] > 0;
+    const transaction = new sql.Transaction(pool);
+
+    try {
+      await transaction.begin();
+
+      const updateReq = new sql.Request(transaction);
+      const result = await updateReq
+        .input('WordID', sql.BigInt, wordId)
+        .input('Term', sql.NVarChar(200), term)
+        .input('Meaning', sql.NVarChar(1000), meaning)
+        .input('Phonetic', sql.NVarChar(255), phonetic)
+        .input('PartOfSpeechID', sql.Int, partOfSpeechId)
+        .query(`
+          UPDATE Words
+          SET Term = @Term, Meaning = @Meaning, Phonetic = @Phonetic,
+              PartOfSpeechID = @PartOfSpeechID, UpdatedAt = SYSDATETIMEOFFSET()
+          WHERE WordID = @WordID
+        `);
+
+      if (result.rowsAffected[0] === 0) {
+        await transaction.rollback();
+        return false;
+      }
+
+      if (normalizedTopicIds) {
+        const deleteTopicsReq = new sql.Request(transaction);
+        await deleteTopicsReq
+          .input('WordID', sql.BigInt, wordId)
+          .query('DELETE FROM WordTopics WHERE WordID = @WordID');
+
+        for (const topicId of normalizedTopicIds) {
+          const topicReq = new sql.Request(transaction);
+          await topicReq
+            .input('WordID', sql.BigInt, wordId)
+            .input('TopicID', sql.BigInt, topicId)
+            .query(`
+              INSERT INTO WordTopics (WordID, TopicID, AssignedAt)
+              VALUES (@WordID, @TopicID, SYSDATETIMEOFFSET())
+            `);
+        }
+      }
+
+      if (validExamples) {
+        const deleteExamplesReq = new sql.Request(transaction);
+        await deleteExamplesReq
+          .input('WordID', sql.BigInt, wordId)
+          .query('DELETE FROM ExampleSentences WHERE WordID = @WordID');
+
+        for (const ex of validExamples) {
+          const exReq = new sql.Request(transaction);
+          await exReq
+            .input('WordID', sql.BigInt, wordId)
+            .input('SentenceText', sql.NVarChar(2000), ex.sentence)
+            .input('SentenceTranslation', sql.NVarChar(2000), ex.meaning)
+            .query(`
+              INSERT INTO ExampleSentences (WordID, SentenceText, SentenceTranslation, CreatedAt, UpdatedAt)
+              VALUES (@WordID, @SentenceText, @SentenceTranslation, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
+            `);
+        }
+      }
+
+      await transaction.commit();
+      if (adminId) {
+        await this.logAdminAction(adminId, 'UPDATE_WORD', 'Word', wordId, { term, topicIds: normalizedTopicIds });
+      }
+      return true;
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
   }
 
-  static async deleteWord(wordId) {
+  static async deleteWord(wordId, adminId = null) {
     const pool = await poolPromise;
     const transaction = new sql.Transaction(pool);
 
@@ -311,7 +777,11 @@ class AdminService {
         `);
 
       await transaction.commit();
-      return result.recordset[0]?.deleted > 0;
+      const success = result.recordset[0]?.deleted > 0;
+      if (success && adminId) {
+        await this.logAdminAction(adminId, 'DELETE_WORD', 'Word', wordId);
+      }
+      return success;
     } catch (error) {
       await transaction.rollback();
       throw error;
@@ -429,17 +899,49 @@ class AdminService {
   }
 
   // --- QUESTIONS ---
-  static async getQuestionsByWord(wordId) {
+  static async getQuestionsByWord(wordId, page = 1, limit = 20, filters = {}) {
     const pool = await poolPromise;
-    const result = await pool.request()
+    const paging = this.normalizePagination(page, limit, 100);
+    const search = String(filters.search ?? '').trim();
+    const type = String(filters.type ?? '').trim();
+    const status = String(filters.status ?? '').trim();
+    const conditions = ['WordID = @WordID'];
+    const request = pool.request()
       .input('WordID', sql.BigInt, wordId)
+      .input('Offset', sql.Int, paging.offset)
+      .input('Limit', sql.Int, paging.limit);
+
+    if (search) {
+      request.input('Search', sql.NVarChar(250), `%${search}%`);
+      conditions.push('(QuestionText LIKE @Search OR CorrectAnswer LIKE @Search OR Explanation LIKE @Search)');
+    }
+
+    if (type) {
+      request.input('QuestionType', sql.NVarChar(30), type);
+      conditions.push('QuestionType = @QuestionType');
+    }
+
+    if (status) {
+      request.input('ContentStatus', sql.NVarChar(30), status);
+      conditions.push('ContentStatus = @ContentStatus');
+    }
+
+    const whereClause = `WHERE ${conditions.join(' AND ')}`;
+    const result = await request
       .query(`
-        SELECT QuestionID AS id, QuestionType AS questionType, QuestionText AS questionText, 
-               OptionsJson AS optionsJson, CorrectAnswer AS correctAnswer, Explanation AS explanation
+        SELECT COUNT_BIG(1) AS total
         FROM Questions
-        WHERE WordID = @WordID
+        ${whereClause};
+
+        SELECT QuestionID AS id, QuestionType AS questionType, QuestionText AS questionText, 
+               OptionsJson AS optionsJson, CorrectAnswer AS correctAnswer, Explanation AS explanation,
+               ContentStatus AS status, UpdatedAt AS updatedAt
+        FROM Questions
+        ${whereClause}
+        ORDER BY UpdatedAt DESC
+        OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY
       `);
-    return result.recordset;
+    return this.paginate(result.recordsets[1], result.recordsets[0][0]?.total || 0, paging.page, paging.limit);
   }
 
   static async createQuestion(questionData, adminId) {
@@ -458,20 +960,143 @@ class AdminService {
         OUTPUT inserted.QuestionID AS id
         VALUES (@WordID, @QuestionType, @QuestionText, @OptionsJson, @CorrectAnswer, @Explanation, @CreatedByUserID, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
       `);
-    return result.recordset[0];
+    const created = result.recordset[0];
+    await this.logAdminAction(adminId, 'CREATE_QUESTION', 'Question', created.id, { wordId, questionType });
+    return created;
+  }
+
+  static async updateQuestion(questionId, questionData, adminId) {
+    const { wordId, questionType, questionText, optionsJson = '[]', correctAnswer, explanation } = questionData;
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('QuestionID', sql.BigInt, questionId)
+      .input('WordID', sql.BigInt, wordId)
+      .input('QuestionType', sql.NVarChar(30), questionType)
+      .input('QuestionText', sql.NVarChar(2000), questionText)
+      .input('OptionsJson', sql.NVarChar(sql.MAX), optionsJson)
+      .input('CorrectAnswer', sql.NVarChar(500), correctAnswer)
+      .input('Explanation', sql.NVarChar(2000), explanation)
+      .query(`
+        UPDATE Questions
+        SET WordID = @WordID,
+            QuestionType = @QuestionType,
+            QuestionText = @QuestionText,
+            OptionsJson = @OptionsJson,
+            CorrectAnswer = @CorrectAnswer,
+            Explanation = @Explanation,
+            UpdatedAt = SYSDATETIMEOFFSET()
+        WHERE QuestionID = @QuestionID
+      `);
+
+    if (result.rowsAffected[0] > 0) {
+      await this.logAdminAction(adminId, 'UPDATE_QUESTION', 'Question', questionId, { wordId, questionType });
+    }
+
+    return result.rowsAffected[0] > 0;
+  }
+
+  static async deleteQuestion(questionId, adminId) {
+    const pool = await poolPromise;
+    const transaction = new sql.Transaction(pool);
+
+    try {
+      await transaction.begin();
+
+      const request = new sql.Request(transaction);
+      const result = await request
+        .input('QuestionID', sql.BigInt, questionId)
+        .query(`
+          IF NOT EXISTS (SELECT 1 FROM Questions WHERE QuestionID = @QuestionID)
+          BEGIN
+            SELECT CAST(0 AS INT) AS deleted;
+            RETURN;
+          END
+
+          DELETE FROM MiniTestItems WHERE QuestionID = @QuestionID;
+          DELETE FROM ExerciseAttempts WHERE QuestionID = @QuestionID;
+          DELETE FROM Questions WHERE QuestionID = @QuestionID;
+
+          UPDATE mt
+          SET TotalQuestions = counts.TotalQuestions,
+              UpdatedAt = SYSDATETIMEOFFSET()
+          FROM MiniTests mt
+          CROSS APPLY (
+            SELECT COUNT(*) AS TotalQuestions
+            FROM MiniTestItems mti
+            WHERE mti.MiniTestID = mt.MiniTestID
+          ) counts;
+
+          SELECT CAST(1 AS INT) AS deleted;
+        `);
+
+      await transaction.commit();
+
+      const success = result.recordset[0]?.deleted > 0;
+      if (success) {
+        await this.logAdminAction(adminId, 'DELETE_QUESTION', 'Question', questionId);
+      }
+      return success;
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
   }
 
   // --- MINI TESTS ---
-  static async getMiniTests() {
+  static async getMiniTests(page = 1, limit = 20, filters = {}) {
     const pool = await poolPromise;
-    const result = await pool.request().query(`
-      SELECT mt.MiniTestID AS id, mt.TestTitle AS title, mt.Description AS description, 
-             t.TopicName AS topicName, mt.TotalQuestions AS totalQuestions, mt.IsPublished AS isPublished
+    const paging = this.normalizePagination(page, limit, 100);
+    const search = String(filters.search ?? '').trim();
+    const status = String(filters.status ?? '').trim();
+    const topicId = Number(filters.topicId) || null;
+    const conditions = [];
+    const request = pool.request()
+      .input('Offset', sql.Int, paging.offset)
+      .input('Limit', sql.Int, paging.limit);
+
+    if (search) {
+      request.input('Search', sql.NVarChar(250), `%${search}%`);
+      conditions.push('(mt.TestTitle LIKE @Search OR mt.Description LIKE @Search OR t.TopicName LIKE @Search)');
+    }
+
+    if (status) {
+      request.input('ContentStatus', sql.NVarChar(30), status);
+      conditions.push('mt.ContentStatus = @ContentStatus');
+    }
+
+    if (topicId) {
+      request.input('TopicID', sql.BigInt, topicId);
+      conditions.push('mt.TopicID = @TopicID');
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const result = await request.query(`
+      SELECT COUNT_BIG(1) AS total
       FROM MiniTests mt
       LEFT JOIN Topics t ON mt.TopicID = t.TopicID
+      ${whereClause};
+
+      SELECT mt.MiniTestID AS id, mt.TestTitle AS title, mt.Description AS description, 
+             mt.TopicID AS topicId, t.TopicName AS topicName, mt.TotalQuestions AS totalQuestions,
+             mt.IsPublished AS isPublished, mt.ContentStatus AS status, mt.UpdatedAt AS updatedAt,
+             (
+               SELECT mti.QuestionID AS id
+               FROM MiniTestItems mti
+               WHERE mti.MiniTestID = mt.MiniTestID
+               ORDER BY mti.DisplayOrder
+               FOR JSON PATH
+             ) AS questionsJson
+      FROM MiniTests mt
+      LEFT JOIN Topics t ON mt.TopicID = t.TopicID
+      ${whereClause}
       ORDER BY mt.CreatedAt DESC
+      OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY
     `);
-    return result.recordset;
+    const items = result.recordsets[1].map((test) => ({
+      ...test,
+      questionIds: test.questionsJson ? JSON.parse(test.questionsJson).map((item) => item.id) : []
+    }));
+    return this.paginate(items, result.recordsets[0][0]?.total || 0, paging.page, paging.limit);
   }
 
   static async createMiniTest(testData, adminId) {
@@ -510,11 +1135,135 @@ class AdminService {
       }
 
       await transaction.commit();
+      await this.logAdminAction(adminId, 'CREATE_MINI_TEST', 'MiniTest', testId, { title, topicId, questionCount: questionIds.length });
       return { id: testId, title };
     } catch (error) {
       await transaction.rollback();
       throw error;
     }
+  }
+
+  static async updateMiniTest(testId, testData, adminId) {
+    const { title, description, topicId, questionIds } = testData;
+    const pool = await poolPromise;
+    const transaction = new sql.Transaction(pool);
+
+    try {
+      await transaction.begin();
+      const updateReq = new sql.Request(transaction);
+      const result = await updateReq
+        .input('MiniTestID', sql.BigInt, testId)
+        .input('Title', sql.NVarChar(255), title)
+        .input('Description', sql.NVarChar(1000), description || null)
+        .input('TopicID', sql.BigInt, topicId || null)
+        .input('TotalQuestions', sql.Int, questionIds.length)
+        .query(`
+          UPDATE MiniTests
+          SET TestTitle = @Title,
+              Description = @Description,
+              TopicID = @TopicID,
+              TotalQuestions = @TotalQuestions,
+              UpdatedAt = SYSDATETIMEOFFSET()
+          WHERE MiniTestID = @MiniTestID
+        `);
+
+      if (result.rowsAffected[0] === 0) {
+        await transaction.rollback();
+        return false;
+      }
+
+      const deleteReq = new sql.Request(transaction);
+      await deleteReq
+        .input('MiniTestID', sql.BigInt, testId)
+        .query('DELETE FROM MiniTestItems WHERE MiniTestID = @MiniTestID');
+
+      for (let i = 0; i < questionIds.length; i++) {
+        const itemReq = new sql.Request(transaction);
+        await itemReq
+          .input('MiniTestID', sql.BigInt, testId)
+          .input('QuestionID', sql.BigInt, questionIds[i])
+          .input('DisplayOrder', sql.Int, i + 1)
+          .query(`
+            INSERT INTO MiniTestItems (MiniTestID, QuestionID, DisplayOrder)
+            VALUES (@MiniTestID, @QuestionID, @DisplayOrder)
+          `);
+      }
+
+      await transaction.commit();
+      await this.logAdminAction(adminId, 'UPDATE_MINI_TEST', 'MiniTest', testId, { title, topicId, questionCount: questionIds.length });
+      return true;
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
+  }
+
+  static async deleteMiniTest(testId, adminId) {
+    const pool = await poolPromise;
+    const transaction = new sql.Transaction(pool);
+
+    try {
+      await transaction.begin();
+      const request = new sql.Request(transaction);
+      const result = await request
+        .input('MiniTestID', sql.BigInt, testId)
+        .query(`
+          IF NOT EXISTS (SELECT 1 FROM MiniTests WHERE MiniTestID = @MiniTestID)
+          BEGIN
+            SELECT CAST(0 AS INT) AS deleted;
+            RETURN;
+          END
+
+          IF OBJECT_ID(N'dbo.MiniTestAttempts', N'U') IS NOT NULL
+            DELETE FROM MiniTestAttempts WHERE MiniTestID = @MiniTestID;
+
+          DELETE FROM MiniTestItems WHERE MiniTestID = @MiniTestID;
+          DELETE FROM MiniTests WHERE MiniTestID = @MiniTestID;
+          SELECT CAST(1 AS INT) AS deleted;
+        `);
+
+      await transaction.commit();
+      const success = result.recordset[0]?.deleted > 0;
+      if (success) {
+        await this.logAdminAction(adminId, 'DELETE_MINI_TEST', 'MiniTest', testId);
+      }
+      return success;
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
+  }
+
+  static async setMiniTestStatus(testId, status, adminId, comment = null) {
+    this.assertContentStatus(status);
+    const pool = await poolPromise;
+    const oldStatusResult = await pool.request()
+      .input('MiniTestID', sql.BigInt, testId)
+      .query('SELECT ContentStatus FROM MiniTests WHERE MiniTestID = @MiniTestID');
+
+    if (oldStatusResult.recordset.length === 0) return false;
+    const oldStatus = oldStatusResult.recordset[0].ContentStatus;
+
+    const result = await pool.request()
+      .input('MiniTestID', sql.BigInt, testId)
+      .input('ContentStatus', sql.NVarChar(30), status)
+      .input('ReviewedByUserID', sql.BigInt, adminId)
+      .query(`
+        UPDATE MiniTests
+        SET ContentStatus = @ContentStatus,
+            IsPublished = CASE WHEN @ContentStatus = N'Published' THEN 1 ELSE 0 END,
+            ReviewedByUserID = @ReviewedByUserID,
+            ReviewedAt = SYSDATETIMEOFFSET(),
+            PublishedAt = CASE WHEN @ContentStatus = N'Published' THEN SYSDATETIMEOFFSET() ELSE PublishedAt END,
+            UpdatedAt = SYSDATETIMEOFFSET()
+        WHERE MiniTestID = @MiniTestID
+      `);
+
+    if (result.rowsAffected[0] > 0) {
+      await this.logContentReview('MiniTest', testId, oldStatus, status, adminId, comment);
+      await this.logAdminAction(adminId, 'UPDATE_MINI_TEST_STATUS', 'MiniTest', testId, { oldStatus, status, comment });
+    }
+    return result.rowsAffected[0] > 0;
   }
 
   static async getDashboardStats() {
@@ -578,9 +1327,39 @@ class AdminService {
     };
   }
 
-  static async getStudents() {
+  static async getStudents(page = 1, limit = 20, filters = {}) {
     const pool = await poolPromise;
-    const result = await pool.request().query(`
+    const paging = this.normalizePagination(page, limit, 100);
+    const search = String(filters.search ?? '').trim();
+    const status = String(filters.status ?? '').trim();
+    const role = String(filters.role ?? '').trim();
+    const conditions = [];
+    const request = pool.request()
+      .input('Offset', sql.Int, paging.offset)
+      .input('Limit', sql.Int, paging.limit);
+
+    if (search) {
+      request.input('Search', sql.NVarChar(250), `%${search}%`);
+      conditions.push('(u.FullName LIKE @Search OR u.Email LIKE @Search OR u.UserRole LIKE @Search OR r.RoleName LIKE @Search)');
+    }
+
+    if (status === 'active' || status === 'banned') {
+      request.input('IsActive', sql.Bit, status === 'active');
+      conditions.push('u.IsActive = @IsActive');
+    }
+
+    if (role) {
+      request.input('RoleName', sql.NVarChar(50), role);
+      conditions.push('u.UserRole = @RoleName');
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const result = await request.query(`
+      SELECT COUNT_BIG(1) AS total
+      FROM Users u
+      LEFT JOIN Roles r ON u.RoleID = r.RoleID
+      ${whereClause};
+
       SELECT u.UserID AS id, u.FullName AS fullName, u.Email AS email, u.UserRole AS role,
              r.RoleName AS roleName, u.IsActive AS isActive, u.CreatedAt AS joinedAt,
              (SELECT COUNT(*) FROM UserWordProgress WHERE UserID = u.UserID AND MasteryLevel >= 8) AS masteredWords,
@@ -589,9 +1368,11 @@ class AdminService {
              (SELECT MAX(AttemptedAt) FROM ExerciseAttempts WHERE UserID = u.UserID) AS lastActiveAt
       FROM Users u
       LEFT JOIN Roles r ON u.RoleID = r.RoleID
+      ${whereClause}
       ORDER BY u.CreatedAt DESC
+      OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY
     `);
-    return result.recordset;
+    return this.paginate(result.recordsets[1], result.recordsets[0][0]?.total || 0, paging.page, paging.limit);
   }
 
   static async createUser(userData) {
@@ -799,6 +1580,53 @@ class AdminService {
       `);
 
     return result.rowsAffected.some((count) => count > 0);
+  }
+
+  static async updateContentStatus({ entityType, entityId, status, comment }, adminId) {
+    this.assertContentStatus(status);
+
+    const tableMap = {
+      Topic: { table: 'Topics', id: 'TopicID' },
+      Word: { table: 'Words', id: 'WordID' },
+      Question: { table: 'Questions', id: 'QuestionID' },
+      MiniTest: { table: 'MiniTests', id: 'MiniTestID', publishColumn: true }
+    };
+    const target = tableMap[entityType];
+    if (!target) throw new Error('Invalid entity type');
+
+    const pool = await poolPromise;
+    const oldStatusResult = await pool.request()
+      .input('EntityID', sql.BigInt, entityId)
+      .query(`SELECT ContentStatus FROM ${target.table} WHERE ${target.id} = @EntityID`);
+
+    if (oldStatusResult.recordset.length === 0) return false;
+    const oldStatus = oldStatusResult.recordset[0].ContentStatus;
+
+    const publishFragment = target.publishColumn
+      ? ', IsPublished = CASE WHEN @ContentStatus = N\'Published\' THEN 1 ELSE 0 END'
+      : '';
+
+    const result = await pool.request()
+      .input('EntityID', sql.BigInt, entityId)
+      .input('ContentStatus', sql.NVarChar(30), status)
+      .input('ReviewedByUserID', sql.BigInt, adminId)
+      .query(`
+        UPDATE ${target.table}
+        SET ContentStatus = @ContentStatus,
+            ReviewedByUserID = @ReviewedByUserID,
+            ReviewedAt = SYSDATETIMEOFFSET(),
+            PublishedAt = CASE WHEN @ContentStatus = N'Published' THEN SYSDATETIMEOFFSET() ELSE PublishedAt END,
+            UpdatedAt = SYSDATETIMEOFFSET()
+            ${publishFragment}
+        WHERE ${target.id} = @EntityID
+      `);
+
+    if (result.rowsAffected[0] > 0) {
+      await this.logContentReview(entityType, entityId, oldStatus, status, adminId, comment);
+      await this.logAdminAction(adminId, 'UPDATE_CONTENT_STATUS', entityType, entityId, { oldStatus, status, comment });
+    }
+
+    return result.rowsAffected[0] > 0;
   }
 
   static async getAnalyticsData() {
@@ -1079,20 +1907,55 @@ class AdminService {
     };
   }
 
-  static async getNotifications(limit = 50) {
+  static async getNotifications(page = 1, limit = 50, filters = {}) {
     const pool = await poolPromise;
+    const paging = this.normalizePagination(page, limit, 100);
     const tableExists = await pool.request().query(`
       SELECT OBJECT_ID(N'dbo.Notifications', N'U') AS tableId
     `);
 
     if (!tableExists.recordset[0].tableId) {
-      return [];
+      return this.paginate([], 0, paging.page, paging.limit);
     }
 
-    const result = await pool.request()
-      .input('Limit', sql.Int, limit)
+    const search = String(filters.search ?? '').trim();
+    const type = String(filters.type ?? '').trim();
+    const deliveryChannel = String(filters.deliveryChannel ?? '').trim();
+    const isRead = filters.isRead === undefined || filters.isRead === '' ? null : filters.isRead === true || filters.isRead === 'true' || filters.isRead === '1';
+    const conditions = [];
+    const request = pool.request()
+      .input('Offset', sql.Int, paging.offset)
+      .input('Limit', sql.Int, paging.limit);
+
+    if (search) {
+      request.input('Search', sql.NVarChar(250), `%${search}%`);
+      conditions.push('(n.Title LIKE @Search OR n.Message LIKE @Search OR u.FullName LIKE @Search OR u.Email LIKE @Search)');
+    }
+
+    if (type) {
+      request.input('Type', sql.NVarChar(50), type);
+      conditions.push('n.Type = @Type');
+    }
+
+    if (deliveryChannel) {
+      request.input('DeliveryChannel', sql.NVarChar(20), deliveryChannel);
+      conditions.push('n.DeliveryChannel = @DeliveryChannel');
+    }
+
+    if (isRead !== null) {
+      request.input('IsRead', sql.Bit, isRead);
+      conditions.push('n.IsRead = @IsRead');
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const result = await request
       .query(`
-        SELECT TOP (@Limit)
+        SELECT COUNT_BIG(1) AS total
+        FROM Notifications n
+        JOIN Users u ON n.UserID = u.UserID
+        ${whereClause};
+
+        SELECT
           n.NotificationID AS id,
           n.UserID AS userId,
           u.FullName AS fullName,
@@ -1106,10 +1969,79 @@ class AdminService {
           n.ActionUrl AS actionUrl
         FROM Notifications n
         JOIN Users u ON n.UserID = u.UserID
+        ${whereClause}
         ORDER BY n.CreatedAt DESC
+        OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY
       `);
 
-    return result.recordset;
+    return this.paginate(result.recordsets[1], result.recordsets[0][0]?.total || 0, paging.page, paging.limit);
+  }
+
+  static async getAuditLogs(page = 1, limit = 50, filters = {}) {
+    const pool = await poolPromise;
+    const paging = this.normalizePagination(page, limit, 100);
+    const tableExists = await pool.request().query(`
+      SELECT OBJECT_ID(N'dbo.AdminAuditLogs', N'U') AS tableId
+    `);
+
+    if (!tableExists.recordset[0].tableId) {
+      return this.paginate([], 0, paging.page, paging.limit);
+    }
+
+    const search = String(filters.search ?? '').trim();
+    const action = String(filters.action ?? '').trim();
+    const entityType = String(filters.entityType ?? '').trim();
+    const adminId = Number(filters.adminId) || null;
+    const conditions = [];
+    const request = pool.request()
+      .input('Offset', sql.Int, paging.offset)
+      .input('Limit', sql.Int, paging.limit);
+
+    if (search) {
+      request.input('Search', sql.NVarChar(250), `%${search}%`);
+      conditions.push('(l.Action LIKE @Search OR l.EntityType LIKE @Search OR l.Details LIKE @Search OR u.FullName LIKE @Search OR u.Email LIKE @Search)');
+    }
+
+    if (action) {
+      request.input('Action', sql.NVarChar(100), action);
+      conditions.push('l.Action = @Action');
+    }
+
+    if (entityType) {
+      request.input('EntityType', sql.NVarChar(50), entityType);
+      conditions.push('l.EntityType = @EntityType');
+    }
+
+    if (adminId) {
+      request.input('AdminID', sql.BigInt, adminId);
+      conditions.push('l.ActionByUserID = @AdminID');
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const result = await request.query(`
+      SELECT COUNT_BIG(1) AS total
+      FROM AdminAuditLogs l
+      LEFT JOIN Users u ON l.ActionByUserID = u.UserID
+      ${whereClause};
+
+      SELECT
+        l.AdminAuditLogID AS id,
+        l.ActionByUserID AS adminId,
+        u.FullName AS adminName,
+        u.Email AS adminEmail,
+        l.Action AS action,
+        l.EntityType AS entityType,
+        l.EntityID AS entityId,
+        l.Details AS details,
+        l.CreatedAt AS createdAt
+      FROM AdminAuditLogs l
+      LEFT JOIN Users u ON l.ActionByUserID = u.UserID
+      ${whereClause}
+      ORDER BY l.CreatedAt DESC
+      OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY
+    `);
+
+    return this.paginate(result.recordsets[1], result.recordsets[0][0]?.total || 0, paging.page, paging.limit);
   }
 
   static async sendAnnouncement({ audience = 'All users', title, message, deliveryChannel = 'InApp', actionUrl = null }) {
