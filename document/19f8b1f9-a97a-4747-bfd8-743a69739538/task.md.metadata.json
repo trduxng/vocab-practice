@@ -1,0 +1,5 @@
+{
+  "artifactType":  "ARTIFACT_TYPE_TASK",
+  "summary":  "Checklist theo dõi tiến độ triển khai ContentCreator qua 5 phases: Database, Backend, Frontend, Admin Review UI, Testing.",
+  "updatedAt":  "2026-05-19T08:42:44.133700700Z"
+}

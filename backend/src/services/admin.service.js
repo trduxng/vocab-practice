@@ -1189,6 +1189,65 @@ class AdminService {
 
     return { inserted: result.recordset[0].inserted };
   }
+
+  // ── TopicCategories CRUD (Admin only) ──
+  static async getTopicCategories() {
+    const pool = await poolPromise;
+    const result = await pool.request().query(`
+      SELECT TopicCategoryID AS id, CategoryName AS name, CategoryCode AS code,
+             Description AS description, IconUrl AS iconUrl, DisplayOrder AS displayOrder,
+             IsActive AS isActive
+      FROM TopicCategories
+      ORDER BY DisplayOrder, CategoryName
+    `);
+    return result.recordset;
+  }
+
+  static async createTopicCategory(data) {
+    const { categoryName, categoryCode, description, iconUrl, displayOrder, isActive } = data;
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('CategoryName', sql.NVarChar(200), categoryName)
+      .input('CategoryCode', sql.NVarChar(50), categoryCode)
+      .input('Description', sql.NVarChar(1000), description || null)
+      .input('IconUrl', sql.NVarChar(500), iconUrl || null)
+      .input('DisplayOrder', sql.Int, displayOrder || 0)
+      .input('IsActive', sql.Bit, isActive !== false)
+      .query(`
+        INSERT INTO TopicCategories (CategoryName, CategoryCode, Description, IconUrl, DisplayOrder, IsActive, CreatedAt, UpdatedAt)
+        OUTPUT inserted.TopicCategoryID AS id
+        VALUES (@CategoryName, @CategoryCode, @Description, @IconUrl, @DisplayOrder, @IsActive, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
+      `);
+    return result.recordset[0];
+  }
+
+  static async updateTopicCategory(id, data) {
+    const { categoryName, categoryCode, description, iconUrl, displayOrder, isActive } = data;
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('ID', sql.BigInt, id)
+      .input('CategoryName', sql.NVarChar(200), categoryName)
+      .input('CategoryCode', sql.NVarChar(50), categoryCode)
+      .input('Description', sql.NVarChar(1000), description || null)
+      .input('IconUrl', sql.NVarChar(500), iconUrl || null)
+      .input('DisplayOrder', sql.Int, displayOrder || 0)
+      .input('IsActive', sql.Bit, isActive !== false)
+      .query(`
+        UPDATE TopicCategories
+        SET CategoryName=@CategoryName, CategoryCode=@CategoryCode, Description=@Description,
+            IconUrl=@IconUrl, DisplayOrder=@DisplayOrder, IsActive=@IsActive, UpdatedAt=SYSDATETIMEOFFSET()
+        WHERE TopicCategoryID=@ID
+      `);
+    return result.rowsAffected[0] > 0;
+  }
+
+  static async deleteTopicCategory(id) {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('ID', sql.BigInt, id)
+      .query('DELETE FROM TopicCategories WHERE TopicCategoryID=@ID');
+    return result.rowsAffected[0] > 0;
+  }
 }
 
 module.exports = AdminService;

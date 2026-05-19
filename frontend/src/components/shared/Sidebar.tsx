@@ -12,10 +12,13 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
+  Clock,
+  Edit3,
   FileQuestion,
   FileText,
   FileWarning,
   Home,
+  Image,
   LayoutDashboard,
   ListChecks,
   LogOut,
@@ -24,12 +27,15 @@ import {
   Target,
   Trophy,
   Users,
+  XCircle,
 } from "lucide-react";
 
 const adminLinks = [
   { icon: LayoutDashboard, label: "Overview", href: "/admin/dashboard" },
   { icon: Users, label: "Users", href: "/admin/students" },
   { icon: ClipboardList, label: "Content", href: "/admin/courses" },
+  { icon: ShieldCheck, label: "Duyệt nội dung", href: "/admin/content-review" },
+  { icon: BookOpen, label: "Danh mục chủ đề", href: "/admin/topic-categories" },
   { icon: BarChart3, label: "Analytics", href: "/admin/analytics" },
   { icon: FileWarning, label: "Reports", href: "/admin/reports" },
   { icon: Settings, label: "Settings", href: "/admin/settings" },
@@ -37,6 +43,19 @@ const adminLinks = [
   { icon: BookOpen, label: "Vocabulary", href: "/admin/words" },
   { icon: FileQuestion, label: "Questions", href: "/admin/questions" },
   { icon: ListChecks, label: "Mini tests", href: "/admin/minitests" },
+];
+
+const creatorLinks = [
+  { icon: LayoutDashboard, label: "Dashboard", href: "/creator/dashboard" },
+  { icon: BookOpen, label: "Chủ đề", href: "/creator/topics" },
+  { icon: FileText, label: "Từ vựng", href: "/creator/words" },
+  { icon: FileQuestion, label: "Câu hỏi", href: "/creator/questions" },
+  { icon: ListChecks, label: "Bài test", href: "/creator/mini-tests" },
+  { icon: Image, label: "Media", href: "/creator/media" },
+  { icon: Edit3, label: "Bản nháp", href: "/creator/drafts" },
+  { icon: Clock, label: "Chờ duyệt", href: "/creator/pending" },
+  { icon: XCircle, label: "Bị từ chối", href: "/creator/rejected" },
+  { icon: BarChart3, label: "Phân tích", href: "/creator/analytics" },
 ];
 
 const studentLinks = [
@@ -82,10 +101,10 @@ function NavLinks({ links, collapsed }: NavLinksProps) {
   );
 }
 
-export default function Sidebar({ role }: { role: "admin" | "student" }) {
+export default function Sidebar({ role }: { role: "admin" | "creator" | "student" }) {
   const [collapsed, setCollapsed] = useState(false);
   const { logout } = useAuth();
-  const links = role === "admin" ? adminLinks : studentLinks;
+  const links = role === "admin" ? adminLinks : role === "creator" ? creatorLinks : studentLinks;
 
   return (
     <aside
@@ -114,7 +133,7 @@ export default function Sidebar({ role }: { role: "admin" | "student" }) {
           <ShieldCheck className="h-4 w-4 text-emerald-500" />
           <div>
             <p className="text-xs font-medium text-slate-800 dark:text-slate-200">
-              {role === "admin" ? "Khu vực quản trị" : "Khu vực học tập"}
+              {role === "admin" ? "Khu vực quản trị" : role === "creator" ? "Khu vực tạo nội dung" : "Khu vực học tập"}
             </p>
             <p className="text-[11px] text-slate-500 dark:text-slate-400">Sẵn sàng học</p>
           </div>

@@ -37,6 +37,8 @@ export default function LoginPage() {
       const savedUser = JSON.parse(localStorage.getItem('user') || '{}');
       if (savedUser.role === 'Admin') {
         router.push('/admin/dashboard');
+      } else if (savedUser.role === 'ContentCreator') {
+        router.push('/creator/dashboard');
       } else {
         router.push('/user/dashboard');
       }
