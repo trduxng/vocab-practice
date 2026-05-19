@@ -41,8 +41,8 @@ class AdminService {
     const code = String(name ?? '')
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
-      .replace(/Ä‘/g, 'd')
-      .replace(/Ä/g, 'D')
+      .replace(/\u0111/g, 'd')
+      .replace(/\u0110/g, 'D')
       .toUpperCase()
       .replace(/[^A-Z0-9]+/g, '_')
       .replace(/^_+|_+$/g, '')
@@ -111,11 +111,11 @@ class AdminService {
 
   static normalizeImportKey(value) {
     return String(value ?? '')
+      .replace(/\u0111/g, 'd')
+      .replace(/\u0110/g, 'D')
       .replace(/^\uFEFF/, '')
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
-      .replace(/đ/g, 'd')
-      .replace(/Đ/g, 'D')
       .toLowerCase()
       .replace(/[^a-z0-9]/g, '');
   }
@@ -225,15 +225,103 @@ class AdminService {
   }
 
   // --- TOPICS ---
+  static async getTopics(page = 1, limit = 50, filters = {}) {
+    const pool = await poolPromise;
+    const paging = this.normalizePagination(page, limit, 200);
+    const search = String(filters.search ?? '').trim();
+    const status = String(filters.status ?? '').trim();
+    const categoryId = Number(filters.categoryId) || null;
+    const conditions = [];
+    const request = pool.request()
+      .input('Offset', sql.Int, paging.offset)
+      .input('Limit', sql.Int, paging.limit);
+
+    if (search) {
+      request.input('Search', sql.NVarChar(250), `%${search}%`);
+      conditions.push('(t.TopicName LIKE @Search OR t.TopicCode LIKE @Search OR t.Description LIKE @Search)');
+    }
+
+    if (status) {
+      this.assertContentStatus(status);
+      request.input('ContentStatus', sql.NVarChar(30), status);
+      conditions.push('t.ContentStatus = @ContentStatus');
+    }
+
+    if (categoryId) {
+      request.input('TopicCategoryID', sql.BigInt, categoryId);
+      conditions.push('t.TopicCategoryID = @TopicCategoryID');
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const result = await request.query(`
+      SELECT COUNT_BIG(1) AS total
+      FROM Topics t
+      LEFT JOIN TopicCategories tc ON t.TopicCategoryID = tc.TopicCategoryID
+      ${whereClause};
+
+      SELECT
+        t.TopicID AS id,
+        t.TopicName AS name,
+        t.TopicCode AS code,
+        t.Description AS description,
+        t.TopicCategoryID AS topicCategoryId,
+        tc.CategoryName AS categoryName,
+        t.ContentStatus AS status,
+        COUNT(DISTINCT wt.WordID) AS wordCount,
+        COUNT(DISTINCT mt.MiniTestID) AS miniTestCount,
+        t.UpdatedAt AS updatedAt,
+        t.CreatedAt AS createdAt
+      FROM Topics t
+      LEFT JOIN TopicCategories tc ON t.TopicCategoryID = tc.TopicCategoryID
+      LEFT JOIN WordTopics wt ON t.TopicID = wt.TopicID
+      LEFT JOIN MiniTests mt ON t.TopicID = mt.TopicID
+      ${whereClause}
+      GROUP BY t.TopicID, t.TopicName, t.TopicCode, t.Description, t.TopicCategoryID,
+               tc.CategoryName, t.ContentStatus, t.UpdatedAt, t.CreatedAt
+      ORDER BY t.UpdatedAt DESC, t.TopicID DESC
+      OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY;
+    `);
+
+    return this.paginate(result.recordsets[1] || [], result.recordsets[0][0]?.total || 0, paging.page, paging.limit);
+  }
+
+  static async getTopicCategories() {
+    const pool = await poolPromise;
+    const result = await pool.request().query(`
+      SELECT
+        tc.TopicCategoryID AS id,
+        tc.CategoryName AS name,
+        tc.CategoryCode AS code,
+        tc.Description AS description,
+        tc.IconUrl AS iconUrl,
+        tc.DisplayOrder AS displayOrder,
+        tc.IsActive AS isActive,
+        COUNT(DISTINCT t.TopicID) AS topicCount,
+        COUNT(DISTINCT wt.WordID) AS wordCount,
+        tc.UpdatedAt AS updatedAt,
+        tc.CreatedAt AS createdAt
+      FROM TopicCategories tc
+      LEFT JOIN Topics t ON tc.TopicCategoryID = t.TopicCategoryID
+      LEFT JOIN WordTopics wt ON t.TopicID = wt.TopicID
+      GROUP BY tc.TopicCategoryID, tc.CategoryName, tc.CategoryCode, tc.Description,
+               tc.IconUrl, tc.DisplayOrder, tc.IsActive, tc.UpdatedAt, tc.CreatedAt
+      ORDER BY tc.DisplayOrder ASC, tc.CategoryName ASC;
+    `);
+
+    return result.recordset;
+  }
+
   static async createTopic(topicData, adminId) {
     const name = String(topicData?.name ?? '').trim();
     const description = String(topicData?.description ?? '').trim();
     const code = this.buildTopicCode(topicData?.code || name);
     const topicCategoryId = topicData?.topicCategoryId ? Number(topicData.topicCategoryId) : null;
+    const status = topicData?.status || 'Published';
 
     if (!name || !adminId) {
       throw new Error('Invalid topic data');
     }
+    this.assertContentStatus(status);
 
     const pool = await poolPromise;
     const duplicate = await pool.request()
@@ -260,6 +348,7 @@ class AdminService {
       .input('TopicCode', sql.NVarChar(50), code)
       .input('Description', sql.NVarChar(1000), description || null)
       .input('TopicCategoryID', sql.BigInt, topicCategoryId)
+      .input('ContentStatus', sql.NVarChar(30), status)
       .input('CreatedByUserID', sql.BigInt, adminId)
       .query(`
         IF @TopicCategoryID IS NOT NULL
@@ -288,7 +377,7 @@ class AdminService {
           @Description,
           @TopicCategoryID,
           @CreatedByUserID,
-          N'Published',
+          @ContentStatus,
           SYSDATETIMEOFFSET(),
           SYSDATETIMEOFFSET()
         );
@@ -500,7 +589,22 @@ class AdminService {
     const pool = await poolPromise;
     const paging = this.normalizePagination(page, limit, 100);
     const topicId = Number(filters.topicId) || null;
+    const partOfSpeechId = Number(filters.partOfSpeechId) || null;
     const search = String(filters.search ?? '').trim();
+    const status = String(filters.status ?? '').trim();
+    const missingExamples = filters.missingExamples === true || filters.missingExamples === 'true';
+    const missingQuestions = filters.missingQuestions === true || filters.missingQuestions === 'true';
+    const sortBy = ['term', 'createdAt', 'updatedAt', 'questionCount', 'exampleCount'].includes(filters.sortBy)
+      ? filters.sortBy
+      : 'createdAt';
+    const sortDirection = String(filters.sortDirection ?? 'desc').toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+    const sortMap = {
+      term: 'w.Term',
+      createdAt: 'w.CreatedAt',
+      updatedAt: 'w.UpdatedAt',
+      questionCount: 'QuestionCount',
+      exampleCount: 'ExampleCount'
+    };
     const conditions = [];
     const request = pool.request()
       .input('Offset', sql.Int, paging.offset)
@@ -523,57 +627,185 @@ class AdminService {
       conditions.push('(w.Term LIKE @Search OR w.Meaning LIKE @Search OR w.Phonetic LIKE @Search)');
     }
 
+    if (partOfSpeechId) {
+      request.input('PartOfSpeechID', sql.Int, partOfSpeechId);
+      conditions.push('w.PartOfSpeechID = @PartOfSpeechID');
+    }
+
+    if (status) {
+      this.assertContentStatus(status);
+      request.input('ContentStatus', sql.NVarChar(30), status);
+      conditions.push('w.ContentStatus = @ContentStatus');
+    }
+
+    if (missingExamples) {
+      conditions.push('NOT EXISTS (SELECT 1 FROM ExampleSentences exFilter WHERE exFilter.WordID = w.WordID)');
+    }
+
+    if (missingQuestions) {
+      conditions.push('NOT EXISTS (SELECT 1 FROM Questions qFilter WHERE qFilter.WordID = w.WordID)');
+    }
+
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-    
-    // Fetch main words
     const result = await request.query(`
         SELECT COUNT_BIG(1) AS total
         FROM Words w
         LEFT JOIN PartOfSpeeches p ON w.PartOfSpeechID = p.PartOfSpeechID
         ${whereClause};
 
-        SELECT w.WordID AS id, w.Term AS term, w.Meaning AS meaning, w.Phonetic AS phonetic, 
+        SELECT w.WordID AS id, w.Term AS term, w.Meaning AS meaning, w.Phonetic AS phonetic,
                w.PartOfSpeechID AS partOfSpeechId, p.PartOfSpeechName AS partOfSpeechName,
-               w.CreatedAt AS createdAt 
+               w.ContentStatus AS status, w.CreatedAt AS createdAt, w.UpdatedAt AS updatedAt,
+               ISNULL(questionCounts.QuestionCount, 0) AS questionCount,
+               ISNULL(exampleCounts.ExampleCount, 0) AS exampleCount
         FROM Words w
         LEFT JOIN PartOfSpeeches p ON w.PartOfSpeechID = p.PartOfSpeechID
+        OUTER APPLY (
+          SELECT COUNT_BIG(1) AS QuestionCount
+          FROM Questions q
+          WHERE q.WordID = w.WordID
+        ) questionCounts
+        OUTER APPLY (
+          SELECT COUNT_BIG(1) AS ExampleCount
+          FROM ExampleSentences ex
+          WHERE ex.WordID = w.WordID
+        ) exampleCounts
         ${whereClause}
-        ORDER BY w.CreatedAt DESC
+        ORDER BY ${sortMap[sortBy]} ${sortDirection}, w.WordID DESC
         OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY
       `);
-    
+
     const total = result.recordsets[0][0]?.total || 0;
-    const words = result.recordsets[1];
-
-    // Fetch related data for each word (Note: In production, optimize this with a JOIN or separate batch query)
-    for (let word of words) {
-      // Topics
-      const topicsResult = await pool.request()
-        .input('WordID', sql.BigInt, word.id)
-        .query(`
-          SELECT t.TopicID AS id, t.TopicName AS name 
-          FROM WordTopics wt
-          JOIN Topics t ON wt.TopicID = t.TopicID
-          WHERE wt.WordID = @WordID
-        `);
-      word.topics = topicsResult.recordset;
-
-      // Examples
-      const examplesResult = await pool.request()
-        .input('WordID', sql.BigInt, word.id)
-        .query(`
-          SELECT ExampleSentenceID AS id, SentenceText AS sentence, SentenceTranslation AS meaning
-          FROM ExampleSentences
-          WHERE WordID = @WordID
-        `);
-      word.examples = examplesResult.recordset;
-    }
+    const words = await this.attachWordRelations(pool, result.recordsets[1] || []);
 
     return this.paginate(words, total, paging.page, paging.limit);
   }
 
+  static async attachWordRelations(pool, words) {
+    if (!words.length) return words;
+
+    const wordIds = words.map((word) => Number(word.id)).filter(Boolean);
+    const idList = wordIds.join(',');
+    const relatedResult = await pool.request().query(`
+      SELECT wt.WordID AS wordId, t.TopicID AS id, t.TopicName AS name, t.TopicCode AS code
+      FROM WordTopics wt
+      JOIN Topics t ON wt.TopicID = t.TopicID
+      WHERE wt.WordID IN (${idList})
+      ORDER BY t.TopicName;
+
+      SELECT WordID AS wordId, ExampleSentenceID AS id, SentenceText AS sentence, SentenceTranslation AS meaning
+      FROM ExampleSentences
+      WHERE WordID IN (${idList})
+      ORDER BY ExampleSentenceID;
+    `);
+
+    const topicsByWord = new Map();
+    const examplesByWord = new Map();
+
+    for (const topic of relatedResult.recordsets[0] || []) {
+      const key = Number(topic.wordId);
+      if (!topicsByWord.has(key)) topicsByWord.set(key, []);
+      topicsByWord.get(key).push({ id: topic.id, name: topic.name, code: topic.code });
+    }
+
+    for (const example of relatedResult.recordsets[1] || []) {
+      const key = Number(example.wordId);
+      if (!examplesByWord.has(key)) examplesByWord.set(key, []);
+      examplesByWord.get(key).push({ id: example.id, sentence: example.sentence, meaning: example.meaning });
+    }
+
+    return words.map((word) => ({
+      ...word,
+      topics: topicsByWord.get(Number(word.id)) || [],
+      examples: examplesByWord.get(Number(word.id)) || []
+    }));
+  }
+
+  static async getWordDetail(wordId) {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('WordID', sql.BigInt, wordId)
+      .query(`
+        SELECT
+          w.WordID AS id,
+          w.Term AS term,
+          w.Meaning AS meaning,
+          w.Phonetic AS phonetic,
+          w.PartOfSpeechID AS partOfSpeechId,
+          p.PartOfSpeechName AS partOfSpeechName,
+          w.ContentStatus AS status,
+          w.CreatedAt AS createdAt,
+          w.UpdatedAt AS updatedAt,
+          w.CreatedByUserID AS createdByUserId,
+          creator.FullName AS createdByName,
+          ISNULL(questionCounts.QuestionCount, 0) AS questionCount,
+          ISNULL(exampleCounts.ExampleCount, 0) AS exampleCount
+        FROM Words w
+        LEFT JOIN PartOfSpeeches p ON w.PartOfSpeechID = p.PartOfSpeechID
+        LEFT JOIN Users creator ON w.CreatedByUserID = creator.UserID
+        OUTER APPLY (SELECT COUNT_BIG(1) AS QuestionCount FROM Questions q WHERE q.WordID = w.WordID) questionCounts
+        OUTER APPLY (SELECT COUNT_BIG(1) AS ExampleCount FROM ExampleSentences ex WHERE ex.WordID = w.WordID) exampleCounts
+        WHERE w.WordID = @WordID;
+
+        SELECT t.TopicID AS id, t.TopicName AS name, t.TopicCode AS code
+        FROM WordTopics wt
+        JOIN Topics t ON wt.TopicID = t.TopicID
+        WHERE wt.WordID = @WordID
+        ORDER BY t.TopicName;
+
+        SELECT ExampleSentenceID AS id, SentenceText AS sentence, SentenceTranslation AS meaning
+        FROM ExampleSentences
+        WHERE WordID = @WordID
+        ORDER BY ExampleSentenceID;
+
+        SELECT TOP 50
+          QuestionID AS id,
+          QuestionType AS questionType,
+          QuestionText AS questionText,
+          CorrectAnswer AS correctAnswer,
+          ContentStatus AS status,
+          UpdatedAt AS updatedAt
+        FROM Questions
+        WHERE WordID = @WordID
+        ORDER BY UpdatedAt DESC;
+
+        IF OBJECT_ID(N'dbo.AdminAuditLogs', N'U') IS NOT NULL
+        BEGIN
+          SELECT TOP 20
+            l.AdminAuditLogID AS id,
+            l.Action AS action,
+            l.Details AS details,
+            l.CreatedAt AS createdAt,
+            u.FullName AS adminName
+          FROM AdminAuditLogs l
+          LEFT JOIN Users u ON l.ActionByUserID = u.UserID
+          WHERE l.EntityType = N'Word' AND l.EntityID = @WordID
+          ORDER BY l.CreatedAt DESC;
+        END
+        ELSE
+        BEGIN
+          SELECT CAST(NULL AS BIGINT) AS id, CAST(NULL AS NVARCHAR(100)) AS action,
+                 CAST(NULL AS NVARCHAR(MAX)) AS details, CAST(NULL AS DATETIMEOFFSET) AS createdAt,
+                 CAST(NULL AS NVARCHAR(200)) AS adminName
+          WHERE 1 = 0;
+        END
+      `);
+
+    const word = result.recordsets[0]?.[0];
+    if (!word) return null;
+
+    return {
+      ...word,
+      topics: result.recordsets[1] || [],
+      examples: result.recordsets[2] || [],
+      questions: result.recordsets[3] || [],
+      auditLogs: result.recordsets[4] || []
+    };
+  }
+
   static async createWord(wordData, adminId) {
-    const { term, meaning, phonetic = '', partOfSpeechId, topicIds, examples } = wordData;
+    const { term, meaning, phonetic = '', partOfSpeechId, topicIds, examples, status = 'Published' } = wordData;
+    this.assertContentStatus(status);
     const normalizedTopicIds = Array.isArray(topicIds)
       ? [...new Set(topicIds.map((topicId) => Number(topicId)).filter(Boolean))]
       : [];
@@ -593,11 +825,12 @@ class AdminService {
         .input('Meaning', sql.NVarChar(1000), meaning)
         .input('Phonetic', sql.NVarChar(255), phonetic)
         .input('PartOfSpeechID', sql.Int, partOfSpeechId)
+        .input('ContentStatus', sql.NVarChar(30), status)
         .input('CreatedByUserID', sql.BigInt, adminId)
         .query(`
-          INSERT INTO Words (Term, Meaning, Phonetic, PartOfSpeechID, CreatedByUserID, CreatedAt, UpdatedAt)
+          INSERT INTO Words (Term, Meaning, Phonetic, PartOfSpeechID, ContentStatus, CreatedByUserID, CreatedAt, UpdatedAt)
           OUTPUT inserted.WordID AS id
-          VALUES (@Term, @Meaning, @Phonetic, @PartOfSpeechID, @CreatedByUserID, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
+          VALUES (@Term, @Meaning, @Phonetic, @PartOfSpeechID, @ContentStatus, @CreatedByUserID, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
         `);
       
       const wordId = wordResult.recordset[0].id;
@@ -641,7 +874,8 @@ class AdminService {
   }
 
   static async updateWord(wordId, wordData, adminId = null) {
-    const { term, meaning, phonetic = '', partOfSpeechId, topicIds, examples } = wordData;
+    const { term, meaning, phonetic = '', partOfSpeechId, topicIds, examples, status = 'Published' } = wordData;
+    this.assertContentStatus(status);
     const normalizedTopicIds = Array.isArray(topicIds)
       ? [...new Set(topicIds.map((topicId) => Number(topicId)).filter(Boolean))]
       : null;
@@ -661,10 +895,13 @@ class AdminService {
         .input('Meaning', sql.NVarChar(1000), meaning)
         .input('Phonetic', sql.NVarChar(255), phonetic)
         .input('PartOfSpeechID', sql.Int, partOfSpeechId)
+        .input('ContentStatus', sql.NVarChar(30), status)
         .query(`
           UPDATE Words
           SET Term = @Term, Meaning = @Meaning, Phonetic = @Phonetic,
-              PartOfSpeechID = @PartOfSpeechID, UpdatedAt = SYSDATETIMEOFFSET()
+              PartOfSpeechID = @PartOfSpeechID,
+              ContentStatus = @ContentStatus,
+              UpdatedAt = SYSDATETIMEOFFSET()
           WHERE WordID = @WordID
         `);
 
@@ -719,6 +956,33 @@ class AdminService {
       await transaction.rollback();
       throw error;
     }
+  }
+
+  static async archiveWord(wordId, adminId = null) {
+    const pool = await poolPromise;
+    const oldStatusResult = await pool.request()
+      .input('WordID', sql.BigInt, wordId)
+      .query('SELECT ContentStatus FROM Words WHERE WordID = @WordID');
+
+    if (oldStatusResult.recordset.length === 0) return false;
+
+    const oldStatus = oldStatusResult.recordset[0].ContentStatus;
+    const result = await pool.request()
+      .input('WordID', sql.BigInt, wordId)
+      .input('ContentStatus', sql.NVarChar(30), 'Archived')
+      .query(`
+        UPDATE Words
+        SET ContentStatus = @ContentStatus,
+            UpdatedAt = SYSDATETIMEOFFSET()
+        WHERE WordID = @WordID
+      `);
+
+    if (result.rowsAffected[0] > 0 && adminId) {
+      await this.logAdminAction(adminId, 'ARCHIVE_WORD', 'Word', wordId);
+      await this.logContentReview('Word', wordId, oldStatus, 'Archived', adminId, 'Archived from word manager');
+    }
+
+    return result.rowsAffected[0] > 0;
   }
 
   static async deleteWord(wordId, adminId = null) {
@@ -896,6 +1160,104 @@ class AdminService {
     }
 
     return results;
+  }
+
+  static async previewWordImport(input) {
+    const rows = this.parseWordImport(input);
+    const pool = await poolPromise;
+    const referenceData = await pool.request().query(`
+      SELECT PartOfSpeechID AS id, PartOfSpeechName AS name, PartOfSpeechCode AS code
+      FROM PartOfSpeeches;
+
+      SELECT TopicID AS id, TopicName AS name, TopicCode AS code
+      FROM Topics;
+    `);
+
+    const partsOfSpeech = referenceData.recordsets[0] || [];
+    const topics = referenceData.recordsets[1] || [];
+    const partOfSpeechById = new Map(partsOfSpeech.map((item) => [Number(item.id), item]));
+    const partOfSpeechByName = new Map();
+    const topicById = new Map(topics.map((item) => [Number(item.id), item]));
+    const topicByName = new Map();
+    const previewRows = [];
+    let valid = 0;
+    let invalid = 0;
+
+    for (const item of partsOfSpeech) {
+      partOfSpeechByName.set(this.normalizeImportKey(item.name), item);
+      partOfSpeechByName.set(this.normalizeImportKey(item.code), item);
+    }
+
+    for (const item of topics) {
+      topicByName.set(this.normalizeImportKey(item.name), item);
+      topicByName.set(this.normalizeImportKey(item.code), item);
+    }
+
+    for (let index = 0; index < rows.length; index++) {
+      const row = rows[index];
+      const errors = [];
+      const term = String(this.getImportValue(row, ['term', 'word', 'vocabulary', 'tu vung', 'tu']) ?? '').trim();
+      const meaning = String(this.getImportValue(row, ['meaning', 'definition', 'dinh nghia', 'nghia']) ?? '').trim();
+      const phonetic = String(this.getImportValue(row, ['phonetic', 'pronunciation', 'phien am']) ?? '').trim();
+      const rawPartOfSpeechId = this.getImportValue(row, ['partOfSpeechId', 'posId', 'part of speech id', 'loai tu id']);
+      const rawPartOfSpeechName = this.getImportValue(row, ['partOfSpeech', 'partOfSpeechName', 'pos', 'part of speech', 'loai tu', 'tu loai']);
+      const rawTopicIds = this.getImportValue(row, ['topicIds', 'topicId', 'topic ids', 'chu de ids', 'chu de id']);
+      const rawTopics = this.getImportValue(row, ['topics', 'topic', 'topicNames', 'topicName', 'chu de', 'ten chu de']);
+      const rawExampleSentence = this.getImportValue(row, ['exampleSentence', 'sentence', 'example', 'cau vi du', 'vi du']);
+      const rawExampleMeaning = this.getImportValue(row, ['exampleMeaning', 'sentenceTranslation', 'translation', 'nghia cau vi du', 'dich']);
+
+      if (!term) errors.push('Missing term');
+      if (!meaning) errors.push('Missing meaning');
+
+      let partOfSpeech = partOfSpeechById.get(Number(rawPartOfSpeechId));
+      if (!partOfSpeech && rawPartOfSpeechName) {
+        partOfSpeech = partOfSpeechByName.get(this.normalizeImportKey(rawPartOfSpeechName));
+      }
+      if (!partOfSpeech) errors.push('Invalid or missing partOfSpeech');
+
+      const resolvedTopics = [];
+      for (const value of this.splitImportList(rawTopicIds)) {
+        const topic = topicById.get(Number(value));
+        if (!topic) {
+          errors.push(`Invalid topicId: ${value}`);
+        } else if (!resolvedTopics.some((item) => Number(item.id) === Number(topic.id))) {
+          resolvedTopics.push(topic);
+        }
+      }
+
+      for (const value of this.splitImportList(rawTopics)) {
+        const topic = topicById.get(Number(value)) || topicByName.get(this.normalizeImportKey(value));
+        if (!topic) {
+          errors.push(`Invalid topic: ${value}`);
+        } else if (!resolvedTopics.some((item) => Number(item.id) === Number(topic.id))) {
+          resolvedTopics.push(topic);
+        }
+      }
+
+      if (errors.length > 0) invalid += 1;
+      else valid += 1;
+
+      previewRows.push({
+        row: index + 2,
+        valid: errors.length === 0,
+        errors,
+        term,
+        meaning,
+        phonetic,
+        partOfSpeech: partOfSpeech ? { id: partOfSpeech.id, name: partOfSpeech.name, code: partOfSpeech.code } : null,
+        topics: resolvedTopics.map((topic) => ({ id: topic.id, name: topic.name, code: topic.code })),
+        examples: String(rawExampleSentence ?? '').trim()
+          ? [{ sentence: String(rawExampleSentence).trim(), meaning: String(rawExampleMeaning ?? '').trim() }]
+          : []
+      });
+    }
+
+    return {
+      total: rows.length,
+      valid,
+      invalid,
+      rows: previewRows
+    };
   }
 
   // --- QUESTIONS ---

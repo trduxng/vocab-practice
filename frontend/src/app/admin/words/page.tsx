@@ -1,16 +1,37 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { adminService, type PaginationMeta } from '@/src/services/admin.service';
-import { categoriesService } from '@/src/services/categories.service';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import axios from 'axios';
+import { toast } from 'sonner';
+import {
+  Archive,
+  Check,
+  Download,
+  Edit2,
+  Eye,
+  FileSpreadsheet,
+  FolderTree,
+  Layers3,
+  Plus,
+  RefreshCw,
+  Search,
+  Tags,
+  Trash2,
+  Upload,
+  X,
+} from 'lucide-react';
+import Topbar from '@/src/components/shared/Topbar';
+import { AdminPage, AdminPanel, IconButton, StatusBadge, TableShell, ToolbarButton } from '@/src/components/admin/AdminPrimitives';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
-import { Card, CardHeader, CardTitle, CardContent } from '@/src/components/ui/card';
-import { Plus, Search, Edit2, Trash2, BookOpen, X, Check, Upload } from 'lucide-react';
-import { Skeleton } from '@/src/components/ui/skeleton';
-import Topbar from '@/src/components/shared/Topbar';
-import { toast } from 'sonner';
-import axios from 'axios';
+import { Textarea } from '@/src/components/ui/textarea';
+import { adminService, type PaginationMeta } from '@/src/services/admin.service';
+import { categoriesService } from '@/src/services/categories.service';
+
+type ContentStatus = 'Draft' | 'PendingReview' | 'Published' | 'Rejected' | 'Archived';
+type AdminTab = 'words' | 'topics' | 'categories' | 'import';
+type SortBy = 'createdAt' | 'updatedAt' | 'term' | 'questionCount' | 'exampleCount';
+type SortDirection = 'asc' | 'desc';
 
 type CategoryOption = {
   id: number;
@@ -19,10 +40,45 @@ type CategoryOption = {
   description?: string;
 };
 
+type TopicCategory = CategoryOption & {
+  iconUrl?: string;
+  displayOrder?: number;
+  isActive?: boolean;
+  topicCount?: number;
+  wordCount?: number;
+  updatedAt?: string;
+};
+
+type TopicItem = CategoryOption & {
+  topicCategoryId?: number | null;
+  categoryName?: string | null;
+  status: ContentStatus;
+  wordCount: number;
+  miniTestCount?: number;
+  updatedAt?: string;
+};
+
 type WordExample = {
   id?: number;
   sentence: string;
   meaning?: string;
+};
+
+type WordQuestion = {
+  id: number;
+  questionType: string;
+  questionText: string;
+  correctAnswer?: string;
+  status: ContentStatus;
+  updatedAt?: string;
+};
+
+type WordAuditLog = {
+  id: number;
+  action: string;
+  details?: string;
+  adminName?: string;
+  createdAt?: string;
 };
 
 type WordItem = {
@@ -32,615 +88,1093 @@ type WordItem = {
   phonetic?: string;
   partOfSpeechId: number;
   partOfSpeechName?: string;
+  status: ContentStatus;
   topics?: CategoryOption[];
   examples?: WordExample[];
+  questionCount?: number;
+  exampleCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
-export default function AdminWordsPage() {
-  const [words, setWords] = useState<WordItem[]>([]);
-  const [partsOfSpeech, setPartOfSpeeches] = useState<CategoryOption[]>([]);
-  const [topics, setTopics] = useState<CategoryOption[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowAddForm] = useState(false);
-  const [editingWord, setEditingWord] = useState<WordItem | null>(null);
-  const [importing, setImporting] = useState(false);
-  const [selectedTopicId, setSelectedTopicId] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState<PaginationMeta | null>(null);
-  const [showTopicForm, setShowTopicForm] = useState(false);
-  const [creatingTopic, setCreatingTopic] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const pageSize = 20;
+type WordDetail = WordItem & {
+  questions: WordQuestion[];
+  auditLogs: WordAuditLog[];
+  createdByName?: string;
+};
 
-  // Word Form State
-  const [formData, setFormData] = useState({
+type ImportPreviewRow = {
+  row: number;
+  valid: boolean;
+  errors: string[];
+  term: string;
+  meaning: string;
+  phonetic?: string;
+  partOfSpeech?: CategoryOption | null;
+  topics: CategoryOption[];
+  examples: WordExample[];
+};
+
+type ImportPreview = {
+  total: number;
+  valid: number;
+  invalid: number;
+  rows: ImportPreviewRow[];
+};
+
+const tabs: Array<{ id: AdminTab; label: string; icon: React.ElementType }> = [
+  { id: 'words', label: 'Words', icon: Layers3 },
+  { id: 'topics', label: 'Topics', icon: Tags },
+  { id: 'categories', label: 'Categories', icon: FolderTree },
+  { id: 'import', label: 'Import', icon: FileSpreadsheet },
+];
+
+const statusOptions: ContentStatus[] = ['Draft', 'PendingReview', 'Published', 'Rejected', 'Archived'];
+
+const statusTone: Record<ContentStatus, 'slate' | 'blue' | 'emerald' | 'amber' | 'rose'> = {
+  Draft: 'amber',
+  PendingReview: 'blue',
+  Published: 'emerald',
+  Rejected: 'rose',
+  Archived: 'slate',
+};
+
+function createEmptyWordForm() {
+  return {
     term: '',
     meaning: '',
     phonetic: '',
     partOfSpeechId: '',
+    status: 'Published' as ContentStatus,
     topicIds: [] as number[],
-    examples: [{ sentence: '', meaning: '' }]
-  });
-  const [topicFormData, setTopicFormData] = useState({
-    name: '',
-    code: '',
-    description: ''
-  });
+    examples: [{ sentence: '', meaning: '' }],
+  };
+}
 
-  const fetchOptions = useCallback(async () => {
+const emptyTopicForm = {
+  name: '',
+  code: '',
+  description: '',
+  topicCategoryId: '',
+  status: 'Published' as ContentStatus,
+};
+
+const emptyCategoryForm = {
+  name: '',
+  code: '',
+  description: '',
+  displayOrder: '',
+  isActive: true,
+};
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return axios.isAxiosError(error) ? error.response?.data?.message || fallback : fallback;
+}
+
+function formatDate(value?: string) {
+  if (!value) return 'Chưa có dữ liệu';
+  return new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
+}
+
+function downloadBlob(content: BlobPart, fileName: string, type: string) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function getCanHardDelete() {
+  if (typeof window === 'undefined') return false;
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    return Array.isArray(user.permissions) && user.permissions.includes('MANAGE_SYSTEM_SETTINGS');
+  } catch {
+    return false;
+  }
+}
+
+export default function AdminWordsPage() {
+  const [activeTab, setActiveTab] = useState<AdminTab>('words');
+  const [words, setWords] = useState<WordItem[]>([]);
+  const [topics, setTopics] = useState<TopicItem[]>([]);
+  const [topicCategories, setTopicCategories] = useState<TopicCategory[]>([]);
+  const [partsOfSpeech, setPartOfSpeeches] = useState<CategoryOption[]>([]);
+  const [loadingWords, setLoadingWords] = useState(true);
+  const [loadingTopics, setLoadingTopics] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
+  const [showWordForm, setShowWordForm] = useState(false);
+  const [editingWord, setEditingWord] = useState<WordItem | null>(null);
+  const [selectedWord, setSelectedWord] = useState<WordDetail | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [editingTopic, setEditingTopic] = useState<TopicItem | null>(null);
+  const [editingCategory, setEditingCategory] = useState<TopicCategory | null>(null);
+  const [selectedTopicId, setSelectedTopicId] = useState('');
+  const [selectedPartOfSpeechId, setSelectedPartOfSpeechId] = useState('');
+  const [wordStatus, setWordStatus] = useState('');
+  const [missingExamples, setMissingExamples] = useState(false);
+  const [missingQuestions, setMissingQuestions] = useState(false);
+  const [sortBy, setSortBy] = useState<SortBy>('createdAt');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [wordSearch, setWordSearch] = useState('');
+  const [topicSearch, setTopicSearch] = useState('');
+  const [topicStatus, setTopicStatus] = useState('');
+  const [topicCategoryFilter, setTopicCategoryFilter] = useState('');
+  const [wordPage, setWordPage] = useState(1);
+  const [wordPagination, setWordPagination] = useState<PaginationMeta | null>(null);
+  const [topicPage, setTopicPage] = useState(1);
+  const [topicPagination, setTopicPagination] = useState<PaginationMeta | null>(null);
+  const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
+  const [importPayload, setImportPayload] = useState<unknown[] | string | null>(null);
+  const [canHardDelete, setCanHardDelete] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const pageSize = 20;
+
+  const [wordForm, setWordForm] = useState(createEmptyWordForm);
+  const [topicForm, setTopicForm] = useState(emptyTopicForm);
+  const [categoryForm, setCategoryForm] = useState(emptyCategoryForm);
+
+  const activeTopics = useMemo(() => topics.filter((topic) => topic.status !== 'Archived'), [topics]);
+
+  const fetchReferenceData = useCallback(async () => {
     try {
-      const [posData, topicsData] = await Promise.all([
+      const [posData, categoryData] = await Promise.all([
         categoriesService.getPartOfSpeeches(),
-        categoriesService.getTopics()
+        adminService.getTopicCategories<TopicCategory>(),
       ]);
       setPartOfSpeeches(posData);
-      setTopics(topicsData);
+      setTopicCategories(categoryData);
     } catch (error) {
-      console.error("Failed to fetch admin data", error);
-      toast.error("Không thể tải dữ liệu");
+      console.error('Failed to fetch reference data', error);
+      toast.error('Không thể tải dữ liệu danh mục');
     }
   }, []);
 
-  const fetchWords = useCallback(async () => {
-    setLoading(true);
+  const fetchTopics = useCallback(async () => {
+    setLoadingTopics(true);
     try {
-      const wordsData = await adminService.getWordsPage<WordItem>(page, pageSize, {
-        topicId: selectedTopicId,
-        search: searchTerm.trim()
+      const response = await adminService.getTopicsPage<TopicItem>(topicPage, 50, {
+        search: topicSearch.trim(),
+        status: topicStatus,
+        categoryId: topicCategoryFilter,
       });
-      setWords(wordsData.items);
-      setPagination(wordsData.pagination);
+      setTopics(response.items);
+      setTopicPagination(response.pagination);
     } catch (error) {
-      console.error("Failed to fetch admin data", error);
-      toast.error("Khong the tai du lieu");
+      console.error('Failed to fetch topics', error);
+      toast.error(getErrorMessage(error, 'Không thể tải chủ đề'));
     } finally {
-      setLoading(false);
+      setLoadingTopics(false);
     }
-  }, [page, searchTerm, selectedTopicId]);
+  }, [topicCategoryFilter, topicPage, topicSearch, topicStatus]);
+
+  const fetchWords = useCallback(async () => {
+    setLoadingWords(true);
+    try {
+      const response = await adminService.getWordsPage<WordItem>(wordPage, pageSize, {
+        topicId: selectedTopicId,
+        partOfSpeechId: selectedPartOfSpeechId,
+        status: wordStatus,
+        missingExamples,
+        missingQuestions,
+        sortBy,
+        sortDirection,
+        search: wordSearch.trim(),
+      });
+      setWords(response.items);
+      setWordPagination(response.pagination);
+    } catch (error) {
+      console.error('Failed to fetch words', error);
+      toast.error(getErrorMessage(error, 'Không thể tải từ vựng'));
+    } finally {
+      setLoadingWords(false);
+    }
+  }, [missingExamples, missingQuestions, selectedPartOfSpeechId, selectedTopicId, sortBy, sortDirection, wordPage, wordSearch, wordStatus]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchOptions();
-  }, [fetchOptions]);
+    setCanHardDelete(getCanHardDelete());
+    fetchReferenceData();
+  }, [fetchReferenceData]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchTopics();
+  }, [fetchTopics]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchWords();
   }, [fetchWords]);
 
-  const handleEdit = (word: WordItem) => {
-    const wordExamples = word.examples ?? [];
+  function resetWordForm() {
+    setEditingWord(null);
+    setWordForm(createEmptyWordForm());
+    setShowWordForm(false);
+  }
 
+  function resetWordFilters() {
+    setSelectedTopicId('');
+    setSelectedPartOfSpeechId('');
+    setWordStatus('');
+    setMissingExamples(false);
+    setMissingQuestions(false);
+    setSortBy('createdAt');
+    setSortDirection('desc');
+    setWordSearch('');
+    setWordPage(1);
+  }
+
+  function handleEditWord(word: WordItem) {
+    const examples = word.examples ?? [];
     setEditingWord(word);
-    setFormData({
+    setWordForm({
       term: word.term,
       meaning: word.meaning,
       phonetic: word.phonetic || '',
-      partOfSpeechId: word.partOfSpeechId.toString(),
-      topicIds: word.topics?.map((t) => t.id) || [],
-      examples: wordExamples.length > 0 
-        ? wordExamples.map((ex) => ({ sentence: ex.sentence, meaning: ex.meaning || '' }))
-        : [{ sentence: '', meaning: '' }]
+      partOfSpeechId: String(word.partOfSpeechId),
+      status: word.status || 'Published',
+      topicIds: word.topics?.map((topic) => topic.id) || [],
+      examples: examples.length > 0
+        ? examples.map((example) => ({ sentence: example.sentence, meaning: example.meaning || '' }))
+        : [{ sentence: '', meaning: '' }],
     });
-    setShowAddForm(true);
-  };
+    setShowWordForm(true);
+    setActiveTab('words');
+  }
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Bạn có chắc chắn muốn xóa từ vựng này? Các câu hỏi liên quan cũng sẽ bị xóa.")) return;
+  async function openWordDetail(wordId: number) {
+    setLoadingDetail(true);
     try {
-      await adminService.deleteWord(id);
-      toast.success("Xóa từ vựng thành công");
-      fetchWords();
-    } catch {
-      toast.error("Xóa thất bại");
+      const detail = await adminService.getWordDetail<WordDetail>(wordId);
+      setSelectedWord(detail);
+    } catch (error) {
+      console.error('Fetch word detail failed', error);
+      toast.error(getErrorMessage(error, 'Không thể tải chi tiết từ vựng'));
+    } finally {
+      setLoadingDetail(false);
     }
-  };
+  }
 
-  const handleImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  async function handleSaveWord(event: React.FormEvent) {
+    event.preventDefault();
+    const partOfSpeechId = Number(wordForm.partOfSpeechId);
+    if (!partOfSpeechId) {
+      toast.error('Vui lòng chọn loại từ');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const payload = {
+        term: wordForm.term.trim(),
+        meaning: wordForm.meaning.trim(),
+        phonetic: wordForm.phonetic.trim(),
+        partOfSpeechId,
+        status: wordForm.status,
+        topicIds: wordForm.topicIds,
+        examples: wordForm.examples
+          .map((example) => ({ sentence: example.sentence.trim(), meaning: example.meaning.trim() }))
+          .filter((example) => example.sentence),
+      };
+
+      if (editingWord) {
+        await adminService.updateWord(editingWord.id, payload);
+        toast.success('Cập nhật từ vựng thành công');
+      } else {
+        await adminService.createWord(payload);
+        toast.success('Thêm từ vựng thành công');
+      }
+
+      resetWordForm();
+      fetchWords();
+      fetchTopics();
+    } catch (error) {
+      console.error('Save word failed', error);
+      toast.error(getErrorMessage(error, 'Lỗi khi lưu từ vựng'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleArchiveWord(word: WordItem) {
+    if (!confirm(`Lưu trữ từ "${word.term}"? Từ sẽ không bị xóa khỏi dữ liệu hệ thống.`)) return;
+
+    try {
+      await adminService.deleteWord(word.id);
+      toast.success('Đã lưu trữ từ vựng');
+      fetchWords();
+      fetchTopics();
+      if (selectedWord?.id === word.id) setSelectedWord(null);
+    } catch (error) {
+      console.error('Archive word failed', error);
+      toast.error(getErrorMessage(error, 'Lưu trữ từ vựng thất bại'));
+    }
+  }
+
+  async function handleHardDeleteWord(word: WordItem | WordDetail) {
+    if (!confirm(`Xóa vĩnh viễn từ "${word.term}"? Câu hỏi, tiến độ học và lượt làm liên quan sẽ bị xóa.`)) return;
+
+    try {
+      await adminService.hardDeleteWord(word.id);
+      toast.success('Xóa vĩnh viễn từ vựng thành công');
+      fetchWords();
+      fetchTopics();
+      if (selectedWord?.id === word.id) setSelectedWord(null);
+    } catch (error) {
+      console.error('Hard delete word failed', error);
+      toast.error(getErrorMessage(error, 'Bạn không có quyền xóa vĩnh viễn hoặc thao tác thất bại'));
+    }
+  }
+
+  function startEditTopic(topic: TopicItem) {
+    setEditingTopic(topic);
+    setTopicForm({
+      name: topic.name,
+      code: topic.code || '',
+      description: topic.description || '',
+      topicCategoryId: topic.topicCategoryId ? String(topic.topicCategoryId) : '',
+      status: topic.status,
+    });
+    setActiveTab('topics');
+  }
+
+  function resetTopicForm() {
+    setEditingTopic(null);
+    setTopicForm(emptyTopicForm);
+  }
+
+  async function handleSaveTopic(event: React.FormEvent) {
+    event.preventDefault();
+    const name = topicForm.name.trim();
+    if (!name) {
+      toast.error('Vui lòng nhập tên chủ đề');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const payload = {
+        name,
+        code: topicForm.code.trim() || undefined,
+        description: topicForm.description.trim() || undefined,
+        topicCategoryId: topicForm.topicCategoryId ? Number(topicForm.topicCategoryId) : null,
+        status: topicForm.status,
+      };
+
+      if (editingTopic) {
+        await adminService.updateTopic(editingTopic.id, payload);
+        toast.success('Cập nhật chủ đề thành công');
+      } else {
+        await adminService.createTopic(payload);
+        toast.success('Tạo chủ đề thành công');
+      }
+
+      resetTopicForm();
+      fetchTopics();
+      fetchReferenceData();
+    } catch (error) {
+      console.error('Save topic failed', error);
+      toast.error(getErrorMessage(error, 'Lưu chủ đề thất bại'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDeleteTopic(topic: TopicItem) {
+    const verb = topic.wordCount > 0 || topic.miniTestCount ? 'lưu trữ' : 'xóa';
+    if (!confirm(`Bạn muốn ${verb} chủ đề "${topic.name}"?`)) return;
+
+    try {
+      const result = await adminService.deleteTopic(topic.id);
+      toast.success(result.archived ? 'Đã lưu trữ chủ đề vì đang có nội dung liên quan' : 'Xóa chủ đề thành công');
+      fetchTopics();
+      fetchReferenceData();
+    } catch (error) {
+      console.error('Delete topic failed', error);
+      toast.error(getErrorMessage(error, 'Xóa chủ đề thất bại'));
+    }
+  }
+
+  function startEditCategory(category: TopicCategory) {
+    setEditingCategory(category);
+    setCategoryForm({
+      name: category.name,
+      code: category.code || '',
+      description: category.description || '',
+      displayOrder: category.displayOrder ? String(category.displayOrder) : '',
+      isActive: Boolean(category.isActive),
+    });
+    setActiveTab('categories');
+  }
+
+  function resetCategoryForm() {
+    setEditingCategory(null);
+    setCategoryForm(emptyCategoryForm);
+  }
+
+  async function handleSaveCategory(event: React.FormEvent) {
+    event.preventDefault();
+    const name = categoryForm.name.trim();
+    if (!name) {
+      toast.error('Vui lòng nhập tên danh mục');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const payload = {
+        name,
+        code: categoryForm.code.trim() || undefined,
+        description: categoryForm.description.trim() || undefined,
+        displayOrder: categoryForm.displayOrder ? Number(categoryForm.displayOrder) : undefined,
+        isActive: categoryForm.isActive,
+      };
+
+      if (editingCategory) {
+        await adminService.updateTopicCategory(editingCategory.id, payload);
+        toast.success('Cập nhật danh mục thành công');
+      } else {
+        await adminService.createTopicCategory(payload);
+        toast.success('Tạo danh mục thành công');
+      }
+
+      resetCategoryForm();
+      fetchReferenceData();
+      fetchTopics();
+    } catch (error) {
+      console.error('Save category failed', error);
+      toast.error(getErrorMessage(error, 'Lưu danh mục thất bại'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDisableCategory(category: TopicCategory) {
+    if (!confirm(`Tắt danh mục "${category.name}"? Các chủ đề trong danh mục sẽ được bỏ liên kết danh mục.`)) return;
+
+    try {
+      await adminService.deleteTopicCategory(category.id);
+      toast.success('Đã tắt danh mục chủ đề');
+      fetchReferenceData();
+      fetchTopics();
+    } catch (error) {
+      console.error('Disable category failed', error);
+      toast.error(getErrorMessage(error, 'Tắt danh mục thất bại'));
+    }
+  }
+
+  async function readImportFile(file: File) {
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    if (extension === 'csv' || file.type === 'text/csv') return file.text();
+    if (extension === 'xlsx' || extension === 'xls') {
+      const XLSX = await import('xlsx');
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      return XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, { defval: '' });
+    }
+    throw new Error('Vui lòng chọn file CSV, XLS hoặc XLSX');
+  }
+
+  async function handlePreviewFile(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = '';
-
     if (!file) return;
+
+    setPreviewing(true);
+    setImportPreview(null);
+    setImportPayload(null);
+    try {
+      const payload = await readImportFile(file);
+      if (Array.isArray(payload) && payload.length === 0) {
+        toast.error('File không có dữ liệu để import');
+        return;
+      }
+
+      const preview = await adminService.previewImportWords(payload) as ImportPreview;
+      setImportPayload(payload);
+      setImportPreview(preview);
+      if (preview.invalid > 0) {
+        toast.warning(`Preview có ${preview.invalid} dòng lỗi cần sửa`);
+      } else {
+        toast.success(`Preview hợp lệ ${preview.valid} dòng`);
+      }
+    } catch (error) {
+      console.error('Preview import failed', error);
+      toast.error(getErrorMessage(error, error instanceof Error ? error.message : 'Preview import thất bại'));
+    } finally {
+      setPreviewing(false);
+    }
+  }
+
+  async function handleConfirmImport() {
+    if (!importPayload || !importPreview) return;
+    if (importPreview.invalid > 0) {
+      toast.error('Vui lòng sửa các dòng lỗi trước khi import');
+      return;
+    }
 
     setImporting(true);
     try {
-      const extension = file.name.split('.').pop()?.toLowerCase();
-      let payload: unknown[] | string;
-
-      if (extension === 'csv' || file.type === 'text/csv') {
-        payload = await file.text();
-      } else if (extension === 'xlsx' || extension === 'xls') {
-        const XLSX = await import('xlsx');
-        const buffer = await file.arrayBuffer();
-        const workbook = XLSX.read(buffer, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        payload = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, { defval: '' });
-      } else {
-        toast.error('Vui long chon file CSV, XLS hoac XLSX');
-        return;
-      }
-
-      if (Array.isArray(payload) && payload.length === 0) {
-        toast.error('File khong co du lieu de import');
-        return;
-      }
-
-      const result = await adminService.bulkImportWords(payload);
-      const message = `Import thanh cong ${result.success || 0} dong, loi ${result.failed || 0} dong`;
-
+      const result = await adminService.bulkImportWords(importPayload);
+      const message = `Import thành công ${result.success || 0} dòng, lỗi ${result.failed || 0} dòng`;
       if (result.failed > 0) {
-        console.warn('Word import errors', result.errors);
         toast.warning(message);
       } else {
         toast.success(message);
       }
-
+      setImportPayload(null);
+      setImportPreview(null);
       fetchWords();
+      fetchTopics();
     } catch (error) {
       console.error('Import words failed', error);
-      toast.error('Import tu vung that bai');
+      toast.error(getErrorMessage(error, 'Import từ vựng thất bại'));
     } finally {
       setImporting(false);
     }
-  };
+  }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const partOfSpeechId = Number(formData.partOfSpeechId);
-      if (!partOfSpeechId) {
-        toast.error('Vui long chon loai tu');
-        return;
-      }
+  function downloadCsvTemplate() {
+    const csv = 'term,meaning,phonetic,partOfSpeech,topics,exampleSentence,exampleMeaning\nexample,ví dụ,/ɪɡˈzæmpəl/,noun,General,This is an example.,Đây là một ví dụ.\n';
+    downloadBlob(csv, 'word-import-template.csv', 'text/csv;charset=utf-8');
+  }
 
-      const data = {
-        ...formData,
-        partOfSpeechId,
-        examples: formData.examples
-          .map((example) => ({
-            sentence: example.sentence.trim(),
-            meaning: example.meaning.trim()
-          }))
-          .filter((example) => example.sentence)
-      };
-
-      if (editingWord) {
-        await adminService.updateWord(editingWord.id, data);
-        toast.success("Cập nhật thành công");
-      } else {
-        await adminService.createWord(data);
-        toast.success("Thêm mới thành công");
-      }
-
-      setShowAddForm(false);
-      setEditingWord(null);
-      setFormData({
-        term: '',
-        meaning: '',
-        phonetic: '',
-        partOfSpeechId: '',
-        topicIds: [],
-        examples: [{ sentence: '', meaning: '' }]
-      });
-      fetchWords();
-    } catch (error) {
-      const message = axios.isAxiosError(error)
-        ? error.response?.data?.message || 'Loi khi luu du lieu'
-        : 'Loi khi luu du lieu';
-
-      console.error("Operation failed", message, axios.isAxiosError(error) ? error.response?.data : error);
-      toast.error("Lỗi khi lưu dữ liệu");
-    }
-  };
-
-  const addExample = () => {
-    setFormData({ ...formData, examples: [...formData.examples, { sentence: '', meaning: '' }] });
-  };
-
-  const removeExample = (index: number) => {
-    setFormData({ ...formData, examples: formData.examples.filter((_, i) => i !== index) });
-  };
-
-  const handleCreateTopic = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const name = topicFormData.name.trim();
-    if (!name) {
-      toast.error('Vui long nhap ten chu de');
-      return;
-    }
-
-    setCreatingTopic(true);
-    try {
-      const result = await adminService.createTopic({
-        name,
-        code: topicFormData.code.trim() || undefined,
-        description: topicFormData.description.trim() || undefined
-      });
-      const createdTopic = result.data;
-
-      setTopicFormData({ name: '', code: '', description: '' });
-      setShowTopicForm(false);
-      setTopics((currentTopics) => [...currentTopics, createdTopic]);
-      setSelectedTopicId(String(createdTopic.id));
-      setFormData((current) => ({
-        ...current,
-        topicIds: current.topicIds.includes(createdTopic.id)
-          ? current.topicIds
-          : [...current.topicIds, createdTopic.id]
-      }));
-      toast.success('Tao chu de thanh cong');
-      fetchOptions();
-    } catch (error) {
-      const message = axios.isAxiosError(error)
-        ? error.response?.data?.message || 'Tao chu de that bai'
-        : 'Tao chu de that bai';
-
-      console.error('Create topic failed', message, axios.isAxiosError(error) ? error.response?.data : error);
-      toast.error(message);
-    } finally {
-      setCreatingTopic(false);
-    }
-  };
+  async function downloadXlsxTemplate() {
+    const XLSX = await import('xlsx');
+    const rows = [{ term: 'example', meaning: 'ví dụ', phonetic: '/ɪɡˈzæmpəl/', partOfSpeech: 'noun', topics: 'General', exampleSentence: 'This is an example.', exampleMeaning: 'Đây là một ví dụ.' }];
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Words');
+    const data = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' });
+    downloadBlob(data, 'word-import-template.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  }
 
   return (
-    <div className="flex-1 flex flex-col bg-[#080d1a]">
-      <Topbar title="Quản lý từ vựng" role="admin" />
-      
-      <main className="p-6 space-y-6 overflow-auto">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative w-72">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
-              <Input
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setPage(1);
-                }}
-                className="pl-10 bg-white/5 border-white/10 text-white rounded-xl"
-                placeholder="Tìm kiếm từ vựng..."
-              />
+    <div className="flex flex-1 flex-col bg-[#080d1a]">
+      <Topbar title="Quản lý từ vựng" subtitle="Quản lý từ, chủ đề, danh mục và import dữ liệu học tập." role="admin" />
+      <AdminPage>
+        <AdminPanel>
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex flex-wrap gap-2">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <ToolbarButton key={tab.id} active={activeTab === tab.id} onClick={() => setActiveTab(tab.id)}>
+                    <Icon className="h-4 w-4" />
+                    {tab.label}
+                  </ToolbarButton>
+                );
+              })}
             </div>
-            <select
-              value={selectedTopicId}
-              onChange={(e) => {
-                setSelectedTopicId(e.target.value);
-                setPage(1);
-              }}
-              className="h-10 min-w-56 bg-white/5 border border-white/10 rounded-xl px-4 text-sm text-white outline-none"
-            >
-              <option value="">Tất cả chủ đề</option>
-              {topics.map((topic) => (
-                <option key={topic.id} value={topic.id}>
-                  {topic.name}
-                </option>
-              ))}
-            </select>
-            {(selectedTopicId || searchTerm) && (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  setSelectedTopicId('');
-                  setSearchTerm('');
-                  setPage(1);
-                }}
-                className="h-10 px-3 rounded-xl text-slate-400 hover:text-white"
-              >
-                <X size={16} />
-              </Button>
-            )}
+            <div className="grid grid-cols-2 gap-2 text-xs text-slate-500 dark:text-slate-400 sm:grid-cols-4">
+              <span><b className="text-white">{wordPagination?.total || 0}</b> từ</span>
+              <span><b className="text-white">{topicPagination?.total || topics.length}</b> chủ đề</span>
+              <span><b className="text-white">{topicCategories.length}</b> danh mục</span>
+              <span><b className="text-white">{topics.filter((topic) => topic.status === 'Published').length}</b> đã xuất bản</span>
+            </div>
           </div>
-          {!showForm && (
-            <div className="flex items-center gap-3">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                className="hidden"
-                onChange={handleImportFile}
-              />
-              <Button
-                type="button"
-                disabled={importing}
-                onClick={() => fileInputRef.current?.click()}
-                className="bg-white/5 hover:bg-white/10 border-white/10 text-white gap-2"
-              >
-                <Upload size={16} /> {importing ? 'Dang import...' : 'Import CSV/Excel'}
-              </Button>
-              <Button
-                type="button"
-                onClick={() => setShowTopicForm((value) => !value)}
-                className="bg-white/5 hover:bg-white/10 border-white/10 text-white gap-2"
-              >
-                <Plus size={16} /> Them chu de
-              </Button>
-              <Button onClick={() => { setEditingWord(null); setShowAddForm(true); }} className="bg-blue-600 hover:bg-blue-700 gap-2">
-              <Plus size={16} /> Thêm từ mới
-              </Button>
-            </div>
-          )}
-          {pagination && (
-            <div className="flex flex-col gap-3 border-t border-white/8 px-6 py-4 text-sm text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-              <span>Hien thi {words.length} / {pagination.total} tu vung</span>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  disabled={page <= 1 || loading}
-                  onClick={() => setPage((current) => Math.max(1, current - 1))}
-                  className="h-9 rounded-xl"
-                >
-                  Truoc
-                </Button>
-                <span className="min-w-24 text-center">Trang {pagination.page} / {pagination.totalPages}</span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  disabled={page >= pagination.totalPages || loading}
-                  onClick={() => setPage((current) => Math.min(pagination.totalPages, current + 1))}
-                  className="h-9 rounded-xl"
-                >
-                  Sau
-                </Button>
+        </AdminPanel>
+
+        {activeTab === 'words' && (
+          <div className="space-y-5">
+            <AdminPanel>
+              <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(220px,1fr)_repeat(6,auto)] xl:items-center">
+                <div className="relative min-w-56">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                  <Input value={wordSearch} onChange={(event) => { setWordSearch(event.target.value); setWordPage(1); }} className="h-10 rounded-md border-white/10 bg-white/5 pl-10 text-white" placeholder="Tìm từ, nghĩa, phiên âm..." />
+                </div>
+                <Select value={selectedTopicId} onChange={(value) => { setSelectedTopicId(value); setWordPage(1); }}>
+                  <option value="">Tất cả chủ đề</option>
+                  {activeTopics.map((topic) => <option key={topic.id} value={topic.id}>{topic.name}</option>)}
+                </Select>
+                <Select value={selectedPartOfSpeechId} onChange={(value) => { setSelectedPartOfSpeechId(value); setWordPage(1); }}>
+                  <option value="">Tất cả loại từ</option>
+                  {partsOfSpeech.map((part) => <option key={part.id} value={part.id}>{part.name}</option>)}
+                </Select>
+                <Select value={wordStatus} onChange={(value) => { setWordStatus(value); setWordPage(1); }}>
+                  <option value="">Tất cả trạng thái</option>
+                  {statusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
+                </Select>
+                <Select value={sortBy} onChange={(value) => { setSortBy(value as SortBy); setWordPage(1); }}>
+                  <option value="createdAt">Mới tạo</option>
+                  <option value="updatedAt">Mới cập nhật</option>
+                  <option value="term">A-Z</option>
+                  <option value="questionCount">Số câu hỏi</option>
+                  <option value="exampleCount">Số ví dụ</option>
+                </Select>
+                <Select value={sortDirection} onChange={(value) => { setSortDirection(value as SortDirection); setWordPage(1); }}>
+                  <option value="desc">Giảm dần</option>
+                  <option value="asc">Tăng dần</option>
+                </Select>
+                <div className="flex flex-wrap gap-2">
+                  <label className="flex h-10 items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 text-xs text-slate-300"><input type="checkbox" checked={missingExamples} onChange={(event) => { setMissingExamples(event.target.checked); setWordPage(1); }} /> Thiếu ví dụ</label>
+                  <label className="flex h-10 items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 text-xs text-slate-300"><input type="checkbox" checked={missingQuestions} onChange={(event) => { setMissingQuestions(event.target.checked); setWordPage(1); }} /> Chưa có câu hỏi</label>
+                  <IconButton label="Xóa bộ lọc" onClick={resetWordFilters}><X className="h-4 w-4" /></IconButton>
+                  <ToolbarButton onClick={() => setActiveTab('import')}><Upload className="h-4 w-4" />Import</ToolbarButton>
+                  <ToolbarButton active onClick={() => { resetWordForm(); setShowWordForm(true); }}><Plus className="h-4 w-4" />Thêm từ</ToolbarButton>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            </AdminPanel>
 
-        {showTopicForm && (
-          <Card className="bg-white/5 border-white/10 text-white rounded-2xl overflow-hidden">
-            <CardContent className="p-5">
-              <form onSubmit={handleCreateTopic} className="grid grid-cols-1 gap-3 lg:grid-cols-[1.2fr_0.8fr_1.5fr_auto] lg:items-end">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Ten chu de</label>
-                  <Input
-                    value={topicFormData.name}
-                    onChange={(e) => setTopicFormData({ ...topicFormData, name: e.target.value })}
-                    className="bg-white/5 border-white/10 h-11 px-4 rounded-xl"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Ma chu de</label>
-                  <Input
-                    value={topicFormData.code}
-                    onChange={(e) => setTopicFormData({ ...topicFormData, code: e.target.value })}
-                    className="bg-white/5 border-white/10 h-11 px-4 rounded-xl"
-                    placeholder="Tu dong neu bo trong"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Mo ta</label>
-                  <Input
-                    value={topicFormData.description}
-                    onChange={(e) => setTopicFormData({ ...topicFormData, description: e.target.value })}
-                    className="bg-white/5 border-white/10 h-11 px-4 rounded-xl"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button type="submit" disabled={creatingTopic} className="h-11 rounded-xl bg-blue-600 hover:bg-blue-700">
-                    {creatingTopic ? 'Dang tao...' : 'Luu'}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => setShowTopicForm(false)}
-                    className="h-11 rounded-xl"
-                  >
-                    Huy
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        )}
-
-        {showForm && (
-          <Card className="bg-white/5 border-white/10 text-white rounded-[32px] overflow-hidden">
-            <CardHeader className="bg-white/5 border-b border-white/5">
-              <CardTitle className="text-sm uppercase tracking-widest font-black">
-                {editingWord ? `Chỉnh sửa: ${editingWord.term}` : 'Thêm từ vựng mới'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-8">
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Từ vựng (Term)</label>
-                    <Input 
-                      value={formData.term} 
-                      onChange={e => setFormData({...formData, term: e.target.value})}
-                      className="bg-white/5 border-white/10 h-11 px-4 rounded-xl" required 
-                    />
+            {showWordForm && (
+              <AdminPanel title={editingWord ? `Chỉnh sửa: ${editingWord.term}` : 'Thêm từ vựng mới'} description="Nhập nghĩa, trạng thái, loại từ, chủ đề và các câu ví dụ dùng trong bài học.">
+                <form onSubmit={handleSaveWord} className="space-y-5">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+                    <Field label="Từ vựng"><Input value={wordForm.term} onChange={(event) => setWordForm({ ...wordForm, term: event.target.value })} className="h-10 rounded-md" required /></Field>
+                    <Field label="Phiên âm"><Input value={wordForm.phonetic} onChange={(event) => setWordForm({ ...wordForm, phonetic: event.target.value })} className="h-10 rounded-md" /></Field>
+                    <Field label="Loại từ">
+                      <Select value={wordForm.partOfSpeechId} onChange={(value) => setWordForm({ ...wordForm, partOfSpeechId: value })} required>
+                        <option value="">Chọn loại từ</option>
+                        {partsOfSpeech.map((part) => <option key={part.id} value={part.id}>{part.name}</option>)}
+                      </Select>
+                    </Field>
+                    <Field label="Trạng thái">
+                      <Select value={wordForm.status} onChange={(value) => setWordForm({ ...wordForm, status: value as ContentStatus })}>
+                        {statusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
+                      </Select>
+                    </Field>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Phiên âm (Phonetic)</label>
-                    <Input 
-                      value={formData.phonetic} 
-                      onChange={e => setFormData({...formData, phonetic: e.target.value})}
-                      className="bg-white/5 border-white/10 h-11 px-4 rounded-xl" 
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Loại từ</label>
-                    <select 
-                      className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-4 text-sm text-white outline-none"
-                      value={formData.partOfSpeechId}
-                      onChange={e => setFormData({...formData, partOfSpeechId: e.target.value})}
-                      required
-                    >
-                      <option value="">Chọn loại từ</option>
-                      {partsOfSpeech.map(p => (
-                        <option key={p.id} value={p.id}>{p.name}</option>
+                  <Field label="Định nghĩa"><Input value={wordForm.meaning} onChange={(event) => setWordForm({ ...wordForm, meaning: event.target.value })} className="h-10 rounded-md" required /></Field>
+                  <Field label="Chủ đề">
+                    <div className="flex flex-wrap gap-2 rounded-md border border-slate-200 p-3 dark:border-white/10">
+                      {activeTopics.map((topic) => (
+                        <label key={topic.id} className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-medium ${wordForm.topicIds.includes(topic.id) ? 'border-blue-500/50 bg-blue-500/10 text-blue-300' : 'border-white/10 bg-white/5 text-slate-400'}`}>
+                          <input type="checkbox" className="hidden" checked={wordForm.topicIds.includes(topic.id)} onChange={(event) => {
+                            const topicIds = event.target.checked ? [...wordForm.topicIds, topic.id] : wordForm.topicIds.filter((id) => id !== topic.id);
+                            setWordForm({ ...wordForm, topicIds });
+                          }} />
+                          {topic.name}
+                          {wordForm.topicIds.includes(topic.id) && <Check className="h-3 w-3" />}
+                        </label>
                       ))}
-                    </select>
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Định nghĩa (Meaning)</label>
-                  <Input 
-                    value={formData.meaning} 
-                    onChange={e => setFormData({...formData, meaning: e.target.value})}
-                    className="bg-white/5 border-white/10 h-11 px-4 rounded-xl" required 
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Chủ đề (Topics)</label>
-                  <div className="flex flex-wrap gap-2 p-4 bg-white/3 border border-white/8 rounded-2xl">
-                    {topics.map(t => (
-                      <label key={t.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${formData.topicIds.includes(t.id) ? 'bg-blue-600/20 border-blue-500/50 text-blue-400' : 'bg-white/5 border-white/10 text-slate-500'}`}>
-                        <input 
-                          type="checkbox" 
-                          className="hidden"
-                          checked={formData.topicIds.includes(t.id)}
-                          onChange={e => {
-                            const ids = e.target.checked 
-                              ? [...formData.topicIds, t.id]
-                              : formData.topicIds.filter(id => id !== t.id);
-                            setFormData({...formData, topicIds: ids});
-                          }}
-                        />
-                        <span className="text-xs font-bold">{t.name}</span>
-                        {formData.topicIds.includes(t.id) && <Check size={12} />}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center border-b border-white/5 pb-2">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Câu ví dụ</label>
-                    <Button type="button" variant="ghost" size="xs" onClick={addExample} className="text-blue-400 hover:text-blue-300 font-bold">
-                      + Thêm ví dụ
-                    </Button>
-                  </div>
-                  <div className="grid grid-cols-1 gap-4">
-                    {formData.examples.map((ex, idx) => (
-                      <div key={idx} className="flex gap-3 group relative">
-                        <Input 
-                          placeholder="Câu tiếng Anh" 
-                          value={ex.sentence}
-                          onChange={e => {
-                            const examples = [...formData.examples];
-                            examples[idx].sentence = e.target.value;
-                            setFormData({...formData, examples});
-                          }}
-                          className="bg-white/5 border-white/10 text-sm h-11 flex-1 px-4 rounded-xl" 
-                        />
-                        <Input 
-                          placeholder="Nghĩa tiếng Việt" 
-                          value={ex.meaning}
-                          onChange={e => {
-                            const examples = [...formData.examples];
-                            examples[idx].meaning = e.target.value;
-                            setFormData({...formData, examples});
-                          }}
-                          className="bg-white/5 border-white/10 text-sm h-11 flex-1 px-4 rounded-xl" 
-                        />
-                        <button 
-                          type="button" 
-                          onClick={() => removeExample(idx)}
-                          className="w-11 h-11 rounded-xl bg-red-500/10 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all opacity-0 group-hover:opacity-100"
-                        >
-                          <X size={16} />
-                        </button>
+                    </div>
+                  </Field>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Câu ví dụ</label>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => setWordForm({ ...wordForm, examples: [...wordForm.examples, { sentence: '', meaning: '' }] })}>Thêm ví dụ</Button>
+                    </div>
+                    {wordForm.examples.map((example, index) => (
+                      <div key={index} className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_1fr_auto]">
+                        <Input placeholder="Câu tiếng Anh" value={example.sentence} onChange={(event) => {
+                          const examples = [...wordForm.examples];
+                          examples[index].sentence = event.target.value;
+                          setWordForm({ ...wordForm, examples });
+                        }} className="h-10 rounded-md" />
+                        <Input placeholder="Nghĩa tiếng Việt" value={example.meaning} onChange={(event) => {
+                          const examples = [...wordForm.examples];
+                          examples[index].meaning = event.target.value;
+                          setWordForm({ ...wordForm, examples });
+                        }} className="h-10 rounded-md" />
+                        <IconButton label="Xóa ví dụ" tone="rose" onClick={() => setWordForm({ ...wordForm, examples: wordForm.examples.filter((_, itemIndex) => itemIndex !== index) })}><X className="h-4 w-4" /></IconButton>
                       </div>
                     ))}
                   </div>
-                </div>
+                  <FormActions saving={saving} onCancel={resetWordForm} submitLabel={editingWord ? 'Cập nhật từ' : 'Lưu từ'} />
+                </form>
+              </AdminPanel>
+            )}
 
-                <div className="flex justify-end gap-3 pt-6 border-t border-white/5">
-                  <Button type="button" variant="ghost" onClick={() => { setShowAddForm(false); setEditingWord(null); }} className="px-8 h-11 rounded-xl">Hủy</Button>
-                  <Button type="submit" className="bg-blue-600 hover:bg-blue-700 px-10 h-11 rounded-xl font-bold shadow-xl shadow-blue-900/20">
-                    {editingWord ? 'Cập nhật' : 'Lưu từ vựng'}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
+            <TableShell>
+              <table className="w-full min-w-[1080px] text-left text-sm">
+                <thead className="border-b border-white/10 bg-white/5 text-xs uppercase tracking-wide text-slate-400">
+                  <tr><th className="px-4 py-3">Từ vựng</th><th className="px-4 py-3">Loại</th><th className="px-4 py-3">Định nghĩa</th><th className="px-4 py-3">Chủ đề</th><th className="px-4 py-3">Coverage</th><th className="px-4 py-3">Trạng thái</th><th className="px-4 py-3 text-right">Thao tác</th></tr>
+                </thead>
+                <tbody className="divide-y divide-white/10">
+                  {loadingWords ? (
+                    <EmptyRow colSpan={7} text="Đang tải từ vựng..." />
+                  ) : words.length === 0 ? (
+                    <EmptyRow colSpan={7} text="Chưa có từ vựng phù hợp." />
+                  ) : words.map((word) => (
+                    <tr key={word.id} className="hover:bg-white/5">
+                      <td className="px-4 py-4"><p className="font-semibold text-white">{word.term}</p><p className="text-xs text-slate-500">{word.phonetic || 'Chưa có phiên âm'} · {formatDate(word.updatedAt || word.createdAt)}</p></td>
+                      <td className="px-4 py-4"><StatusBadge tone="blue">{word.partOfSpeechName || 'N/A'}</StatusBadge></td>
+                      <td className="max-w-md px-4 py-4 text-slate-300">{word.meaning}</td>
+                      <td className="px-4 py-4"><div className="flex flex-wrap gap-1.5">{word.topics?.map((topic) => <StatusBadge key={topic.id}>{topic.name}</StatusBadge>)}</div></td>
+                      <td className="px-4 py-4 text-slate-300"><p>{Number(word.exampleCount || 0)} ví dụ</p><p className="text-xs text-slate-500">{Number(word.questionCount || 0)} câu hỏi</p></td>
+                      <td className="px-4 py-4"><StatusBadge tone={statusTone[word.status] || 'slate'}>{word.status}</StatusBadge></td>
+                      <td className="px-4 py-4">
+                        <div className="flex justify-end gap-2">
+                          <IconButton label="Xem chi tiết" onClick={() => openWordDetail(word.id)}><Eye className="h-4 w-4" /></IconButton>
+                          <IconButton label="Sửa từ" onClick={() => handleEditWord(word)}><Edit2 className="h-4 w-4" /></IconButton>
+                          <IconButton label="Lưu trữ từ" tone="rose" onClick={() => handleArchiveWord(word)}><Archive className="h-4 w-4" /></IconButton>
+                          {canHardDelete && <IconButton label="Xóa vĩnh viễn" tone="rose" onClick={() => handleHardDeleteWord(word)}><Trash2 className="h-4 w-4" /></IconButton>}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </TableShell>
+            <PaginationBar pagination={wordPagination} loading={loadingWords} itemLabel="từ vựng" currentCount={words.length} onPrevious={() => setWordPage((value) => Math.max(1, value - 1))} onNext={() => setWordPage((value) => Math.min(wordPagination?.totalPages || 1, value + 1))} />
+          </div>
         )}
 
-        <div className="bg-white/3 border border-white/8 rounded-[32px] overflow-hidden shadow-2xl">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-white/5 text-slate-500 uppercase text-[10px] font-black tracking-widest">
-              <tr>
-                <th className="px-8 py-5">Từ vựng</th>
-                <th className="px-6 py-5">Loại</th>
-                <th className="px-6 py-5">Định nghĩa</th>
-                <th className="px-6 py-5">Chủ đề</th>
-                <th className="px-8 py-5 text-right">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {loading && words.length === 0 ? (
-                [...Array(5)].map((_, i) => (
-                  <tr key={i}>
-                    <td className="px-8 py-6"><Skeleton className="h-10 w-32 rounded-lg" /></td>
-                    <td className="px-6 py-6"><Skeleton className="h-6 w-16 rounded-md" /></td>
-                    <td className="px-6 py-6"><Skeleton className="h-4 w-48" /></td>
-                    <td className="px-6 py-6"><div className="flex gap-1"><Skeleton className="h-4 w-10" /><Skeleton className="h-4 w-10" /></div></td>
-                    <td className="px-8 py-6 text-right"><Skeleton className="h-8 w-8 ml-auto rounded-lg" /></td>
-                  </tr>
-                ))
-              ) : words.map((w) => (
-                <tr key={w.id} className="hover:bg-white/[0.02] transition-colors group">
-                  <td className="px-8 py-6">
-                    <div className="flex flex-col">
-                      <span className="font-bold text-white text-base">{w.term}</span>
-                      <span className="text-slate-500 font-mono text-xs mt-0.5">{w.phonetic}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-6">
-                    <span className="px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-400 text-[10px] font-bold border border-blue-500/20 uppercase tracking-tighter">
-                      {w.partOfSpeechName}
-                    </span>
-                  </td>
-                  <td className="px-6 py-6 text-slate-300 font-medium italic">
-                    {w.meaning}
-                  </td>
-                  <td className="px-6 py-6">
-                    <div className="flex flex-wrap gap-1.5">
-                      {w.topics?.map((t) => (
-                        <span key={t.id} className="text-[9px] px-2 py-0.5 bg-white/5 text-slate-400 rounded-md border border-white/5 font-bold">
-                          {t.name}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-8 py-6 text-right">
-                    <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
-                      <button 
-                        onClick={() => handleEdit(w)}
-                        className="p-2.5 bg-white/5 hover:bg-blue-600 rounded-xl text-slate-400 hover:text-white transition-all shadow-lg"
-                      >
-                        <Edit2 size={14} />
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(w.id)}
-                        className="p-2.5 bg-white/5 hover:bg-red-600 rounded-xl text-slate-400 hover:text-white transition-all shadow-lg"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {words.length === 0 && !loading && (
-            <div className="py-32 text-center text-slate-700 flex flex-col items-center gap-4">
-              <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center"><BookOpen size={40} className="opacity-20" /></div>
-              <p className="font-bold uppercase tracking-widest text-xs">Hệ thống từ vựng đang trống</p>
+        {activeTab === 'topics' && (
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[420px_minmax(0,1fr)]">
+            <AdminPanel title={editingTopic ? 'Sửa chủ đề' : 'Tạo chủ đề'} description="Quản lý tên, mã, mô tả, danh mục và trạng thái xuất bản.">
+              <form onSubmit={handleSaveTopic} className="space-y-4">
+                <Field label="Tên chủ đề"><Input value={topicForm.name} onChange={(event) => setTopicForm({ ...topicForm, name: event.target.value })} className="h-10 rounded-md" required /></Field>
+                <Field label="Mã chủ đề"><Input value={topicForm.code} onChange={(event) => setTopicForm({ ...topicForm, code: event.target.value })} className="h-10 rounded-md" placeholder="Tự tạo nếu bỏ trống" /></Field>
+                <Field label="Mô tả"><Textarea value={topicForm.description} onChange={(event) => setTopicForm({ ...topicForm, description: event.target.value })} className="rounded-md" /></Field>
+                <Field label="Danh mục">
+                  <Select value={topicForm.topicCategoryId} onChange={(value) => setTopicForm({ ...topicForm, topicCategoryId: value })}>
+                    <option value="">Không gán danh mục</option>
+                    {topicCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+                  </Select>
+                </Field>
+                <Field label="Trạng thái">
+                  <Select value={topicForm.status} onChange={(value) => setTopicForm({ ...topicForm, status: value as ContentStatus })}>
+                    {statusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
+                  </Select>
+                </Field>
+                <FormActions saving={saving} onCancel={resetTopicForm} submitLabel={editingTopic ? 'Cập nhật chủ đề' : 'Tạo chủ đề'} />
+              </form>
+            </AdminPanel>
+
+            <div className="space-y-4">
+              <AdminPanel>
+                <div className="flex flex-wrap gap-3">
+                  <div className="relative min-w-64 flex-1">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                    <Input value={topicSearch} onChange={(event) => { setTopicSearch(event.target.value); setTopicPage(1); }} className="h-10 rounded-md pl-10" placeholder="Tìm chủ đề..." />
+                  </div>
+                  <Select value={topicCategoryFilter} onChange={(value) => { setTopicCategoryFilter(value); setTopicPage(1); }}>
+                    <option value="">Tất cả danh mục</option>
+                    {topicCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+                  </Select>
+                  <Select value={topicStatus} onChange={(value) => { setTopicStatus(value); setTopicPage(1); }}>
+                    <option value="">Tất cả trạng thái</option>
+                    {statusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
+                  </Select>
+                  <IconButton label="Tải lại" onClick={() => { fetchTopics(); fetchReferenceData(); }}><RefreshCw className="h-4 w-4" /></IconButton>
+                </div>
+              </AdminPanel>
+
+              <TableShell>
+                <table className="w-full min-w-[920px] text-left text-sm">
+                  <thead className="border-b border-white/10 bg-white/5 text-xs uppercase tracking-wide text-slate-400">
+                    <tr><th className="px-4 py-3">Chủ đề</th><th className="px-4 py-3">Danh mục</th><th className="px-4 py-3">Số từ</th><th className="px-4 py-3">Trạng thái</th><th className="px-4 py-3">Cập nhật</th><th className="px-4 py-3 text-right">Thao tác</th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/10">
+                    {loadingTopics ? (
+                      <EmptyRow colSpan={6} text="Đang tải chủ đề..." />
+                    ) : topics.length === 0 ? (
+                      <EmptyRow colSpan={6} text="Chưa có chủ đề phù hợp." />
+                    ) : topics.map((topic) => (
+                      <tr key={topic.id} className="hover:bg-white/5">
+                        <td className="px-4 py-4"><p className="font-semibold text-white">{topic.name}</p><p className="text-xs text-slate-500">{topic.code || 'Chưa có mã'} · {topic.description || 'Chưa có mô tả'}</p></td>
+                        <td className="px-4 py-4 text-slate-300">{topic.categoryName || 'Chưa phân loại'}</td>
+                        <td className="px-4 py-4 text-slate-300">{Number(topic.wordCount || 0).toLocaleString('vi-VN')} từ</td>
+                        <td className="px-4 py-4"><StatusBadge tone={statusTone[topic.status]}>{topic.status}</StatusBadge></td>
+                        <td className="px-4 py-4 text-slate-400">{formatDate(topic.updatedAt)}</td>
+                        <td className="px-4 py-4">
+                          <div className="flex justify-end gap-2">
+                            <IconButton label="Sửa chủ đề" onClick={() => startEditTopic(topic)}><Edit2 className="h-4 w-4" /></IconButton>
+                            <IconButton label={topic.wordCount > 0 ? 'Lưu trữ chủ đề' : 'Xóa chủ đề'} tone="rose" onClick={() => handleDeleteTopic(topic)}>{topic.wordCount > 0 ? <Archive className="h-4 w-4" /> : <Trash2 className="h-4 w-4" />}</IconButton>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </TableShell>
+              <PaginationBar pagination={topicPagination} loading={loadingTopics} itemLabel="chủ đề" currentCount={topics.length} onPrevious={() => setTopicPage((value) => Math.max(1, value - 1))} onNext={() => setTopicPage((value) => Math.min(topicPagination?.totalPages || 1, value + 1))} />
             </div>
-          )}
-        </div>
-      </main>
+          </div>
+        )}
+
+        {activeTab === 'categories' && (
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[420px_minmax(0,1fr)]">
+            <AdminPanel title={editingCategory ? 'Sửa danh mục' : 'Tạo danh mục'} description="Nhóm chủ đề để admin lọc và tổ chức kho từ vựng.">
+              <form onSubmit={handleSaveCategory} className="space-y-4">
+                <Field label="Tên danh mục"><Input value={categoryForm.name} onChange={(event) => setCategoryForm({ ...categoryForm, name: event.target.value })} className="h-10 rounded-md" required /></Field>
+                <Field label="Mã danh mục"><Input value={categoryForm.code} onChange={(event) => setCategoryForm({ ...categoryForm, code: event.target.value })} className="h-10 rounded-md" placeholder="Tự tạo nếu bỏ trống" /></Field>
+                <Field label="Mô tả"><Textarea value={categoryForm.description} onChange={(event) => setCategoryForm({ ...categoryForm, description: event.target.value })} className="rounded-md" /></Field>
+                <Field label="Thứ tự hiển thị"><Input type="number" min={1} value={categoryForm.displayOrder} onChange={(event) => setCategoryForm({ ...categoryForm, displayOrder: event.target.value })} className="h-10 rounded-md" /></Field>
+                <label className="flex items-center gap-2 text-sm text-slate-300"><input type="checkbox" checked={categoryForm.isActive} onChange={(event) => setCategoryForm({ ...categoryForm, isActive: event.target.checked })} /> Đang hoạt động</label>
+                <FormActions saving={saving} onCancel={resetCategoryForm} submitLabel={editingCategory ? 'Cập nhật danh mục' : 'Tạo danh mục'} />
+              </form>
+            </AdminPanel>
+
+            <TableShell>
+              <table className="w-full min-w-[760px] text-left text-sm">
+                <thead className="border-b border-white/10 bg-white/5 text-xs uppercase tracking-wide text-slate-400">
+                  <tr><th className="px-4 py-3">Danh mục</th><th className="px-4 py-3">Chủ đề</th><th className="px-4 py-3">Từ vựng</th><th className="px-4 py-3">Trạng thái</th><th className="px-4 py-3 text-right">Thao tác</th></tr>
+                </thead>
+                <tbody className="divide-y divide-white/10">
+                  {topicCategories.length === 0 ? (
+                    <EmptyRow colSpan={5} text="Chưa có danh mục chủ đề." />
+                  ) : topicCategories.map((category) => (
+                    <tr key={category.id} className="hover:bg-white/5">
+                      <td className="px-4 py-4"><p className="font-semibold text-white">{category.name}</p><p className="text-xs text-slate-500">{category.code || 'Chưa có mã'} · {category.description || 'Chưa có mô tả'}</p></td>
+                      <td className="px-4 py-4 text-slate-300">{Number(category.topicCount || 0).toLocaleString('vi-VN')}</td>
+                      <td className="px-4 py-4 text-slate-300">{Number(category.wordCount || 0).toLocaleString('vi-VN')}</td>
+                      <td className="px-4 py-4"><StatusBadge tone={category.isActive ? 'emerald' : 'slate'}>{category.isActive ? 'Active' : 'Inactive'}</StatusBadge></td>
+                      <td className="px-4 py-4">
+                        <div className="flex justify-end gap-2">
+                          <IconButton label="Sửa danh mục" onClick={() => startEditCategory(category)}><Edit2 className="h-4 w-4" /></IconButton>
+                          <IconButton label="Tắt danh mục" tone="rose" onClick={() => handleDisableCategory(category)}><Archive className="h-4 w-4" /></IconButton>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </TableShell>
+          </div>
+        )}
+
+        {activeTab === 'import' && (
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[420px_minmax(0,1fr)]">
+            <AdminPanel title="Import CSV/Excel" description="Preview và validate trước khi import thật vào hệ thống.">
+              <div className="space-y-4">
+                <input ref={fileInputRef} type="file" accept=".csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="hidden" onChange={handlePreviewFile} />
+                <Button type="button" disabled={previewing} onClick={() => fileInputRef.current?.click()} className="h-10 w-full rounded-md bg-blue-600 hover:bg-blue-700">
+                  <Upload className="h-4 w-4" /> {previewing ? 'Đang preview...' : 'Chọn file để preview'}
+                </Button>
+                <Button type="button" disabled={!importPreview || importPreview.invalid > 0 || importing} onClick={handleConfirmImport} className="h-10 w-full rounded-md bg-emerald-600 hover:bg-emerald-700">
+                  <Check className="h-4 w-4" /> {importing ? 'Đang import...' : 'Import dữ liệu hợp lệ'}
+                </Button>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button type="button" variant="outline" onClick={downloadCsvTemplate} className="rounded-md"><Download className="h-4 w-4" />CSV mẫu</Button>
+                  <Button type="button" variant="outline" onClick={downloadXlsxTemplate} className="rounded-md"><Download className="h-4 w-4" />Excel mẫu</Button>
+                </div>
+                <div className="rounded-md border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+                  <p className="font-semibold text-white">Cột khuyến nghị</p>
+                  <p className="mt-2 text-xs leading-6">term, meaning, phonetic, partOfSpeech, topics, exampleSentence, exampleMeaning</p>
+                </div>
+              </div>
+            </AdminPanel>
+
+            <AdminPanel title="Preview import" description="Các dòng lỗi cần được sửa trước khi import.">
+              {!importPreview ? (
+                <div className="py-12 text-center text-sm text-slate-500">Chưa có file preview.</div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-3">
+                    <Metric label="Tổng dòng" value={importPreview.total} tone="slate" />
+                    <Metric label="Hợp lệ" value={importPreview.valid} tone="emerald" />
+                    <Metric label="Lỗi" value={importPreview.invalid} tone="rose" />
+                  </div>
+                  <div className="overflow-hidden rounded-md border border-white/10">
+                    <div className="max-h-[520px] overflow-auto">
+                      <table className="w-full min-w-[920px] text-left text-sm">
+                        <thead className="sticky top-0 bg-[#111827] text-xs uppercase text-slate-400"><tr><th className="px-3 py-2">Dòng</th><th className="px-3 py-2">Từ</th><th className="px-3 py-2">Loại từ</th><th className="px-3 py-2">Chủ đề</th><th className="px-3 py-2">Trạng thái</th><th className="px-3 py-2">Lỗi</th></tr></thead>
+                        <tbody className="divide-y divide-white/10">
+                          {importPreview.rows.map((row) => (
+                            <tr key={row.row} className={row.valid ? 'hover:bg-white/5' : 'bg-rose-500/5'}>
+                              <td className="px-3 py-2 text-slate-300">{row.row}</td>
+                              <td className="px-3 py-2"><p className="font-medium text-white">{row.term || 'Thiếu từ'}</p><p className="text-xs text-slate-500">{row.meaning || 'Thiếu nghĩa'}</p></td>
+                              <td className="px-3 py-2 text-slate-300">{row.partOfSpeech?.name || 'Không hợp lệ'}</td>
+                              <td className="px-3 py-2 text-slate-300">{row.topics.map((topic) => topic.name).join(', ') || 'Không có'}</td>
+                              <td className="px-3 py-2"><StatusBadge tone={row.valid ? 'emerald' : 'rose'}>{row.valid ? 'OK' : 'Lỗi'}</StatusBadge></td>
+                              <td className="px-3 py-2 text-rose-300">{row.errors.join('; ')}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </AdminPanel>
+          </div>
+        )}
+      </AdminPage>
+
+      {(selectedWord || loadingDetail) && (
+        <WordDrawer
+          word={selectedWord}
+          loading={loadingDetail}
+          canHardDelete={canHardDelete}
+          onClose={() => setSelectedWord(null)}
+          onEdit={(word) => handleEditWord(word)}
+          onArchive={(word) => handleArchiveWord(word)}
+          onHardDelete={(word) => handleHardDeleteWord(word)}
+        />
+      )}
     </div>
+  );
+}
+
+function Select({ value, onChange, children, required }: { value: string; onChange: (value: string) => void; children: React.ReactNode; required?: boolean }) {
+  return (
+    <select
+      value={value}
+      required={required}
+      onChange={(event) => onChange(event.target.value)}
+      className="h-10 min-w-40 rounded-md border border-white/10 bg-[#1b2130] px-3 text-sm text-white outline-none [&_option]:bg-[#111827] [&_option]:text-white"
+    >
+      {children}
+    </select>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function EmptyRow({ colSpan, text }: { colSpan: number; text: string }) {
+  return <tr><td colSpan={colSpan} className="px-4 py-12 text-center text-sm text-slate-500">{text}</td></tr>;
+}
+
+function FormActions({ saving, onCancel, submitLabel }: { saving: boolean; onCancel: () => void; submitLabel: string }) {
+  return (
+    <div className="flex justify-end gap-2 border-t border-white/10 pt-4">
+      <Button type="button" variant="ghost" onClick={onCancel} className="rounded-md">Hủy</Button>
+      <Button type="submit" disabled={saving} className="rounded-md bg-blue-600 hover:bg-blue-700">{saving ? 'Đang lưu...' : submitLabel}</Button>
+    </div>
+  );
+}
+
+function PaginationBar({
+  pagination,
+  loading,
+  itemLabel,
+  currentCount,
+  onPrevious,
+  onNext,
+}: {
+  pagination: PaginationMeta | null;
+  loading: boolean;
+  itemLabel: string;
+  currentCount: number;
+  onPrevious: () => void;
+  onNext: () => void;
+}) {
+  if (!pagination) return null;
+
+  return (
+    <AdminPanel>
+      <div className="flex flex-col gap-3 text-sm text-slate-400 sm:flex-row sm:items-center sm:justify-between">
+        <span>Hiển thị {currentCount} / {pagination.total} {itemLabel}</span>
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="ghost" disabled={pagination.page <= 1 || loading} onClick={onPrevious} className="rounded-md">Trước</Button>
+          <span className="min-w-24 text-center">Trang {pagination.page} / {pagination.totalPages}</span>
+          <Button type="button" variant="ghost" disabled={pagination.page >= pagination.totalPages || loading} onClick={onNext} className="rounded-md">Sau</Button>
+        </div>
+      </div>
+    </AdminPanel>
+  );
+}
+
+function Metric({ label, value, tone }: { label: string; value: number; tone: 'emerald' | 'rose' | 'slate' }) {
+  const classes = tone === 'emerald'
+    ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300'
+    : tone === 'rose'
+      ? 'border-rose-500/20 bg-rose-500/10 text-rose-300'
+      : 'border-slate-500/20 bg-slate-500/10 text-slate-300';
+
+  return (
+    <div className={`rounded-md border p-4 ${classes}`}>
+      <p className="text-xs uppercase tracking-wide">{label}</p>
+      <p className="mt-2 text-2xl font-semibold">{value.toLocaleString('vi-VN')}</p>
+    </div>
+  );
+}
+
+function WordDrawer({
+  word,
+  loading,
+  canHardDelete,
+  onClose,
+  onEdit,
+  onArchive,
+  onHardDelete,
+}: {
+  word: WordDetail | null;
+  loading: boolean;
+  canHardDelete: boolean;
+  onClose: () => void;
+  onEdit: (word: WordDetail) => void;
+  onArchive: (word: WordDetail) => void;
+  onHardDelete: (word: WordDetail) => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/50">
+      <aside className="h-full w-full max-w-2xl overflow-y-auto border-l border-white/10 bg-[#0b1220] p-5 text-white shadow-2xl">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-slate-500">Chi tiết từ vựng</p>
+            <h2 className="mt-1 text-xl font-semibold">{loading ? 'Đang tải...' : word?.term}</h2>
+            {word && <p className="mt-1 text-sm text-slate-400">{word.phonetic || 'Chưa có phiên âm'} · {word.partOfSpeechName || 'N/A'}</p>}
+          </div>
+          <IconButton label="Đóng" onClick={onClose}><X className="h-4 w-4" /></IconButton>
+        </div>
+
+        {!loading && word && (
+          <div className="mt-6 space-y-5">
+            <div className="flex flex-wrap gap-2">
+              <StatusBadge tone={statusTone[word.status] || 'slate'}>{word.status}</StatusBadge>
+              <StatusBadge tone="blue">{Number(word.exampleCount || 0)} ví dụ</StatusBadge>
+              <StatusBadge tone="violet">{Number(word.questionCount || 0)} câu hỏi</StatusBadge>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" onClick={() => onEdit(word)} className="rounded-md bg-blue-600 hover:bg-blue-700"><Edit2 className="h-4 w-4" />Sửa</Button>
+              <Button type="button" variant="destructive" onClick={() => onArchive(word)} className="rounded-md"><Archive className="h-4 w-4" />Lưu trữ</Button>
+              {canHardDelete && <Button type="button" variant="destructive" onClick={() => onHardDelete(word)} className="rounded-md"><Trash2 className="h-4 w-4" />Xóa vĩnh viễn</Button>}
+            </div>
+
+            <DetailSection title="Định nghĩa"><p className="text-sm text-slate-300">{word.meaning}</p></DetailSection>
+            <DetailSection title="Chủ đề">
+              <div className="flex flex-wrap gap-2">{word.topics?.length ? word.topics.map((topic) => <StatusBadge key={topic.id}>{topic.name}</StatusBadge>) : <p className="text-sm text-slate-500">Chưa gán chủ đề.</p>}</div>
+            </DetailSection>
+            <DetailSection title="Câu ví dụ">
+              <div className="space-y-3">
+                {word.examples?.length ? word.examples.map((example) => (
+                  <div key={example.id || example.sentence} className="rounded-md border border-white/10 p-3">
+                    <p className="text-sm text-white">{example.sentence}</p>
+                    {example.meaning && <p className="mt-1 text-sm text-slate-400">{example.meaning}</p>}
+                  </div>
+                )) : <p className="text-sm text-slate-500">Chưa có ví dụ.</p>}
+              </div>
+            </DetailSection>
+            <DetailSection title="Câu hỏi">
+              <div className="space-y-3">
+                {word.questions?.length ? word.questions.map((question) => (
+                  <div key={question.id} className="rounded-md border border-white/10 p-3">
+                    <div className="flex items-start justify-between gap-3"><p className="text-sm font-medium text-white">{question.questionText}</p><StatusBadge tone={statusTone[question.status] || 'slate'}>{question.status}</StatusBadge></div>
+                    <p className="mt-2 text-xs text-slate-400">{question.questionType} · Đáp án: {question.correctAnswer || 'N/A'}</p>
+                  </div>
+                )) : <p className="text-sm text-slate-500">Chưa có câu hỏi.</p>}
+              </div>
+            </DetailSection>
+            <DetailSection title="Lịch sử sửa">
+              <div className="space-y-3">
+                {word.auditLogs?.length ? word.auditLogs.map((log) => (
+                  <div key={log.id} className="rounded-md border border-white/10 p-3">
+                    <p className="text-sm font-medium text-white">{log.action}</p>
+                    <p className="mt-1 text-xs text-slate-500">{formatDate(log.createdAt)} · {log.adminName || 'Admin'}</p>
+                    {log.details && <p className="mt-2 line-clamp-3 text-xs text-slate-400">{log.details}</p>}
+                  </div>
+                )) : <p className="text-sm text-slate-500">Chưa có lịch sử sửa.</p>}
+              </div>
+            </DetailSection>
+          </div>
+        )}
+      </aside>
+    </div>
+  );
+}
+
+function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="space-y-3 border-t border-white/10 pt-5">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</h3>
+      {children}
+    </section>
   );
 }

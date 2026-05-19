@@ -169,6 +169,20 @@
   .nav-link {
     @apply text-slate-300 hover:text-white font-medium transition-colors duration-200 text-sm;
   }
+
+  .dark select option,
+  [class*="bg-[#080d1a]"] select option,
+  [class*="bg-[#0b1220]"] select option {
+    background-color: #111827;
+    color: #f8fafc;
+  }
+
+  .dark select option:checked,
+  [class*="bg-[#080d1a]"] select option:checked,
+  [class*="bg-[#0b1220]"] select option:checked {
+    background-color: #334155;
+    color: #ffffff;
+  }
 }
 
 @layer utilities {

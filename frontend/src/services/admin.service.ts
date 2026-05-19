@@ -20,17 +20,52 @@ export interface PagedResponse<T> {
   pagination: PaginationMeta;
 }
 
+export interface AdminTopicPayload {
+  name: string;
+  code?: string;
+  description?: string;
+  topicCategoryId?: number | null;
+  status?: 'Draft' | 'PendingReview' | 'Published' | 'Rejected' | 'Archived';
+}
+
+export interface AdminTopicCategoryPayload {
+  name: string;
+  code?: string;
+  description?: string;
+  iconUrl?: string;
+  displayOrder?: number;
+  isActive?: boolean;
+}
+
 function unwrapItems<T>(data: T[] | PagedResponse<T>): T[] {
   return Array.isArray(data) ? data : data.items;
 }
 
 export const adminService = {
-  async createTopic(data: { name: string; code?: string; description?: string; topicCategoryId?: number }) {
+  async getTopicsPage<T = unknown>(page = 1, limit = 50, filters: { search?: string; status?: string; categoryId?: number | string } = {}) {
+    const response = await apiClient.get('/admin/topics', {
+      params: {
+        page,
+        limit,
+        search: filters.search || undefined,
+        status: filters.status || undefined,
+        categoryId: filters.categoryId || undefined,
+      }
+    });
+    return response.data as PagedResponse<T>;
+  },
+
+  async getTopicCategories<T = unknown>() {
+    const response = await apiClient.get('/admin/topic-categories');
+    return response.data as T[];
+  },
+
+  async createTopic(data: AdminTopicPayload) {
     const response = await apiClient.post('/admin/topics', data);
     return response.data;
   },
 
-  async updateTopic(id: number | string, data: unknown) {
+  async updateTopic(id: number | string, data: AdminTopicPayload) {
     const response = await apiClient.put(`/admin/topics/${id}`, data);
     return response.data;
   },
@@ -40,12 +75,12 @@ export const adminService = {
     return response.data;
   },
 
-  async createTopicCategory(data: unknown) {
+  async createTopicCategory(data: AdminTopicCategoryPayload) {
     const response = await apiClient.post('/admin/topic-categories', data);
     return response.data;
   },
 
-  async updateTopicCategory(id: number | string, data: unknown) {
+  async updateTopicCategory(id: number | string, data: AdminTopicCategoryPayload) {
     const response = await apiClient.put(`/admin/topic-categories/${id}`, data);
     return response.data;
   },
@@ -55,21 +90,41 @@ export const adminService = {
     return response.data;
   },
 
-  async getWordsPage<T = unknown>(page = 1, limit = 20, filters: { topicId?: number | string; search?: string } = {}) {
+  async getWordsPage<T = unknown>(page = 1, limit = 20, filters: {
+    topicId?: number | string;
+    partOfSpeechId?: number | string;
+    status?: string;
+    missingExamples?: boolean;
+    missingQuestions?: boolean;
+    sortBy?: string;
+    sortDirection?: string;
+    search?: string;
+  } = {}) {
     const response = await apiClient.get('/admin/words', {
       params: {
         page,
         limit,
         topicId: filters.topicId || undefined,
+        partOfSpeechId: filters.partOfSpeechId || undefined,
+        status: filters.status || undefined,
+        missingExamples: filters.missingExamples || undefined,
+        missingQuestions: filters.missingQuestions || undefined,
+        sortBy: filters.sortBy || undefined,
+        sortDirection: filters.sortDirection || undefined,
         search: filters.search || undefined,
       }
     });
     return response.data as PagedResponse<T>;
   },
 
-  async getWords<T = unknown>(page = 1, limit = 20, filters: { topicId?: number | string; search?: string } = {}) {
+  async getWords<T = unknown>(page = 1, limit = 20, filters: Parameters<typeof this.getWordsPage>[2] = {}) {
     const data = await this.getWordsPage<T>(page, limit, filters);
     return unwrapItems<T>(data);
+  },
+
+  async getWordDetail<T = unknown>(id: number | string) {
+    const response = await apiClient.get(`/admin/words/${id}`);
+    return response.data as T;
   },
 
   async createWord(data: unknown) {
@@ -94,6 +149,21 @@ export const adminService = {
       isCsv ? data : { words: data },
       isCsv ? { headers: { 'Content-Type': 'text/csv' } } : undefined
     );
+    return response.data;
+  },
+
+  async previewImportWords(data: unknown[] | string) {
+    const isCsv = typeof data === 'string';
+    const response = await apiClient.post(
+      '/admin/words/import-preview',
+      isCsv ? data : { words: data },
+      isCsv ? { headers: { 'Content-Type': 'text/csv' } } : undefined
+    );
+    return response.data;
+  },
+
+  async hardDeleteWord(id: number) {
+    const response = await apiClient.delete(`/admin/words/${id}/hard`);
     return response.data;
   },
 
