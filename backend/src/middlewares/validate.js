@@ -42,7 +42,8 @@ const schemas = {
       name: z.string().trim().min(1),
       code: z.string().trim().min(1).max(50).optional(),
       description: z.string().trim().max(1000).optional(),
-      topicCategoryId: z.coerce.number().int().positive().optional()
+      topicCategoryId: z.coerce.number().int().positive().nullable().optional(),
+      status: z.enum(['Draft', 'PendingReview', 'Published', 'Rejected', 'Archived']).optional()
     })
   }),
 
@@ -74,6 +75,7 @@ const schemas = {
       phonetic: z.string().optional(),
       partOfSpeechId: z.coerce.number().int().positive(),
       topicIds: z.array(z.coerce.number().int().positive()).optional(),
+      status: z.enum(['Draft', 'PendingReview', 'Published', 'Rejected', 'Archived']).optional(),
       examples: z.array(z.object({
         sentence: z.string(),
         meaning: z.string().optional()

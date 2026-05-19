@@ -8,9 +8,11 @@ const router = express.Router();
 router.use(verifyToken);
 
 // Topics
+router.get('/topics', checkAnyPermission(['MANAGE_TOPICS', 'MANAGE_WORDS']), AdminController.getTopics);
 router.post('/topics', checkAnyPermission(['MANAGE_TOPICS', 'MANAGE_WORDS']), validate(schemas.createTopic), AdminController.createTopic);
 router.put('/topics/:id', checkAnyPermission(['MANAGE_TOPICS', 'MANAGE_WORDS']), validate(schemas.updateTopic), AdminController.updateTopic);
 router.delete('/topics/:id', checkAnyPermission(['MANAGE_TOPICS', 'MANAGE_WORDS']), AdminController.deleteTopic);
+router.get('/topic-categories', checkAnyPermission(['MANAGE_TOPIC_CATEGORIES', 'MANAGE_TOPICS', 'MANAGE_WORDS']), AdminController.getTopicCategories);
 router.post('/topic-categories', checkAnyPermission(['MANAGE_TOPIC_CATEGORIES', 'MANAGE_TOPICS']), validate(schemas.topicCategory), AdminController.createTopicCategory);
 router.put('/topic-categories/:id', checkAnyPermission(['MANAGE_TOPIC_CATEGORIES', 'MANAGE_TOPICS']), validate(schemas.topicCategory), AdminController.updateTopicCategory);
 router.delete('/topic-categories/:id', checkAnyPermission(['MANAGE_TOPIC_CATEGORIES', 'MANAGE_TOPICS']), AdminController.deleteTopicCategory);
@@ -18,8 +20,11 @@ router.delete('/topic-categories/:id', checkAnyPermission(['MANAGE_TOPIC_CATEGOR
 // Words
 router.get('/words', checkPermission('MANAGE_WORDS'), AdminController.getWords);
 router.post('/words', checkPermission('MANAGE_WORDS'), validate(schemas.createWord), AdminController.createWord);
+router.post('/words/import-preview', checkPermission('MANAGE_WORDS'), express.text({ type: ['text/csv', 'text/plain'], limit: '5mb' }), AdminController.previewWordImport);
 router.post('/words/bulk-import', checkPermission('MANAGE_WORDS'), express.text({ type: ['text/csv', 'text/plain'], limit: '5mb' }), AdminController.bulkImportWords);
+router.get('/words/:id', checkPermission('MANAGE_WORDS'), AdminController.getWordDetail);
 router.put('/words/:id', checkPermission('MANAGE_WORDS'), validate(schemas.createWord), AdminController.updateWord);
+router.delete('/words/:id/hard', checkPermission('MANAGE_SYSTEM_SETTINGS'), AdminController.hardDeleteWord);
 router.delete('/words/:id', checkPermission('MANAGE_WORDS'), AdminController.deleteWord);
 
 // Questions
