@@ -42,9 +42,38 @@ const checkAnyPermission = (permissionCodes) => {
   };
 };
 
+/**
+ * Generic ownership check middleware.
+ * Admin bypasses. Creator must own the record.
+ * @param {string} tableName - DB table name
+ * @param {string} idColumn - PK column name (e.g. 'TopicID')
+ * @param {string} paramName - req.params key (e.g. 'id')
+ * @param {string} ownerColumn - owner column (default 'CreatedByUserID')
+ */
+const checkOwnership = (tableName, idColumn, paramName = 'id', ownerColumn = 'CreatedByUserID') => {
+  return async (req, res, next) => {
+    if (req.user.role === 'Admin') return next();
+    try {
+      const { poolPromise, sql } = require('../config/db');
+      const pool = await poolPromise;
+      const result = await pool.request()
+        .input('RecordID', sql.BigInt, req.params[paramName])
+        .input('UserID', sql.BigInt, req.user.id)
+        .query(`SELECT 1 FROM ${tableName} WHERE ${idColumn} = @RecordID AND ${ownerColumn} = @UserID`);
+      if (result.recordset.length === 0) {
+        return res.status(403).json({ message: 'Bạn không có quyền thao tác với nội dung này' });
+      }
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+};
+
 module.exports = {
   verifyToken,
   verifyAdmin,
   checkPermission,
-  checkAnyPermission
+  checkAnyPermission,
+  checkOwnership
 };
