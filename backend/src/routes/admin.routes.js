@@ -52,9 +52,7 @@ router.patch('/students/:id/toggle', checkPermission('MANAGE_USERS'), AdminContr
 router.patch('/students/:id/role', checkPermission('MANAGE_USERS'), AdminController.updateUserRole);
 router.get('/analytics', checkPermission('VIEW_DASHBOARD'), AdminController.getAnalytics);
 router.get('/content-management', checkPermission('VIEW_DASHBOARD'), AdminController.getContentManagement);
-router.get('/moderation', checkPermission('VIEW_DASHBOARD'), AdminController.getModeration);
 router.patch('/content-status', checkAnyPermission(['MANAGE_SYSTEM_SETTINGS', 'MANAGE_TOPICS', 'MANAGE_WORDS', 'MANAGE_QUESTIONS', 'MANAGE_TESTS']), validate(schemas.contentStatus), AdminController.updateContentStatus);
-router.get('/system-settings', checkPermission('VIEW_DASHBOARD'), AdminController.getSystemSettings);
 router.get('/audit-logs', checkAnyPermission(['MANAGE_SYSTEM_SETTINGS', 'MANAGE_USERS']), AdminController.getAuditLogs);
 
 // Notifications
