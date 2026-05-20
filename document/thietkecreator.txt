@@ -1,0 +1,974 @@
+Dưới đây là hướng sửa ít phá vỡ hệ thống cũ nhất: giữ Users, Topics, Words, Questions, MiniTests hiện có; chỉ bổ sung role ContentCreator, thêm quyền, thêm trạng thái duyệt/xuất bản nội dung và vài bảng phụ cho notebook/analytics. Sơ đồ hiện tại đã có 3 nhóm chính: Quản trị viên, Biên tập viên / Giáo viên, Học viên; trong đó biên tập viên có các nhánh “Phân tích học thuật”, “Soạn thảo nội dung”, “Quản lý ngân hàng câu hỏi”, “Quản lý từ vựng”, “Thiết kế và xuất bản bài kiểm tra”.
+1. Nhận xét schema hiện tại
+Trong full_query_gen.sql, hệ thống đã có nền tảng khá ổn:
+•	Users đã có UserRole với 3 giá trị: Learner, ContentCreator, Admin.
+•	Nhưng phần migration phân quyền động mới seed role Admin và Learner, chưa seed ContentCreator.
+•	Các bảng nội dung đã có CreatedByUserID: Topics, Words, Questions, MiniTests.
+•	Words đã có AudioUrlUK, AudioUrlUS, ImageUrl; ExampleSentences cũng có AudioUrl.
+•	MiniTests đã có IsPublished, nhưng Topics, Words, Questions chưa có trạng thái duyệt/xuất bản.
+•	Learner đã có UserWordProgress, ExerciseAttempts, nhưng chưa có bảng chọn bộ từ vựng và “sổ tay” cá nhân.
+Vấn đề chính không phải thiếu toàn bộ giáo viên, mà là thiếu hoàn chỉnh role + quyền + workflow nội dung.
+________________________________________
+2. Đề xuất mô hình user
+2.1. Learner
+Learner nên có quyền:
+•	Xem bộ từ vựng đã xuất bản.
+•	Đăng ký/chọn topic/bộ từ.
+•	Học flashcard.
+•	Làm câu hỏi, mini test.
+•	Theo dõi tiến độ.
+•	Quản lý sổ tay từ vựng cá nhân.
+Không được tạo/sửa/xóa nội dung gốc.
+2.2. Content Creator / Teacher
+Nên dùng chung role ContentCreator, label UI có thể hiển thị là Biên tập viên / Giáo viên.
+Có quyền:
+•	Tạo/sửa topic.
+•	Tạo/sửa word.
+•	Upload/gắn audio, image.
+•	Tạo example sentence.
+•	Tạo/sửa question.
+•	Tạo/sửa mini test.
+•	Xem thống kê hiệu quả nội dung do mình tạo.
+•	Gửi nội dung chờ duyệt.
+•	Có thể tự xuất bản hay không tùy chính sách.
+Khuyến nghị: ContentCreator không nên có quyền quản lý user, chỉ quản lý nội dung.
+2.3. Admin
+Có quyền:
+•	Quản lý user.
+•	Gán role.
+•	Khóa/mở tài khoản.
+•	Duyệt/xuất bản/ẩn nội dung.
+•	Xem analytics toàn hệ thống.
+•	Quản lý cấu hình hệ thống.
+•	Xem báo cáo hiệu quả bộ từ.
+________________________________________
+3. Các bảng/field nên thêm
+3.1. Thêm role ContentCreator
+Hiện migration dynamic permission thiếu role này. Cần bổ sung:
+USE ToeicVocabularyPlatform;
+GO
+
+BEGIN TRANSACTION;
+BEGIN TRY
+    -- 1. Thêm role ContentCreator nếu chưa có
+    IF NOT EXISTS (
+        SELECT 1 FROM dbo.Roles WHERE RoleName = N'ContentCreator'
+    )
+    BEGIN
+        INSERT INTO dbo.Roles (RoleName, Description)
+        VALUES (N'ContentCreator', N'Biên tập viên / Giáo viên quản lý nội dung học tập');
+    END;
+
+    -- 2. Thêm quyền mới nếu chưa có
+    INSERT INTO dbo.Permissions (PermissionCode, Description)
+    SELECT v.PermissionCode, v.Description
+    FROM (VALUES
+        (N'VIEW_CONTENT_ANALYTICS', N'Xem phân tích hiệu quả nội dung do mình tạo'),
+        (N'MANAGE_TOPICS', N'Quản lý bộ từ vựng / chủ đề'),
+        (N'MANAGE_MEDIA', N'Quản lý tệp âm thanh và hình ảnh minh họa'),
+        (N'SUBMIT_CONTENT_REVIEW', N'Gửi nội dung để duyệt'),
+        (N'PUBLISH_OWN_CONTENT', N'Xuất bản nội dung do mình tạo'),
+        (N'REVIEW_CONTENT', N'Duyệt nội dung'),
+        (N'VIEW_GLOBAL_ANALYTICS', N'Xem phân tích toàn cục'),
+        (N'MANAGE_SYSTEM_SETTINGS', N'Quản lý cấu hình hệ thống'),
+        (N'MANAGE_NOTEBOOK', N'Quản lý sổ tay từ vựng cá nhân'),
+        (N'ENROLL_TOPICS', N'Chọn / đăng ký bộ từ vựng')
+    ) AS v(PermissionCode, Description)
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM dbo.Permissions p
+        WHERE p.PermissionCode = v.PermissionCode
+    );
+
+    -- 3. Gán quyền cho ContentCreator
+    INSERT INTO dbo.RolePermissions (RoleID, PermissionID)
+    SELECT r.RoleID, p.PermissionID
+    FROM dbo.Roles r
+    JOIN dbo.Permissions p ON p.PermissionCode IN (
+        N'VIEW_DASHBOARD',
+        N'MANAGE_WORDS',
+        N'MANAGE_QUESTIONS',
+        N'MANAGE_TESTS',
+        N'MANAGE_TOPICS',
+        N'MANAGE_MEDIA',
+        N'SUBMIT_CONTENT_REVIEW',
+        N'VIEW_CONTENT_ANALYTICS'
+    )
+    WHERE r.RoleName = N'ContentCreator'
+      AND NOT EXISTS (
+          SELECT 1
+          FROM dbo.RolePermissions rp
+          WHERE rp.RoleID = r.RoleID
+            AND rp.PermissionID = p.PermissionID
+      );
+
+    -- 4. Bổ sung quyền mới cho Admin
+    INSERT INTO dbo.RolePermissions (RoleID, PermissionID)
+    SELECT r.RoleID, p.PermissionID
+    FROM dbo.Roles r
+    JOIN dbo.Permissions p ON p.PermissionCode IN (
+        N'VIEW_DASHBOARD',
+        N'MANAGE_WORDS',
+        N'MANAGE_QUESTIONS',
+        N'MANAGE_TESTS',
+        N'MANAGE_USERS',
+        N'LEARN_VOCAB',
+        N'MANAGE_TOPICS',
+        N'MANAGE_MEDIA',
+        N'SUBMIT_CONTENT_REVIEW',
+        N'PUBLISH_OWN_CONTENT',
+        N'REVIEW_CONTENT',
+        N'VIEW_CONTENT_ANALYTICS',
+        N'VIEW_GLOBAL_ANALYTICS',
+        N'MANAGE_SYSTEM_SETTINGS'
+    )
+    WHERE r.RoleName = N'Admin'
+      AND NOT EXISTS (
+          SELECT 1
+          FROM dbo.RolePermissions rp
+          WHERE rp.RoleID = r.RoleID
+            AND rp.PermissionID = p.PermissionID
+      );
+
+    -- 5. Bổ sung quyền mới cho Learner
+    INSERT INTO dbo.RolePermissions (RoleID, PermissionID)
+    SELECT r.RoleID, p.PermissionID
+    FROM dbo.Roles r
+    JOIN dbo.Permissions p ON p.PermissionCode IN (
+        N'VIEW_DASHBOARD',
+        N'LEARN_VOCAB',
+        N'MANAGE_NOTEBOOK',
+        N'ENROLL_TOPICS'
+    )
+    WHERE r.RoleName = N'Learner'
+      AND NOT EXISTS (
+          SELECT 1
+          FROM dbo.RolePermissions rp
+          WHERE rp.RoleID = r.RoleID
+            AND rp.PermissionID = p.PermissionID
+      );
+
+    COMMIT TRANSACTION;
+END TRY
+BEGIN CATCH
+    IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+    THROW;
+END CATCH;
+GO
+________________________________________
+4. Thêm bảng/chức năng nên có
+4.1. Bảng chọn bộ từ vựng cho Learner
+Hiện có Topics, nhưng chưa có bảng ghi nhận learner chọn topic nào.
+CREATE TABLE dbo.UserTopicEnrollments
+(
+    UserTopicEnrollmentID BIGINT IDENTITY(1,1) NOT NULL,
+    UserID                BIGINT NOT NULL,
+    TopicID               BIGINT NOT NULL,
+    EnrolledAt            DATETIMEOFFSET(7) NOT NULL 
+        CONSTRAINT DF_UserTopicEnrollments_EnrolledAt DEFAULT (SYSDATETIMEOFFSET()),
+    IsActive              BIT NOT NULL 
+        CONSTRAINT DF_UserTopicEnrollments_IsActive DEFAULT (1),
+
+    CONSTRAINT PK_UserTopicEnrollments PRIMARY KEY CLUSTERED (UserTopicEnrollmentID),
+
+    CONSTRAINT FK_UserTopicEnrollments_UserID FOREIGN KEY (UserID)
+        REFERENCES dbo.Users(UserID)
+        ON DELETE CASCADE,
+
+    CONSTRAINT FK_UserTopicEnrollments_TopicID FOREIGN KEY (TopicID)
+        REFERENCES dbo.Topics(TopicID)
+        ON DELETE CASCADE,
+
+    CONSTRAINT UQ_UserTopicEnrollments_UserID_TopicID UNIQUE (UserID, TopicID)
+);
+GO
+
+CREATE INDEX IX_UserTopicEnrollments_UserID
+ON dbo.UserTopicEnrollments(UserID, IsActive);
+GO
+Tác dụng:
+•	Learner chọn bộ Economy, Office, Travel.
+•	Dashboard chỉ hiển thị tiến độ theo topic đã chọn.
+•	Admin/Teacher có thể xem số lượng người học theo topic.
+________________________________________
+4.2. Bảng sổ tay từ vựng cá nhân
+CREATE TABLE dbo.UserVocabularyNotebook
+(
+    NotebookID        BIGINT IDENTITY(1,1) NOT NULL,
+    UserID            BIGINT NOT NULL,
+    WordID            BIGINT NOT NULL,
+    PersonalNote      NVARCHAR(2000) NULL,
+    IsFavorite        BIT NOT NULL 
+        CONSTRAINT DF_UserVocabularyNotebook_IsFavorite DEFAULT (0),
+    AddedAt           DATETIMEOFFSET(7) NOT NULL 
+        CONSTRAINT DF_UserVocabularyNotebook_AddedAt DEFAULT (SYSDATETIMEOFFSET()),
+    UpdatedAt         DATETIMEOFFSET(7) NOT NULL 
+        CONSTRAINT DF_UserVocabularyNotebook_UpdatedAt DEFAULT (SYSDATETIMEOFFSET()),
+
+    CONSTRAINT PK_UserVocabularyNotebook PRIMARY KEY CLUSTERED (NotebookID),
+
+    CONSTRAINT FK_UserVocabularyNotebook_UserID FOREIGN KEY (UserID)
+        REFERENCES dbo.Users(UserID)
+        ON DELETE CASCADE,
+
+    CONSTRAINT FK_UserVocabularyNotebook_WordID FOREIGN KEY (WordID)
+        REFERENCES dbo.Words(WordID)
+        ON DELETE CASCADE,
+
+    CONSTRAINT UQ_UserVocabularyNotebook_UserID_WordID UNIQUE (UserID, WordID)
+);
+GO
+
+CREATE INDEX IX_UserVocabularyNotebook_UserID
+ON dbo.UserVocabularyNotebook(UserID, IsFavorite);
+GO
+Tác dụng:
+•	Learner lưu từ khó.
+•	Ghi chú nghĩa riêng.
+•	Đánh dấu yêu thích.
+•	Lọc từ cần ôn riêng ngoài thuật toán UserWordProgress.
+________________________________________
+4.3. Thêm trạng thái nội dung cho Topics, Words, Questions
+Hiện MiniTests có IsPublished, nhưng Topics, Words, Questions chưa có workflow duyệt. Nên thêm ContentStatus.
+ALTER TABLE dbo.Topics
+ADD ContentStatus NVARCHAR(30) NOT NULL
+    CONSTRAINT DF_Topics_ContentStatus DEFAULT (N'Draft'),
+    ReviewedByUserID BIGINT NULL,
+    ReviewedAt DATETIMEOFFSET(7) NULL,
+    PublishedAt DATETIMEOFFSET(7) NULL;
+GO
+
+ALTER TABLE dbo.Words
+ADD ContentStatus NVARCHAR(30) NOT NULL
+    CONSTRAINT DF_Words_ContentStatus DEFAULT (N'Draft'),
+    ReviewedByUserID BIGINT NULL,
+    ReviewedAt DATETIMEOFFSET(7) NULL,
+    PublishedAt DATETIMEOFFSET(7) NULL;
+GO
+
+ALTER TABLE dbo.Questions
+ADD ContentStatus NVARCHAR(30) NOT NULL
+    CONSTRAINT DF_Questions_ContentStatus DEFAULT (N'Draft'),
+    ReviewedByUserID BIGINT NULL,
+    ReviewedAt DATETIMEOFFSET(7) NULL,
+    PublishedAt DATETIMEOFFSET(7) NULL;
+GO
+
+ALTER TABLE dbo.Topics
+ADD CONSTRAINT CK_Topics_ContentStatus
+CHECK (ContentStatus IN (N'Draft', N'PendingReview', N'Published', N'Rejected', N'Archived'));
+GO
+
+ALTER TABLE dbo.Words
+ADD CONSTRAINT CK_Words_ContentStatus
+CHECK (ContentStatus IN (N'Draft', N'PendingReview', N'Published', N'Rejected', N'Archived'));
+GO
+
+ALTER TABLE dbo.Questions
+ADD CONSTRAINT CK_Questions_ContentStatus
+CHECK (ContentStatus IN (N'Draft', N'PendingReview', N'Published', N'Rejected', N'Archived'));
+GO
+Với MiniTests, nên giữ IsPublished để không phá code cũ, nhưng thêm trạng thái chi tiết:
+ALTER TABLE dbo.MiniTests
+ADD ContentStatus NVARCHAR(30) NOT NULL
+    CONSTRAINT DF_MiniTests_ContentStatus DEFAULT (N'Draft'),
+    ReviewedByUserID BIGINT NULL,
+    ReviewedAt DATETIMEOFFSET(7) NULL,
+    PublishedAt DATETIMEOFFSET(7) NULL;
+GO
+
+ALTER TABLE dbo.MiniTests
+ADD CONSTRAINT CK_MiniTests_ContentStatus
+CHECK (ContentStatus IN (N'Draft', N'PendingReview', N'Published', N'Rejected', N'Archived'));
+GO
+________________________________________
+4.4. Bảng log duyệt nội dung
+Bảng này rất nên có vì sau này Admin cần biết ai tạo, ai duyệt, ai reject.
+CREATE TABLE dbo.ContentReviewLogs
+(
+    ContentReviewLogID BIGINT IDENTITY(1,1) NOT NULL,
+    EntityType         NVARCHAR(30) NOT NULL,
+    EntityID           BIGINT NOT NULL,
+    ActionByUserID     BIGINT NOT NULL,
+    OldStatus          NVARCHAR(30) NULL,
+    NewStatus          NVARCHAR(30) NOT NULL,
+    Comment            NVARCHAR(2000) NULL,
+    CreatedAt          DATETIMEOFFSET(7) NOT NULL
+        CONSTRAINT DF_ContentReviewLogs_CreatedAt DEFAULT (SYSDATETIMEOFFSET()),
+
+    CONSTRAINT PK_ContentReviewLogs PRIMARY KEY CLUSTERED (ContentReviewLogID),
+
+    CONSTRAINT FK_ContentReviewLogs_ActionByUserID FOREIGN KEY (ActionByUserID)
+        REFERENCES dbo.Users(UserID)
+        ON DELETE NO ACTION,
+
+    CONSTRAINT CK_ContentReviewLogs_EntityType CHECK
+    (
+        EntityType IN (N'Topic', N'Word', N'Question', N'MiniTest', N'ExampleSentence', N'MediaAsset')
+    ),
+
+    CONSTRAINT CK_ContentReviewLogs_NewStatus CHECK
+    (
+        NewStatus IN (N'Draft', N'PendingReview', N'Published', N'Rejected', N'Archived')
+    )
+);
+GO
+
+CREATE INDEX IX_ContentReviewLogs_Entity
+ON dbo.ContentReviewLogs(EntityType, EntityID, CreatedAt DESC);
+GO
+________________________________________
+4.5. Bảng MediaAssets
+Hiện Words có AudioUrlUK, AudioUrlUS, ImageUrl. Cách này đủ cho prototype, nhưng nếu giáo viên upload nhiều file thì nên tách thành bảng riêng.
+CREATE TABLE dbo.MediaAssets
+(
+    MediaAssetID      BIGINT IDENTITY(1,1) NOT NULL,
+    UploadedByUserID  BIGINT NOT NULL,
+    MediaType         NVARCHAR(30) NOT NULL,
+    FileUrl           NVARCHAR(1000) NOT NULL,
+    FileName          NVARCHAR(255) NULL,
+    MimeType          NVARCHAR(100) NULL,
+    FileSizeBytes     BIGINT NULL,
+    AltText           NVARCHAR(500) NULL,
+    Transcript        NVARCHAR(2000) NULL,
+    CreatedAt         DATETIMEOFFSET(7) NOT NULL
+        CONSTRAINT DF_MediaAssets_CreatedAt DEFAULT (SYSDATETIMEOFFSET()),
+
+    CONSTRAINT PK_MediaAssets PRIMARY KEY CLUSTERED (MediaAssetID),
+
+    CONSTRAINT FK_MediaAssets_UploadedByUserID FOREIGN KEY (UploadedByUserID)
+        REFERENCES dbo.Users(UserID)
+        ON DELETE NO ACTION,
+
+    CONSTRAINT CK_MediaAssets_MediaType CHECK
+    (
+        MediaType IN (N'AudioUK', N'AudioUS', N'Image', N'ExampleAudio', N'QuestionAudio', N'QuestionImage')
+    )
+);
+GO
+Gắn media vào word/question/example bằng bảng trung gian:
+CREATE TABLE dbo.ContentMediaLinks
+(
+    ContentMediaLinkID BIGINT IDENTITY(1,1) NOT NULL,
+    MediaAssetID       BIGINT NOT NULL,
+    EntityType         NVARCHAR(30) NOT NULL,
+    EntityID           BIGINT NOT NULL,
+    Purpose            NVARCHAR(50) NULL,
+    DisplayOrder       INT NOT NULL 
+        CONSTRAINT DF_ContentMediaLinks_DisplayOrder DEFAULT (1),
+
+    CONSTRAINT PK_ContentMediaLinks PRIMARY KEY CLUSTERED (ContentMediaLinkID),
+
+    CONSTRAINT FK_ContentMediaLinks_MediaAssetID FOREIGN KEY (MediaAssetID)
+        REFERENCES dbo.MediaAssets(MediaAssetID)
+        ON DELETE CASCADE,
+
+    CONSTRAINT CK_ContentMediaLinks_EntityType CHECK
+    (
+        EntityType IN (N'Word', N'Question', N'ExampleSentence', N'Topic')
+    )
+);
+GO
+
+CREATE INDEX IX_ContentMediaLinks_Entity
+ON dbo.ContentMediaLinks(EntityType, EntityID);
+GO
+Giai đoạn đầu có thể vẫn giữ AudioUrlUK, AudioUrlUS, ImageUrl trong Words để code cũ không lỗi. Bảng MediaAssets dùng cho phiên bản mở rộng.
+________________________________________
+5. Bổ sung test-level attempt
+Hiện ExerciseAttempts lưu từng câu hỏi. Nếu muốn báo cáo mini test tốt hơn, nên thêm bảng lần làm bài.
+CREATE TABLE dbo.MiniTestAttempts
+(
+    MiniTestAttemptID BIGINT IDENTITY(1,1) NOT NULL,
+    MiniTestID        BIGINT NOT NULL,
+    UserID            BIGINT NOT NULL,
+    StartedAt         DATETIMEOFFSET(7) NOT NULL 
+        CONSTRAINT DF_MiniTestAttempts_StartedAt DEFAULT (SYSDATETIMEOFFSET()),
+    SubmittedAt       DATETIMEOFFSET(7) NULL,
+    TotalQuestions    INT NOT NULL DEFAULT (0),
+    CorrectCount      INT NOT NULL DEFAULT (0),
+    Score             DECIMAL(5,2) NULL,
+
+    CONSTRAINT PK_MiniTestAttempts PRIMARY KEY CLUSTERED (MiniTestAttemptID),
+
+    CONSTRAINT FK_MiniTestAttempts_MiniTestID FOREIGN KEY (MiniTestID)
+        REFERENCES dbo.MiniTests(MiniTestID)
+        ON DELETE CASCADE,
+
+    CONSTRAINT FK_MiniTestAttempts_UserID FOREIGN KEY (UserID)
+        REFERENCES dbo.Users(UserID)
+        ON DELETE CASCADE,
+
+    CONSTRAINT CK_MiniTestAttempts_Score CHECK (Score IS NULL OR Score BETWEEN 0 AND 100)
+);
+GO
+Bảng này giúp Admin/Teacher xem:
+•	Tỉ lệ hoàn thành bài test.
+•	Điểm trung bình theo test.
+•	Test nào quá dễ/quá khó.
+•	Bộ từ nào học viên học hiệu quả nhất.
+________________________________________
+6. Tạo user Biên tập viên / Giáo viên mẫu
+DECLARE @ContentCreatorRoleID INT;
+
+SELECT @ContentCreatorRoleID = RoleID
+FROM dbo.Roles
+WHERE RoleName = N'ContentCreator';
+
+IF @ContentCreatorRoleID IS NULL
+BEGIN
+    THROW 52001, N'Role ContentCreator chưa tồn tại.', 1;
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM dbo.Users WHERE Email = N'teacher@vocaboost.com'
+)
+BEGIN
+    INSERT INTO dbo.Users
+    (
+        FullName,
+        Email,
+        PasswordHash,
+        UserRole,
+        RoleID,
+        IsActive
+    )
+    VALUES
+    (
+        N'Biên tập viên / Giáo viên',
+        N'teacher@vocaboost.com',
+        N'CHANGE_ME_HASH',
+        N'ContentCreator',
+        @ContentCreatorRoleID,
+        1
+    );
+END;
+GO
+Nếu hệ thống đã có user giáo viên nhưng đang bị gán nhầm Learner, sửa như sau:
+DECLARE @ContentCreatorRoleID INT;
+
+SELECT @ContentCreatorRoleID = RoleID
+FROM dbo.Roles
+WHERE RoleName = N'ContentCreator';
+
+UPDATE dbo.Users
+SET UserRole = N'ContentCreator',
+    RoleID = @ContentCreatorRoleID,
+    UpdatedAt = SYSDATETIMEOFFSET()
+WHERE Email = N'email_giao_vien_can_sua@example.com';
+GO
+________________________________________
+7. Mapping quyền theo vai trò
+Chức năng	Learner	Content Creator / Teacher	Admin
+Xem dashboard cá nhân	Có	Có	Có
+Chọn bộ từ vựng	Có	Không bắt buộc	Có
+Học từ vựng	Có	Có thể có để preview	Có
+Làm bài kiểm tra	Có	Có thể có để preview	Có
+Sổ tay cá nhân	Có	Không bắt buộc	Không bắt buộc
+Tạo topic	Không	Có	Có
+Tạo word	Không	Có	Có
+Upload audio/image	Không	Có	Có
+Tạo câu hỏi	Không	Có	Có
+Tạo mini test	Không	Có	Có
+Gửi duyệt nội dung	Không	Có	Có
+Duyệt/xuất bản nội dung	Không	Tùy chính sách	Có
+Quản lý user	Không	Không	Có
+Phân tích toàn cục	Không	Không	Có
+Phân tích nội dung mình tạo	Không	Có	Có
+Khuyến nghị: ban đầu chỉ Admin được duyệt/xuất bản, Content Creator chỉ tạo và gửi duyệt. Sau khi hệ thống ổn định mới cho phép PUBLISH_OWN_CONTENT.
+________________________________________
+8. Cập nhật sơ đồ chức năng
+Nên chỉnh sơ đồ thành 3 cụm rõ hơn:
+Learner
+•	Chọn bộ từ vựng.
+•	Học flashcard.
+•	Ôn tập ngắt quãng.
+•	Làm mini test.
+•	Xem đáp án chi tiết.
+•	Dashboard tiến bộ.
+•	Sổ tay từ vựng cá nhân.
+•	Từ yếu cần ôn lại.
+Content Creator / Teacher
+•	Quản lý bộ từ vựng/chủ đề.
+•	Quản lý từ vựng.
+•	Quản lý ví dụ.
+•	Quản lý audio/image.
+•	Quản lý ngân hàng câu hỏi.
+•	Thiết kế mini test.
+•	Gửi duyệt/xuất bản nội dung.
+•	Xem thống kê hiệu quả nội dung.
+Admin
+•	Quản lý người dùng.
+•	Phân quyền.
+•	Khóa/mở tài khoản.
+•	Duyệt nội dung.
+•	Quản lý hệ thống.
+•	Phân tích toàn cục.
+•	Báo cáo hiệu quả bộ từ.
+•	Theo dõi lượng truy cập.
+________________________________________
+9. Lộ trình triển khai hợp lý
+Giai đoạn 1 — Sửa role và quyền
+Làm ngay:
+•	Thêm role ContentCreator.
+•	Thêm permission cho giáo viên.
+•	Gán role cho user giáo viên.
+•	Kiểm tra login/auth middleware dùng RoleID thay vì chỉ dùng UserRole.
+Giai đoạn 2 — Workflow nội dung
+Thêm:
+•	ContentStatus cho Topics, Words, Questions, MiniTests.
+•	ContentReviewLogs.
+•	API: tạo bản nháp, gửi duyệt, duyệt, reject, archive.
+Giai đoạn 3 — Learner features còn thiếu
+Thêm:
+•	UserTopicEnrollments.
+•	UserVocabularyNotebook.
+•	Dashboard theo topic đã chọn.
+Giai đoạn 4 — Media và analytics nâng cao
+Thêm:
+•	MediaAssets.
+•	ContentMediaLinks.
+•	MiniTestAttempts.
+•	View/báo cáo hiệu quả bộ từ.
+________________________________________
+10. Kết luận đề xuất
+Không nên viết lại database từ đầu. Schema hiện tại đã có nền tốt; cách đúng là:
+1.	Bổ sung role ContentCreator vào bảng Roles.
+2.	Gán permission riêng cho Content Creator.
+3.	Giữ UserRole để tương thích code cũ, nhưng chuẩn hóa dần sang RoleID.
+4.	Thêm workflow Draft → PendingReview → Published → Rejected → Archived.
+5.	Thêm bảng UserTopicEnrollments và UserVocabularyNotebook cho Learner.
+6.	Thêm ContentReviewLogs, MediaAssets, MiniTestAttempts để phục vụ giáo viên và admin.
+Cấu trúc này đáp ứng đủ 3 nhóm người dùng mà không phá vỡ các bảng cũ.
+Q1: Làm sao viết migration SQL hoàn chỉnh để chạy trực tiếp trên database hiện tại mà không drop dữ liệu cũ?
+Q2: Nên thiết kế API phân quyền cho Learner, Content Creator và Admin như thế nào?
+Q3: Làm sao cập nhật lại sơ đồ chức năng hệ thống cho khớp với database mới?
+
+Có, nên thêm “Danh mục chủ đề”. Hiện tại Topics đang đóng vai trò là bộ từ vựng/chủ đề học như Economy, Office, Travel. Nhưng nếu hệ thống lớn lên, nên tách thêm tầng cha:
+TopicCategories
+    └── Topics
+            └── Words
+Ví dụ:
+Danh mục chủ đề	Bộ từ vựng / Topic
+Business English	Economy, Office, Meeting, Contract
+Daily Life	Food, Shopping, Family
+Travel English	Airport, Hotel, Direction
+TOEIC Skills	Part 1, Part 2, Part 5, Part 7
+Khác gì so với Topics cũ?
+Database cũ:
+Topics
+ └── Words
+Bản nên sửa:
+TopicCategories
+ └── Topics
+      └── WordTopics
+           └── Words
+Tức là:
+•	TopicCategories: nhóm lớn.
+•	Topics: bộ từ cụ thể.
+•	WordTopics: bảng nối từ vựng với topic, vì một từ có thể nằm trong nhiều topic.
+________________________________________
+Query thêm danh mục chủ đề
+Gộp thêm phần này vào migration trước đó.
+/* ============================================================
+   ADD TOPIC CATEGORIES
+   Purpose:
+     - Thêm danh mục chủ đề cha
+     - Giúp gom nhóm các bộ từ vựng như Economy, Office, Travel...
+   ============================================================ */
+
+USE ToeicVocabularyPlatform;
+GO
+
+/* ============================================================
+   1. CREATE TopicCategories TABLE
+   ============================================================ */
+
+IF OBJECT_ID(N'dbo.TopicCategories', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.TopicCategories
+    (
+        TopicCategoryID BIGINT IDENTITY(1,1) NOT NULL,
+        CategoryName NVARCHAR(255) NOT NULL,
+        CategoryCode NVARCHAR(100) NOT NULL,
+        Description NVARCHAR(1000) NULL,
+        IconUrl NVARCHAR(1000) NULL,
+        DisplayOrder INT NOT NULL
+            CONSTRAINT DF_TopicCategories_DisplayOrder DEFAULT (1),
+        IsActive BIT NOT NULL
+            CONSTRAINT DF_TopicCategories_IsActive DEFAULT (1),
+        CreatedByUserID BIGINT NULL,
+        CreatedAt DATETIMEOFFSET(7) NOT NULL
+            CONSTRAINT DF_TopicCategories_CreatedAt DEFAULT (SYSDATETIMEOFFSET()),
+        UpdatedAt DATETIMEOFFSET(7) NOT NULL
+            CONSTRAINT DF_TopicCategories_UpdatedAt DEFAULT (SYSDATETIMEOFFSET()),
+
+        CONSTRAINT PK_TopicCategories PRIMARY KEY CLUSTERED (TopicCategoryID),
+
+        CONSTRAINT UQ_TopicCategories_CategoryCode UNIQUE (CategoryCode),
+
+        CONSTRAINT FK_TopicCategories_CreatedByUserID FOREIGN KEY (CreatedByUserID)
+            REFERENCES dbo.Users(UserID)
+            ON DELETE NO ACTION,
+
+        CONSTRAINT CK_TopicCategories_DisplayOrder CHECK (DisplayOrder > 0)
+    );
+END;
+GO
+
+
+/* ============================================================
+   2. ADD TopicCategoryID TO Topics
+   ============================================================ */
+
+IF COL_LENGTH(N'dbo.Topics', N'TopicCategoryID') IS NULL
+BEGIN
+    ALTER TABLE dbo.Topics
+    ADD TopicCategoryID BIGINT NULL;
+END;
+GO
+
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM sys.foreign_keys
+    WHERE name = N'FK_Topics_TopicCategoryID'
+)
+BEGIN
+    ALTER TABLE dbo.Topics
+    ADD CONSTRAINT FK_Topics_TopicCategoryID FOREIGN KEY (TopicCategoryID)
+        REFERENCES dbo.TopicCategories(TopicCategoryID)
+        ON DELETE NO ACTION;
+END;
+GO
+
+
+/* ============================================================
+   3. ADD INDEXES
+   ============================================================ */
+
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = N'IX_TopicCategories_IsActive_DisplayOrder'
+      AND object_id = OBJECT_ID(N'dbo.TopicCategories')
+)
+BEGIN
+    CREATE INDEX IX_TopicCategories_IsActive_DisplayOrder
+    ON dbo.TopicCategories(IsActive, DisplayOrder, CategoryName);
+END;
+GO
+
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = N'IX_Topics_TopicCategoryID'
+      AND object_id = OBJECT_ID(N'dbo.Topics')
+)
+BEGIN
+    CREATE INDEX IX_Topics_TopicCategoryID
+    ON dbo.Topics(TopicCategoryID, IsActive);
+END;
+GO
+
+
+/* ============================================================
+   4. SEED DEFAULT TOPIC CATEGORIES
+   ============================================================ */
+
+INSERT INTO dbo.TopicCategories
+(
+    CategoryName,
+    CategoryCode,
+    Description,
+    DisplayOrder,
+    IsActive
+)
+SELECT v.CategoryName, v.CategoryCode, v.Description, v.DisplayOrder, 1
+FROM
+(
+    VALUES
+    (N'Business English', N'BUSINESS_ENGLISH', N'Từ vựng tiếng Anh thương mại, công sở, kinh tế, hợp đồng, cuộc họp', 1),
+    (N'Daily Life', N'DAILY_LIFE', N'Từ vựng giao tiếp đời sống hằng ngày', 2),
+    (N'Travel English', N'TRAVEL_ENGLISH', N'Từ vựng du lịch, sân bay, khách sạn, chỉ đường', 3),
+    (N'TOEIC Skills', N'TOEIC_SKILLS', N'Từ vựng và bài học theo kỹ năng TOEIC', 4),
+    (N'Academic English', N'ACADEMIC_ENGLISH', N'Từ vựng học thuật, giáo dục, nghiên cứu', 5),
+    (N'Technology', N'TECHNOLOGY', N'Từ vựng công nghệ, phần mềm, internet, dữ liệu', 6)
+) AS v(CategoryName, CategoryCode, Description, DisplayOrder)
+WHERE NOT EXISTS
+(
+    SELECT 1
+    FROM dbo.TopicCategories tc
+    WHERE tc.CategoryCode = v.CategoryCode
+);
+GO
+
+
+/* ============================================================
+   5. OPTIONAL: MAP EXISTING TOPICS TO CATEGORIES BY KEYWORD
+   Có thể chỉnh lại theo dữ liệu thật trong database.
+   ============================================================ */
+
+UPDATE t
+SET TopicCategoryID = tc.TopicCategoryID
+FROM dbo.Topics t
+JOIN dbo.TopicCategories tc
+    ON tc.CategoryCode = N'BUSINESS_ENGLISH'
+WHERE t.TopicCategoryID IS NULL
+  AND
+  (
+      t.TopicName LIKE N'%Economy%'
+      OR t.TopicName LIKE N'%Office%'
+      OR t.TopicName LIKE N'%Business%'
+      OR t.TopicName LIKE N'%Meeting%'
+      OR t.TopicName LIKE N'%Contract%'
+  );
+GO
+
+UPDATE t
+SET TopicCategoryID = tc.TopicCategoryID
+FROM dbo.Topics t
+JOIN dbo.TopicCategories tc
+    ON tc.CategoryCode = N'TRAVEL_ENGLISH'
+WHERE t.TopicCategoryID IS NULL
+  AND
+  (
+      t.TopicName LIKE N'%Travel%'
+      OR t.TopicName LIKE N'%Airport%'
+      OR t.TopicName LIKE N'%Hotel%'
+      OR t.TopicName LIKE N'%Direction%'
+  );
+GO
+
+UPDATE t
+SET TopicCategoryID = tc.TopicCategoryID
+FROM dbo.Topics t
+JOIN dbo.TopicCategories tc
+    ON tc.CategoryCode = N'TOEIC_SKILLS'
+WHERE t.TopicCategoryID IS NULL
+  AND
+  (
+      t.TopicName LIKE N'%TOEIC%'
+      OR t.TopicName LIKE N'%Part 1%'
+      OR t.TopicName LIKE N'%Part 2%'
+      OR t.TopicName LIKE N'%Part 3%'
+      OR t.TopicName LIKE N'%Part 4%'
+      OR t.TopicName LIKE N'%Part 5%'
+      OR t.TopicName LIKE N'%Part 6%'
+      OR t.TopicName LIKE N'%Part 7%'
+  );
+GO
+
+
+/* ============================================================
+   6. VIEW: CATEGORY WITH TOPIC COUNT
+   ============================================================ */
+
+IF OBJECT_ID(N'dbo.vw_TopicCategorySummary', N'V') IS NOT NULL
+BEGIN
+    DROP VIEW dbo.vw_TopicCategorySummary;
+END;
+GO
+
+CREATE VIEW dbo.vw_TopicCategorySummary
+AS
+SELECT
+    tc.TopicCategoryID,
+    tc.CategoryName,
+    tc.CategoryCode,
+    tc.Description,
+    tc.IconUrl,
+    tc.DisplayOrder,
+    tc.IsActive,
+
+    COUNT(t.TopicID) AS TotalTopics,
+
+    SUM
+    (
+        CASE
+            WHEN t.ContentStatus = N'Published' THEN 1
+            ELSE 0
+        END
+    ) AS PublishedTopics,
+
+    SUM
+    (
+        CASE
+            WHEN t.ContentStatus = N'Draft' THEN 1
+            ELSE 0
+        END
+    ) AS DraftTopics,
+
+    SUM
+    (
+        CASE
+            WHEN t.ContentStatus = N'PendingReview' THEN 1
+            ELSE 0
+        END
+    ) AS PendingReviewTopics
+FROM dbo.TopicCategories tc
+LEFT JOIN dbo.Topics t
+    ON t.TopicCategoryID = tc.TopicCategoryID
+GROUP BY
+    tc.TopicCategoryID,
+    tc.CategoryName,
+    tc.CategoryCode,
+    tc.Description,
+    tc.IconUrl,
+    tc.DisplayOrder,
+    tc.IsActive;
+GO
+
+
+/* ============================================================
+   7. FINAL CHECK
+   ============================================================ */
+
+SELECT
+    tc.TopicCategoryID,
+    tc.CategoryName,
+    tc.CategoryCode,
+    tc.DisplayOrder,
+    tc.IsActive,
+    COUNT(t.TopicID) AS TotalTopics
+FROM dbo.TopicCategories tc
+LEFT JOIN dbo.Topics t
+    ON t.TopicCategoryID = tc.TopicCategoryID
+GROUP BY
+    tc.TopicCategoryID,
+    tc.CategoryName,
+    tc.CategoryCode,
+    tc.DisplayOrder,
+    tc.IsActive
+ORDER BY tc.DisplayOrder;
+GO
+________________________________________
+Có nên cho TopicCategories có workflow duyệt không?
+Có 2 cách.
+Cách 1 — Đơn giản, khuyên dùng
+TopicCategories chỉ do Admin quản lý.
+Ví dụ:
+•	Business English
+•	Daily Life
+•	Travel English
+•	TOEIC Skills
+Các danh mục này ít thay đổi, không cần Draft, PendingReview.
+Cách 2 — Linh hoạt hơn
+Cho Content Creator tạo danh mục mới, Admin duyệt.
+Khi đó thêm các cột này vào TopicCategories:
+ALTER TABLE dbo.TopicCategories
+ADD ContentStatus NVARCHAR(30) NOT NULL
+    CONSTRAINT DF_TopicCategories_ContentStatus DEFAULT (N'Published'),
+    ReviewedByUserID BIGINT NULL,
+    ReviewedAt DATETIMEOFFSET(7) NULL,
+    PublishedAt DATETIMEOFFSET(7) NULL;
+GO
+
+ALTER TABLE dbo.TopicCategories
+ADD CONSTRAINT CK_TopicCategories_ContentStatus
+CHECK (ContentStatus IN (N'Draft', N'PendingReview', N'Published', N'Rejected', N'Archived'));
+GO
+Nhưng với hệ thống của bạn, mình khuyên dùng Cách 1: Admin quản lý danh mục, Content Creator chỉ tạo Topics, Words, Questions, MiniTests.
+________________________________________
+Luồng dữ liệu sau khi thêm danh mục
+Ví dụ giáo viên tạo bộ từ “Office Communication”:
+TopicCategories
+- Business English
+
+Topics
+- Office Communication
+  TopicCategoryID -> Business English
+
+Words
+- appointment
+- colleague
+- deadline
+- negotiate
+
+WordTopics
+- appointment -> Office Communication
+- colleague -> Office Communication
+Learner khi vào học sẽ thấy:
+Business English
+    - Economy
+    - Office Communication
+    - Meeting
+    - Contract
+
+Travel English
+    - Airport
+    - Hotel
+    - Direction
+________________________________________
+Có cần sửa UserTopicEnrollments không?
+Không cần sửa nhiều. Vì Learner vẫn chọn Topic, không chọn trực tiếp Category.
+Learner chọn:
+Business English > Office Communication
+Dữ liệu lưu vẫn là:
+UserTopicEnrollments(UserID, TopicID)
+Nếu sau này muốn cho learner chọn cả danh mục lớn, có thể thêm bảng:
+UserTopicCategoryEnrollments
+Nhưng hiện tại chưa cần, tránh làm phức tạp.
+________________________________________
+Cập nhật phân quyền
+Nên thêm quyền riêng cho quản lý danh mục:
+INSERT INTO dbo.Permissions (PermissionCode, Description)
+SELECT N'MANAGE_TOPIC_CATEGORIES', N'Quản lý danh mục chủ đề'
+WHERE NOT EXISTS
+(
+    SELECT 1
+    FROM dbo.Permissions
+    WHERE PermissionCode = N'MANAGE_TOPIC_CATEGORIES'
+);
+GO
+
+-- Gán cho Admin
+INSERT INTO dbo.RolePermissions (RoleID, PermissionID)
+SELECT r.RoleID, p.PermissionID
+FROM dbo.Roles r
+JOIN dbo.Permissions p
+    ON p.PermissionCode = N'MANAGE_TOPIC_CATEGORIES'
+WHERE r.RoleName = N'Admin'
+  AND NOT EXISTS
+  (
+      SELECT 1
+      FROM dbo.RolePermissions rp
+      WHERE rp.RoleID = r.RoleID
+        AND rp.PermissionID = p.PermissionID
+  );
+GO
+
+-- Nếu muốn giáo viên cũng được tạo danh mục thì mở đoạn này.
+-- Khuyến nghị hiện tại: chưa nên bật.
+-- INSERT INTO dbo.RolePermissions (RoleID, PermissionID)
+-- SELECT r.RoleID, p.PermissionID
+-- FROM dbo.Roles r
+-- JOIN dbo.Permissions p
+--     ON p.PermissionCode = N'MANAGE_TOPIC_CATEGORIES'
+-- WHERE r.RoleName = N'ContentCreator'
+--   AND NOT EXISTS
+--   (
+--       SELECT 1
+--       FROM dbo.RolePermissions rp
+--       WHERE rp.RoleID = r.RoleID
+--         AND rp.PermissionID = p.PermissionID
+--   );
+-- GO
+________________________________________
+Kết luận
+Nên thêm bảng:
+TopicCategories
+và thêm khóa ngoại:
+Topics.TopicCategoryID -> TopicCategories.TopicCategoryID
+Không nên thay Topics bằng TopicCategories. Hai bảng này có vai trò khác nhau:
+•	TopicCategories: nhóm lớn.
+•	Topics: bộ từ vựng cụ thể.
+•	Words: từ vựng.
+•	WordTopics: nối từ với topic.
+Thiết kế này sạch hơn, dễ mở rộng hơn, và khớp với yêu cầu Content Creator xây dựng các bộ từ theo chủ đề như Economy, Office, Travel.
+Q1: Làm sao gộp luôn TopicCategories vào file migration tổng cuối cùng?
+Q2: Nên để Admin hay Content Creator quản lý danh mục chủ đề?
+Q3: Có nên cho một topic thuộc nhiều danh mục không, ví dụ “Business Travel” vừa thuộc Business vừa thuộc Travel?
+

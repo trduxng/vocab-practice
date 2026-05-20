@@ -369,5 +369,52 @@ export const adminService = {
   async createDailyReminders() {
     const response = await apiClient.post('/admin/notifications/daily-reminders');
     return response.data;
+  },
+
+  // ── Content Review ──
+  async getPendingContent() {
+    const response = await apiClient.get('/admin/content-review/pending');
+    return response.data;
+  },
+
+  async approveContent(entityType: string, entityId: number) {
+    const response = await apiClient.post(`/admin/content-review/${entityType}/${entityId}/approve`);
+    return response.data;
+  },
+
+  async rejectContent(entityType: string, entityId: number, reason?: string) {
+    const response = await apiClient.post(`/admin/content-review/${entityType}/${entityId}/reject`, { reason });
+    return response.data;
+  },
+
+  async archiveContent(entityType: string, entityId: number) {
+    const response = await apiClient.post(`/admin/content-review/${entityType}/${entityId}/archive`);
+    return response.data;
+  },
+
+  async getReviewLogs(entityType: string, entityId: number) {
+    const response = await apiClient.get(`/admin/content-review/${entityType}/${entityId}/logs`);
+    return response.data;
+  },
+
+  // ── Topic Categories ──
+  async getTopicCategories() {
+    const response = await apiClient.get('/admin/topic-categories');
+    return response.data;
+  },
+
+  async createTopicCategory(data: { categoryName: string; categoryCode: string; description?: string; iconUrl?: string; displayOrder?: number; isActive?: boolean }) {
+    const response = await apiClient.post('/admin/topic-categories', data);
+    return response.data;
+  },
+
+  async updateTopicCategory(id: number, data: { categoryName: string; categoryCode: string; description?: string; iconUrl?: string; displayOrder?: number; isActive?: boolean }) {
+    const response = await apiClient.put(`/admin/topic-categories/${id}`, data);
+    return response.data;
+  },
+
+  async deleteTopicCategory(id: number) {
+    const response = await apiClient.delete(`/admin/topic-categories/${id}`);
+    return response.data;
   }
 };

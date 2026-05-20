@@ -9,6 +9,7 @@ interface User {
   fullName: string;
   email: string;
   role: 'Learner' | 'ContentCreator' | 'Admin';
+  permissions?: string[];
 }
 
 interface AuthContextType {
@@ -19,14 +20,27 @@ interface AuthContextType {
   logout: () => void;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  isCreator: boolean;
+  permissions: string[];
+  hasPermission: (code: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+function parsePermissionsFromToken(token: string): string[] {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return Array.isArray(payload.permissions) ? payload.permissions : [];
+  } catch {
+    return [];
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [permissions, setPermissions] = useState<string[]>([]);
   const router = useRouter();
 
   useEffect(() => {
@@ -37,6 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (savedToken && savedUser) {
       setToken(savedToken);
       setUser(JSON.parse(savedUser));
+      setPermissions(parsePermissionsFromToken(savedToken));
     }
     setLoading(false);
   }, []);
@@ -47,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await authService.login(data);
       setToken(response.token);
       setUser(response.user);
+      setPermissions(parsePermissionsFromToken(response.token));
     } catch (error) {
       throw error;
     } finally {
@@ -54,10 +70,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const hasPermission = (code: string): boolean => permissions.includes(code);
+
   const logout = () => {
     authService.logout();
     setUser(null);
     setToken(null);
+    setPermissions([]);
     router.replace('/login');
     router.refresh();
   };
@@ -70,6 +89,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout,
     isAuthenticated: !!token,
     isAdmin: user?.role === 'Admin',
+    isCreator: user?.role === 'ContentCreator',
+    permissions,
+    hasPermission,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

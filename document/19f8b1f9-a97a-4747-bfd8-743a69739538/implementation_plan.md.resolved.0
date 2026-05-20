@@ -1,0 +1,225 @@
+# Triển khai Role ContentCreator vào hệ thống VocaBoost
+
+Bổ sung đầy đủ luồng ContentCreator (Biên tập viên) cho backend Express.js và frontend Next.js, dựa trên plan tài liệu đã có.
+
+## Phân tích hiện trạng
+
+### Đã có sẵn (Database)
+- ✅ Role `ContentCreator` trong bảng `Roles` (migration script đã seed)
+- ✅ Permissions: `MANAGE_TOPIC_CATEGORIES`, `MANAGE_TOPICS`, `MANAGE_WORDS`, `MANAGE_QUESTIONS`, `MANAGE_TESTS`, `MANAGE_MEDIA`, `SUBMIT_CONTENT_REVIEW`, `VIEW_CONTENT_ANALYTICS`
+- ✅ `RolePermissions` đã gán cho ContentCreator
+- ✅ `ContentStatus` column trên `Topics`, `Words`, `Questions`, `MiniTests`
+- ✅ `ContentReviewLogs`, `MediaAssets`, `ContentMediaLinks` tables
+- ✅ Views: `vw_ContentCreatorContentSummary`, `vw_TopicLearningAnalytics`, `vw_MiniTestAnalytics`
+- ✅ `Users.UserRole` CHECK constraint bao gồm `ContentCreator`
+- ✅ User mẫu `teacher@vocaboost.com` đã được seed
+
+### Cần triển khai (Backend - Express.js)
+- ❌ Middleware ownership check (Creator chỉ sửa nội dung của mình)
+- ❌ Creator routes (`/api/creator/*`) tách biệt khỏi admin routes
+- ❌ Creator service (CRUD + filter theo `CreatedByUserID`)
+- ❌ Content review API cho Admin (`approve`, `reject`, `archive`)
+- ❌ Creator dashboard/analytics API
+
+### Cần triển khai (Frontend - Next.js)
+- ❌ Creator layout + routing (`/creator/*`)
+- ❌ Creator sidebar với menu riêng
+- ❌ CRUD pages: Topics, Words, Questions, MiniTests
+- ❌ Content status workflow UI (Draft → Submit → Published/Rejected)
+- ❌ Creator dashboard + analytics page
+- ❌ Login redirect logic cho role ContentCreator
+
+---
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Scope lớn**: Plan gốc có 5 phases. Đề xuất triển khai theo 3 phases ưu tiên, bỏ qua Media upload (Phase nâng cao) để tập trung vào luồng chính.
+
+> [!WARNING]
+> **Database migration**: Cần xác nhận database hiện tại đã chạy script `full_query_gen_merged_all_with_topic_categories_FIXED.sql` đầy đủ (bao gồm Phần 4 - migration ContentCreator + TopicCategories). Nếu chưa chạy, cần chạy trước.
+
+## Open Questions
+
+1. **Media upload**: Có cần triển khai MediaAssets + ContentMediaLinks trong đợt này không? Hay để phase sau?
+2. **TopicCategories**: Creator có được tạo/sửa TopicCategories không? Hay chỉ Admin?
+3. **Content Review UI**: Admin cần trang duyệt nội dung riêng trong `/admin` hay tích hợp vào trang hiện tại?
+
+---
+
+## Proposed Changes
+
+### Phase 1: Backend — Creator API Layer
+
+---
+
+#### [NEW] [creator.service.js](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/backend/src/services/creator.service.js)
+
+Service riêng cho Creator với đặc điểm:
+- Mọi query CRUD **luôn filter** theo `CreatedByUserID = currentUserID`
+- Hỗ trợ `ContentStatus` workflow: `Draft` → `PendingReview` → `Published` / `Rejected`
+- Các method chính:
+  - `getMyTopics(userId, filters)` — lấy topics do creator tạo
+  - `createTopic(data, userId)` — tạo topic với `ContentStatus = 'Draft'`
+  - `updateTopic(id, data, userId)` — sửa topic, check ownership
+  - `deleteTopic(id, userId)` — xóa topic draft
+  - `getMyWords(userId, filters)` — tương tự cho Words
+  - `createWord(data, userId)`, `updateWord()`, `deleteWord()`
+  - `getMyQuestions(userId)`, `createQuestion()`, `updateQuestion()`, `deleteQuestion()`
+  - `getMyMiniTests(userId)`, `createMiniTest()`, `updateMiniTest()`, `deleteMiniTest()`
+  - `submitForReview(entityType, entityId, userId)` — đổi status sang `PendingReview`, ghi `ContentReviewLogs`
+  - `getDashboardStats(userId)` — dùng `vw_ContentCreatorContentSummary`
+  - `getContentAnalytics(userId)` — join `vw_TopicLearningAnalytics`, `vw_MiniTestAnalytics`
+
+#### [NEW] [creator.controller.js](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/backend/src/controllers/creator.controller.js)
+
+Controller delegate tới `CreatorService`, trả JSON response chuẩn.
+
+#### [NEW] [creator.routes.js](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/backend/src/routes/creator.routes.js)
+
+Routes bảo vệ bởi `verifyToken` + `checkPermission(...)`:
+```
+GET    /api/creator/dashboard
+GET    /api/creator/analytics
+
+GET    /api/creator/topics
+POST   /api/creator/topics
+PUT    /api/creator/topics/:id
+DELETE /api/creator/topics/:id
+POST   /api/creator/topics/:id/submit-review
+
+GET    /api/creator/words
+POST   /api/creator/words
+PUT    /api/creator/words/:id
+DELETE /api/creator/words/:id
+POST   /api/creator/words/:id/submit-review
+
+GET    /api/creator/questions
+POST   /api/creator/questions
+PUT    /api/creator/questions/:id
+DELETE /api/creator/questions/:id
+
+GET    /api/creator/minitests
+POST   /api/creator/minitests
+PUT    /api/creator/minitests/:id
+DELETE /api/creator/minitests/:id
+POST   /api/creator/minitests/:id/submit-review
+```
+
+#### [MODIFY] [index.js](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/backend/src/index.js)
+
+Thêm `app.use('/api/creator', creatorRoutes);`
+
+#### [NEW] [review.service.js](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/backend/src/services/review.service.js)
+
+Admin review service:
+- `getPendingContent()` — lấy nội dung `PendingReview` trên mọi bảng
+- `approveContent(entityType, entityId, adminId)` — đổi `Published`, ghi log
+- `rejectContent(entityType, entityId, adminId, reason)` — đổi `Rejected`, ghi log + lý do
+
+#### [NEW] [review.controller.js](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/backend/src/controllers/review.controller.js)
+
+#### [NEW] [review.routes.js](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/backend/src/routes/review.routes.js)
+
+```
+GET  /api/admin/content-review/pending
+POST /api/admin/content-review/:entityType/:entityId/approve
+POST /api/admin/content-review/:entityType/:entityId/reject
+```
+
+#### [MODIFY] [admin.routes.js](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/backend/src/routes/admin.routes.js)
+
+Mount review routes vào admin router.
+
+---
+
+### Phase 2: Frontend — Creator Layout & Core Pages
+
+---
+
+#### [NEW] [layout.tsx](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/frontend/src/app/creator/layout.tsx)
+
+Creator layout:
+- Check `isAuthenticated` + `user.role === 'ContentCreator'`
+- Render `<Sidebar role="creator" />`
+- Redirect nếu không đúng role
+
+#### [MODIFY] [Sidebar.tsx](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/frontend/src/components/shared/Sidebar.tsx)
+
+Thêm `creatorLinks` array + hỗ trợ `role="creator"`:
+```
+Dashboard biên tập viên  → /creator/dashboard
+Chủ đề                   → /creator/topics
+Từ vựng                  → /creator/words
+Câu hỏi                  → /creator/questions
+Bài kiểm tra             → /creator/minitests
+Bản nháp                 → /creator/drafts
+Chờ duyệt                → /creator/pending
+Bị từ chối               → /creator/rejected
+Thống kê                 → /creator/analytics
+```
+
+#### [MODIFY] [AuthContext.tsx](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/frontend/src/app/context/AuthContext.tsx)
+
+Thêm `isCreator` computed property: `user?.role === 'ContentCreator'`
+
+#### [MODIFY] [auth.service.ts](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/frontend/src/services/auth.service.ts)
+
+Login response đã hỗ trợ `ContentCreator` type — không cần sửa type, chỉ cần xử lý redirect:
+
+#### [NEW] [creator.service.ts](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/frontend/src/services/creator.service.ts)
+
+Service gọi API `/api/creator/*` cho:
+- Dashboard stats
+- CRUD Topics, Words, Questions, MiniTests
+- Submit review
+- Analytics
+
+#### Creator Pages (tất cả [NEW])
+- `frontend/src/app/creator/dashboard/page.tsx` — Dashboard tổng quan
+- `frontend/src/app/creator/topics/page.tsx` — Quản lý topics
+- `frontend/src/app/creator/words/page.tsx` — Quản lý từ vựng
+- `frontend/src/app/creator/questions/page.tsx` — Quản lý câu hỏi
+- `frontend/src/app/creator/minitests/page.tsx` — Quản lý mini tests
+- `frontend/src/app/creator/drafts/page.tsx` — Danh sách bản nháp
+- `frontend/src/app/creator/pending/page.tsx` — Danh sách chờ duyệt
+- `frontend/src/app/creator/rejected/page.tsx` — Nội dung bị từ chối
+- `frontend/src/app/creator/analytics/page.tsx` — Thống kê nội dung
+
+---
+
+### Phase 3: Login Redirect + Admin Review UI
+
+---
+
+#### [MODIFY] Login page redirect logic
+
+Sau khi login:
+- `Admin` → `/admin/dashboard`
+- `ContentCreator` → `/creator/dashboard`
+- `Learner` → `/user/dashboard`
+
+#### [NEW] Admin Content Review page
+
+Thêm trang `/admin/content-review` trong admin panel để Admin:
+- Xem danh sách nội dung `PendingReview`
+- Approve / Reject từng item
+- Ghi lý do reject
+
+---
+
+## Verification Plan
+
+### Automated Tests
+1. Tạo user Creator mẫu, login → kiểm tra permissions trong JWT
+2. Creator CRUD topics/words → verify ownership filter
+3. Creator submit review → verify ContentStatus chuyển đúng
+4. Admin approve/reject → verify status + ContentReviewLogs
+5. Learner API chỉ thấy `Published` content
+
+### Manual Verification
+1. Login với `teacher@vocaboost.com` → redirect `/creator/dashboard`
+2. Tạo Word draft → submit → Admin approve → Learner thấy
+3. Creator không thấy nội dung Creator khác
+4. Creator không truy cập được `/admin/*`
+5. Sidebar hiển thị đúng menu theo role

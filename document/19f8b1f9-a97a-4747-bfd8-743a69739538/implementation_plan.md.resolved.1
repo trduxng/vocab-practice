@@ -1,0 +1,435 @@
+# Triển khai Role ContentCreator — Bám sát PLAN gốc
+
+Triển khai đầy đủ theo 5 phases trong [PLAN_them_creator_vao_he_thong_database_tieng_anh.md](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/document/PLAN_them_creator_vao_he_thong_database_tieng_anh.md), bao gồm Media upload, TopicCategories cho Creator, và Admin review UI trang riêng.
+
+---
+
+## Hiện trạng đã xác nhận
+
+### Database ✅ — Đã có đầy đủ trong [SQL mới nhất](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/Database/full_query_gen_merged_all_with_topic_categories_FIXED_moinhat.sql)
+
+| Thành phần | Trạng thái |
+|---|---|
+| Role `ContentCreator` trong `Roles` | ✅ Line 822-827 |
+| 16 Permissions (bao gồm `MANAGE_TOPIC_CATEGORIES`) | ✅ Line 834-865 |
+| `RolePermissions` gán 9 permissions cho Creator | ✅ Line 894-919 |
+| `Users.UserRole` CHECK constraint | ✅ Line 82 |
+| User mẫu `teacher@vocaboost.com` | ✅ Line 1027-1053 |
+| `ContentStatus` trên Topics/Words/Questions/MiniTests | ✅ Line 1060-1174 |
+| CHECK constraints cho ContentStatus | ✅ Line 1180-1227 |
+| `ReviewedByUserID`, `ReviewedAt`, `PublishedAt` columns | ✅ Line 1069-1166 |
+| `ContentReviewLogs` table | ✅ Line 1406-1474 |
+| `MediaAssets` + `ContentMediaLinks` tables | ✅ Line 1481-1586 |
+| `MiniTestAttempts` table | ✅ Line 1593-1648 |
+| `TopicCategories` table | ✅ Line 1776-1805 |
+| `UserTopicEnrollments` + `UserVocabularyNotebook` | ✅ Line 1291-1399 |
+| Views: `vw_ContentCreatorContentSummary`, `vw_TopicLearningAnalytics`, `vw_MiniTestAnalytics`, `vw_TopicCategorySummary` | ✅ Line 1655-2012 |
+
+> [!NOTE]
+> Database KHÔNG cần sửa thêm gì. Chỉ cần đảm bảo đã chạy file SQL mới nhất.
+
+### Backend — Cần triển khai
+
+| File hiện có | Vai trò |
+|---|---|
+| [auth.js](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/backend/src/middlewares/auth.js) | `verifyToken`, `verifyAdmin`, `checkPermission` |
+| [auth.service.js](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/backend/src/services/auth.service.js) | Login + JWT + permissions |
+| [admin.service.js](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/backend/src/services/admin.service.js) | CRUD Words/Questions/MiniTests/Users |
+| [admin.controller.js](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/backend/src/controllers/admin.controller.js) | Admin controller |
+| [admin.routes.js](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/backend/src/routes/admin.routes.js) | Admin routes với permission check |
+| [index.js](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/backend/src/index.js) | Express app entry |
+
+### Frontend — Cần triển khai
+
+| File hiện có | Vai trò |
+|---|---|
+| [AuthContext.tsx](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/frontend/src/app/context/AuthContext.tsx) | Auth state + `isAdmin` |
+| [Sidebar.tsx](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/frontend/src/components/shared/Sidebar.tsx) | Sidebar với role `admin`/`student` |
+| [admin/layout.tsx](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/frontend/src/app/admin/layout.tsx) | Admin layout pattern |
+| [login/page.tsx](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/frontend/src/app/login/page.tsx) | Login chỉ redirect Admin/User |
+| [admin.service.ts](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/frontend/src/services/admin.service.ts) | API client cho admin |
+
+---
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Database migration**: Phải đảm bảo đã chạy `full_query_gen_merged_all_with_topic_categories_FIXED_moinhat.sql` đầy đủ trước khi bắt tay vào backend.
+
+> [!IMPORTANT]
+> **TopicCategories permission cho Creator**: Theo PLAN gốc (Section 7.1), SQL hiện tại chỉ gán `MANAGE_TOPIC_CATEGORIES` cho Admin (line 1946-1960). Bạn muốn Creator cũng có quyền này → cần chạy thêm 1 câu INSERT vào `RolePermissions`. Creator sẽ CRUD TopicCategories nhưng Admin xác nhận chỉnh sửa/xóa (ownership rule).
+
+> [!WARNING]
+> **Scope lớn**: ~25 files mới + ~8 files sửa. Ước tính triển khai cần chia thành 5 phases tuần tự để đảm bảo mỗi phase test được trước khi sang phase tiếp.
+
+---
+
+## Proposed Changes
+
+### Phase 1: Database — Bổ sung permission TopicCategories cho Creator
+
+> [!NOTE]
+> Phase này chỉ có 1 câu SQL bổ sung.
+
+#### [NEW] migration_creator_topic_categories.sql (hoặc chạy trực tiếp)
+
+```sql
+-- Gán MANAGE_TOPIC_CATEGORIES cho ContentCreator
+INSERT INTO dbo.RolePermissions (RoleID, PermissionID)
+SELECT r.RoleID, p.PermissionID
+FROM dbo.Roles r
+JOIN dbo.Permissions p ON p.PermissionCode = N'MANAGE_TOPIC_CATEGORIES'
+WHERE r.RoleName = N'ContentCreator'
+  AND NOT EXISTS (
+    SELECT 1 FROM dbo.RolePermissions rp
+    WHERE rp.RoleID = r.RoleID AND rp.PermissionID = p.PermissionID
+  );
+```
+
+---
+
+### Phase 2: Backend — Creator API Layer (theo PLAN Section 11)
+
+Tạo API routes theo đúng PLAN Section 11.2-11.8, với ownership rule (Section 10).
+
+---
+
+#### [NEW] [creator.service.js](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/backend/src/services/creator.service.js)
+
+Service tách biệt khỏi `admin.service.js`, mọi query CRUD **luôn filter** `CreatedByUserID = currentUserID`:
+
+**Dashboard & Analytics** (PLAN 11.2):
+- `getDashboardStats(userId)` — query `vw_ContentCreatorContentSummary WHERE UserID = userId`
+- `getContentSummary(userId)` — chi tiết nội dung theo status
+- `getTopicAnalytics(userId, topicId)` — query `vw_TopicLearningAnalytics` join `Topics WHERE CreatedByUserID = userId`
+- `getMiniTestAnalytics(userId, miniTestId)` — query `vw_MiniTestAnalytics` join `MiniTests WHERE CreatedByUserID = userId`
+
+**TopicCategories CRUD** (PLAN 11.3):
+- `getTopicCategories()` — lấy tất cả (hiển thị cho chọn)
+- `createTopicCategory(data, userId)` — tạo mới
+- `updateTopicCategory(id, data, userId)` — sửa, check ownership
+- `deleteTopicCategory(id, userId)` — xóa, check ownership
+- Admin bypass ownership
+
+**Topics CRUD** (PLAN 11.4):
+- `getMyTopics(userId, filters)` — filter `CreatedByUserID`
+- `createTopic(data, userId)` — `ContentStatus = 'Draft'`, `CreatedByUserID = userId`
+- `updateTopic(id, data, userId)` — check ownership
+- `deleteTopic(id, userId)` — check ownership, chỉ xóa Draft
+- `submitTopicForReview(id, userId)` — đổi `PendingReview`, ghi `ContentReviewLogs`
+
+**Words CRUD** (PLAN 11.5):
+- `getMyWords(userId, filters)`, `createWord()`, `updateWord()`, `deleteWord()`
+- `submitWordForReview(id, userId)`
+- Bao gồm `ExampleSentences` CRUD inline (tạo/sửa/xóa câu ví dụ kèm word)
+- Bao gồm `WordTopics` assignment (gán word vào topics)
+
+**Questions CRUD** (PLAN 11.6):
+- `getMyQuestions(userId)`, `createQuestion()`, `updateQuestion()`, `deleteQuestion()`
+- `submitQuestionForReview(id, userId)`
+
+**MiniTests CRUD** (PLAN 11.7):
+- `getMyMiniTests(userId)`, `createMiniTest()`, `updateMiniTest()`, `deleteMiniTest()`
+- `addMiniTestItem(testId, questionId, displayOrder, userId)` — gắn question
+- `removeMiniTestItem(testId, questionId, userId)` — gỡ question
+- `submitMiniTestForReview(id, userId)` — check tất cả questions đã Published
+
+**Media CRUD** (PLAN 11.8):
+- `getMyMediaAssets(userId)` — filter `UploadedByUserID`
+- `uploadMediaAsset(file, metadata, userId)` — lưu file + insert `MediaAssets`
+- `deleteMediaAsset(id, userId)` — check ownership
+- `linkMediaToContent(mediaId, entityType, entityId, purpose, order)`
+- `unlinkMedia(contentMediaLinkId)`
+
+**Common helper**: `checkOwnership(tableName, idColumn, recordId, userId, userRole)` — Admin bypass, Creator check.
+
+---
+
+#### [NEW] [creator.controller.js](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/backend/src/controllers/creator.controller.js)
+
+Controller delegate tới `CreatorService`, trả JSON response chuẩn `{ success, data, message }`.
+
+---
+
+#### [NEW] [creator.routes.js](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/backend/src/routes/creator.routes.js)
+
+Routes bảo vệ bởi `verifyToken` + `checkPermission(...)`:
+
+```
+# Dashboard & Analytics (PLAN 11.2)
+GET    /api/creator/dashboard                         → MANAGE_TOPICS
+GET    /api/creator/content-summary                   → VIEW_CONTENT_ANALYTICS
+GET    /api/creator/topics/:id/analytics              → VIEW_CONTENT_ANALYTICS
+GET    /api/creator/mini-tests/:id/analytics          → VIEW_CONTENT_ANALYTICS
+
+# TopicCategories (PLAN 11.3)
+GET    /api/topic-categories                          → MANAGE_TOPIC_CATEGORIES
+POST   /api/topic-categories                          → MANAGE_TOPIC_CATEGORIES
+PUT    /api/topic-categories/:id                      → MANAGE_TOPIC_CATEGORIES
+DELETE /api/topic-categories/:id                      → MANAGE_TOPIC_CATEGORIES
+
+# Topics (PLAN 11.4)
+GET    /api/creator/topics                            → MANAGE_TOPICS
+POST   /api/creator/topics                            → MANAGE_TOPICS
+PUT    /api/creator/topics/:id                        → MANAGE_TOPICS
+DELETE /api/creator/topics/:id                        → MANAGE_TOPICS
+POST   /api/creator/topics/:id/submit-review          → SUBMIT_CONTENT_REVIEW
+
+# Words (PLAN 11.5)
+GET    /api/creator/words                             → MANAGE_WORDS
+POST   /api/creator/words                             → MANAGE_WORDS
+PUT    /api/creator/words/:id                         → MANAGE_WORDS
+DELETE /api/creator/words/:id                         → MANAGE_WORDS
+POST   /api/creator/words/:id/submit-review           → SUBMIT_CONTENT_REVIEW
+
+# ExampleSentences (inline với Words)
+POST   /api/creator/words/:wordId/examples            → MANAGE_WORDS
+PUT    /api/creator/words/:wordId/examples/:id        → MANAGE_WORDS
+DELETE /api/creator/words/:wordId/examples/:id        → MANAGE_WORDS
+
+# Questions (PLAN 11.6)
+GET    /api/creator/questions                         → MANAGE_QUESTIONS
+POST   /api/creator/questions                         → MANAGE_QUESTIONS
+PUT    /api/creator/questions/:id                     → MANAGE_QUESTIONS
+DELETE /api/creator/questions/:id                     → MANAGE_QUESTIONS
+POST   /api/creator/questions/:id/submit-review       → SUBMIT_CONTENT_REVIEW
+
+# MiniTests (PLAN 11.7)
+GET    /api/creator/mini-tests                        → MANAGE_TESTS
+POST   /api/creator/mini-tests                        → MANAGE_TESTS
+PUT    /api/creator/mini-tests/:id                    → MANAGE_TESTS
+DELETE /api/creator/mini-tests/:id                    → MANAGE_TESTS
+POST   /api/creator/mini-tests/:id/items              → MANAGE_TESTS
+DELETE /api/creator/mini-tests/:id/items/:questionId  → MANAGE_TESTS
+POST   /api/creator/mini-tests/:id/submit-review      → SUBMIT_CONTENT_REVIEW
+
+# Media (PLAN 11.8)
+GET    /api/media-assets                              → MANAGE_MEDIA
+POST   /api/media-assets/upload                       → MANAGE_MEDIA
+DELETE /api/media-assets/:id                          → MANAGE_MEDIA
+POST   /api/media-assets/:id/link                     → MANAGE_MEDIA
+DELETE /api/content-media-links/:id                   → MANAGE_MEDIA
+```
+
+---
+
+#### [NEW] [review.service.js](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/backend/src/services/review.service.js)
+
+Admin review service (PLAN 11.9):
+- `getPendingContent(filters)` — UNION query Topics/Words/Questions/MiniTests WHERE `ContentStatus = 'PendingReview'`
+- `approveContent(entityType, entityId, adminId)` — SET `Published`, `ReviewedByUserID`, `PublishedAt`, ghi `ContentReviewLogs`
+- `rejectContent(entityType, entityId, adminId, reason)` — SET `Rejected`, ghi log + Comment
+- `archiveContent(entityType, entityId, adminId)` — SET `Archived`
+- `getReviewHistory(entityType, entityId)` — query `ContentReviewLogs`
+
+---
+
+#### [NEW] [review.controller.js](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/backend/src/controllers/review.controller.js)
+
+#### [NEW] [review.routes.js](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/backend/src/routes/review.routes.js)
+
+```
+GET  /api/admin/content-review/pending                            → REVIEW_CONTENT
+POST /api/admin/content-review/:entityType/:entityId/approve      → REVIEW_CONTENT
+POST /api/admin/content-review/:entityType/:entityId/reject       → REVIEW_CONTENT
+POST /api/admin/content-review/:entityType/:entityId/archive      → REVIEW_CONTENT
+GET  /api/admin/content-review/:entityType/:entityId/history      → REVIEW_CONTENT
+```
+
+---
+
+#### [MODIFY] [index.js](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/backend/src/index.js)
+
+```diff
++const creatorRoutes = require('./routes/creator.routes');
++const reviewRoutes = require('./routes/review.routes');
+
+ app.use('/api/admin', adminRoutes);
++app.use('/api/creator', creatorRoutes);
++app.use('/api', creatorRoutes); // topic-categories, media-assets (shared routes)
++app.use('/api/admin', reviewRoutes);
+```
+
+#### [MODIFY] [auth.js](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/backend/src/middlewares/auth.js)
+
+Thêm middleware `checkOwnership(tableName, idColumn, paramName)` — generic ownership check:
+- Nếu `req.user.role === 'Admin'` → cho qua
+- Nếu `req.user.role === 'ContentCreator'` → query `SELECT 1 FROM {table} WHERE {idColumn} = {paramValue} AND CreatedByUserID = {userId}`
+- Nếu không match → 403 Forbidden
+
+---
+
+### Phase 3: Frontend — Creator Layout + Core Pages (PLAN Section 12)
+
+---
+
+#### [MODIFY] [AuthContext.tsx](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/frontend/src/app/context/AuthContext.tsx)
+
+Thêm:
+- `isCreator: boolean` — `user?.role === 'ContentCreator'`
+- `hasPermission(code: string): boolean` — check `user.permissions.includes(code)`
+
+---
+
+#### [MODIFY] [Sidebar.tsx](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/frontend/src/components/shared/Sidebar.tsx)
+
+Thêm `creatorLinks` array theo PLAN Section 12.1 + hỗ trợ `role="creator"`:
+
+```
+Dashboard biên tập viên  → /creator/dashboard
+Danh mục chủ đề          → /creator/topic-categories     (nếu có MANAGE_TOPIC_CATEGORIES)
+Chủ đề                   → /creator/topics
+Từ vựng                  → /creator/words
+Câu hỏi                  → /creator/questions
+Bài kiểm tra nhỏ         → /creator/mini-tests
+Media                    → /creator/media
+Bản nháp của tôi         → /creator/drafts
+Đang chờ duyệt           → /creator/pending
+Nội dung bị từ chối       → /creator/rejected
+Thống kê nội dung         → /creator/analytics
+```
+
+Menu ẩn/hiện theo permission (PLAN 12.2):
+- `MANAGE_WORDS` → hiện Words
+- `MANAGE_TOPIC_CATEGORIES` → hiện Topic Categories
+- `MANAGE_MEDIA` → hiện Media
+- v.v.
+
+---
+
+#### [MODIFY] [login/page.tsx](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/frontend/src/app/login/page.tsx)
+
+Cập nhật redirect logic (PLAN 11.1):
+```diff
+ if (savedUser.role === 'Admin') {
+   router.push('/admin/dashboard');
++} else if (savedUser.role === 'ContentCreator') {
++  router.push('/creator/dashboard');
+ } else {
+   router.push('/user/dashboard');
+ }
+```
+
+---
+
+#### [NEW] [creator/layout.tsx](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/frontend/src/app/creator/layout.tsx)
+
+Copy pattern từ `admin/layout.tsx`:
+- Check `isAuthenticated` + `isCreator`
+- Render `<Sidebar role="creator" />`
+- Redirect nếu không phải Creator
+
+---
+
+#### [NEW] [creator.service.ts](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/frontend/src/services/creator.service.ts)
+
+API client gọi `/api/creator/*`, `/api/topic-categories/*`, `/api/media-assets/*`:
+- Dashboard: `getDashboard()`, `getContentSummary()`, `getTopicAnalytics(id)`, `getMiniTestAnalytics(id)`
+- TopicCategories: `getCategories()`, `createCategory()`, `updateCategory()`, `deleteCategory()`
+- Topics: `getTopics()`, `createTopic()`, `updateTopic()`, `deleteTopic()`, `submitTopicForReview()`
+- Words: `getWords()`, `createWord()`, `updateWord()`, `deleteWord()`, `submitWordForReview()`
+- ExampleSentences: `createExample()`, `updateExample()`, `deleteExample()`
+- Questions: `getQuestions()`, `createQuestion()`, `updateQuestion()`, `deleteQuestion()`, `submitQuestionForReview()`
+- MiniTests: `getMiniTests()`, `createMiniTest()`, `updateMiniTest()`, `deleteMiniTest()`, `addItem()`, `removeItem()`, `submitForReview()`
+- Media: `getMedia()`, `uploadMedia()`, `deleteMedia()`, `linkMedia()`, `unlinkMedia()`
+
+---
+
+#### Creator Pages — tất cả [NEW] (PLAN Section 12.1 + 12.3)
+
+| # | File | Mô tả | Form fields (PLAN 12.3) |
+|---|---|---|---|
+| 1 | `creator/dashboard/page.tsx` | Dashboard tổng quan - cards thống kê | — |
+| 2 | `creator/topic-categories/page.tsx` | CRUD TopicCategories | CategoryName, CategoryCode, Description, IconUrl, DisplayOrder, IsActive |
+| 3 | `creator/topics/page.tsx` | CRUD Topics | TopicCategoryID, TopicName, TopicCode, Description |
+| 4 | `creator/words/page.tsx` | CRUD Words + ExampleSentences inline | Term, Meaning, Phonetic, PartOfSpeechID, AudioUrlUK/US, ImageUrl, DifficultyLevel, TopicIDs |
+| 5 | `creator/questions/page.tsx` | CRUD Questions | WordID, QuestionType, QuestionText, OptionsJson, CorrectAnswer, Explanation, DifficultyLevel |
+| 6 | `creator/mini-tests/page.tsx` | CRUD MiniTests + MiniTestItems | TopicID, TestTitle, Description, QuestionIDs, DisplayOrder |
+| 7 | `creator/media/page.tsx` | Upload/manage MediaAssets + link | MediaType, File, AltText, Transcript, EntityType, EntityID |
+| 8 | `creator/drafts/page.tsx` | Danh sách ContentStatus='Draft' | — |
+| 9 | `creator/pending/page.tsx` | Danh sách ContentStatus='PendingReview' | — |
+| 10 | `creator/rejected/page.tsx` | Nội dung Rejected + lý do từ ContentReviewLogs | — |
+| 11 | `creator/analytics/page.tsx` | Thống kê nội dung + learning analytics | — |
+
+---
+
+### Phase 4: Admin Review UI — Trang riêng (PLAN Section 11.9)
+
+---
+
+#### [NEW] [admin/content-review/page.tsx](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/frontend/src/app/admin/content-review/page.tsx)
+
+Trang riêng trong admin panel:
+- Table danh sách nội dung `PendingReview` (tất cả entity types)
+- Columns: EntityType, Title/Term, Creator name, SubmittedAt
+- Actions: Preview → Approve / Reject (modal nhập lý do) / Archive
+- Filter theo EntityType, Creator
+- Hiển thị review history
+
+#### [MODIFY] [Sidebar.tsx](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/frontend/src/components/shared/Sidebar.tsx) (admin section)
+
+Thêm link `Duyệt nội dung → /admin/content-review` vào admin sidebar (nếu có `REVIEW_CONTENT` permission).
+
+#### [MODIFY] [admin.service.ts](file:///d:/Code/Project_Web_nam3_ky2/web_hoc_tu_vung/vocab-practice/frontend/src/services/admin.service.ts)
+
+Thêm methods:
+- `getPendingContent()`
+- `approveContent(entityType, entityId)`
+- `rejectContent(entityType, entityId, reason)`
+- `archiveContent(entityType, entityId)`
+- `getReviewHistory(entityType, entityId)`
+
+---
+
+### Phase 5: Testing & Verification (PLAN Section 18)
+
+---
+
+#### Automated Tests
+
+| Test | Mô tả |
+|---|---|
+| Login Creator | Login `teacher@vocaboost.com` → verify JWT có đủ 10 permissions |
+| Creator CRUD | CRUD topics/words/questions/minitests → verify ownership filter |
+| Creator submit review | Submit → verify `ContentStatus = PendingReview` + `ContentReviewLogs` |
+| Ownership rule | Creator A không sửa được nội dung Creator B |
+| Admin approve/reject | Approve → `Published` + `PublishedAt`. Reject → `Rejected` + Comment |
+| Learner API | Learner API chỉ trả `Published` content |
+| Media upload | Upload file → verify `MediaAssets` record + file lưu đúng |
+| TopicCategories | Creator tạo/sửa → Admin xác nhận |
+| Permission check | Creator không gọi được `/api/admin/students`, `/api/admin/content-review` |
+
+#### Browser Tests
+
+1. Login `teacher@vocaboost.com` → redirect `/creator/dashboard`
+2. Sidebar hiển thị đúng 11 menu items
+3. Tạo Word draft → submit → Admin approve → Learner thấy
+4. Creator không truy cập được `/admin/*`
+5. Admin thấy trang `/admin/content-review` với pending items
+
+---
+
+## Tóm tắt Files
+
+| Phase | Files mới | Files sửa | Tổng |
+|---|---|---|---|
+| 1. Database | 1 SQL | 0 | 1 |
+| 2. Backend | 5 files (creator.service/controller/routes + review.service/controller/routes) | 2 (index.js, auth.js) | 7 |
+| 3. Frontend | 13 files (layout + service + 11 pages) | 3 (AuthContext, Sidebar, login page) | 16 |
+| 4. Admin Review | 1 page | 2 (Sidebar admin, admin.service.ts) | 3 |
+| 5. Testing | Browser tests | — | — |
+| **Tổng** | **20 files** | **7 files** | **27** |
+
+---
+
+## Thứ tự triển khai
+
+```mermaid
+graph LR
+    A["Phase 1<br/>DB Migration"] --> B["Phase 2<br/>Backend APIs"]
+    B --> C["Phase 3<br/>Frontend Creator"]
+    C --> D["Phase 4<br/>Admin Review UI"]
+    D --> E["Phase 5<br/>Testing"]
+```
+
+Mỗi phase có checkpoint verification trước khi sang phase tiếp.
