@@ -531,15 +531,6 @@ class AdminController {
     }
   }
 
-  static async getModeration(req, res, next) {
-    try {
-      const data = await AdminService.getModerationData();
-      res.status(200).json(data);
-    } catch (error) {
-      next(error);
-    }
-  }
-
   static async updateContentStatus(req, res, next) {
     try {
       const success = await AdminService.updateContentStatus(req.body, req.user.id);
@@ -547,15 +538,6 @@ class AdminController {
         return res.status(404).json({ message: 'Không tìm thấy nội dung' });
       }
       res.status(200).json({ message: 'Cập nhật trạng thái nội dung thành công' });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  static async getSystemSettings(req, res, next) {
-    try {
-      const data = await AdminService.getSystemSettingsData();
-      res.status(200).json(data);
     } catch (error) {
       next(error);
     }

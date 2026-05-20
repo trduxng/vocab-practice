@@ -313,16 +313,6 @@ export const adminService = {
     return response.data;
   },
 
-  async getModeration() {
-    const response = await apiClient.get('/admin/moderation');
-    return response.data;
-  },
-
-  async getSystemSettings() {
-    const response = await apiClient.get('/admin/system-settings');
-    return response.data;
-  },
-
   async updateContentStatus(data: { entityType: 'Topic' | 'Word' | 'Question' | 'MiniTest'; entityId: number | string; status: string; comment?: string }) {
     const response = await apiClient.patch('/admin/content-status', data);
     return response.data;
@@ -394,27 +384,6 @@ export const adminService = {
 
   async getReviewLogs(entityType: string, entityId: number) {
     const response = await apiClient.get(`/admin/content-review/${entityType}/${entityId}/logs`);
-    return response.data;
-  },
-
-  // ── Topic Categories ──
-  async getTopicCategories() {
-    const response = await apiClient.get('/admin/topic-categories');
-    return response.data;
-  },
-
-  async createTopicCategory(data: { categoryName: string; categoryCode: string; description?: string; iconUrl?: string; displayOrder?: number; isActive?: boolean }) {
-    const response = await apiClient.post('/admin/topic-categories', data);
-    return response.data;
-  },
-
-  async updateTopicCategory(id: number, data: { categoryName: string; categoryCode: string; description?: string; iconUrl?: string; displayOrder?: number; isActive?: boolean }) {
-    const response = await apiClient.put(`/admin/topic-categories/${id}`, data);
-    return response.data;
-  },
-
-  async deleteTopicCategory(id: number) {
-    const response = await apiClient.delete(`/admin/topic-categories/${id}`);
     return response.data;
   }
 };

@@ -1,9 +1,1 @@
-⚠ Port 3000 is in use by process 14148, using available port 3002 instead.
-⨯ Another next dev server is already running.
-
-- Local:        http://localhost:3000
-- PID:          14148
-- Dir:          D:\webvocal\vocab-practice\frontend
-- Log:          .next\dev\logs\next-development.log
-
-Run taskkill /PID 14148 /F to stop it.
+⚠ Port 3000 is in use by process 7212, using available port 3002 instead.
