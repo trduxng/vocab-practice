@@ -1,0 +1,617 @@
+Dưới đây là tác dụng của từng table trong database tiếng Việt, kèm quan hệ của nó với các table khác. Mình trình bày theo nhóm nghiệp vụ để dễ hiểu. Cấu trúc gốc có các bảng lõi như người dùng, từ loại, chủ đề, từ vựng, câu ví dụ, bảng nối từ-với-chủ đề, câu hỏi, tiến độ học và lượt làm bài; trong SQL, các bảng này được liên kết bằng khóa ngoại như Words -> PartOfSpeeches, Words -> Users, ExampleSentences -> Words, WordTopics -> Words/Topics, Questions -> Words/Users, UserWordProgress -> Users/Words.
+________________________________________
+1. Nhóm người dùng và phân quyền
+1.1. NguoiDung
+Tác dụng:
+Lưu thông tin tài khoản của tất cả người dùng trong hệ thống.
+Bao gồm:
+NguoiHoc
+BienTapVien
+QuanTriVien
+Dùng để làm gì:
+•	Đăng nhập.
+•	Xác định người dùng là học viên, giáo viên hay admin.
+•	Ghi nhận ai tạo nội dung.
+•	Ghi nhận ai học từ vựng.
+•	Ghi nhận ai làm bài.
+•	Ghi nhận ai duyệt nội dung.
+Liên kết với bảng khác:
+Bảng liên quan	Quan hệ	Ý nghĩa
+VaiTro	NguoiDung.VaiTroID -> VaiTro.VaiTroID	Một người dùng thuộc một vai trò
+ChuDe	ChuDe.NguoiTaoID -> NguoiDung.NguoiDungID	Biết ai tạo chủ đề
+TuVung	TuVung.NguoiTaoID -> NguoiDung.NguoiDungID	Biết ai tạo từ vựng
+CauHoi	CauHoi.NguoiTaoID -> NguoiDung.NguoiDungID	Biết ai tạo câu hỏi
+BaiKiemTraNho	BaiKiemTraNho.NguoiTaoID -> NguoiDung.NguoiDungID	Biết ai tạo bài test
+TienDoTuVungNguoiDung	NguoiDungID	Theo dõi tiến độ học của từng người
+LanLamBaiTap	NguoiDungID	Lưu lịch sử làm câu hỏi
+LanLamBaiKiemTraNho	NguoiDungID	Lưu lịch sử làm bài kiểm tra
+SoTayTuVungNguoiDung	NguoiDungID	Lưu sổ tay từ vựng cá nhân
+DangKyChuDeNguoiDung	NguoiDungID	Lưu chủ đề mà người học đã chọn
+NhatKyDuyetNoiDung	NguoiThucHienID	Biết ai duyệt/từ chối nội dung
+TepMedia	NguoiTaiLenID	Biết ai upload file
+Nói ngắn gọn:
+NguoiDung là bảng trung tâm của toàn hệ thống.
+________________________________________
+1.2. VaiTro
+Tác dụng:
+Lưu danh sách vai trò trong hệ thống.
+Ví dụ:
+NguoiHoc
+BienTapVien
+QuanTriVien
+Dùng để làm gì:
+•	Phân loại người dùng.
+•	Kiểm soát người dùng được làm gì.
+•	Tách quyền giữa học viên, giáo viên và admin.
+Liên kết với bảng khác:
+Bảng liên quan	Quan hệ	Ý nghĩa
+NguoiDung	Một vai trò có nhiều người dùng	Nhiều user có thể cùng vai trò
+QuyenVaiTro	Một vai trò có nhiều quyền	Vai trò được gán danh sách quyền
+Ví dụ:
+BienTapVien có quyền tạo từ, tạo câu hỏi, tạo bài kiểm tra.
+NguoiHoc có quyền học, làm bài, lưu sổ tay.
+________________________________________
+1.3. Quyen
+Tác dụng:
+Lưu danh sách quyền chức năng.
+Ví dụ:
+XEM_DASHBOARD
+HOC_TU_VUNG
+QUAN_LY_TU_VUNG
+QUAN_LY_CHU_DE
+DUYET_NOI_DUNG
+QUAN_LY_NGUOI_DUNG
+Dùng để làm gì:
+•	Backend kiểm tra một user có được phép thực hiện hành động hay không.
+•	Tránh hard-code quyền trong code.
+•	Cho phép mở rộng quyền sau này.
+Liên kết với bảng khác:
+Bảng liên quan	Quan hệ	Ý nghĩa
+QuyenVaiTro	Một quyền có thể thuộc nhiều vai trò	Ví dụ Admin và Biên tập viên đều có quyền quản lý từ vựng
+________________________________________
+1.4. QuyenVaiTro
+Tác dụng:
+Là bảng trung gian nối VaiTro và Quyen.
+Dùng để làm gì:
+•	Xác định vai trò nào có quyền nào.
+•	Cho phép một vai trò có nhiều quyền.
+•	Cho phép một quyền dùng cho nhiều vai trò.
+Liên kết với bảng khác:
+Bảng liên quan	Quan hệ	Ý nghĩa
+VaiTro	VaiTroID	Quyền này thuộc vai trò nào
+Quyen	QuyenID	Vai trò đó có quyền gì
+Ví dụ:
+VaiTro: BienTapVien
+    -> QUAN_LY_TU_VUNG
+    -> QUAN_LY_CAU_HOI
+    -> QUAN_LY_BAI_KIEM_TRA
+
+VaiTro: QuanTriVien
+    -> QUAN_LY_NGUOI_DUNG
+    -> DUYET_NOI_DUNG
+    -> XEM_PHAN_TICH_TOAN_CUC
+________________________________________
+2. Nhóm danh mục, chủ đề và từ vựng
+2.1. DanhMucChuDe
+Tác dụng:
+Lưu nhóm lớn của các chủ đề.
+Ví dụ:
+Business English
+Travel English
+Daily Life
+TOEIC Skills
+Technology
+Dùng để làm gì:
+•	Gom các chủ đề nhỏ vào một nhóm lớn.
+•	Giúp frontend hiển thị menu học tập rõ ràng.
+•	Giúp admin xem báo cáo theo nhóm chủ đề.
+Liên kết với bảng khác:
+Bảng liên quan	Quan hệ	Ý nghĩa
+ChuDe	Một danh mục có nhiều chủ đề	Business English có Economy, Office, Meeting
+NguoiDung	NguoiTaoID nếu có	Biết ai tạo danh mục
+Ví dụ:
+DanhMucChuDe: Business English
+    ChuDe: Economy
+    ChuDe: Office
+    ChuDe: Contract
+________________________________________
+2.2. ChuDe
+Tác dụng:
+Lưu các bộ từ vựng cụ thể.
+Ví dụ:
+Economy
+Office
+Airport
+Hotel
+TOEIC Part 5
+Trong schema gốc, Topics có khóa ngoại CreatedByUserID trỏ về Users, nghĩa là mỗi chủ đề biết người tạo là ai.
+Dùng để làm gì:
+•	Tổ chức từ vựng theo bộ học.
+•	Cho người học chọn chủ đề muốn học.
+•	Gắn bài kiểm tra nhỏ vào một chủ đề.
+•	Thống kê hiệu quả học tập theo chủ đề.
+Liên kết với bảng khác:
+Bảng liên quan	Quan hệ	Ý nghĩa
+DanhMucChuDe	ChuDe.DanhMucChuDeID -> DanhMucChuDe.DanhMucChuDeID	Chủ đề thuộc danh mục nào
+NguoiDung	ChuDe.NguoiTaoID -> NguoiDung.NguoiDungID	Ai tạo chủ đề
+TuVungChuDe	Một chủ đề có nhiều từ vựng	Gắn từ vào chủ đề
+DangKyChuDeNguoiDung	Một chủ đề có nhiều người học đăng ký	Biết ai đang học chủ đề này
+BaiKiemTraNho	Một chủ đề có nhiều bài kiểm tra	Tạo test theo chủ đề
+vw_PhanTichHocTapChuDe	View báo cáo	Tổng hợp dữ liệu học tập theo chủ đề
+________________________________________
+2.3. TuLoai
+Tác dụng:
+Lưu loại từ.
+Ví dụ:
+Noun    -> Danh từ
+Verb    -> Động từ
+Adj     -> Tính từ
+Adv     -> Trạng từ
+Trong SQL gốc, PartOfSpeeches lưu mã từ loại và tên từ loại; Words bắt buộc có PartOfSpeechID trỏ về bảng này.
+Dùng để làm gì:
+•	Chuẩn hóa từ loại.
+•	Tránh nhập tự do gây sai lệch như noun, Noun, Danh từ.
+•	Cho phép lọc từ theo từ loại.
+Liên kết với bảng khác:
+Bảng liên quan	Quan hệ	Ý nghĩa
+TuVung	Một từ loại có nhiều từ vựng	Nhiều từ có thể cùng là danh từ
+________________________________________
+2.4. TuVung
+Tác dụng:
+Lưu thông tin từ vựng chính.
+Bao gồm:
+Từ tiếng Anh
+Nghĩa tiếng Việt
+Phiên âm
+Từ loại
+Audio UK
+Audio US
+Hình ảnh
+Độ khó
+Người tạo
+Trạng thái nội dung
+Trong schema gốc, Words liên kết với PartOfSpeeches để biết từ loại và liên kết với Users để biết người tạo từ.
+Dùng để làm gì:
+•	Là dữ liệu học chính của hệ thống.
+•	Dùng để sinh flashcard.
+•	Dùng để tạo câu ví dụ.
+•	Dùng để tạo câu hỏi.
+•	Dùng để theo dõi tiến độ học.
+•	Dùng để lưu vào sổ tay cá nhân.
+Liên kết với bảng khác:
+Bảng liên quan	Quan hệ	Ý nghĩa
+TuLoai	TuVung.TuLoaiID -> TuLoai.TuLoaiID	Từ này thuộc loại từ nào
+NguoiDung	TuVung.NguoiTaoID -> NguoiDung.NguoiDungID	Ai tạo từ
+CauViDu	Một từ có nhiều câu ví dụ	Ví dụ cách dùng từ
+TuVungChuDe	Một từ thuộc nhiều chủ đề	Gắn từ vào Economy, Office...
+CauHoi	Một từ có nhiều câu hỏi	Luyện tập theo từ
+TienDoTuVungNguoiDung	Một từ có nhiều tiến độ theo từng user	Theo dõi học viên học từ đó ra sao
+LanLamBaiTap	Một từ xuất hiện trong nhiều lượt làm bài	Lưu lịch sử trả lời
+SoTayTuVungNguoiDung	Một từ được nhiều người lưu	Sổ tay cá nhân
+LienKetMediaNoiDung	Có thể gắn media ngoài	Gắn audio/hình ảnh linh hoạt
+________________________________________
+2.5. CauViDu
+Tác dụng:
+Lưu câu ví dụ cho từng từ vựng.
+Ví dụ:
+TuVung: appointment
+CauViDu: I have an appointment with the manager.
+DichNghia: Tôi có một cuộc hẹn với quản lý.
+Trong SQL gốc, ExampleSentences có khóa ngoại WordID trỏ về Words; khi xóa một từ thì câu ví dụ của từ đó cũng bị xóa theo ON DELETE CASCADE.
+Dùng để làm gì:
+•	Giúp người học hiểu cách dùng từ trong ngữ cảnh.
+•	Có thể gắn audio cho câu ví dụ.
+•	Là dữ liệu bổ trợ cho flashcard hoặc bài học.
+Liên kết với bảng khác:
+Bảng liên quan	Quan hệ	Ý nghĩa
+TuVung	CauViDu.TuVungID -> TuVung.TuVungID	Câu ví dụ thuộc từ nào
+LienKetMediaNoiDung	Có thể gắn media	Gắn audio riêng cho câu ví dụ
+________________________________________
+2.6. TuVungChuDe
+Tác dụng:
+Là bảng trung gian nối TuVung và ChuDe.
+Trong SQL gốc, WordTopics có khóa chính kép gồm WordID và TopicID; nó cho phép một từ thuộc nhiều chủ đề và một chủ đề có nhiều từ.
+Dùng để làm gì:
+•	Tạo quan hệ nhiều-nhiều giữa từ vựng và chủ đề.
+•	Cho phép từ reservation vừa thuộc Travel, vừa thuộc Business.
+•	Truy vấn danh sách từ trong một chủ đề.
+•	Truy vấn danh sách chủ đề chứa một từ.
+Liên kết với bảng khác:
+Bảng liên quan	Quan hệ	Ý nghĩa
+TuVung	TuVungID	Từ nào được gắn
+ChuDe	ChuDeID	Gắn vào chủ đề nào
+________________________________________
+3. Nhóm câu hỏi, luyện tập và kiểm tra
+3.1. CauHoi
+Tác dụng:
+Lưu ngân hàng câu hỏi luyện tập.
+Bao gồm:
+Từ vựng liên quan
+Loại câu hỏi
+Nội dung câu hỏi
+Danh sách lựa chọn JSON
+Đáp án đúng
+Giải thích
+Độ khó
+Người tạo
+Trạng thái nội dung
+Trong SQL gốc, Questions liên kết với Words bằng WordID và liên kết với Users bằng CreatedByUserID; bảng cũng kiểm tra OptionsJson phải là JSON hợp lệ.
+Dùng để làm gì:
+•	Tạo bài luyện tập cho người học.
+•	Tạo bài kiểm tra nhỏ.
+•	Đánh giá người học có nhớ từ không.
+•	Là nguồn dữ liệu cho LanLamBaiTap.
+Liên kết với bảng khác:
+Bảng liên quan	Quan hệ	Ý nghĩa
+TuVung	CauHoi.TuVungID -> TuVung.TuVungID	Câu hỏi kiểm tra từ nào
+NguoiDung	CauHoi.NguoiTaoID -> NguoiDung.NguoiDungID	Ai tạo câu hỏi
+LanLamBaiTap	Một câu hỏi có nhiều lượt làm	Lưu lịch sử trả lời
+CauHoiBaiKiemTraNho	Câu hỏi nằm trong nhiều bài test	Gom câu hỏi thành bài kiểm tra
+LienKetMediaNoiDung	Có thể gắn media	Câu hỏi nghe/hình ảnh
+________________________________________
+3.2. LanLamBaiTap
+Tác dụng:
+Lưu lịch sử mỗi lần người học trả lời một câu hỏi.
+Trong schema gốc, ExerciseAttempts lưu UserID, QuestionID, WordID, đáp án đã nộp, đúng/sai, điểm và metadata JSON; nó liên kết tới Users, Questions, Words.
+Dùng để làm gì:
+•	Ghi lại người học trả lời gì.
+•	Biết câu trả lời đúng hay sai.
+•	Tính điểm.
+•	Cập nhật tiến độ từ vựng.
+•	Phân tích câu hỏi nào khó.
+•	Lưu lịch sử học tập.
+Liên kết với bảng khác:
+Bảng liên quan	Quan hệ	Ý nghĩa
+NguoiDung	NguoiDungID	Ai làm bài
+CauHoi	CauHoiID	Làm câu hỏi nào
+TuVung	TuVungID	Câu hỏi thuộc từ nào
+TienDoTuVungNguoiDung	Cập nhật gián tiếp	Sau khi làm bài, hệ thống cập nhật tiến độ
+________________________________________
+3.3. BaiKiemTraNho
+Tác dụng:
+Lưu thông tin bài kiểm tra nhỏ theo chủ đề.
+Bao gồm:
+Chủ đề
+Tên bài kiểm tra
+Mô tả
+Người tạo
+Tổng số câu hỏi
+Trạng thái xuất bản / trạng thái nội dung
+Trong SQL gốc, MiniTests có TopicID, CreatedByUserID, TotalQuestions, IsPublished; TopicID trỏ về Topics, còn CreatedByUserID trỏ về Users.
+Dùng để làm gì:
+•	Gom nhiều câu hỏi thành một bài test.
+•	Cho người học kiểm tra sau khi học xong chủ đề.
+•	Tạo báo cáo điểm trung bình, tỉ lệ hoàn thành.
+•	Cho giáo viên đánh giá chất lượng nội dung.
+Liên kết với bảng khác:
+Bảng liên quan	Quan hệ	Ý nghĩa
+ChuDe	BaiKiemTraNho.ChuDeID -> ChuDe.ChuDeID	Bài test thuộc chủ đề nào
+NguoiDung	NguoiTaoID	Ai tạo bài test
+CauHoiBaiKiemTraNho	Một bài test có nhiều câu hỏi	Danh sách câu hỏi trong bài
+LanLamBaiKiemTraNho	Một bài test có nhiều lượt làm	Lưu kết quả làm bài
+vw_PhanTichBaiKiemTraNho	View báo cáo	Thống kê hiệu quả bài test
+________________________________________
+3.4. CauHoiBaiKiemTraNho
+Tác dụng:
+Là bảng trung gian nối BaiKiemTraNho và CauHoi.
+Trong SQL gốc, MiniTestItems có khóa chính kép MiniTestID, QuestionID và có DisplayOrder để sắp xếp câu hỏi trong bài kiểm tra.
+Dùng để làm gì:
+•	Cho phép một bài kiểm tra có nhiều câu hỏi.
+•	Cho phép một câu hỏi xuất hiện trong nhiều bài kiểm tra.
+•	Lưu thứ tự hiển thị câu hỏi.
+Liên kết với bảng khác:
+Bảng liên quan	Quan hệ	Ý nghĩa
+BaiKiemTraNho	BaiKiemTraNhoID	Câu hỏi thuộc bài test nào
+CauHoi	CauHoiID	Bài test chứa câu hỏi nào
+________________________________________
+3.5. LanLamBaiKiemTraNho
+Tác dụng:
+Lưu mỗi lần người học làm một bài kiểm tra nhỏ.
+Dùng để làm gì:
+•	Ghi nhận thời điểm bắt đầu.
+•	Ghi nhận thời điểm nộp.
+•	Lưu tổng số câu.
+•	Lưu số câu đúng.
+•	Lưu điểm.
+•	Phân tích hiệu quả bài kiểm tra.
+Trong phần mở rộng, MiniTestAttempts liên kết tới MiniTests và Users, lưu StartedAt, SubmittedAt, TotalQuestions, CorrectCount, Score.
+Liên kết với bảng khác:
+Bảng liên quan	Quan hệ	Ý nghĩa
+BaiKiemTraNho	BaiKiemTraNhoID	Làm bài kiểm tra nào
+NguoiDung	NguoiDungID	Ai làm bài
+vw_PhanTichBaiKiemTraNho	View báo cáo	Tổng hợp điểm và lượt làm
+________________________________________
+4. Nhóm tiến độ học và cá nhân hóa
+4.1. TienDoTuVungNguoiDung
+Tác dụng:
+Lưu tiến độ học từng từ của từng người học.
+Trong SQL gốc, UserWordProgress có quan hệ với Users và Words, đồng thời ràng buộc mỗi cặp UserID, WordID là duy nhất. Bảng này lưu mức thành thạo, hệ số dễ nhớ, số lần lặp lại, số lần đúng/sai liên tiếp, ngày ôn tiếp theo và trạng thái ghi nhớ.
+Dùng để làm gì:
+•	Biết người học đã học từ nào.
+•	Biết từ nào đã thành thạo.
+•	Biết từ nào bị quên.
+•	Tính ngày ôn tập tiếp theo.
+•	Tạo dashboard tiến độ.
+•	Cá nhân hóa lộ trình học.
+Liên kết với bảng khác:
+Bảng liên quan	Quan hệ	Ý nghĩa
+NguoiDung	NguoiDungID	Tiến độ của người học nào
+TuVung	TuVungID	Tiến độ với từ nào
+LanLamBaiTap	Cập nhật gián tiếp	Làm đúng/sai sẽ cập nhật tiến độ
+vw_PhanTichHocTapChuDe	View báo cáo	Tổng hợp mức thành thạo theo chủ đề
+________________________________________
+4.2. DangKyChuDeNguoiDung
+Tác dụng:
+Lưu việc người học chọn/đăng ký chủ đề học.
+Dùng để làm gì:
+•	Biết người học đang học chủ đề nào.
+•	Hiển thị dashboard cá nhân theo chủ đề đã chọn.
+•	Tính số lượng học viên trong từng chủ đề.
+•	Cho phép bật/tắt chủ đề đang học.
+Liên kết với bảng khác:
+Bảng liên quan	Quan hệ	Ý nghĩa
+NguoiDung	NguoiDungID	Ai đăng ký
+ChuDe	ChuDeID	Đăng ký chủ đề nào
+vw_PhanTichHocTapChuDe	View báo cáo	Đếm số người học theo chủ đề
+________________________________________
+4.3. SoTayTuVungNguoiDung
+Tác dụng:
+Lưu sổ tay từ vựng cá nhân của người học.
+Dùng để làm gì:
+•	Người học lưu từ quan trọng.
+•	Thêm ghi chú cá nhân.
+•	Đánh dấu yêu thích.
+•	Xem lại khi ôn tập.
+Liên kết với bảng khác:
+Bảng liên quan	Quan hệ	Ý nghĩa
+NguoiDung	NguoiDungID	Sổ tay của ai
+TuVung	TuVungID	Lưu từ nào
+Khác với TienDoTuVungNguoiDung:
+Bảng	Ý nghĩa
+TienDoTuVungNguoiDung	Hệ thống tự cập nhật để theo dõi học tập
+SoTayTuVungNguoiDung	Người học chủ động lưu từ và ghi chú
+________________________________________
+5. Nhóm duyệt nội dung và media
+5.1. NhatKyDuyetNoiDung
+Tác dụng:
+Lưu lịch sử duyệt nội dung.
+Trong phần mở rộng, ContentReviewLogs lưu loại thực thể, ID thực thể, người thực hiện, trạng thái cũ, trạng thái mới, ghi chú và thời điểm tạo; nó liên kết người thực hiện với Users.
+Dùng để làm gì:
+•	Biết ai gửi duyệt.
+•	Biết ai duyệt.
+•	Biết ai từ chối.
+•	Lưu lý do từ chối.
+•	Theo dõi lịch sử thay đổi trạng thái nội dung.
+Liên kết với bảng khác:
+Bảng liên quan	Quan hệ	Ý nghĩa
+NguoiDung	NguoiThucHienID	Ai thực hiện hành động
+ChuDe	Qua LoaiThucThe = ChuDe, ThucTheID	Duyệt chủ đề
+TuVung	Qua LoaiThucThe = TuVung, ThucTheID	Duyệt từ vựng
+CauHoi	Qua LoaiThucThe = CauHoi, ThucTheID	Duyệt câu hỏi
+BaiKiemTraNho	Qua LoaiThucThe = BaiKiemTraNho, ThucTheID	Duyệt bài kiểm tra
+TepMedia	Qua LoaiThucThe = TepMedia, ThucTheID	Duyệt media nếu cần
+Lưu ý:
+Bảng này dùng quan hệ logic qua LoaiThucThe + ThucTheID, không phải lúc nào cũng có FK vật lý đến từng bảng nội dung.
+________________________________________
+5.2. TepMedia
+Tác dụng:
+Lưu thông tin file media được upload.
+Ví dụ:
+Audio UK
+Audio US
+Image
+ExampleAudio
+QuestionAudio
+QuestionImage
+Trong phần mở rộng, MediaAssets lưu người upload, loại media, URL file, tên file, MIME type, dung lượng, alt text, transcript và có khóa ngoại UploadedByUserID trỏ về Users.
+Dùng để làm gì:
+•	Quản lý audio/hình ảnh tập trung.
+•	Tái sử dụng media cho nhiều nội dung.
+•	Theo dõi ai upload file.
+•	Hỗ trợ câu hỏi nghe, hình minh họa, audio ví dụ.
+Liên kết với bảng khác:
+Bảng liên quan	Quan hệ	Ý nghĩa
+NguoiDung	NguoiTaiLenID	Ai upload file
+LienKetMediaNoiDung	Một file có thể gắn vào nhiều nội dung	Gắn file vào từ/câu hỏi/câu ví dụ/chủ đề
+________________________________________
+5.3. LienKetMediaNoiDung
+Tác dụng:
+Là bảng trung gian nối TepMedia với nội dung học.
+Trong phần mở rộng, ContentMediaLinks liên kết MediaAssets với các entity như Word, Question, ExampleSentence, Topic, có thêm Purpose và DisplayOrder.
+Dùng để làm gì:
+•	Gắn audio vào từ vựng.
+•	Gắn hình vào từ vựng.
+•	Gắn audio vào câu hỏi nghe.
+•	Gắn audio vào câu ví dụ.
+•	Gắn ảnh minh họa vào chủ đề.
+Liên kết với bảng khác:
+Bảng liên quan	Quan hệ	Ý nghĩa
+TepMedia	TepMediaID	File nào được gắn
+TuVung	Qua LoaiThucThe = TuVung, ThucTheID	Gắn media cho từ
+CauHoi	Qua LoaiThucThe = CauHoi, ThucTheID	Gắn media cho câu hỏi
+CauViDu	Qua LoaiThucThe = CauViDu, ThucTheID	Gắn audio cho ví dụ
+ChuDe	Qua LoaiThucThe = ChuDe, ThucTheID	Gắn ảnh đại diện chủ đề
+________________________________________
+6. Nhóm báo cáo / view
+6.1. vw_TongQuanNoiDungBienTapVien
+Tác dụng:
+View tổng hợp số lượng nội dung do từng biên tập viên tạo.
+Dùng để làm gì:
+•	Admin xem giáo viên nào tạo bao nhiêu nội dung.
+•	Biên tập viên xem nội dung của mình.
+•	Thống kê số nội dung đã xuất bản, chờ duyệt, bị từ chối.
+Lấy dữ liệu từ:
+NguoiDung
+ChuDe
+TuVung
+CauHoi
+BaiKiemTraNho
+________________________________________
+6.2. vw_PhanTichHocTapChuDe
+Tác dụng:
+View phân tích học tập theo chủ đề.
+Dùng để làm gì:
+•	Biết chủ đề nào có nhiều người học.
+•	Biết chủ đề nào có nhiều từ.
+•	Tính mức thành thạo trung bình.
+•	Biết số bản ghi từ đã thành thạo / bị quên.
+Lấy dữ liệu từ:
+ChuDe
+DangKyChuDeNguoiDung
+TuVungChuDe
+TienDoTuVungNguoiDung
+________________________________________
+6.3. vw_PhanTichBaiKiemTraNho
+Tác dụng:
+View phân tích kết quả bài kiểm tra nhỏ.
+Dùng để làm gì:
+•	Xem số lượt làm bài.
+•	Xem số người học đã làm.
+•	Tính điểm trung bình.
+•	Xem điểm cao nhất / thấp nhất.
+•	Xem số bài đã nộp / chưa nộp.
+Lấy dữ liệu từ:
+BaiKiemTraNho
+ChuDe
+LanLamBaiKiemTraNho
+________________________________________
+6.4. vw_TongQuanDanhMucChuDe
+Tác dụng:
+View tổng quan danh mục chủ đề.
+Dùng để làm gì:
+•	Biết mỗi danh mục có bao nhiêu chủ đề.
+•	Biết bao nhiêu chủ đề đã xuất bản.
+•	Biết bao nhiêu chủ đề đang bản nháp.
+•	Biết bao nhiêu chủ đề đang chờ duyệt.
+Lấy dữ liệu từ:
+DanhMucChuDe
+ChuDe
+________________________________________
+7. Bảng nào là bảng chính, bảng nào là bảng phụ?
+7.1. Bảng chính
+Bảng	Vì sao là bảng chính
+NguoiDung	Trung tâm tài khoản và phân quyền
+DanhMucChuDe	Nhóm lớn của nội dung học
+ChuDe	Bộ học chính mà người học chọn
+TuVung	Dữ liệu học cốt lõi
+CauHoi	Dữ liệu luyện tập
+BaiKiemTraNho	Dữ liệu kiểm tra
+7.2. Bảng phụ / bảng chi tiết
+Bảng	Vai trò
+TuLoai	Chuẩn hóa loại từ
+CauViDu	Bổ sung ví dụ cho từ
+TepMedia	Lưu file audio/hình ảnh
+NhatKyDuyetNoiDung	Lưu lịch sử duyệt
+7.3. Bảng trung gian nhiều-nhiều
+Bảng	Nối giữa
+QuyenVaiTro	VaiTro ↔ Quyen
+TuVungChuDe	TuVung ↔ ChuDe
+CauHoiBaiKiemTraNho	BaiKiemTraNho ↔ CauHoi
+LienKetMediaNoiDung	TepMedia ↔ nội dung học
+7.4. Bảng lịch sử / phát sinh theo hoạt động
+Bảng	Ghi nhận hoạt động
+LanLamBaiTap	Mỗi lần trả lời câu hỏi
+LanLamBaiKiemTraNho	Mỗi lần làm bài kiểm tra
+TienDoTuVungNguoiDung	Trạng thái học từng từ
+DangKyChuDeNguoiDung	Chủ đề người học đã chọn
+SoTayTuVungNguoiDung	Từ người học tự lưu
+________________________________________
+8. Sơ đồ quan hệ tổng quát
+NguoiDung
+ ├── VaiTro
+ │    └── QuyenVaiTro ── Quyen
+ │
+ ├── tạo ChuDe
+ ├── tạo TuVung
+ ├── tạo CauHoi
+ ├── tạo BaiKiemTraNho
+ ├── làm LanLamBaiTap
+ ├── làm LanLamBaiKiemTraNho
+ ├── có TienDoTuVungNguoiDung
+ ├── có SoTayTuVungNguoiDung
+ └── đăng ký DangKyChuDeNguoiDung
+
+DanhMucChuDe
+ └── ChuDe
+      ├── TuVungChuDe ── TuVung
+      │                  ├── TuLoai
+      │                  ├── CauViDu
+      │                  ├── CauHoi
+      │                  ├── TienDoTuVungNguoiDung
+      │                  └── SoTayTuVungNguoiDung
+      │
+      └── BaiKiemTraNho
+             └── CauHoiBaiKiemTraNho ── CauHoi
+
+TepMedia
+ └── LienKetMediaNoiDung
+      ├── TuVung
+      ├── CauHoi
+      ├── CauViDu
+      └── ChuDe
+
+NhatKyDuyetNoiDung
+ ├── ChuDe
+ ├── TuVung
+ ├── CauHoi
+ ├── BaiKiemTraNho
+ └── TepMedia
+________________________________________
+9. Nhìn theo nghiệp vụ thực tế
+Khi biên tập viên tạo nội dung
+NguoiDung(BienTapVien)
+    → tạo DanhMucChuDe
+    → tạo ChuDe
+    → tạo TuVung
+    → tạo CauViDu
+    → tạo CauHoi
+    → tạo BaiKiemTraNho
+    → gửi duyệt
+    → NhatKyDuyetNoiDung ghi lại
+Khi người học học từ
+NguoiDung(NguoiHoc)
+    → DangKyChuDeNguoiDung
+    → xem ChuDe
+    → học TuVung
+    → làm CauHoi
+    → LanLamBaiTap
+    → cập nhật TienDoTuVungNguoiDung
+    → lưu SoTayTuVungNguoiDung nếu muốn
+Khi admin quản trị
+NguoiDung(QuanTriVien)
+    → quản lý NguoiDung
+    → quản lý VaiTro / Quyen / QuyenVaiTro
+    → duyệt nội dung qua NhatKyDuyetNoiDung
+    → xem các view báo cáo
+________________________________________
+10. Tóm tắt cực ngắn từng table
+Table	Tác dụng chính	Phụ thuộc / liên kết chính
+NguoiDung	Lưu tài khoản	VaiTro, nội dung, tiến độ, lượt làm
+VaiTro	Lưu vai trò	NguoiDung, QuyenVaiTro
+Quyen	Lưu quyền chức năng	QuyenVaiTro
+QuyenVaiTro	Gán quyền cho vai trò	VaiTro, Quyen
+DanhMucChuDe	Nhóm lớn của chủ đề	ChuDe
+ChuDe	Bộ từ vựng học	DanhMucChuDe, TuVungChuDe, BaiKiemTraNho
+TuLoai	Danh mục từ loại	TuVung
+TuVung	Dữ liệu từ vựng chính	TuLoai, ChuDe, CauHoi, CauViDu, tiến độ
+CauViDu	Ví dụ cho từ	TuVung
+TuVungChuDe	Gắn từ vào chủ đề	TuVung, ChuDe
+CauHoi	Câu hỏi luyện tập	TuVung, NguoiDung, BaiKiemTraNho
+LanLamBaiTap	Lịch sử trả lời câu hỏi	NguoiDung, CauHoi, TuVung
+TienDoTuVungNguoiDung	Tiến độ từng từ của từng user	NguoiDung, TuVung
+BaiKiemTraNho	Bài kiểm tra theo chủ đề	ChuDe, NguoiDung, CauHoiBaiKiemTraNho
+CauHoiBaiKiemTraNho	Câu hỏi trong bài test	BaiKiemTraNho, CauHoi
+LanLamBaiKiemTraNho	Lượt làm bài test	NguoiDung, BaiKiemTraNho
+DangKyChuDeNguoiDung	Chủ đề người học chọn	NguoiDung, ChuDe
+SoTayTuVungNguoiDung	Sổ tay cá nhân	NguoiDung, TuVung
+NhatKyDuyetNoiDung	Lịch sử duyệt nội dung	NguoiDung, các bảng nội dung
+TepMedia	File audio/hình ảnh	NguoiDung, LienKetMediaNoiDung
+LienKetMediaNoiDung	Gắn media vào nội dung	TepMedia, TuVung, CauHoi, CauViDu, ChuDe
+vw_TongQuanNoiDungBienTapVien	Báo cáo nội dung theo biên tập viên	NguoiDung, nội dung
+vw_PhanTichHocTapChuDe	Báo cáo học tập theo chủ đề	ChuDe, tiến độ, đăng ký
+vw_PhanTichBaiKiemTraNho	Báo cáo bài kiểm tra	BaiKiemTraNho, lượt làm
+vw_TongQuanDanhMucChuDe	Báo cáo danh mục chủ đề	DanhMucChuDe, ChuDe
+Q1: Tôi muốn bạn vẽ ERD dạng text/mermaid cho toàn bộ database này.
+Q2: Tôi muốn bạn phân tích bảng nào nên giữ, bảng nào đang dư hoặc có thể gộp.
+Q3: Tôi muốn bạn viết mô tả nghiệp vụ từng bảng theo format báo cáo đồ án.
+

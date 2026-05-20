@@ -613,6 +613,20 @@ class AdminController {
       next(error);
     }
   }
+
+  // ── TopicCategories ──
+  static async getTopicCategories(req, res, next) {
+    try { res.json(await AdminService.getTopicCategories()); } catch (e) { next(e); }
+  }
+  static async createTopicCategory(req, res, next) {
+    try { const r = await AdminService.createTopicCategory(req.body); res.status(201).json(r); } catch (e) { next(e); }
+  }
+  static async updateTopicCategory(req, res, next) {
+    try { const ok = await AdminService.updateTopicCategory(req.params.id, req.body); ok ? res.json({ message: 'OK' }) : res.status(404).json({ message: 'Not found' }); } catch (e) { next(e); }
+  }
+  static async deleteTopicCategory(req, res, next) {
+    try { const ok = await AdminService.deleteTopicCategory(req.params.id); ok ? res.json({ message: 'Đã xóa' }) : res.status(404).json({ message: 'Not found' }); } catch (e) { next(e); }
+  }
 }
 
 module.exports = AdminController;

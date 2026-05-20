@@ -1,0 +1,48 @@
+const express = require('express');
+const CreatorController = require('../controllers/creator.controller');
+const { verifyToken, checkPermission } = require('../middlewares/auth');
+
+const router = express.Router();
+
+router.use(verifyToken);
+
+// Dashboard & Analytics
+router.get('/dashboard', checkPermission('VIEW_DASHBOARD'), CreatorController.getDashboard);
+router.get('/content-summary', checkPermission('VIEW_CONTENT_ANALYTICS'), CreatorController.getContentSummary);
+router.get('/topics/:id/analytics', checkPermission('VIEW_CONTENT_ANALYTICS'), CreatorController.getTopicAnalytics);
+router.get('/mini-tests/:id/analytics', checkPermission('VIEW_CONTENT_ANALYTICS'), CreatorController.getMiniTestAnalytics);
+
+// TopicCategories (Read-only for Creator, serves dropdown)
+router.get('/topic-categories', CreatorController.getTopicCategories);
+
+// Topics
+router.get('/topics', checkPermission('MANAGE_TOPICS'), CreatorController.getTopics);
+router.post('/topics', checkPermission('MANAGE_TOPICS'), CreatorController.createTopic);
+router.put('/topics/:id', checkPermission('MANAGE_TOPICS'), CreatorController.updateTopic);
+router.delete('/topics/:id', checkPermission('MANAGE_TOPICS'), CreatorController.deleteTopic);
+router.post('/topics/:id/submit-review', checkPermission('SUBMIT_CONTENT_REVIEW'), CreatorController.submitTopicForReview);
+
+// Words
+router.get('/words', checkPermission('MANAGE_WORDS'), CreatorController.getWords);
+router.post('/words', checkPermission('MANAGE_WORDS'), CreatorController.createWord);
+router.put('/words/:id', checkPermission('MANAGE_WORDS'), CreatorController.updateWord);
+router.delete('/words/:id', checkPermission('MANAGE_WORDS'), CreatorController.deleteWord);
+router.post('/words/:id/submit-review', checkPermission('SUBMIT_CONTENT_REVIEW'), CreatorController.submitWordForReview);
+
+// Questions
+router.get('/questions', checkPermission('MANAGE_QUESTIONS'), CreatorController.getQuestions);
+router.post('/questions', checkPermission('MANAGE_QUESTIONS'), CreatorController.createQuestion);
+router.put('/questions/:id', checkPermission('MANAGE_QUESTIONS'), CreatorController.updateQuestion);
+router.delete('/questions/:id', checkPermission('MANAGE_QUESTIONS'), CreatorController.deleteQuestion);
+router.post('/questions/:id/submit-review', checkPermission('SUBMIT_CONTENT_REVIEW'), CreatorController.submitQuestionForReview);
+
+// MiniTests
+router.get('/mini-tests', checkPermission('MANAGE_TESTS'), CreatorController.getMiniTests);
+router.post('/mini-tests', checkPermission('MANAGE_TESTS'), CreatorController.createMiniTest);
+router.put('/mini-tests/:id', checkPermission('MANAGE_TESTS'), CreatorController.updateMiniTest);
+router.delete('/mini-tests/:id', checkPermission('MANAGE_TESTS'), CreatorController.deleteMiniTest);
+router.post('/mini-tests/:id/items', checkPermission('MANAGE_TESTS'), CreatorController.addMiniTestItem);
+router.delete('/mini-tests/:id/items/:questionId', checkPermission('MANAGE_TESTS'), CreatorController.removeMiniTestItem);
+router.post('/mini-tests/:id/submit-review', checkPermission('SUBMIT_CONTENT_REVIEW'), CreatorController.submitMiniTestForReview);
+
+module.exports = router;

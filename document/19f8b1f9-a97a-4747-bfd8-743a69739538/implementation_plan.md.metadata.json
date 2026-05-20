@@ -1,0 +1,7 @@
+{
+  "artifactType":  "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
+  "summary":  "Kế hoạch triển khai ContentCreator đã sửa đổi:\n- Loại bỏ quyền quản lý TopicCategories của Creator (Creator chỉ có quyền Read-only đối với TopicCategories để chọn nhóm khi tạo/sửa Topics).\n- Admin là người duy nhất có quyền CRUD (tạo, sửa, xóa) TopicCategories.\n- Sửa lại các routes, sidebar, layout và pages tương ứng (chỉ còn 10 pages Creator, không có page TopicCategories cho Creator).",
+  "updatedAt":  "2026-05-19T08:41:37.126626300Z",
+  "version":  "2",
+  "requestFeedback":  true
+}
