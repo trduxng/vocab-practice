@@ -57,15 +57,14 @@ console.log("Connecting DB:", {
   auth: useWindowsAuth ? "windows" : "sql",
 });
 
-const poolPromise = new sql.ConnectionPool(dbConfig)
-  .connect()
-  .then((pool) => {
+const poolPromise = new sql.ConnectionPool(dbConfig).connect();
+
+poolPromise
+  .then(() => {
     console.log("DB Connected");
-    return pool;
   })
   .catch((err) => {
     console.error("Database Connection Failed:", err);
-    throw err;
   });
 
 module.exports = {
