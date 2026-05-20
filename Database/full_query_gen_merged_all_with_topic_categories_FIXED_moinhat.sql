@@ -854,7 +854,8 @@ FROM
     (N'VIEW_CONTENT_ANALYTICS', N'Xem phân tích hiệu quả nội dung do mình tạo'),
     (N'VIEW_GLOBAL_ANALYTICS', N'Xem phân tích toàn cục'),
     (N'MANAGE_USERS', N'Quản lý người dùng'),
-    (N'MANAGE_SYSTEM_SETTINGS', N'Quản lý cấu hình hệ thống')
+    (N'MANAGE_SYSTEM_SETTINGS', N'Quản lý cấu hình hệ thống'),
+    (N'MANAGE_NOTIFICATIONS', N'Quản lý thông báo và thông báo đẩy')
 ) AS v(PermissionCode, Description)
 WHERE NOT EXISTS
 (
@@ -940,7 +941,8 @@ JOIN dbo.Permissions p
         N'VIEW_CONTENT_ANALYTICS',
         N'VIEW_GLOBAL_ANALYTICS',
         N'MANAGE_USERS',
-        N'MANAGE_SYSTEM_SETTINGS'
+        N'MANAGE_SYSTEM_SETTINGS',
+        N'MANAGE_NOTIFICATIONS'
     )
 WHERE r.RoleName = N'Admin'
   AND NOT EXISTS

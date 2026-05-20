@@ -1,6 +1,6 @@
 const express = require('express');
 const AdminController = require('../controllers/admin.controller');
-const { verifyToken, checkPermission, checkAnyPermission } = require('../middlewares/auth');
+const { verifyToken, verifyAdmin, checkPermission, checkAnyPermission } = require('../middlewares/auth');
 const { validate, schemas } = require('../middlewares/validate');
 
 const router = express.Router();
@@ -61,5 +61,11 @@ router.get('/audit-logs', checkAnyPermission(['MANAGE_SYSTEM_SETTINGS', 'MANAGE_
 router.get('/notifications', checkPermission('MANAGE_NOTIFICATIONS'), AdminController.getNotifications);
 router.post('/notifications', checkPermission('MANAGE_NOTIFICATIONS'), AdminController.sendAnnouncement);
 router.post('/notifications/daily-reminders', checkPermission('MANAGE_NOTIFICATIONS'), AdminController.createDailyReminders);
+
+// Topic Categories (Admin only)
+router.get('/topic-categories', verifyAdmin, AdminController.getTopicCategories);
+router.post('/topic-categories', verifyAdmin, AdminController.createTopicCategory);
+router.put('/topic-categories/:id', verifyAdmin, AdminController.updateTopicCategory);
+router.delete('/topic-categories/:id', verifyAdmin, AdminController.deleteTopicCategory);
 
 module.exports = router;
