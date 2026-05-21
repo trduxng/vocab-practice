@@ -1637,9 +1637,14 @@ class AdminService {
         (SELECT COUNT(*) FROM Users WHERE UserRole = 'ContentCreator') AS totalCreators,
         (SELECT COUNT(*) FROM Words) AS totalWords,
         (SELECT COUNT(*) FROM Topics) AS totalTopics,
+        (SELECT COUNT(*) FROM Topics WHERE ContentStatus = 'Published') AS publishedTopics,
         (SELECT COUNT(*) FROM Questions) AS totalQuestions,
         (SELECT COUNT(*) FROM ExerciseAttempts) AS totalAttempts,
         (SELECT COUNT(*) FROM MiniTests) AS totalMiniTests,
+        (SELECT COUNT(*) FROM Topics WHERE ContentStatus = 'PendingReview') +
+        (SELECT COUNT(*) FROM Words WHERE ContentStatus = 'PendingReview') +
+        (SELECT COUNT(*) FROM Questions WHERE ContentStatus = 'PendingReview') +
+        (SELECT COUNT(*) FROM MiniTests WHERE ContentStatus = 'PendingReview') AS pendingReviews,
         (SELECT COUNT(*) FROM UserWordProgress WHERE MemoryStatus = 'Mastered') AS masteredRecords,
         (SELECT COUNT(*) FROM UserWordProgress WHERE NextReviewDate <= SYSDATETIMEOFFSET() OR NextReviewDate IS NULL) AS dueReviews,
         (SELECT COUNT(*) FROM Users WHERE CreatedAt >= DATEADD(day, -7, SYSDATETIMEOFFSET())) AS newUsersThisWeek,
@@ -1682,6 +1687,12 @@ class AdminService {
 
     return {
       ...result.recordsets[0][0],
+      systemHealth: {
+        apiStatus: 'OK',
+        databaseStatus: 'Connected',
+        environment: process.env.NODE_ENV || 'development',
+        uptimeSeconds: Math.round(process.uptime())
+      },
       userGrowth: result.recordsets[1],
       weeklyActivity: result.recordsets[2],
       userTypes: result.recordsets[3],

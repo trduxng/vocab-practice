@@ -1,8 +1,10 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { authService } from '@/src/services/auth.service';
+import type { PermissionCode } from '@/src/modules/auth/types/permissions';
+import { hasPermission as userHasPermission } from '@/src/modules/auth/utils/permissions';
 
 interface User {
   id: string | number;
@@ -16,18 +18,18 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   loading: boolean;
-  login: (data: any) => Promise<void>;
+  login: (data: { email: string; password: string }) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
   isAdmin: boolean;
   isCreator: boolean;
-  permissions: string[];
-  hasPermission: (code: string) => boolean;
+  permissions: PermissionCode[];
+  hasPermission: (code: PermissionCode) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-function parsePermissionsFromToken(token: string): string[] {
+function parsePermissionsFromToken(token: string): PermissionCode[] {
   try {
     const payload = JSON.parse(atob(token.split('.')[1]));
     return Array.isArray(payload.permissions) ? payload.permissions : [];
@@ -36,27 +38,40 @@ function parsePermissionsFromToken(token: string): string[] {
   }
 }
 
+function readStoredAuth(): { user: User | null; token: string | null; permissions: PermissionCode[] } {
+  if (typeof window === 'undefined') {
+    return { user: null, token: null, permissions: [] };
+  }
+
+  const savedToken = localStorage.getItem('token');
+  const savedUser = localStorage.getItem('user');
+
+  if (!savedToken || !savedUser) {
+    return { user: null, token: null, permissions: [] };
+  }
+
+  try {
+    return {
+      user: JSON.parse(savedUser) as User,
+      token: savedToken,
+      permissions: parsePermissionsFromToken(savedToken),
+    };
+  } catch {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    return { user: null, token: null, permissions: [] };
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [permissions, setPermissions] = useState<string[]>([]);
+  const [initialAuth] = useState(readStoredAuth);
+  const [user, setUser] = useState<User | null>(initialAuth.user);
+  const [token, setToken] = useState<string | null>(initialAuth.token);
+  const [loading, setLoading] = useState(false);
+  const [permissions, setPermissions] = useState<PermissionCode[]>(initialAuth.permissions);
   const router = useRouter();
 
-  useEffect(() => {
-    // Initial load from localStorage
-    const savedToken = localStorage.getItem('token');
-    const savedUser = localStorage.getItem('user');
-
-    if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
-      setPermissions(parsePermissionsFromToken(savedToken));
-    }
-    setLoading(false);
-  }, []);
-
-  const login = async (data: any) => {
+  const login = async (data: { email: string; password: string }) => {
     setLoading(true);
     try {
       const response = await authService.login(data);
@@ -70,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const hasPermission = (code: string): boolean => permissions.includes(code);
+  const hasPermission = (code: PermissionCode): boolean => userHasPermission(permissions, code);
 
   const logout = () => {
     authService.logout();

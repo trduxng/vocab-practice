@@ -1,5 +1,6 @@
 // vocab-practice/frontend/src/services/auth.service.ts
 import apiClient from "../lib/api-client";
+import type { PermissionCode } from "../modules/auth/types/permissions";
 
 type RegisterRequest = {
   fullName: string;
@@ -19,6 +20,7 @@ type AuthResponse = {
     fullName: string;
     email: string;
     role: "Admin" | "Learner" | "ContentCreator";
+    permissions?: PermissionCode[];
   };
 };
 

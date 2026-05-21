@@ -5,7 +5,7 @@ import Topbar from "@/src/components/shared/Topbar";
 import ChartFrame from "@/src/components/admin/ChartFrame";
 import { AdminPage, AdminPanel, KpiCard, StatusBadge, chartColors } from "@/src/components/admin/AdminPrimitives";
 import { adminService } from "@/src/services/admin.service";
-import { Activity, CheckCircle2, ClipboardList, Clock3, PieChart as PieChartIcon, Sparkles, UserPlus, Users } from "lucide-react";
+import { Activity, CheckCircle2, ClipboardList, Clock3, PieChart as PieChartIcon, Sparkles, Users } from "lucide-react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 type Tone = "slate" | "blue" | "emerald" | "amber" | "rose" | "violet";
@@ -16,8 +16,11 @@ type DashboardStats = {
   totalCreators?: number;
   totalWords?: number;
   totalTopics?: number;
+  publishedTopics?: number;
   totalQuestions?: number;
   totalAttempts?: number;
+  totalMiniTests?: number;
+  pendingReviews?: number;
   masteredRecords?: number;
   dueReviews?: number;
   newUsersThisWeek?: number;
@@ -27,6 +30,12 @@ type DashboardStats = {
   weeklyActivity?: Array<{ day: string; attempts: number; correct: number }>;
   userTypes?: Array<{ name: string; value: number }>;
   recentActivity?: Array<{ title: string; detail: string; createdAt: string; tone: Tone }>;
+  systemHealth?: {
+    apiStatus?: string;
+    databaseStatus?: string;
+    environment?: string;
+    uptimeSeconds?: number;
+  };
 };
 
 const tooltipStyle = {
@@ -50,6 +59,14 @@ function formatRelative(value?: string) {
   const hours = Math.round(minutes / 60);
   if (hours < 24) return `${hours} hr ago`;
   return `${Math.round(hours / 24)} days ago`;
+}
+
+function formatUptime(seconds?: number) {
+  const total = Number(seconds || 0);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
 }
 
 export default function AdminDashboard() {
@@ -109,9 +126,9 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
               <KpiCard label="Total users" value={compactNumber(stats?.totalUsers)} change={`${compactNumber(stats?.totalCreators)} creators`} icon={Users} tone="blue" />
               <KpiCard label="Active today" value={compactNumber(stats?.activeUsersToday)} change="Unique learners in 24h" icon={Activity} tone="emerald" />
-              <KpiCard label="New signups" value={compactNumber(stats?.newUsersThisWeek)} change="Last 7 days" icon={UserPlus} tone="violet" />
-              <KpiCard label="Attempts" value={compactNumber(stats?.totalAttempts)} change={`${compactNumber(stats?.totalQuestions)} questions`} icon={ClipboardList} tone="amber" />
-              <KpiCard label="Accuracy" value={`${Math.round(Number(stats?.averageAccuracy || 0))}%`} change={`${compactNumber(stats?.dueReviews)} due reviews`} trend="down" icon={CheckCircle2} tone="rose" />
+              <KpiCard label="Pending reviews" value={compactNumber(stats?.pendingReviews)} change="Creator submissions" trend="down" icon={Clock3} tone="amber" />
+              <KpiCard label="Published topics" value={compactNumber(stats?.publishedTopics)} change={`${compactNumber(stats?.totalWords)} words`} icon={ClipboardList} tone="violet" />
+              <KpiCard label="Total quizzes" value={compactNumber(stats?.totalMiniTests)} change={`${compactNumber(stats?.totalQuestions)} questions`} icon={CheckCircle2} tone="rose" />
             </div>
 
             <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
@@ -202,6 +219,27 @@ export default function AdminDashboard() {
                 </div>
               </AdminPanel>
             </div>
+
+            <AdminPanel title="System health" description="Runtime status reported by the admin API.">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-md border border-slate-200 p-4 dark:border-white/10">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">API status</p>
+                  <p className="mt-2 text-sm font-semibold text-emerald-600 dark:text-emerald-300">{stats?.systemHealth?.apiStatus || "Unknown"}</p>
+                </div>
+                <div className="rounded-md border border-slate-200 p-4 dark:border-white/10">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Database</p>
+                  <p className="mt-2 text-sm font-semibold text-emerald-600 dark:text-emerald-300">{stats?.systemHealth?.databaseStatus || "Unknown"}</p>
+                </div>
+                <div className="rounded-md border border-slate-200 p-4 dark:border-white/10">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Environment</p>
+                  <p className="mt-2 text-sm font-semibold text-slate-950 dark:text-white">{stats?.systemHealth?.environment || "development"}</p>
+                </div>
+                <div className="rounded-md border border-slate-200 p-4 dark:border-white/10">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Uptime</p>
+                  <p className="mt-2 text-sm font-semibold text-slate-950 dark:text-white">{formatUptime(stats?.systemHealth?.uptimeSeconds)}</p>
+                </div>
+              </div>
+            </AdminPanel>
           </>
         )}
       </AdminPage>
