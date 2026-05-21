@@ -1,9 +1,12 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import type { ElementType } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/src/app/context/AuthContext";
+import { usePermissions } from "@/src/modules/auth/hooks/usePermissions";
+import { PERMISSIONS, type PermissionCode } from "@/src/modules/auth/types/permissions";
 import {
   BarChart3,
   Bell,
@@ -16,6 +19,7 @@ import {
   Edit3,
   FileQuestion,
   FileText,
+  History,
   Home,
   Image,
   LayoutDashboard,
@@ -29,33 +33,41 @@ import {
   XCircle,
 } from "lucide-react";
 
-const adminLinks = [
-  { icon: LayoutDashboard, label: "Overview", href: "/admin/dashboard" },
-  { icon: Users, label: "Users", href: "/admin/students" },
-  { icon: ClipboardList, label: "Content", href: "/admin/courses" },
-  { icon: ShieldCheck, label: "Duyệt nội dung", href: "/admin/content-review" },
-  { icon: BookOpen, label: "Danh mục chủ đề", href: "/admin/topic-categories" },
-  { icon: BarChart3, label: "Analytics", href: "/admin/analytics" },
-  { icon: Bell, label: "Notifications", href: "/admin/notifications" },
-  { icon: BookOpen, label: "Vocabulary", href: "/admin/words" },
-  { icon: FileQuestion, label: "Questions", href: "/admin/questions" },
-  { icon: ListChecks, label: "Mini tests", href: "/admin/minitests" },
+type NavLink = {
+  icon: ElementType;
+  label: string;
+  href: string;
+  anyOf?: PermissionCode[];
+};
+
+const adminLinks: NavLink[] = [
+  { icon: LayoutDashboard, label: "Overview", href: "/admin/dashboard", anyOf: [PERMISSIONS.viewDashboard] },
+  { icon: Users, label: "Users", href: "/admin/students", anyOf: [PERMISSIONS.manageUsers] },
+  { icon: ClipboardList, label: "Content", href: "/admin/courses", anyOf: [PERMISSIONS.manageTopics, PERMISSIONS.manageWords] },
+  { icon: ShieldCheck, label: "Duyệt nội dung", href: "/admin/content-review", anyOf: [PERMISSIONS.reviewContent] },
+  { icon: BookOpen, label: "Danh mục chủ đề", href: "/admin/topic-categories", anyOf: [PERMISSIONS.manageTopicCategories, PERMISSIONS.manageTopics, PERMISSIONS.manageWords] },
+  { icon: BarChart3, label: "Analytics", href: "/admin/analytics", anyOf: [PERMISSIONS.viewAnalytics, PERMISSIONS.viewDashboard] },
+  { icon: History, label: "Audit logs", href: "/admin/audit-logs", anyOf: [PERMISSIONS.viewAuditLogs, PERMISSIONS.manageSystemSettings, PERMISSIONS.manageUsers] },
+  { icon: Bell, label: "Notifications", href: "/admin/notifications", anyOf: [PERMISSIONS.manageNotifications] },
+  { icon: BookOpen, label: "Vocabulary", href: "/admin/words", anyOf: [PERMISSIONS.manageWords] },
+  { icon: FileQuestion, label: "Questions", href: "/admin/questions", anyOf: [PERMISSIONS.manageQuestions] },
+  { icon: ListChecks, label: "Mini tests", href: "/admin/minitests", anyOf: [PERMISSIONS.manageTests] },
 ];
 
-const creatorLinks = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/creator/dashboard" },
-  { icon: BookOpen, label: "Chủ đề", href: "/creator/topics" },
-  { icon: FileText, label: "Từ vựng", href: "/creator/words" },
-  { icon: FileQuestion, label: "Câu hỏi", href: "/creator/questions" },
-  { icon: ListChecks, label: "Bài test", href: "/creator/mini-tests" },
+const creatorLinks: NavLink[] = [
+  { icon: LayoutDashboard, label: "Dashboard", href: "/creator/dashboard", anyOf: [PERMISSIONS.viewDashboard] },
+  { icon: BookOpen, label: "Chủ đề", href: "/creator/topics", anyOf: [PERMISSIONS.manageTopics] },
+  { icon: FileText, label: "Từ vựng", href: "/creator/words", anyOf: [PERMISSIONS.manageWords] },
+  { icon: FileQuestion, label: "Câu hỏi", href: "/creator/questions", anyOf: [PERMISSIONS.manageQuestions] },
+  { icon: ListChecks, label: "Bài test", href: "/creator/mini-tests", anyOf: [PERMISSIONS.manageTests] },
   { icon: Image, label: "Media", href: "/creator/media" },
   { icon: Edit3, label: "Bản nháp", href: "/creator/drafts" },
   { icon: Clock, label: "Chờ duyệt", href: "/creator/pending" },
   { icon: XCircle, label: "Bị từ chối", href: "/creator/rejected" },
-  { icon: BarChart3, label: "Phân tích", href: "/creator/analytics" },
+  { icon: BarChart3, label: "Phân tích", href: "/creator/analytics", anyOf: [PERMISSIONS.viewAnalytics, PERMISSIONS.viewDashboard] },
 ];
 
-const studentLinks = [
+const studentLinks: NavLink[] = [
   { icon: LayoutDashboard, label: "Tổng quan", href: "/user/dashboard" },
   { icon: BookOpen, label: "Lộ trình", href: "/user/courses" },
   { icon: Brain, label: "Học từ", href: "/user/learn" },
@@ -66,12 +78,7 @@ const studentLinks = [
   { icon: Settings, label: "Cài đặt", href: "/user/settings" },
 ];
 
-interface NavLinksProps {
-  links: typeof adminLinks;
-  collapsed: boolean;
-}
-
-function NavLinks({ links, collapsed }: NavLinksProps) {
+function NavLinks({ links, collapsed }: { links: NavLink[]; collapsed: boolean }) {
   const pathname = usePathname();
 
   return (
@@ -101,7 +108,9 @@ function NavLinks({ links, collapsed }: NavLinksProps) {
 export default function Sidebar({ role }: { role: "admin" | "creator" | "student" }) {
   const [collapsed, setCollapsed] = useState(false);
   const { logout } = useAuth();
-  const links = role === "admin" ? adminLinks : role === "creator" ? creatorLinks : studentLinks;
+  const { hasAnyPermission } = usePermissions();
+  const baseLinks = role === "admin" ? adminLinks : role === "creator" ? creatorLinks : studentLinks;
+  const links = baseLinks.filter((link) => !link.anyOf?.length || hasAnyPermission(link.anyOf));
 
   return (
     <aside
@@ -132,7 +141,7 @@ export default function Sidebar({ role }: { role: "admin" | "creator" | "student
             <p className="text-xs font-medium text-slate-800 dark:text-slate-200">
               {role === "admin" ? "Khu vực quản trị" : role === "creator" ? "Khu vực tạo nội dung" : "Khu vực học tập"}
             </p>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">Sẵn sàng học</p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">Permission based access</p>
           </div>
         </div>
       )}
