@@ -91,6 +91,7 @@ const schemas = {
       correctAnswer: z.string().min(1),
       optionsJson: z.string().optional(),
       explanation: z.string().optional(),
+      status: z.enum(['Draft', 'PendingReview', 'Published', 'Rejected', 'Archived']).optional(),
     })
   }),
 
@@ -109,6 +110,28 @@ const schemas = {
       entityId: z.coerce.number().int().positive(),
       status: z.enum(['Draft', 'PendingReview', 'Published', 'Rejected', 'Archived']),
       comment: z.string().trim().max(2000).optional()
+    })
+  }),
+
+  createReport: z.object({
+    body: z.object({
+      reportType: z.enum(['WordIncorrect', 'AudioIssue', 'AnswerIncorrect', 'Typo', 'Other']),
+      entityType: z.enum(['Word', 'Question', 'Audio', 'General']).optional(),
+      wordId: z.coerce.number().int().positive().optional(),
+      questionId: z.coerce.number().int().positive().optional(),
+      title: z.string().trim().min(1).max(200).optional(),
+      description: z.string().trim().min(5).max(2000)
+    })
+  }),
+
+  updateReport: z.object({
+    params: z.object({
+      id: z.coerce.number().int().positive()
+    }),
+    body: z.object({
+      status: z.enum(['Open', 'InReview', 'Resolved', 'Rejected']).optional(),
+      priority: z.enum(['Low', 'Normal', 'High', 'Urgent']).optional(),
+      adminResponse: z.string().trim().max(2000).optional()
     })
   })
 };

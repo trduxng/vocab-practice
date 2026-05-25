@@ -351,6 +351,26 @@ export const adminService = {
     return response.data as PagedResponse<T>;
   },
 
+  async getReportsPage<T = unknown>(params: { page?: number; limit?: number; search?: string; status?: string; reportType?: string; entityType?: string; priority?: string } = {}) {
+    const response = await apiClient.get('/admin/reports', {
+      params: {
+        page: params.page || 1,
+        limit: params.limit || 20,
+        search: params.search || undefined,
+        status: params.status || undefined,
+        reportType: params.reportType || undefined,
+        entityType: params.entityType || undefined,
+        priority: params.priority || undefined,
+      }
+    });
+    return response.data as PagedResponse<T>;
+  },
+
+  async updateReport(id: number | string, data: { status?: string; priority?: string; adminResponse?: string }) {
+    const response = await apiClient.patch(`/admin/reports/${id}`, data);
+    return response.data;
+  },
+
   async sendAnnouncement(data: unknown) {
     const response = await apiClient.post('/admin/notifications', data);
     return response.data;

@@ -7,6 +7,7 @@ import { userService } from "@/src/services/user.service";
 import { useAuth } from "@/src/app/context/AuthContext";
 import { Button } from "@/src/components/ui/button";
 import { Card } from "@/src/components/ui/card";
+import ReportDialog from "@/src/components/shared/ReportDialog";
 
 type TestQuestion = {
   questionId: number;
@@ -175,6 +176,18 @@ const MiniTestExecutionPage = () => {
 
         <Card className="bg-white/3 border border-white/10 p-12 rounded-[48px] relative overflow-hidden shadow-2xl">
           <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-600 shadow-glow" />
+          {currentQuestion && (
+            <div className="absolute right-5 top-5">
+              <ReportDialog
+                wordId={currentQuestion.wordId}
+                questionId={currentQuestion.questionId}
+                entityType="Question"
+                defaultType="AnswerIncorrect"
+                title={`Report test question #${currentQuestion.questionId}`}
+                context={currentQuestion.term || currentQuestion.questionText}
+              />
+            </div>
+          )}
           <h2 className="text-white text-4xl font-black leading-tight mb-6 tracking-tighter">{currentQuestion?.questionText}</h2>
           {currentQuestion?.term && <p className="text-slate-500 italic text-sm font-medium">Ngữ cảnh: liên quan đến từ &quot;{currentQuestion.term}&quot;</p>}
         </Card>

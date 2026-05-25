@@ -8,6 +8,7 @@ import { useAuth } from "@/src/app/context/AuthContext";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 import { Card } from "@/src/components/ui/card";
+import ReportDialog from "@/src/components/shared/ReportDialog";
 
 const QUESTION_TIME = 20;
 
@@ -243,6 +244,16 @@ export default function UserPractice() {
 
         <Card className="bg-white/5 border-white/10 p-12 mb-8 relative overflow-hidden rounded-[32px] shadow-2xl">
           <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-600 shadow-glow" />
+          <div className="absolute right-5 top-5">
+            <ReportDialog
+              wordId={current.wordId}
+              questionId={current.questionId}
+              entityType="Question"
+              defaultType={current.questionType === "Dictation" ? "AudioIssue" : "AnswerIncorrect"}
+              title={`Report question #${current.questionId}`}
+              context={current.term || current.meaning || current.questionText}
+            />
+          </div>
           <p className="text-blue-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4">{questionLabel}</p>
           <h1 className="text-4xl sm:text-5xl text-white font-black mb-4 tracking-tight">
             {current.questionType === "MCQ" ? current.term : current.questionType === "Dictation" ? "Nghe và nhập từ" : current.meaning}
