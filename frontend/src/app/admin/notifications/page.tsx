@@ -168,7 +168,7 @@ export default function NotificationsPage() {
             </AdminPanel>
             <TableShell>
               <table className="w-full min-w-[760px] text-left text-sm">
-                <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
+                <thead className="border-b border-slate-200 bg-slate-100 text-xs uppercase tracking-wide text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
                   <tr>
                     <th className="px-4 py-3 font-medium">Message</th>
                     <th className="px-4 py-3 font-medium">User</th>

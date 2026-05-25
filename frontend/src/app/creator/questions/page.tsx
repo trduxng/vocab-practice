@@ -43,14 +43,14 @@ export default function CreatorQuestionsPage() {
   return (
     <div className="flex-1 p-6 md:p-8 space-y-6">
       <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold tracking-tight">Quản lý Câu hỏi</h1><p className="text-slate-500 text-sm mt-1">Tạo và quản lý câu hỏi kiểm tra</p></div>
+        <div><h1 className="text-2xl font-bold tracking-tight">Quản lý Câu hỏi</h1><p className="text-slate-600 text-sm mt-1">Tạo và quản lý câu hỏi kiểm tra</p></div>
         <Button onClick={openCreate} className="gap-2 rounded-xl"><Plus className="h-4 w-4" /> Tạo mới</Button>
       </div>
 
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={()=>setShowForm(false)}>
           <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto space-y-4 shadow-2xl border border-slate-200 dark:border-white/10" onClick={e=>e.stopPropagation()}>
-            <div className="flex items-center justify-between"><h2 className="text-lg font-bold">{editing?'Sửa':'Tạo'} câu hỏi</h2><button onClick={()=>setShowForm(false)}><X className="h-5 w-5 text-slate-400"/></button></div>
+            <div className="flex items-center justify-between"><h2 className="text-lg font-bold">{editing?'Sửa':'Tạo'} câu hỏi</h2><button onClick={()=>setShowForm(false)}><X className="h-5 w-5 text-slate-500"/></button></div>
             <div className="space-y-3">
               <div><label className="text-xs font-semibold text-slate-500 uppercase">Word ID *</label><Input type="number" value={form.wordId} onChange={e=>setForm({...form,wordId:Number(e.target.value)})} className="mt-1"/></div>
               <div><label className="text-xs font-semibold text-slate-500 uppercase">Loại</label>
@@ -81,7 +81,7 @@ export default function CreatorQuestionsPage() {
               <th className="text-right px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Thao tác</th>
             </tr></thead>
             <tbody>{items.length===0?(
-              <tr><td colSpan={5} className="text-center py-12 text-slate-400">Chưa có câu hỏi nào</td></tr>
+              <tr><td colSpan={5} className="text-center py-12 text-slate-500">Chưa có câu hỏi nào</td></tr>
             ):items.map(q=>(
               <tr key={q.id} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                 <td className="px-4 py-3 font-medium max-w-xs truncate">{q.questionText}</td>

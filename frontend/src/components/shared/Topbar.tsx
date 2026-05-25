@@ -16,10 +16,20 @@ export default function Topbar({
   role,
   userName = "Admin",
 }: TopbarProps) {
-  const [darkMode, setDarkMode] = useState(true);
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("theme");
+      if (stored === "dark" || stored === "light") {
+        return stored === "dark";
+      }
+      return document.documentElement.classList.contains("dark");
+    }
+    return true;
+  });
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", darkMode);
+    localStorage.setItem("theme", darkMode ? "dark" : "light");
   }, [darkMode]);
 
   return (
@@ -30,12 +40,12 @@ export default function Topbar({
       </div>
 
       <div className="flex items-center gap-2 md:gap-3">
-        <div className="hidden h-9 w-64 items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 lg:flex dark:border-white/10 dark:bg-white/5">
-          <Search className="h-4 w-4 text-slate-400" />
+        <div className="hidden h-9 w-64 items-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-3 lg:flex dark:border-white/10 dark:bg-white/5">
+          <Search className="h-4 w-4 text-slate-600" />
           <input
             type="text"
             placeholder={role === "admin" ? "Tìm người dùng, bài kiểm tra, báo cáo" : "Tìm bài học, từ vựng, bài kiểm tra"}
-            className="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-200"
+            className="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-600 dark:text-slate-200"
           />
         </div>
 
@@ -58,7 +68,7 @@ export default function Topbar({
           </div>
           <div className="hidden md:block">
             <p className="text-sm font-medium leading-tight text-slate-950 dark:text-white">{userName}</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">{role === "admin" ? "Quản trị viên" : "Người học"}</p>
+            <p className="text-xs text-slate-600 dark:text-slate-400">{role === "admin" ? "Quản trị viên" : "Người học"}</p>
           </div>
         </div>
       </div>

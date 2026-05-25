@@ -74,7 +74,7 @@ export const creatorService = {
   },
 
   // Topics
-  async getTopics(filters?: { status?: string }) {
+  async getTopics(filters?: { status?: string; page?: number; pageSize?: number }) {
     const res = await apiClient.get('/creator/topics', { params: filters });
     return res.data;
   },
@@ -100,7 +100,7 @@ export const creatorService = {
   },
 
   // Words
-  async getWords(filters?: { status?: string }) {
+  async getWords(filters?: { status?: string; page?: number; pageSize?: number }) {
     const res = await apiClient.get('/creator/words', { params: filters });
     return res.data;
   },
@@ -126,7 +126,7 @@ export const creatorService = {
   },
 
   // Questions
-  async getQuestions(filters?: { status?: string }) {
+  async getQuestions(filters?: { status?: string; page?: number; pageSize?: number }) {
     const res = await apiClient.get('/creator/questions', { params: filters });
     return res.data;
   },
@@ -152,7 +152,7 @@ export const creatorService = {
   },
 
   // MiniTests
-  async getMiniTests(filters?: { status?: string }) {
+  async getMiniTests(filters?: { status?: string; page?: number; pageSize?: number }) {
     const res = await apiClient.get('/creator/mini-tests', { params: filters });
     return res.data;
   },

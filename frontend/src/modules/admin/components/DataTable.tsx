@@ -89,13 +89,13 @@ export function DataTable<T>({
       {(onSearchChange || bulkActions) && (
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           {onSearchChange && (
-            <div className="flex h-10 w-full items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 md:w-80 dark:border-white/10 dark:bg-white/5">
-              <Search className="h-4 w-4 shrink-0 text-slate-400" />
+            <div className="flex h-10 w-full items-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-3 md:w-80 dark:border-white/10 dark:bg-white/5">
+              <Search className="h-4 w-4 shrink-0 text-slate-500" />
               <input
                 value={searchValue || ""}
                 onChange={(event) => onSearchChange(event.target.value)}
                 placeholder={searchPlaceholder}
-                className="w-full bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400 dark:text-slate-200"
+                className="w-full bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-500 dark:text-slate-200"
               />
             </div>
           )}
@@ -111,7 +111,7 @@ export function DataTable<T>({
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
+            <thead className="border-b border-slate-200 bg-slate-100 text-xs uppercase tracking-wide text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
               <tr>
                 {canSelect && (
                   <th className="w-10 px-4 py-3">
@@ -151,7 +151,7 @@ export function DataTable<T>({
                 rows.map((row) => {
                   const id = getRowId(row);
                   return (
-                    <tr key={String(id)} className="hover:bg-slate-50 dark:hover:bg-white/5">
+                    <tr key={String(id)} className="hover:bg-slate-100 dark:hover:bg-white/5">
                       {canSelect && (
                         <td className="px-4 py-3">
                           <input type="checkbox" checked={selectedSet.has(String(id))} onChange={() => toggleRow(id)} className="h-4 w-4 rounded border-slate-300" />

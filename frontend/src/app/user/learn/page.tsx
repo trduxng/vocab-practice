@@ -87,15 +87,15 @@ const StudentFlashcard = () => {
   };
 
   if (authLoading || loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-[#0a0f1e] text-white font-mono">Đang tải bài học...</div>;
+    return <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white font-mono">Đang tải bài học...</div>;
   }
 
   if (flashcards.length === 0) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#0a0f1e] text-white p-6 text-center">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white p-6 text-center">
         <Trophy size={64} className="text-amber-500 mb-6 opacity-20" />
         <h2 className="text-2xl font-bold mb-2">Tuyệt vời!</h2>
-        <p className="text-slate-400 mb-8 text-balance">Bạn đã hoàn thành hết các từ cần học hôm nay. Hãy quay lại sau nhé!</p>
+        <p className="text-slate-600 dark:text-slate-400 mb-8">Bạn đã hoàn thành hết các từ cần học hôm nay. Hãy quay lại sau nhé!</p>
         <Button onClick={() => router.push("/user/dashboard")} className="bg-blue-600 rounded-xl px-8 h-12 font-bold uppercase text-[10px] tracking-widest">
           Quay về tổng quan
         </Button>
@@ -105,14 +105,14 @@ const StudentFlashcard = () => {
 
   if (sessionFinished) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#0a0f1e] text-white p-6 text-center animate-in fade-in duration-500">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white p-6 text-center animate-in fade-in duration-500">
         <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mb-6 border border-green-500/30">
           <Check size={40} className="text-green-400" />
         </div>
         <h2 className="text-3xl font-bold mb-2">Hoàn thành phiên học!</h2>
-        <p className="text-slate-400 mb-8">Bạn vừa ôn tập xong {flashcards.length} từ vựng.</p>
+        <p className="text-slate-600 dark:text-slate-400 mb-8">Bạn vừa ôn tập xong {flashcards.length} từ vựng.</p>
         <div className="flex gap-4">
-          <Button variant="outline" onClick={() => window.location.reload()} className="border-white/10 text-white h-12 px-8 rounded-xl font-bold uppercase text-[10px] tracking-widest">
+          <Button variant="outline" onClick={() => window.location.reload()} className="border-white/10 dark:border-white/10 border-slate-200 text-slate-900 dark:text-white h-12 px-8 rounded-xl font-bold uppercase text-[10px] tracking-widest">
             Học tiếp
           </Button>
           <Button onClick={() => router.push("/user/dashboard")} className="bg-blue-600 h-12 px-8 rounded-xl font-bold uppercase text-[10px] tracking-widest">
@@ -127,21 +127,21 @@ const StudentFlashcard = () => {
   const progress = ((index + 1) / flashcards.length) * 100;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0a0f1e] px-4 py-10 relative">
+    <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 px-4 py-10 relative">
       <button
         onClick={() => router.push("/user/dashboard")}
-        className="absolute top-8 left-8 text-slate-500 hover:text-white transition-colors flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em]"
+        className="absolute top-8 left-8 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em]"
       >
         <ArrowLeft size={16} /> Thoát
       </button>
 
       <div className="w-full max-w-2xl">
         <div className="mb-12">
-          <div className="flex justify-between text-[10px] text-slate-500 font-black uppercase tracking-widest mb-3">
+          <div className="flex justify-between text-[10px] text-slate-600 dark:text-slate-400 font-black uppercase tracking-widest mb-3">
             <span>Tiến độ học tập</span>
             <span>{index + 1} / {flashcards.length} từ</span>
           </div>
-          <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden border border-white/5 p-[1px]">
+          <div className="w-full h-1 bg-slate-200 dark:bg-white/5 rounded-full overflow-hidden border border-slate-300 dark:border-white/5 p-[1px]">
             <div className="h-full bg-linear-to-r from-blue-600 to-cyan-400 transition-all duration-500 shadow-glow" style={{ width: `${progress}%` }} />
           </div>
         </div>
@@ -166,22 +166,22 @@ const StudentFlashcard = () => {
                 transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
               }}
             >
-              <div className="absolute inset-0 rounded-[48px] bg-linear-to-br from-[#1a2333] to-[#0d1526] border border-white/10 flex flex-col items-center justify-center shadow-2xl" style={{ backfaceVisibility: "hidden" }}>
-                <span className="px-4 py-1.5 rounded-full bg-blue-500/10 text-blue-400 text-[10px] font-black uppercase tracking-[0.2em] mb-10 border border-blue-500/20">
+              <div className="absolute inset-0 rounded-[48px] bg-linear-to-br from-sky-50 to-white dark:from-[#1a2333] dark:to-[#0d1526] border border-slate-200 dark:border-white/10 flex flex-col items-center justify-center shadow-2xl" style={{ backfaceVisibility: "hidden" }}>
+                <span className="px-4 py-1.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 text-[10px] font-black uppercase tracking-[0.2em] mb-10 border border-blue-200 dark:border-blue-500/20">
                   Từ vựng
                 </span>
-                <h2 className="text-white text-7xl font-black mb-4 tracking-tighter text-center px-6">{card.term}</h2>
-                <p className="text-slate-500 text-xl font-bold mb-12 font-mono tracking-widest">{card.phonetic}</p>
+                <h2 className="text-slate-900 dark:text-white text-7xl font-black mb-4 tracking-tighter text-center px-6">{card.term}</h2>
+                <p className="text-slate-600 dark:text-slate-400 text-xl font-bold mb-12 font-mono tracking-widest">{card.phonetic}</p>
 
                 <div
                   onClick={(event) => {
                     event.stopPropagation();
                     speak(card.term);
                   }}
-                  className="flex items-center gap-3 px-8 py-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all group"
+                  className="flex items-center gap-3 px-8 py-4 rounded-2xl bg-slate-100 border border-slate-200 hover:bg-slate-200 dark:bg-white/5 dark:border-white/10 dark:hover:bg-white/10 transition-all group"
                 >
-                  <Volume2 size={20} className="text-blue-500 group-hover:scale-110 transition-transform" />
-                  <span className="text-slate-300 text-xs font-black uppercase tracking-widest">Nghe phát âm</span>
+                  <Volume2 size={20} className="text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform" />
+                  <span className="text-slate-600 dark:text-slate-300 text-xs font-black uppercase tracking-widest">Nghe phát âm</span>
                 </div>
               </div>
 

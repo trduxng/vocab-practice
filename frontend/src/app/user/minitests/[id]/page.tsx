@@ -97,15 +97,15 @@ const MiniTestExecutionPage = () => {
   }, [currentQuestion]);
 
   if (authLoading || loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-[#080d1a] text-white font-mono uppercase tracking-widest">Đang chuẩn bị bài kiểm tra...</div>;
+    return <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white font-mono uppercase tracking-widest">Đang chuẩn bị bài kiểm tra...</div>;
   }
 
   if (questions.length === 0) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#080d1a] text-white p-6 text-center">
-        <AlertCircle size={56} className="mb-4 text-slate-600" />
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white p-6 text-center">
+        <AlertCircle size={56} className="mb-4 text-slate-500 dark:text-slate-600" />
         <h1 className="text-2xl font-black mb-2">Bài kiểm tra chưa có câu hỏi</h1>
-        <p className="text-slate-500 mb-8">Vui lòng chọn bài khác hoặc quay lại sau.</p>
+        <p className="text-slate-500 dark:text-slate-400 text-slate-500 mb-8">Vui lòng chọn bài khác hoặc quay lại sau.</p>
         <Button onClick={() => router.push("/user/minitests")} className="bg-blue-600">Quay lại danh sách</Button>
       </div>
     );
@@ -116,21 +116,21 @@ const MiniTestExecutionPage = () => {
     const accuracy = Math.round((score / questions.length) * 100);
 
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#080d1a] text-white p-4">
-        <Card className="w-full max-w-2xl bg-white/5 border-white/10 p-12 text-center rounded-[40px] shadow-2xl">
+      <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white p-4">
+        <Card className="w-full max-w-2xl bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 p-12 text-center rounded-[40px] shadow-sm">
           <div className="w-24 h-24 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-8 border border-green-500/30">
             <CheckCircle2 size={48} className="text-green-400" />
           </div>
           <h1 className="text-5xl font-black uppercase tracking-tighter mb-4">Hoàn thành!</h1>
-          <p className="text-slate-500 mb-12 font-medium">Kết quả của bạn đã được ghi nhận và lưu vào lịch sử.</p>
+          <p className="text-slate-500 dark:text-slate-400 text-slate-500 mb-12 font-medium">Kết quả của bạn đã được ghi nhận và lưu vào lịch sử.</p>
 
           <div className="grid grid-cols-2 gap-6 mb-12">
-            <div className="bg-white/3 p-8 rounded-3xl border border-white/5">
-              <p className="text-slate-500 text-[10px] uppercase font-black tracking-widest mb-2">Số câu đúng</p>
+            <div className="dark:bg-white/3 bg-slate-50 p-8 rounded-3xl border border-slate-200 dark:border-white/5">
+              <p className="text-slate-600 dark:text-slate-400 text-[10px] uppercase font-black tracking-widest mb-2">Số câu đúng</p>
               <p className="text-4xl font-black text-green-400">{score} / {questions.length}</p>
             </div>
-            <div className="bg-white/3 p-8 rounded-3xl border border-white/5">
-              <p className="text-slate-500 text-[10px] uppercase font-black tracking-widest mb-2">Độ chính xác</p>
+            <div className="dark:bg-white/3 bg-slate-50 p-8 rounded-3xl border border-slate-200 dark:border-white/5">
+              <p className="text-slate-600 dark:text-slate-400 text-[10px] uppercase font-black tracking-widest mb-2">Độ chính xác</p>
               <p className="text-4xl font-black text-blue-400">{accuracy}%</p>
             </div>
           </div>
@@ -144,15 +144,15 @@ const MiniTestExecutionPage = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#080d1a]">
-      <header className="h-20 bg-black/40 backdrop-blur-2xl border-b border-white/5 flex items-center justify-between px-8 sticky top-0 z-50">
+    <div className="min-h-screen flex flex-col bg-slate-100 dark:bg-slate-950">
+      <header className="h-20 bg-black/40 dark:bg-black/40 bg-white/80 backdrop-blur-2xl border-b border-slate-200 dark:border-white/5 flex items-center justify-between px-8 sticky top-0 z-50">
         <div className="flex items-center gap-6">
           <button onClick={() => router.back()} className="p-3 hover:bg-white/5 rounded-2xl text-slate-500 transition-colors">
             <ArrowLeft size={20} />
           </button>
           <div>
-            <h1 className="text-white font-black text-xs uppercase tracking-[0.2em]">Phiên làm bài</h1>
-            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Câu {currentIndex + 1} / {questions.length}</p>
+            <h1 className="text-slate-900 dark:text-white font-black text-xs uppercase tracking-[0.2em]">Phiên làm bài</h1>
+            <p className="text-slate-600 dark:text-slate-400 text-[10px] font-bold uppercase tracking-widest">Câu {currentIndex + 1} / {questions.length}</p>
           </div>
         </div>
         <div className={`flex items-center gap-3 px-6 py-2.5 rounded-2xl border-2 transition-all ${timeLeft < 60 ? "bg-red-500/10 border-red-500/30 text-red-500 animate-pulse" : "bg-white/5 border-white/10 text-blue-400"}`}>
@@ -174,7 +174,7 @@ const MiniTestExecutionPage = () => {
           ))}
         </div>
 
-        <Card className="bg-white/3 border border-white/10 p-12 rounded-[48px] relative overflow-hidden shadow-2xl">
+        <Card className="dark:bg-white/3 bg-white border border-slate-200 dark:border-white/10 p-12 rounded-[48px] relative overflow-hidden shadow-sm">
           <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-600 shadow-glow" />
           {currentQuestion && (
             <div className="absolute right-5 top-5">
@@ -188,23 +188,21 @@ const MiniTestExecutionPage = () => {
               />
             </div>
           )}
-          <h2 className="text-white text-4xl font-black leading-tight mb-6 tracking-tighter">{currentQuestion?.questionText}</h2>
-          {currentQuestion?.term && <p className="text-slate-500 italic text-sm font-medium">Ngữ cảnh: liên quan đến từ &quot;{currentQuestion.term}&quot;</p>}
+          <h2 className="text-slate-900 dark:text-white text-4xl font-black leading-tight mb-6 tracking-tighter">{currentQuestion?.questionText}</h2>
+          {currentQuestion?.term && <p className="text-slate-600 dark:text-slate-400 italic text-sm font-medium">Ngữ cảnh: liên quan đến từ &quot;{currentQuestion.term}&quot;</p>}
         </Card>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {options.map((option: string, optionIndex: number) => (
             <button
               key={`${option}-${optionIndex}`}
-              onClick={() => setAnswers({ ...answers, [currentQuestion.questionId]: option })}
-              className={`group p-8 rounded-[32px] border-2 text-left transition-all relative ${
+              onClick={() => setAnswers({ ...answers, [currentQuestion.questionId]: option })}                className={`group p-8 rounded-[32px] border-2 text-left transition-all relative ${
                 answers[currentQuestion.questionId] === option
                   ? "bg-blue-600/10 border-blue-500 text-white shadow-2xl scale-[1.02]"
-                  : "bg-white/2 border-white/5 text-slate-500 hover:bg-white/5 hover:border-white/10"
+                  : "dark:bg-white/2 bg-white border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-400 hover:dark:bg-white/5 hover:bg-slate-100 hover:border-slate-300 dark:hover:border-white/10"
               }`}
             >
-              <div className="flex items-center gap-5">
-                <span className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-xs border-2 ${answers[currentQuestion.questionId] === option ? "bg-blue-500 border-blue-400 text-white" : "bg-white/5 border-white/10 text-slate-600"}`}>
+              <div className="flex items-center gap-5">                  <span className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-xs border-2 ${answers[currentQuestion.questionId] === option ? "bg-blue-500 border-blue-400 text-white" : "dark:bg-white/5 bg-slate-100 border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-600"}`}>
                   {String.fromCharCode(65 + optionIndex)}
                 </span>
                 <span className="font-bold text-xl">{option}</span>
@@ -218,7 +216,7 @@ const MiniTestExecutionPage = () => {
             variant="ghost"
             disabled={currentIndex === 0}
             onClick={() => setCurrentIndex((prev) => prev - 1)}
-            className="text-slate-500 hover:text-white font-bold uppercase text-[10px] tracking-widest h-14 px-8 rounded-2xl"
+            className="text-slate-500 dark:text-slate-400 text-slate-500 hover:text-slate-900 dark:hover:text-white font-bold uppercase text-[10px] tracking-widest h-14 px-8 rounded-2xl"
           >
             Quay lại
           </Button>
@@ -226,8 +224,7 @@ const MiniTestExecutionPage = () => {
             onClick={() => {
               if (currentIndex < questions.length - 1) setCurrentIndex((prev) => prev + 1);
               else handleSubmit();
-            }}
-            className="bg-white text-black hover:bg-blue-600 hover:text-white px-12 h-16 rounded-[24px] font-black uppercase text-xs tracking-[0.2em] shadow-2xl transition-all"
+            }}              className="bg-white text-black hover:bg-blue-600 hover:text-white px-12 h-16 rounded-[24px] font-black uppercase text-xs tracking-[0.2em] shadow-sm border border-slate-200 transition-all"
           >
             {currentIndex < questions.length - 1 ? "Tiếp theo" : "Hoàn thành bài thi"}
           </Button>

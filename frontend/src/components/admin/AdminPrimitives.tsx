@@ -43,7 +43,7 @@ export function AdminPanel({
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             {title && <h2 className="text-sm font-semibold text-slate-950 dark:text-white">{title}</h2>}
-            {description && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{description}</p>}
+            {description && <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">{description}</p>}
           </div>
           {action}
         </div>
@@ -73,7 +73,7 @@ export function KpiCard({
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-slate-500 dark:text-slate-400">{label}</p>
+        <p className="text-sm text-slate-600 dark:text-slate-400">{label}</p>
         <div className={`flex h-9 w-9 items-center justify-center rounded-md border ${toneClasses[tone]}`}>
           <Icon className="h-4 w-4" />
         </div>

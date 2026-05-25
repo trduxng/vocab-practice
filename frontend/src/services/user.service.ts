@@ -38,13 +38,13 @@ export const userService = {
     return response.data;
   },
 
-  async getMiniTests() {
-    const response = await apiClient.get('/user/minitests');
+  async getMiniTests(page = 1, pageSize = 20) {
+    const response = await apiClient.get('/user/minitests', { params: { page, pageSize } });
     return response.data;
   },
 
-  async getTestHistory() {
-    const response = await apiClient.get('/user/minitests/history');
+  async getTestHistory(page = 1, pageSize = 20) {
+    const response = await apiClient.get('/user/minitests/history', { params: { page, pageSize } });
     return response.data;
   },
 
@@ -61,5 +61,55 @@ export const userService = {
   async updateProfile(data: unknown) {
     const response = await apiClient.put('/user/profile', data);
     return response.data;
-  }
+  },
+
+  // =============== CALENDAR HEATMAP ===============
+  async getActivityHeatmap(year?: number) {
+    const response = await apiClient.get('/user/activity/heatmap', {
+      params: { year: year || new Date().getFullYear() }
+    });
+    return response.data;
+  },
+
+  // =============== DAILY GOAL ===============
+  async getDailyProgress() {
+    const response = await apiClient.get('/user/goals/daily-progress');
+    return response.data;
+  },
+
+  // =============== SMART REVIEW QUEUE ===============
+  async getSmartReviewQueue(limit?: number) {
+    const response = await apiClient.get('/user/review/smart-queue', {
+      params: { limit: limit || 20 }
+    });
+    return response.data;
+  },
+
+  // =============== VOCABULARY NOTEBOOK ===============
+  async getNotebook(page = 1, pageSize = 20) {
+    const response = await apiClient.get('/user/notebook', {
+      params: { page, pageSize }
+    });
+    return response.data;
+  },
+
+  async addNotebookEntry(wordId: number, personalNote?: string) {
+    const response = await apiClient.post('/user/notebook', { wordId, personalNote });
+    return response.data;
+  },
+
+  async updateNotebookEntry(notebookId: number, data: { personalNote?: string; isFavorite?: boolean }) {
+    const response = await apiClient.put(`/user/notebook/${notebookId}`, data);
+    return response.data;
+  },
+
+  async deleteNotebookEntry(notebookId: number) {
+    const response = await apiClient.delete(`/user/notebook/${notebookId}`);
+    return response.data;
+  },
+
+  async checkNotebookEntry(wordId: number) {
+    const response = await apiClient.get(`/user/notebook/check?wordId=${wordId}`);
+    return response.data;
+  },
 };

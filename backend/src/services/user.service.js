@@ -1,12 +1,11 @@
-const { sql, poolPromise } = require('../config/db');
+const { sql, poolPromise } = require("../config/db");
 
 class UserService {
   static async getFlashcards(userId) {
     const pool = await poolPromise;
-    const result = await pool.request()
-      .input('UserID', sql.BigInt, userId)
+    const result = await pool.request().input("UserID", sql.BigInt, userId)
       .query(`
-        SELECT TOP 10 q.QuestionID AS questionId, q.QuestionText AS questionText, 
+        SELECT TOP 10 q.QuestionID AS questionId, q.QuestionText AS questionText,
                q.CorrectAnswer AS term, w.Phonetic AS phonetic, w.Meaning AS meaning,
                w.WordID AS wordId
         FROM Questions q
@@ -20,18 +19,18 @@ class UserService {
 
   static async getDueFlashcards(userId, { topicId = null, mode = null } = {}) {
     const pool = await poolPromise;
-    const result = await pool.request()
-      .input('UserID', sql.BigInt, userId)
-      .input('TopicID', sql.BigInt, topicId ? Number(topicId) : null)
-      .input('Mode', sql.NVarChar(20), mode || '')
-      .query(`
-        SELECT TOP 15 
-          q.QuestionID AS questionId, 
+    const result = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId)
+      .input("TopicID", sql.BigInt, topicId ? Number(topicId) : null)
+      .input("Mode", sql.NVarChar(20), mode || "").query(`
+        SELECT TOP 15
+          q.QuestionID AS questionId,
           q.QuestionType AS questionType,
-          COALESCE(q.QuestionText, w.Meaning) AS questionText, 
+          COALESCE(q.QuestionText, w.Meaning) AS questionText,
           COALESCE(q.CorrectAnswer, w.Term) AS correctAnswer,
           q.OptionsJson AS optionsJson,
-          w.Phonetic AS phonetic, 
+          w.Phonetic AS phonetic,
           w.Meaning AS meaning,
           w.Term AS term,
           w.AudioUrlUK AS audioUrlUK,
@@ -70,10 +69,10 @@ class UserService {
 
   static async getTopicWords(userId, topicId) {
     const pool = await poolPromise;
-    const result = await pool.request()
-      .input('UserID', sql.BigInt, userId)
-      .input('TopicID', sql.BigInt, topicId)
-      .query(`
+    const result = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId)
+      .input("TopicID", sql.BigInt, topicId).query(`
         SELECT
           w.WordID AS wordId,
           w.Term AS term,
@@ -104,21 +103,22 @@ class UserService {
 
   static async submitAnswer({ userId, questionId, submittedAnswer }) {
     const pool = await poolPromise;
-    const result = await pool.request()
-      .input('UserID', sql.BigInt, userId)
-      .input('QuestionID', sql.BigInt, questionId)
-      .input('SubmittedAnswer', sql.NVarChar(1000), submittedAnswer || '')
-      .execute('usp_SubmitQuestionAttempt');
+    const result = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId)
+      .input("QuestionID", sql.BigInt, questionId)
+      .input("SubmittedAnswer", sql.NVarChar(1000), submittedAnswer || "")
+      .execute("usp_SubmitQuestionAttempt");
     return result.recordset[0];
   }
 
   static async submitWordReview({ userId, wordId, isCorrect }) {
     const pool = await poolPromise;
-    const result = await pool.request()
-      .input('UserID', sql.BigInt, userId)
-      .input('WordID', sql.BigInt, wordId)
-      .input('IsCorrect', sql.Bit, Boolean(isCorrect))
-      .query(`
+    const result = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId)
+      .input("WordID", sql.BigInt, wordId)
+      .input("IsCorrect", sql.Bit, Boolean(isCorrect)).query(`
         DECLARE @Now DATETIMEOFFSET(7) = SYSDATETIMEOFFSET();
 
         MERGE UserWordProgress WITH (HOLDLOCK) AS target
@@ -180,17 +180,20 @@ class UserService {
 
   static async getUserStats(userId) {
     const pool = await poolPromise;
-    
+
     // 1. Total words learned
-    const learnedResult = await pool.request()
-      .input('UserID', sql.BigInt, userId)
-      .query('SELECT COUNT(*) AS total FROM UserWordProgress WHERE UserID = @UserID AND MasteryLevel >= 3');
+    const learnedResult = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId)
+      .query(
+        "SELECT COUNT(*) AS total FROM UserWordProgress WHERE UserID = @UserID AND MasteryLevel >= 3",
+      );
 
     // 2. Accuracy rate
-    const accuracyResult = await pool.request()
-      .input('UserID', sql.BigInt, userId)
-      .query(`
-        SELECT 
+    const accuracyResult = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId).query(`
+        SELECT
           CAST(SUM(CASE WHEN IsCorrect = 1 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0) AS DECIMAL(5,2)) AS accuracy,
           SUM(CASE WHEN IsCorrect = 1 THEN 1 ELSE 0 END) AS correct,
           SUM(CASE WHEN IsCorrect = 0 THEN 1 ELSE 0 END) AS wrong
@@ -198,9 +201,9 @@ class UserService {
       `);
 
     // 3. Weak words
-    const weakWordsResult = await pool.request()
-      .input('UserID', sql.BigInt, userId)
-      .query(`
+    const weakWordsResult = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId).query(`
         SELECT TOP 5 w.Term AS word, w.Meaning AS meaning
         FROM UserWordProgress uwp
         JOIN Words w ON uwp.WordID = w.WordID
@@ -209,9 +212,9 @@ class UserService {
       `);
 
     // 4. Recent attempts
-    const recentAttemptsResult = await pool.request()
-      .input('UserID', sql.BigInt, userId)
-      .query(`
+    const recentAttemptsResult = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId).query(`
         SELECT TOP 10 ea.SubmittedAnswer AS answer, ea.IsCorrect AS isCorrect, ea.AttemptedAt AS date, w.Term AS term
         FROM ExerciseAttempts ea
         JOIN Words w ON ea.WordID = w.WordID
@@ -226,37 +229,69 @@ class UserService {
       wrong: accuracyResult.recordset[0].wrong || 0,
       weakWords: weakWordsResult.recordset,
       recentAttempts: recentAttemptsResult.recordset,
-      streak: 5 
+      streak: 5,
     };
 
     stats.masteryTimeline = await this.getMasteryTimeline(userId);
 
     // 5. Daily trends (Last 7 days)
-    const trendsResult = await pool.request()
-      .input('UserID', sql.BigInt, userId)
-      .query(`
+    const trendsResult = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId).query(`
         SELECT CAST(AttemptedAt AS DATE) AS date, COUNT(*) AS count
         FROM ExerciseAttempts
         WHERE UserID = @UserID AND AttemptedAt >= DATEADD(day, -7, SYSDATETIMEOFFSET())
         GROUP BY CAST(AttemptedAt AS DATE)
         ORDER BY date ASC
       `);
-    
-    stats.dailyTrends = trendsResult.recordset.map(r => ({
-      day: new Date(r.date).toLocaleDateString('vi-VN', { weekday: 'short' }),
-      count: r.count
+
+    stats.dailyTrends = trendsResult.recordset.map((r) => ({
+      day: new Date(r.date).toLocaleDateString("vi-VN", { weekday: "short" }),
+      count: r.count,
     }));
 
     // Calculate Achievements
     stats.achievements = [
-      { id: 1, icon: "🌱", label: "Mới bắt đầu", unlocked: learnedResult.recordset[0].total > 0 },
-      { id: 2, icon: "💯", label: "Chăm chỉ", unlocked: (accuracyResult.recordset[0].correct || 0) >= 100 },
-      { id: 3, icon: "🎯", label: "Chính xác", unlocked: Math.round(accuracyResult.recordset[0].accuracy || 0) >= 90 && learnedResult.recordset[0].total >= 10 },
-      { id: 4, icon: "🏆", label: "Bậc thầy", unlocked: learnedResult.recordset[0].total >= 50 },
+      {
+        id: 1,
+        icon: "🌱",
+        label: "Mới bắt đầu",
+        unlocked: learnedResult.recordset[0].total > 0,
+      },
+      {
+        id: 2,
+        icon: "💯",
+        label: "Chăm chỉ",
+        unlocked: (accuracyResult.recordset[0].correct || 0) >= 100,
+      },
+      {
+        id: 3,
+        icon: "🎯",
+        label: "Chính xác",
+        unlocked:
+          Math.round(accuracyResult.recordset[0].accuracy || 0) >= 90 &&
+          learnedResult.recordset[0].total >= 10,
+      },
+      {
+        id: 4,
+        icon: "🏆",
+        label: "Bậc thầy",
+        unlocked: learnedResult.recordset[0].total >= 50,
+      },
       { id: 5, icon: "🔥", label: "Streak 7", unlocked: false },
-      { id: 6, icon: "⚡", label: "Tốc độ", unlocked: (accuracyResult.recordset[0].correct || 0) >= 10 },
-      { id: 7, icon: "📚", label: "Mọt sách", unlocked: learnedResult.recordset[0].total >= 20 },
-      { id: 8, icon: "🌟", label: "Ngôi sao", unlocked: false }
+      {
+        id: 6,
+        icon: "⚡",
+        label: "Tốc độ",
+        unlocked: (accuracyResult.recordset[0].correct || 0) >= 10,
+      },
+      {
+        id: 7,
+        icon: "📚",
+        label: "Mọt sách",
+        unlocked: learnedResult.recordset[0].total >= 20,
+      },
+      { id: 8, icon: "🌟", label: "Ngôi sao", unlocked: false },
     ];
 
     return stats;
@@ -269,8 +304,7 @@ class UserService {
     `);
 
     if (viewExists.recordset[0].viewId) {
-      const result = await pool.request()
-        .input('UserID', sql.BigInt, userId)
+      const result = await pool.request().input("UserID", sql.BigInt, userId)
         .query(`
           SELECT
             TotalWords AS totalWords,
@@ -287,8 +321,7 @@ class UserService {
       }
     }
 
-    const result = await pool.request()
-      .input('UserID', sql.BigInt, userId)
+    const result = await pool.request().input("UserID", sql.BigInt, userId)
       .query(`
         SELECT
           COUNT(*) AS totalWords,
@@ -304,29 +337,48 @@ class UserService {
       masteredWords: row.masteredWords || 0,
       completionPercentage: row.completionPercentage || 0,
       estimatedDaysToMastery: null,
-      projectedCompletionDate: null
+      projectedCompletionDate: null,
     };
   }
 
-  static async getMiniTests() {
+  static async getMiniTests(page = 1, pageSize = 20) {
     const pool = await poolPromise;
-    const result = await pool.request().query(`
-      SELECT mt.MiniTestID AS id, mt.TestTitle AS title, mt.Description AS description,
-             t.TopicName AS topicName, t.TopicCode AS topicCode
-      FROM MiniTests mt
-      LEFT JOIN Topics t ON mt.TopicID = t.TopicID
-      WHERE mt.IsPublished = 1
+    page = Math.max(1, page);
+    pageSize = Math.min(100, Math.max(1, pageSize));
+    const offset = (page - 1) * pageSize;
+
+    const countResult = await pool.request().query(`
+      SELECT COUNT(*) AS total FROM MiniTests WHERE IsPublished = 1
     `);
-    return result.recordset;
+    const total = countResult.recordset[0].total;
+
+    const result = await pool
+      .request()
+      .input("Offset", sql.Int, offset)
+      .input("PageSize", sql.Int, pageSize).query(`
+        SELECT mt.MiniTestID AS id, mt.TestTitle AS title, mt.Description AS description,
+               t.TopicName AS topicName, t.TopicCode AS topicCode
+        FROM MiniTests mt
+        LEFT JOIN Topics t ON mt.TopicID = t.TopicID
+        WHERE mt.IsPublished = 1
+        ORDER BY mt.CreatedAt DESC
+        OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
+      `);
+    return {
+      data: result.recordset,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 
   static async getMiniTestDetails(testId) {
     const pool = await poolPromise;
-    const result = await pool.request()
-      .input('MiniTestID', sql.BigInt, testId)
+    const result = await pool.request().input("MiniTestID", sql.BigInt, testId)
       .query(`
-        SELECT q.QuestionID AS questionId, q.QuestionType AS questionType, 
-               q.QuestionText AS questionText, q.OptionsJson AS optionsJson, 
+        SELECT q.QuestionID AS questionId, q.QuestionType AS questionType,
+               q.QuestionText AS questionText, q.OptionsJson AS optionsJson,
                q.CorrectAnswer AS correctAnswer, w.Term AS term
         FROM MiniTestItems mti
         JOIN Questions q ON mti.QuestionID = q.QuestionID
@@ -339,19 +391,39 @@ class UserService {
 
   static async updateProfile(userId, fullName) {
     const pool = await poolPromise;
-    await pool.request()
-      .input('UserID', sql.BigInt, userId)
-      .input('FullName', sql.NVarChar(200), fullName)
-      .query('UPDATE Users SET FullName = @FullName, UpdatedAt = SYSDATETIMEOFFSET() WHERE UserID = @UserID');
+    await pool
+      .request()
+      .input("UserID", sql.BigInt, userId)
+      .input("FullName", sql.NVarChar(200), fullName)
+      .query(
+        "UPDATE Users SET FullName = @FullName, UpdatedAt = SYSDATETIMEOFFSET() WHERE UserID = @UserID",
+      );
     return { id: userId, fullName };
   }
 
-  static async getTestHistory(userId) {
+  static async getTestHistory(userId, page = 1, pageSize = 20) {
     const pool = await poolPromise;
-    const result = await pool.request()
-      .input('UserID', sql.BigInt, userId)
+    page = Math.max(1, page);
+    pageSize = Math.min(100, Math.max(1, pageSize));
+    const offset = (page - 1) * pageSize;
+
+    const countResult = await pool.request().input("UserID", sql.BigInt, userId)
       .query(`
-        SELECT 
+        SELECT COUNT(DISTINCT CAST(ea.AttemptedAt AS DATE) + CAST(mt.MiniTestID AS NVARCHAR)) AS total
+        FROM ExerciseAttempts ea
+        JOIN Questions q ON ea.QuestionID = q.QuestionID
+        JOIN MiniTestItems mti ON q.QuestionID = mti.QuestionID
+        JOIN MiniTests mt ON mti.MiniTestID = mt.MiniTestID
+        WHERE ea.UserID = @UserID
+      `);
+    const total = countResult.recordset[0].total;
+
+    const result = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId)
+      .input("Offset", sql.Int, offset)
+      .input("PageSize", sql.Int, pageSize).query(`
+        SELECT
           CAST(ea.AttemptedAt AS DATE) AS date,
           mt.MiniTestID AS testId,
           mt.TestTitle AS testTitle,
@@ -364,18 +436,25 @@ class UserService {
         WHERE ea.UserID = @UserID
         GROUP BY CAST(ea.AttemptedAt AS DATE), mt.TestTitle, mt.MiniTestID
         ORDER BY date DESC
+        OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
       `);
-    return result.recordset;
+    return {
+      data: result.recordset,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 
   static async getTestSessionDetails(userId, testId, date) {
     const pool = await poolPromise;
-    const result = await pool.request()
-      .input('UserID', sql.BigInt, userId)
-      .input('MiniTestID', sql.BigInt, testId)
-      .input('Date', sql.Date, date)
-      .query(`
-        SELECT 
+    const result = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId)
+      .input("MiniTestID", sql.BigInt, testId)
+      .input("Date", sql.Date, date).query(`
+        SELECT
           q.QuestionText AS questionText,
           q.QuestionType AS questionType,
           q.OptionsJson AS optionsJson,
@@ -388,12 +467,228 @@ class UserService {
         JOIN Questions q ON ea.QuestionID = q.QuestionID
         JOIN MiniTestItems mti ON q.QuestionID = mti.QuestionID
         JOIN Words w ON q.WordID = w.WordID
-        WHERE ea.UserID = @UserID 
+        WHERE ea.UserID = @UserID
           AND mti.MiniTestID = @MiniTestID
           AND CAST(ea.AttemptedAt AS DATE) = @Date
       `);
     return result.recordset;
   }
-}
 
+  // =============== CALENDAR HEATMAP ===============
+  static async getActivityHeatmap(userId, year) {
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId)
+      .input("Year", sql.Int, year || new Date().getFullYear()).query(`
+        SELECT
+          CAST(AttemptedAt AS DATE) AS date,
+          COUNT(*) AS count
+        FROM ExerciseAttempts
+        WHERE UserID = @UserID
+          AND YEAR(AttemptedAt) = @Year
+        GROUP BY CAST(AttemptedAt AS DATE)
+        ORDER BY date ASC
+      `);
+    return result.recordset;
+  }
+
+  // =============== DAILY GOAL PROGRESS ===============
+  static async getDailyProgress(userId) {
+    const pool = await poolPromise;
+    const result = await pool.request().input("UserID", sql.BigInt, userId)
+      .query(`
+        SELECT COUNT(*) AS count
+        FROM ExerciseAttempts
+        WHERE UserID = @UserID
+          AND CAST(AttemptedAt AS DATE) = CAST(SYSDATETIMEOFFSET() AS DATE)
+      `);
+    return { todayCount: result.recordset[0].count || 0 };
+  }
+
+  // =============== SMART REVIEW QUEUE ===============
+  static async getSmartReviewQueue(userId, limit = 20) {
+    const pool = await poolPromise;
+    limit = Math.min(50, Math.max(1, limit));
+    const result = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId)
+      .input("Limit", sql.Int, limit).query(`
+        SELECT TOP (@Limit)
+          w.WordID AS wordId,
+          w.Term AS term,
+          w.Phonetic AS phonetic,
+          w.Meaning AS meaning,
+          w.AudioUrlUK AS audioUrlUK,
+          w.AudioUrlUS AS audioUrlUS,
+          p.PartOfSpeechName AS partOfSpeechName,
+          ISNULL(uwp.MasteryLevel, 0) AS masteryLevel,
+          ISNULL(uwp.MemoryStatus, N'New') AS memoryStatus,
+          uwp.LastReviewedAt AS lastReviewedAt,
+          uwp.NextReviewDate AS nextReviewDate,
+          uwp.RepetitionCount AS repetitionCount,
+          uwp.ConsecutiveWrong AS consecutiveWrong,
+          -- Priority score: lower = more urgent
+          CASE
+            WHEN uwp.NextReviewDate IS NULL THEN 0
+            WHEN uwp.NextReviewDate <= SYSDATETIMEOFFSET() THEN
+              DATEDIFF(hour, uwp.NextReviewDate, SYSDATETIMEOFFSET()) *
+              CASE WHEN uwp.ConsecutiveWrong > 0 THEN 3 ELSE 1 END
+            ELSE DATEDIFF(hour, SYSDATETIMEOFFSET(), uwp.NextReviewDate) * -1
+          END AS priorityScore
+        FROM Words w
+        LEFT JOIN PartOfSpeeches p ON w.PartOfSpeechID = p.PartOfSpeechID
+        LEFT JOIN UserWordProgress uwp ON w.WordID = uwp.WordID AND uwp.UserID = @UserID
+        WHERE (
+          uwp.NextReviewDate IS NULL
+          OR uwp.NextReviewDate <= DATEADD(day, 7, SYSDATETIMEOFFSET())
+        )
+        ORDER BY priorityScore DESC, uwp.MasteryLevel ASC
+      `);
+    return result.recordset;
+  }
+
+  // =============== VOCABULARY NOTEBOOK ===============
+  static async getNotebook(userId, page = 1, pageSize = 20) {
+    const pool = await poolPromise;
+    page = Math.max(1, page);
+    pageSize = Math.min(50, Math.max(1, pageSize));
+    const offset = (page - 1) * pageSize;
+
+    const countResult = await pool.request().input("UserID", sql.BigInt, userId)
+      .query(`
+        SELECT COUNT(*) AS total FROM UserVocabularyNotebook
+        WHERE UserID = @UserID
+      `);
+    const total = countResult.recordset[0].total;
+
+    const result = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId)
+      .input("Offset", sql.Int, offset)
+      .input("PageSize", sql.Int, pageSize).query(`
+        SELECT
+          un.NotebookID AS notebookId,
+          un.UserID AS userId,
+          un.WordID AS wordId,
+          un.PersonalNote AS personalNote,
+          un.IsFavorite AS isFavorite,
+          un.AddedAt AS addedAt,
+          un.UpdatedAt AS updatedAt,
+          w.Term AS term,
+          w.Meaning AS meaning,
+          w.Phonetic AS phonetic,
+          p.PartOfSpeechName AS partOfSpeechName,
+          ISNULL(uwp.MasteryLevel, 0) AS masteryLevel
+        FROM UserVocabularyNotebook un
+        JOIN Words w ON un.WordID = w.WordID
+        LEFT JOIN PartOfSpeeches p ON w.PartOfSpeechID = p.PartOfSpeechID
+        LEFT JOIN UserWordProgress uwp ON w.WordID = uwp.WordID AND uwp.UserID = @UserID
+        WHERE un.UserID = @UserID
+        ORDER BY un.IsFavorite DESC, un.UpdatedAt DESC
+        OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
+      `);
+    return {
+      data: result.recordset,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+
+  static async addNotebookEntry(userId, wordId, personalNote) {
+    const pool = await poolPromise;
+    const existing = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId)
+      .input("WordID", sql.BigInt, wordId).query(`
+        SELECT NotebookID FROM UserVocabularyNotebook
+        WHERE UserID = @UserID AND WordID = @WordID
+      `);
+
+    if (existing.recordset.length > 0) {
+      // Update existing entry
+      const result = await pool
+        .request()
+        .input("NotebookID", sql.BigInt, existing.recordset[0].NotebookID)
+        .input("PersonalNote", sql.NVarChar(2000), personalNote || null).query(`
+          UPDATE UserVocabularyNotebook
+          SET PersonalNote = @PersonalNote, UpdatedAt = SYSDATETIMEOFFSET()
+          OUTPUT inserted.NotebookID AS notebookId, inserted.PersonalNote AS personalNote
+          WHERE NotebookID = @NotebookID
+        `);
+      return result.recordset[0];
+    }
+
+    const result = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId)
+      .input("WordID", sql.BigInt, wordId)
+      .input("PersonalNote", sql.NVarChar(2000), personalNote || null)
+      .input("IsFavorite", sql.Bit, false).query(`
+        INSERT INTO UserVocabularyNotebook (UserID, WordID, PersonalNote, IsFavorite, AddedAt, UpdatedAt)
+        OUTPUT inserted.NotebookID AS notebookId, inserted.PersonalNote AS personalNote
+        VALUES (@UserID, @WordID, @PersonalNote, @IsFavorite, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
+      `);
+    return result.recordset[0];
+  }
+
+  static async updateNotebookEntry(
+    notebookId,
+    userId,
+    { personalNote, isFavorite },
+  ) {
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input("NotebookID", sql.BigInt, notebookId)
+      .input("UserID", sql.BigInt, userId)
+      .input(
+        "PersonalNote",
+        sql.NVarChar(2000),
+        personalNote !== undefined ? personalNote : null,
+      )
+      .input(
+        "IsFavorite",
+        sql.Bit,
+        isFavorite !== undefined ? Boolean(isFavorite) : null,
+      ).query(`
+        UPDATE UserVocabularyNotebook
+        SET
+          PersonalNote = CASE WHEN @PersonalNote IS NOT NULL OR @PersonalNote IS NULL AND PersonalNote IS NOT NULL THEN COALESCE(@PersonalNote, PersonalNote) ELSE PersonalNote END,
+          IsFavorite = CASE WHEN @IsFavorite IS NOT NULL THEN @IsFavorite ELSE IsFavorite END,
+          UpdatedAt = SYSDATETIMEOFFSET()
+        OUTPUT inserted.NotebookID AS notebookId, inserted.PersonalNote AS personalNote, inserted.IsFavorite AS isFavorite
+        WHERE NotebookID = @NotebookID AND UserID = @UserID
+      `);
+    return result.recordset[0] || null;
+  }
+
+  static async deleteNotebookEntry(notebookId, userId) {
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input("NotebookID", sql.BigInt, notebookId)
+      .input("UserID", sql.BigInt, userId).query(`
+        DELETE FROM UserVocabularyNotebook
+        OUTPUT deleted.NotebookID AS notebookId
+        WHERE NotebookID = @NotebookID AND UserID = @UserID
+      `);
+    return result.recordset[0] || null;
+  }
+
+  static async checkNotebookEntry(userId, wordId) {
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId)
+      .input("WordID", sql.BigInt, wordId).query(`
+        SELECT un.NotebookID AS notebookId, un.PersonalNote AS personalNote, un.IsFavorite AS isFavorite
+        FROM UserVocabularyNotebook un
+        WHERE un.UserID = @UserID AND un.WordID = @WordID
+      `);
+    return result.recordset[0] || null;
+  }
+}
 module.exports = UserService;

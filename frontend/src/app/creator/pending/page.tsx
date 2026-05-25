@@ -41,7 +41,7 @@ export default function CreatorPendingPage() {
       </div>
       <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 overflow-hidden">
         {items.length === 0 ? (
-          <div className="p-12 text-center text-slate-400">Không có nội dung nào đang chờ duyệt</div>
+          <div className="p-12 text-center text-slate-500">Không có nội dung nào đang chờ duyệt</div>
         ) : (
           <div className="divide-y divide-slate-100 dark:divide-white/5">
             {items.map((item) => (
@@ -50,7 +50,7 @@ export default function CreatorPendingPage() {
                   <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 shrink-0">{item.type}</span>
                   <span className="truncate font-medium">{item.name || '—'}</span>
                 </div>
-                <span className="text-xs text-slate-400 shrink-0">{new Date(item.createdAt).toLocaleDateString('vi-VN')}</span>
+                <span className="text-xs text-slate-500 shrink-0">{new Date(item.createdAt).toLocaleDateString('vi-VN')}</span>
               </div>
             ))}
           </div>

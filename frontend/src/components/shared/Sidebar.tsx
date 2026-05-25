@@ -20,6 +20,7 @@ import {
   FileQuestion,
   FileText,
   Flag,
+  Heart,
   History,
   Home,
   Image,
@@ -75,6 +76,7 @@ const studentLinks: NavLink[] = [
   { icon: Brain, label: "Học từ", href: "/user/learn" },
   { icon: Target, label: "Luyện tập", href: "/user/practice" },
   { icon: FileText, label: "Bài kiểm tra", href: "/user/minitests" },
+  { icon: Heart, label: "Sổ tay", href: "/user/notebook" },
   { icon: Trophy, label: "Thành tích", href: "/user/achievements" },
   { icon: BarChart3, label: "Tiến độ", href: "/user/progress" },
   { icon: Settings, label: "Cài đặt", href: "/user/settings" },
@@ -94,7 +96,7 @@ function NavLinks({ links, collapsed }: { links: NavLink[]; collapsed: boolean }
             className={`group flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors ${
               active
                 ? "bg-slate-950 text-white shadow-sm dark:bg-white dark:text-slate-950"
-                : "text-slate-500 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
+                : "text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
             } ${collapsed ? "justify-center" : "md:justify-start"} justify-center`}
             title={collapsed ? link.label : undefined}
           >
@@ -131,19 +133,19 @@ export default function Sidebar({ role }: { role: "admin" | "creator" | "student
         {!collapsed && (
           <div className="hidden md:block">
             <p className="text-sm font-semibold tracking-tight text-slate-950 dark:text-white">VocaBoost</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Học từ vựng TOEIC</p>
+            <p className="text-xs text-slate-600 dark:text-slate-400">Học từ vựng TOEIC</p>
           </div>
         )}
       </div>
 
       {!collapsed && (
-        <div className="mx-3 mt-3 hidden items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 md:flex dark:border-white/10 dark:bg-white/5">
+        <div className="mx-3 mt-3 hidden items-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-3 py-2 md:flex dark:border-white/10 dark:bg-white/5">
           <ShieldCheck className="h-4 w-4 text-emerald-500" />
           <div>
             <p className="text-xs font-medium text-slate-800 dark:text-slate-200">
               {role === "admin" ? "Khu vực quản trị" : role === "creator" ? "Khu vực tạo nội dung" : "Khu vực học tập"}
             </p>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">Permission based access</p>
+            <p className="text-[11px] text-slate-600 dark:text-slate-400">Permission based access</p>
           </div>
         </div>
       )}
@@ -165,7 +167,7 @@ export default function Sidebar({ role }: { role: "admin" | "creator" | "student
       <div className="border-t border-slate-200 p-2 dark:border-white/10">
         <Link
           href="/"
-          className="flex h-10 items-center justify-center gap-3 rounded-md px-3 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-950 md:justify-start dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
+          className="flex h-10 items-center justify-center gap-3 rounded-md px-3 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950 md:justify-start dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
         >
           <Home className="h-4 w-4" />
           {!collapsed && <span className="hidden md:inline">Về trang chủ</span>}
@@ -173,7 +175,7 @@ export default function Sidebar({ role }: { role: "admin" | "creator" | "student
         <button
           type="button"
           onClick={logout}
-          className="flex h-10 w-full items-center justify-center gap-3 rounded-md px-3 text-sm font-medium text-slate-500 hover:bg-rose-50 hover:text-rose-600 md:justify-start dark:text-slate-400 dark:hover:bg-rose-500/10 dark:hover:text-rose-300"
+          className="flex h-10 w-full items-center justify-center gap-3 rounded-md px-3 text-sm font-medium text-slate-600 hover:bg-rose-50 hover:text-rose-600 md:justify-start dark:text-slate-400 dark:hover:bg-rose-500/10 dark:hover:text-rose-300"
         >
           <LogOut className="h-4 w-4" />
           {!collapsed && <span className="hidden md:inline">Đăng xuất</span>}
@@ -182,7 +184,7 @@ export default function Sidebar({ role }: { role: "admin" | "creator" | "student
 
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="absolute -right-3 top-20 hidden h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:text-slate-950 md:flex dark:border-white/10 dark:bg-slate-950 dark:text-slate-400 dark:hover:text-white"
+        className="absolute -right-3 top-20 hidden h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors hover:text-slate-950 md:flex dark:border-white/10 dark:bg-slate-950 dark:text-slate-400 dark:hover:text-white"
         aria-label={collapsed ? "Mở rộng thanh menu" : "Thu gọn thanh menu"}
       >
         {collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}

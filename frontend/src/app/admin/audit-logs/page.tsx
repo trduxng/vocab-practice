@@ -139,7 +139,7 @@ export default function AdminAuditLogsPage() {
           <button
             type="button"
             onClick={() => setSelectedLog(log)}
-            className="inline-flex h-8 items-center gap-2 rounded-md border border-slate-200 px-2.5 text-sm font-medium text-slate-600 hover:text-slate-950 dark:border-white/10 dark:text-slate-300 dark:hover:text-white"
+            className="inline-flex h-8 items-center gap-2 rounded-md border border-slate-200 px-2.5 text-sm font-medium text-slate-700 hover:text-slate-950 dark:border-white/10 dark:text-slate-300 dark:hover:text-white"
           >
             <Eye className="h-4 w-4" />
             View
@@ -171,13 +171,13 @@ export default function AdminAuditLogsPage() {
           }
         >
           <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex h-10 w-full items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 lg:w-96 dark:border-white/10 dark:bg-white/5">
-              <Search className="h-4 w-4 shrink-0 text-slate-400" />
+            <div className="flex h-10 w-full items-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-3 lg:w-96 dark:border-white/10 dark:bg-white/5">
+              <Search className="h-4 w-4 shrink-0 text-slate-500" />
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search action, entity, admin, details"
-                className="w-full bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400 dark:text-slate-200"
+                className="w-full bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-500 dark:text-slate-200"
               />
             </div>
             <select
@@ -212,13 +212,13 @@ export default function AdminAuditLogsPage() {
               <div className="mb-4 flex items-start justify-between gap-4">
                 <div>
                   <h2 className="text-base font-semibold text-slate-950 dark:text-white">{selectedLog.action}</h2>
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                  <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
                     {selectedLog.entityType} #{selectedLog.entityId || "N/A"} · {formatDate(selectedLog.createdAt)}
                   </p>
                 </div>
                 <StatusBadge tone="blue">Audit #{selectedLog.id}</StatusBadge>
               </div>
-              <pre className="max-h-[55vh] overflow-auto rounded-md border border-slate-200 bg-slate-50 p-4 text-xs text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
+              <pre className="max-h-[55vh] overflow-auto rounded-md border border-slate-200 bg-slate-100 p-4 text-xs text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
                 {formatDetails(selectedLog.details)}
               </pre>
               <div className="mt-4 flex justify-end">

@@ -204,7 +204,7 @@ export default function AdminDashboard() {
                     <p className="text-sm text-slate-500 dark:text-slate-400">No recent exercise activity.</p>
                   ) : recentActivity.map((item) => (
                     <div key={`${item.title}-${item.createdAt}`} className="flex gap-3">
-                      <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-white/5">
+                      <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-100 dark:border-white/10 dark:bg-white/5">
                         <Clock3 className="h-4 w-4 text-slate-500 dark:text-slate-400" />
                       </div>
                       <div className="min-w-0 flex-1">

@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle2, Clock, GripVertical, RefreshCw, Volume2, XCircle } from "lucide-react";
+import { ArrowLeft, Brain, CheckCircle2, Clock, GripVertical, RefreshCw, Volume2, XCircle } from "lucide-react";
 import { userService } from "@/src/services/user.service";
 import { useAuth } from "@/src/app/context/AuthContext";
 import { Button } from "@/src/components/ui/button";
@@ -11,6 +11,8 @@ import { Card } from "@/src/components/ui/card";
 import ReportDialog from "@/src/components/shared/ReportDialog";
 
 const QUESTION_TIME = 20;
+
+type PracticeMode = "normal" | "smart" | null;
 
 type PracticeQuestion = {
   questionId: number;
@@ -40,28 +42,48 @@ export default function UserPractice() {
   const [checked, setChecked] = useState(false);
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(QUESTION_TIME);
+  const [practiceMode, setPracticeMode] = useState<PracticeMode>(null);
   const [loading, setLoading] = useState(true);
   const [orderedItems, setOrderedItems] = useState<string[]>([]);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const router = useRouter();
 
-  useEffect(() => {
-    const fetchQuestions = async () => {
-      try {
+  const fetchQuestions = useCallback(async (mode: PracticeMode) => {
+    if (!mode) return;
+    setLoading(true);
+    try {
+      if (mode === "smart") {
+        const smartQueue = await userService.getSmartReviewQueue(15);
+        // Transform smart queue items into practice question format
+        const mapped = smartQueue.map((item: Record<string, unknown>) => ({
+          questionId: item.wordId as number,
+          wordId: item.wordId as number,
+          questionType: "FillBlank",
+          questionText: item.meaning as string,
+          correctAnswer: item.term as string,
+          term: item.term as string,
+          meaning: item.meaning as string,
+        }));
+        setQuestions(shuffle(mapped));
+      } else {
         const searchParams = new URLSearchParams(window.location.search);
         const topicId = searchParams.get("topicId") || undefined;
         const mode = searchParams.get("mode") || undefined;
         const data = await userService.getDueFlashcards({ topicId, mode });
         setQuestions(shuffle(data));
-      } catch (error) {
-        console.error("Failed to fetch questions", error);
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (error) {
+      console.error("Failed to fetch questions", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-    if (user) fetchQuestions();
-  }, [user]);
+  const handleModeSelect = useCallback((mode: PracticeMode) => {
+    if (!mode) return;
+    setPracticeMode(mode);
+    fetchQuestions(mode);
+  }, [fetchQuestions]);
 
   const current = questions[index];
   const expectedAnswer = String(current?.correctAnswer || current?.term || "");
@@ -167,16 +189,74 @@ export default function UserPractice() {
     }
   };
 
-  if (authLoading || loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-[#0a0f1e] text-white">Đang tải câu hỏi...</div>;
+  if (authLoading) {
+    return <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white">Đang xác thực...</div>;
+  }
+
+  // Show mode selector before starting
+  if (questions.length === 0 && !loading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white p-6">
+        <div className="w-full max-w-lg space-y-6 text-center">
+          <div className="w-16 h-16 bg-blue-600/20 rounded-full flex items-center justify-center mx-auto border border-blue-500/30">
+            <Brain size={32} className="text-blue-400" />
+          </div>
+          <h2 className="text-2xl font-black mb-2">Chọn chế độ luyện tập</h2>
+          <p className="text-slate-600 dark:text-slate-400 text-sm mb-8">Chọn cách bạn muốn ôn tập từ vựng hôm nay.</p>
+
+          <div className="grid gap-4">
+            <button
+              onClick={() => handleModeSelect("normal")}
+              className="group p-6 rounded-3xl border-2 border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 text-left transition-all hover:border-blue-500/40 hover:shadow-lg"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0">
+                  <RefreshCw size={22} className="text-blue-500" />
+                </div>
+                <div>
+                  <h3 className="font-black text-slate-900 dark:text-white mb-1">Luyện tập thường</h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">Câu hỏi ngẫu nhiên từ các chủ đề bạn đang học</p>
+                </div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => handleModeSelect("smart")}
+              className="group p-6 rounded-3xl border-2 border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 text-left transition-all hover:border-emerald-500/40 hover:shadow-lg"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                  <Brain size={22} className="text-emerald-500" />
+                </div>
+                <div>
+                  <h3 className="font-black text-slate-900 dark:text-white mb-1">Ôn tập thông minh</h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">Ưu tiên từ sắp quên, hay sai nhiều nhất theo SRS</p>
+                </div>
+              </div>
+            </button>
+          </div>
+
+          <button
+            onClick={() => router.push("/user/dashboard")}
+            className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-bold uppercase tracking-widest transition-colors"
+          >
+            ← Quay về tổng quan
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white">Đang tải câu hỏi...</div>;
   }
 
   if (questions.length === 0) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#0a0f1e] text-white p-6 text-center">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white p-6 text-center">
         <CheckCircle2 size={64} className="text-green-500 mb-6 opacity-20" />
         <h2 className="text-2xl font-bold mb-2">Không có câu hỏi</h2>
-        <p className="text-slate-400 mb-8">Bạn đã hoàn thành hết mục tiêu luyện tập hôm nay.</p>
+        <p className="text-slate-500 dark:text-slate-400 mb-8">Bạn đã hoàn thành hết mục tiêu luyện tập hôm nay.</p>
         <Button onClick={() => router.push("/user/dashboard")} className="bg-blue-600">Quay về tổng quan</Button>
       </div>
     );
@@ -185,16 +265,16 @@ export default function UserPractice() {
   if (index >= questions.length) {
     const accuracy = Math.round((score / questions.length) * 100);
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0a0f1e] text-white px-4">
-        <Card className="w-full max-w-md bg-white/5 border-white/10 p-8 text-center rounded-[32px]">
+      <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white px-4">
+        <Card className="w-full max-w-md bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 p-8 text-center rounded-[32px] shadow-sm">
           <div className="w-20 h-20 bg-blue-600/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-blue-500/30">
             <RefreshCw size={40} className="text-blue-400" />
           </div>
-          <h1 className="text-3xl font-bold mb-2 text-white">Hoàn thành</h1>
+          <h1 className="text-3xl font-bold mb-2 text-slate-900 dark:text-white">Hoàn thành</h1>
           <div className="flex justify-center gap-8 my-8">
             <div>
-              <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1">Điểm số</p>
-              <p className="text-2xl font-black text-white">{score}/{questions.length}</p>
+              <p className="text-slate-500 dark:text-slate-400 text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1">Điểm số</p>
+              <p className="text-2xl font-black text-slate-900 dark:text-white">{score}/{questions.length}</p>
             </div>
             <div>
               <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1">Chính xác</p>
@@ -202,7 +282,7 @@ export default function UserPractice() {
             </div>
           </div>
           <div className="flex gap-4">
-            <Button variant="outline" onClick={() => window.location.reload()} className="flex-1 border-white/10 text-white h-12 rounded-xl">Làm lại</Button>
+            <Button variant="outline" onClick={() => window.location.reload()} className="flex-1 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white h-12 rounded-xl">Làm lại</Button>
             <Button onClick={() => router.push("/user/dashboard")} className="flex-1 bg-blue-600 h-12 rounded-xl font-bold uppercase text-[10px] tracking-widest">Xong</Button>
           </div>
         </Card>
@@ -220,8 +300,8 @@ export default function UserPractice() {
         : "Điền từ vào chỗ trống";
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0a0f1e] px-4 py-10 relative">
-      <button onClick={() => router.push("/user/dashboard")} className="absolute top-8 left-8 text-slate-500 hover:text-white transition-colors flex items-center gap-2 text-xs font-bold uppercase tracking-widest">
+    <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 px-4 py-10 relative">
+      <button onClick={() => router.push("/user/dashboard")} className="absolute top-8 left-8 text-slate-500 dark:text-slate-400 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors flex items-center gap-2 text-xs font-bold uppercase tracking-widest">
         <ArrowLeft size={16} /> Thoát
       </button>
 
@@ -242,7 +322,7 @@ export default function UserPractice() {
           </div>
         </div>
 
-        <Card className="bg-white/5 border-white/10 p-12 mb-8 relative overflow-hidden rounded-[32px] shadow-2xl">
+        <Card className="bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 p-12 mb-8 relative overflow-hidden rounded-[32px] shadow-sm">
           <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-600 shadow-glow" />
           <div className="absolute right-5 top-5">
             <ReportDialog
@@ -255,10 +335,10 @@ export default function UserPractice() {
             />
           </div>
           <p className="text-blue-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4">{questionLabel}</p>
-          <h1 className="text-4xl sm:text-5xl text-white font-black mb-4 tracking-tight">
+          <h1 className="text-4xl sm:text-5xl text-slate-900 dark:text-white font-black mb-4 tracking-tight">
             {current.questionType === "MCQ" ? current.term : current.questionType === "Dictation" ? "Nghe và nhập từ" : current.meaning}
           </h1>
-          <p className="text-slate-500 text-sm font-medium italic">{current.questionText}</p>
+          <p className="text-slate-500 dark:text-slate-400 text-slate-500 text-sm font-medium italic">{current.questionText}</p>
         </Card>
 
         {current.questionType === "MCQ" ? (
@@ -267,7 +347,7 @@ export default function UserPractice() {
               const isSelected = selected === option;
               const isAnswer = option === expectedAnswer;
               return (
-                <button key={`${option}-${optionIndex}`} disabled={checked} onClick={() => setSelected(option)} className={`group relative p-6 rounded-3xl border-2 text-left transition-all ${checked ? (isAnswer ? "bg-green-500/10 border-green-500/40 text-white" : (isSelected ? "bg-red-500/10 border-red-500/40 text-white" : "bg-white/2 border-white/5 text-slate-700")) : (isSelected ? "bg-blue-600 border-blue-500 text-white scale-[1.02] shadow-2xl shadow-blue-900/40" : "bg-white/3 border-white/5 text-slate-400 hover:bg-white/5 hover:border-white/10")}`}>
+                <button key={`${option}-${optionIndex}`} disabled={checked} onClick={() => setSelected(option)} className={`group relative p-6 rounded-3xl border-2 text-left transition-all ${checked ? (isAnswer ? "bg-green-500/10 border-green-500/40 text-white" : (isSelected ? "bg-red-500/10 border-red-500/40 text-white" : "dark:bg-white/2 bg-slate-100 border-slate-200 dark:border-white/5 text-slate-500 dark:text-slate-700")) : (isSelected ? "bg-blue-600 border-blue-500 text-white scale-[1.02] shadow-2xl shadow-blue-900/40" : "dark:bg-white/3 bg-white border-slate-200 dark:border-white/5 text-slate-500 dark:text-slate-400 hover:dark:bg-white/5 hover:bg-slate-100 hover:border-slate-300 dark:hover:border-white/10")}`}>
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-lg">{option}</span>
                     {checked && isAnswer && <CheckCircle2 size={24} className="text-green-400" />}
@@ -292,7 +372,7 @@ export default function UserPractice() {
                     moveDraggedItem(itemIndex);
                   }}
                   onDrop={() => setDraggedIndex(null)}
-                  className={`flex items-center gap-4 rounded-3xl border-2 p-5 text-left transition-all ${checked ? (isCorrect ? "border-green-500/40 bg-green-500/10 text-white" : "border-red-500/40 bg-red-500/10 text-white") : "border-white/5 bg-white/3 text-slate-200 hover:border-blue-500/40 hover:bg-white/5"}`}
+                  className={`flex items-center gap-4 rounded-3xl border-2 p-5 text-left transition-all ${checked ? (isCorrect ? "border-green-500/40 bg-green-500/10 text-white" : "border-red-500/40 bg-red-500/10 text-white") : "border-slate-200 dark:border-white/5 dark:bg-white/3 bg-white text-slate-700 dark:text-slate-200 hover:border-blue-500/40 hover:dark:bg-white/5 hover:bg-slate-100"}`}
                 >
                   <GripVertical size={18} className="shrink-0 text-slate-500" />
                   <span className="text-lg font-black">{item}</span>
@@ -301,7 +381,7 @@ export default function UserPractice() {
             </div>
             {checked && !isCorrect && (
               <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl text-center">
-                <p className="text-slate-500 text-[10px] uppercase font-bold mb-1">Thứ tự đúng</p>
+                <p className="text-slate-500 dark:text-slate-400 text-slate-500 text-[10px] uppercase font-bold mb-1">Thứ tự đúng</p>
                 <p className="text-red-400 text-xl font-black">{expectedAnswer}</p>
               </div>
             )}
@@ -309,7 +389,7 @@ export default function UserPractice() {
         ) : (
           <div className="space-y-6">
             {current.questionType === "Dictation" && (
-              <button type="button" onClick={() => speak(expectedAnswer)} className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-blue-500/30 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20" aria-label="Phát âm thanh chính tả">
+              <button type="button" onClick={() => speak(expectedAnswer)} className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-300 hover:bg-blue-500/20" aria-label="Phát âm thanh chính tả">
                 <Volume2 size={28} />
               </button>
             )}
@@ -319,11 +399,11 @@ export default function UserPractice() {
               autoFocus
               onChange={(event) => setSelected(event.target.value)}
               placeholder="Nhập câu trả lời..."
-              className={`h-24 text-4xl font-black text-center rounded-[32px] bg-white/3 border-4 transition-all ${checked ? (isCorrect ? "border-green-500 text-green-400 shadow-glow-green" : "border-red-500 text-red-400 shadow-glow-red") : "border-white/5 focus:border-blue-600 focus:bg-white/5 text-white"}`}
+              className={`h-24 text-4xl font-black text-center rounded-[32px] dark:bg-white/3 bg-white border-4 transition-all ${checked ? (isCorrect ? "border-green-500 text-green-400 shadow-glow-green" : "border-red-500 text-red-400 shadow-glow-red") : "border-slate-200 dark:border-white/5 focus:border-blue-600 focus:dark:bg-white/5 focus:bg-slate-50 text-slate-900 dark:text-white"}`}
             />
             {checked && !isCorrect && (
               <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl text-center">
-                <p className="text-slate-500 text-[10px] uppercase font-bold mb-1">Đáp án đúng</p>
+                <p className="text-slate-500 dark:text-slate-400 text-slate-500 text-[10px] uppercase font-bold mb-1">Đáp án đúng</p>
                 <p className="text-red-400 text-2xl font-black">{expectedAnswer}</p>
               </div>
             )}

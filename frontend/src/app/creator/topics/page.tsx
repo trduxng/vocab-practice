@@ -115,7 +115,7 @@ export default function CreatorTopicsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Quản lý Chủ đề</h1>
-          <p className="text-slate-500 text-sm mt-1">Tạo và quản lý các chủ đề nội dung</p>
+          <p className="text-slate-600 text-sm mt-1">Tạo và quản lý các chủ đề nội dung</p>
         </div>
         <Button onClick={openCreate} className="gap-2 rounded-xl">
           <Plus className="h-4 w-4" /> Tạo mới
@@ -128,7 +128,7 @@ export default function CreatorTopicsPage() {
           <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-lg space-y-4 shadow-2xl border border-slate-200 dark:border-white/10" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold">{editing ? 'Sửa chủ đề' : 'Tạo chủ đề mới'}</h2>
-              <button onClick={() => setShowForm(false)}><X className="h-5 w-5 text-slate-400" /></button>
+              <button onClick={() => setShowForm(false)}><X className="h-5 w-5 text-slate-500" /></button>
             </div>
             <div className="space-y-3">
               <div>
@@ -192,7 +192,7 @@ export default function CreatorTopicsPage() {
             </thead>
             <tbody>
               {topics.length === 0 ? (
-                <tr><td colSpan={5} className="text-center py-12 text-slate-400">Chưa có chủ đề nào. Hãy tạo mới!</td></tr>
+                <tr><td colSpan={5} className="text-center py-12 text-slate-500">Chưa có chủ đề nào. Hãy tạo mới!</td></tr>
               ) : topics.map((t) => (
                 <tr key={t.id} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                   <td className="px-4 py-3 font-medium">{t.name}</td>

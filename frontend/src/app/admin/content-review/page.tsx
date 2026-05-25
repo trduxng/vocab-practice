@@ -228,13 +228,13 @@ export default function AdminContentReviewPage() {
               ))}
             </div>
 
-            <div className="flex h-10 w-full items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 lg:w-80 dark:border-white/10 dark:bg-white/5">
-              <Search className="h-4 w-4 shrink-0 text-slate-400" />
+            <div className="flex h-10 w-full items-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-3 lg:w-80 dark:border-white/10 dark:bg-white/5">
+              <Search className="h-4 w-4 shrink-0 text-slate-500" />
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Tìm theo tiêu đề, người tạo, ID"
-                className="w-full bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400 dark:text-slate-200"
+                className="w-full bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-500 dark:text-slate-200"
               />
             </div>
           </div>
@@ -247,7 +247,7 @@ export default function AdminContentReviewPage() {
           ) : (
             <TableShell>
               <table className="w-full min-w-[900px] text-left text-sm">
-                <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
+                <thead className="border-b border-slate-200 bg-slate-100 text-xs uppercase tracking-wide text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
                   <tr>
                     <th className="px-4 py-3 font-medium">Nội dung</th>
                     <th className="px-4 py-3 font-medium">Loại</th>

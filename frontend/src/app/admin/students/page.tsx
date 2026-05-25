@@ -319,8 +319,8 @@ export default function AdminStudents() {
           <div className="space-y-4">
             <AdminPanel>
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex h-10 flex-1 items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 dark:border-white/10 dark:bg-white/5">
-                  <Search className="h-4 w-4 text-slate-400" />
+                <div className="flex h-10 flex-1 items-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-3 dark:border-white/10 dark:bg-white/5">
+                  <Search className="h-4 w-4 text-slate-500" />
                   <input
                     value={query}
                     onChange={(event) => {
@@ -328,7 +328,7 @@ export default function AdminStudents() {
                       setPage(1);
                     }}
                     placeholder="Search name, email, or role"
-                    className="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-200"
+                    className="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-500 dark:text-slate-200"
                   />
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -350,7 +350,7 @@ export default function AdminStudents() {
 
             <TableShell>
               <table className="w-full min-w-[940px] text-left text-sm">
-                <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
+                <thead className="border-b border-slate-200 bg-slate-100 text-xs uppercase tracking-wide text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
                   <tr>
                     <th className="px-4 py-3 font-medium">User</th>
                     <th className="px-4 py-3 font-medium">Role</th>

@@ -138,9 +138,9 @@ export default function AdminCourses() {
               <div className="space-y-4">
                 <AdminPanel>
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="flex h-10 flex-1 items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 dark:border-white/10 dark:bg-white/5">
-                      <Search className="h-4 w-4 text-slate-400" />
-                      <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search real content" className="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-200" />
+                    <div className="flex h-10 flex-1 items-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-3 dark:border-white/10 dark:bg-white/5">
+                      <Search className="h-4 w-4 text-slate-500" />
+                      <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search real content" className="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-500 dark:text-slate-200" />
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {categories.map((category) => <ToolbarButton key={category} active={selectedCategory === category} onClick={() => setSelectedCategory(category)}>{category}</ToolbarButton>)}
@@ -151,17 +151,17 @@ export default function AdminCourses() {
 
                 <TableShell>
                   <table className="w-full min-w-[920px] text-left text-sm">
-                    <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
+                    <thead className="border-b border-slate-200 bg-slate-100 text-xs uppercase tracking-wide text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
                       <tr><th className="px-4 py-3 font-medium">Content</th><th className="px-4 py-3 font-medium">Category</th><th className="px-4 py-3 font-medium">Meta</th><th className="px-4 py-3 font-medium">Activity</th><th className="px-4 py-3 font-medium">Status</th><th className="px-4 py-3 font-medium">Actions</th></tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-white/10">
                       {filteredContent.length === 0 ? (
                         <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-500 dark:text-slate-400">No content found.</td></tr>
                       ) : filteredContent.map((item) => (
-                        <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-white/5">
+                        <tr key={item.id} className="hover:bg-slate-100 dark:hover:bg-white/5">
                           <td className="px-4 py-4">
                             <div className="flex items-center gap-3">
-                              <div className="flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-white/5"><FileQuestion className="h-4 w-4 text-slate-500 dark:text-slate-300" /></div>
+                              <div className="flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-slate-100 dark:border-white/10 dark:bg-white/5"><FileQuestion className="h-4 w-4 text-slate-500 dark:text-slate-300" /></div>
                               <div><p className="font-medium text-slate-950 dark:text-white">{item.title}</p><p className="text-xs text-slate-500 dark:text-slate-400">{item.type} · {item.itemCount} items · {formatDate(item.updatedAt)}</p></div>
                             </div>
                           </td>

@@ -22,7 +22,7 @@ const StudentLayout = ({ children }: { children: React.ReactNode }) => {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="flex min-h-screen bg-[#080d1a]">
+    <div className="flex min-h-screen bg-slate-100 dark:bg-slate-950">
       <Sidebar role="student" />
       <div className="flex-1 flex flex-col min-w-0">{children}</div>
     </div>

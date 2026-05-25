@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "./context/AuthContext";
 import { Toaster } from "sonner";
 
+
 export const metadata: Metadata = {
   title: "VocaBoost – Học từ vựng tiếng Anh thông minh",
   description:

@@ -386,8 +386,8 @@ export default function AdminQuestionsPage() {
             }
           >
             <div className="space-y-3">
-              <div className="flex h-10 items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 dark:border-white/10 dark:bg-white/5">
-                <Search className="h-4 w-4 shrink-0 text-slate-400" />
+              <div className="flex h-10 items-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-3 dark:border-white/10 dark:bg-white/5">
+                <Search className="h-4 w-4 shrink-0 text-slate-600" />
                 <input
                   value={wordQuery}
                   onChange={(event) => {
@@ -395,11 +395,11 @@ export default function AdminQuestionsPage() {
                     setWordPage(1);
                   }}
                   placeholder="Search word or meaning"
-                  className="w-full bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400 dark:text-slate-200"
+                  className="w-full bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-600 dark:text-slate-200"
                 />
               </div>
 
-              <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+              <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
                 <input
                   type="checkbox"
                   checked={onlyMissingQuestions}
@@ -555,8 +555,8 @@ export default function AdminQuestionsPage() {
               )}
 
               <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex h-10 flex-1 items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 dark:border-white/10 dark:bg-white/5">
-                  <Search className="h-4 w-4 shrink-0 text-slate-400" />
+                <div className="flex h-10 flex-1 items-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-3 dark:border-white/10 dark:bg-white/5">
+                  <Search className="h-4 w-4 shrink-0 text-slate-600" />
                   <input
                     value={questionQuery}
                     onChange={(event) => {
@@ -564,11 +564,11 @@ export default function AdminQuestionsPage() {
                       setQuestionsPage(1);
                     }}
                     placeholder="Search text, answer, explanation"
-                    className="w-full bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400 dark:text-slate-200"
+                    className="w-full bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-600 dark:text-slate-200"
                   />
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Filter className="h-4 w-4 text-slate-400" />
+                  <Filter className="h-4 w-4 text-slate-500" />
                   <Select value={questionTypeFilter} onChange={(value) => { setQuestionTypeFilter(value); setQuestionsPage(1); }}>
                     <option value="">All types</option>
                     {questionTypes.map((type) => <option key={type} value={type}>{type}</option>)}
@@ -588,7 +588,7 @@ export default function AdminQuestionsPage() {
 
               <div className="overflow-hidden rounded-lg border border-slate-200 dark:border-white/10">
                 <table className="w-full min-w-[920px] text-left text-sm">
-                  <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
+                  <thead className="border-b border-slate-200 bg-slate-100 text-xs uppercase tracking-wide text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
                     <tr>
                       <th className="px-4 py-3 font-medium">Question</th>
                       <th className="px-4 py-3 font-medium">Type</th>
@@ -614,7 +614,7 @@ export default function AdminQuestionsPage() {
                         <td className="px-4 py-4">
                           <p className="max-w-xl font-medium text-slate-950 dark:text-white">{question.questionText}</p>
                           <QuestionOptions optionsJson={question.optionsJson} />
-                          {question.explanation && <p className="mt-2 line-clamp-2 text-xs text-slate-500 dark:text-slate-400">{question.explanation}</p>}
+                          {question.explanation && <p className="mt-2 line-clamp-2 text-xs text-slate-600 dark:text-slate-400">{question.explanation}</p>}
                         </td>
                         <td className="px-4 py-4"><StatusBadge tone="blue">{question.questionType}</StatusBadge></td>
                         <td className="px-4 py-4 text-slate-700 dark:text-slate-300">{question.correctAnswer}</td>
@@ -649,7 +649,7 @@ export default function AdminQuestionsPage() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-2">
-      <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</label>
+      <label className="text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-400">{label}</label>
       {children}
     </div>
   );
@@ -672,7 +672,7 @@ function EmptyState({ icon: Icon, title, description }: { icon: React.ElementTyp
     <div className="py-12 text-center">
       <Icon className="mx-auto mb-3 h-8 w-8 text-slate-300 dark:text-slate-600" />
       <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{title}</p>
-      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{description}</p>
+      <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{description}</p>
     </div>
   );
 }

@@ -82,7 +82,9 @@ class UserController {
 
   static async getMiniTests(req, res, next) {
     try {
-      const tests = await UserService.getMiniTests();
+      const page = parseInt(req.query.page) || 1;
+      const pageSize = parseInt(req.query.pageSize) || 20;
+      const tests = await UserService.getMiniTests(page, pageSize);
       res.status(200).json(tests);
     } catch (error) {
       next(error);
@@ -113,7 +115,9 @@ class UserController {
   static async getTestHistory(req, res, next) {
     try {
       const userId = req.user.id;
-      const history = await UserService.getTestHistory(userId);
+      const page = parseInt(req.query.page) || 1;
+      const pageSize = parseInt(req.query.pageSize) || 20;
+      const history = await UserService.getTestHistory(userId, page, pageSize);
       res.status(200).json(history);
     } catch (error) {
       next(error);
@@ -139,6 +143,103 @@ class UserController {
       if (['Invalid report type', 'Invalid entity type', 'Report description is too short'].includes(error.message)) {
         return res.status(400).json({ message: error.message });
       }
+      next(error);
+    }
+  }
+
+  // =============== CALENDAR HEATMAP ===============
+  static async getActivityHeatmap(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const year = parseInt(req.query.year) || new Date().getFullYear();
+      const data = await UserService.getActivityHeatmap(userId, year);
+      res.status(200).json(data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // =============== DAILY GOAL ===============
+  static async getDailyProgress(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const progress = await UserService.getDailyProgress(userId);
+      res.status(200).json(progress);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // =============== SMART REVIEW QUEUE ===============
+  static async getSmartReviewQueue(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const limit = parseInt(req.query.limit) || 20;
+      const queue = await UserService.getSmartReviewQueue(userId, limit);
+      res.status(200).json(queue);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // =============== VOCABULARY NOTEBOOK ===============
+  static async getNotebook(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const page = parseInt(req.query.page) || 1;
+      const pageSize = parseInt(req.query.pageSize) || 20;
+      const notebook = await UserService.getNotebook(userId, page, pageSize);
+      res.status(200).json(notebook);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async addNotebookEntry(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const { wordId, personalNote } = req.body;
+      if (!wordId) return res.status(400).json({ message: 'Thiếu wordId' });
+      const entry = await UserService.addNotebookEntry(userId, wordId, personalNote);
+      res.status(201).json({ message: 'Đã thêm vào sổ tay', data: entry });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async updateNotebookEntry(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const { id } = req.params;
+      const { personalNote, isFavorite } = req.body;
+      const entry = await UserService.updateNotebookEntry(id, userId, { personalNote, isFavorite });
+      if (!entry) return res.status(404).json({ message: 'Không tìm thấy mục trong sổ tay' });
+      res.status(200).json({ message: 'Đã cập nhật sổ tay', data: entry });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async deleteNotebookEntry(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const { id } = req.params;
+      const entry = await UserService.deleteNotebookEntry(id, userId);
+      if (!entry) return res.status(404).json({ message: 'Không tìm thấy mục trong sổ tay' });
+      res.status(200).json({ message: 'Đã xóa khỏi sổ tay' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async checkNotebookEntry(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const wordId = parseInt(req.query.wordId);
+      if (!wordId) return res.status(400).json({ message: 'Thiếu wordId' });
+      const entry = await UserService.checkNotebookEntry(userId, wordId);
+      res.status(200).json(entry || {});
+    } catch (error) {
       next(error);
     }
   }
