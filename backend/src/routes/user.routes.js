@@ -1,6 +1,7 @@
 const express = require('express');
 const UserController = require('../controllers/user.controller');
 const authMiddleware = require('../middlewares/auth');
+const { validate, schemas } = require('../middlewares/validate');
 
 const router = express.Router();
 
@@ -19,5 +20,6 @@ router.get('/minitests/session-details', UserController.getTestSessionDetails);
 router.get('/minitests/:id', UserController.getMiniTestDetails);
 
 router.put('/profile', UserController.updateProfile);
+router.post('/reports', validate(schemas.createReport), UserController.createReport);
 
 module.exports = router;

@@ -1,4 +1,5 @@
 const UserService = require('../services/user.service');
+const ReportService = require('../services/report.service');
 
 class UserController {
   static async submitAnswer(req, res, next) {
@@ -126,6 +127,18 @@ class UserController {
       const details = await UserService.getTestSessionDetails(userId, testId, date);
       res.status(200).json(details);
     } catch (error) {
+      next(error);
+    }
+  }
+
+  static async createReport(req, res, next) {
+    try {
+      const result = await ReportService.createReport(req.user.id, req.body);
+      res.status(201).json({ message: 'Report submitted', data: result });
+    } catch (error) {
+      if (['Invalid report type', 'Invalid entity type', 'Report description is too short'].includes(error.message)) {
+        return res.status(400).json({ message: error.message });
+      }
       next(error);
     }
   }

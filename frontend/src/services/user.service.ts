@@ -21,8 +21,20 @@ export const userService = {
     return response.data;
   },
 
-  async submitAnswer(data: any) {
+  async submitAnswer(data: unknown) {
     const response = await apiClient.post('/user/submit-answer', data);
+    return response.data;
+  },
+
+  async submitReport(data: {
+    reportType: 'WordIncorrect' | 'AudioIssue' | 'AnswerIncorrect' | 'Typo' | 'Other';
+    entityType?: 'Word' | 'Question' | 'Audio' | 'General';
+    wordId?: number;
+    questionId?: number;
+    title?: string;
+    description: string;
+  }) {
+    const response = await apiClient.post('/user/reports', data);
     return response.data;
   },
 
@@ -46,7 +58,7 @@ export const userService = {
     return response.data;
   },
 
-  async updateProfile(data: any) {
+  async updateProfile(data: unknown) {
     const response = await apiClient.put('/user/profile', data);
     return response.data;
   }

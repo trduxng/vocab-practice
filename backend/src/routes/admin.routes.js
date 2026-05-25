@@ -54,6 +54,8 @@ router.get('/analytics', checkPermission('VIEW_DASHBOARD'), AdminController.getA
 router.get('/content-management', checkPermission('VIEW_DASHBOARD'), AdminController.getContentManagement);
 router.patch('/content-status', checkAnyPermission(['MANAGE_SYSTEM_SETTINGS', 'MANAGE_TOPICS', 'MANAGE_WORDS', 'MANAGE_QUESTIONS', 'MANAGE_TESTS']), validate(schemas.contentStatus), AdminController.updateContentStatus);
 router.get('/audit-logs', checkAnyPermission(['VIEW_AUDIT_LOGS', 'MANAGE_SYSTEM_SETTINGS', 'MANAGE_USERS']), AdminController.getAuditLogs);
+router.get('/reports', checkAnyPermission(['MANAGE_REPORTS', 'MANAGE_SYSTEM_SETTINGS']), AdminController.getReports);
+router.patch('/reports/:id', checkAnyPermission(['MANAGE_REPORTS', 'MANAGE_SYSTEM_SETTINGS']), validate(schemas.updateReport), AdminController.updateReport);
 
 // Notifications
 router.get('/notifications', checkPermission('MANAGE_NOTIFICATIONS'), AdminController.getNotifications);

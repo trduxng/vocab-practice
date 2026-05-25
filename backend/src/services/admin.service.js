@@ -1307,7 +1307,8 @@ class AdminService {
   }
 
   static async createQuestion(questionData, adminId) {
-    const { wordId, questionType, questionText, optionsJson = '[]', correctAnswer, explanation } = questionData;
+    const { wordId, questionType, questionText, optionsJson = '[]', correctAnswer, explanation, status = 'Published' } = questionData;
+    this.assertContentStatus(status);
     const pool = await poolPromise;
     const result = await pool.request()
       .input('WordID', sql.BigInt, wordId)
@@ -1316,20 +1317,29 @@ class AdminService {
       .input('OptionsJson', sql.NVarChar(sql.MAX), optionsJson)
       .input('CorrectAnswer', sql.NVarChar(500), correctAnswer)
       .input('Explanation', sql.NVarChar(2000), explanation)
+      .input('ContentStatus', sql.NVarChar(30), status)
       .input('CreatedByUserID', sql.BigInt, adminId)
       .query(`
-        INSERT INTO Questions (WordID, QuestionType, QuestionText, OptionsJson, CorrectAnswer, Explanation, CreatedByUserID, CreatedAt, UpdatedAt)
+        INSERT INTO Questions (WordID, QuestionType, QuestionText, OptionsJson, CorrectAnswer, Explanation, ContentStatus, CreatedByUserID, CreatedAt, UpdatedAt, PublishedAt)
         OUTPUT inserted.QuestionID AS id
-        VALUES (@WordID, @QuestionType, @QuestionText, @OptionsJson, @CorrectAnswer, @Explanation, @CreatedByUserID, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
+        VALUES (@WordID, @QuestionType, @QuestionText, @OptionsJson, @CorrectAnswer, @Explanation, @ContentStatus, @CreatedByUserID, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET(), CASE WHEN @ContentStatus = N'Published' THEN SYSDATETIMEOFFSET() ELSE NULL END)
       `);
     const created = result.recordset[0];
-    await this.logAdminAction(adminId, 'CREATE_QUESTION', 'Question', created.id, { wordId, questionType });
+    await this.logAdminAction(adminId, 'CREATE_QUESTION', 'Question', created.id, { wordId, questionType, status });
     return created;
   }
 
   static async updateQuestion(questionId, questionData, adminId) {
-    const { wordId, questionType, questionText, optionsJson = '[]', correctAnswer, explanation } = questionData;
+    const { wordId, questionType, questionText, optionsJson = '[]', correctAnswer, explanation, status = 'Published' } = questionData;
+    this.assertContentStatus(status);
     const pool = await poolPromise;
+    const oldStatusResult = await pool.request()
+      .input('QuestionID', sql.BigInt, questionId)
+      .query('SELECT ContentStatus FROM Questions WHERE QuestionID = @QuestionID');
+
+    if (oldStatusResult.recordset.length === 0) return false;
+    const oldStatus = oldStatusResult.recordset[0].ContentStatus;
+
     const result = await pool.request()
       .input('QuestionID', sql.BigInt, questionId)
       .input('WordID', sql.BigInt, wordId)
@@ -1338,6 +1348,9 @@ class AdminService {
       .input('OptionsJson', sql.NVarChar(sql.MAX), optionsJson)
       .input('CorrectAnswer', sql.NVarChar(500), correctAnswer)
       .input('Explanation', sql.NVarChar(2000), explanation)
+      .input('ContentStatus', sql.NVarChar(30), status)
+      .input('OldStatus', sql.NVarChar(30), oldStatus)
+      .input('ReviewedByUserID', sql.BigInt, adminId)
       .query(`
         UPDATE Questions
         SET WordID = @WordID,
@@ -1346,12 +1359,19 @@ class AdminService {
             OptionsJson = @OptionsJson,
             CorrectAnswer = @CorrectAnswer,
             Explanation = @Explanation,
+            ContentStatus = @ContentStatus,
+            ReviewedByUserID = @ReviewedByUserID,
+            ReviewedAt = CASE WHEN @ContentStatus <> @OldStatus THEN SYSDATETIMEOFFSET() ELSE ReviewedAt END,
+            PublishedAt = CASE WHEN @ContentStatus = N'Published' AND @OldStatus <> N'Published' THEN SYSDATETIMEOFFSET() ELSE PublishedAt END,
             UpdatedAt = SYSDATETIMEOFFSET()
         WHERE QuestionID = @QuestionID
       `);
 
     if (result.rowsAffected[0] > 0) {
-      await this.logAdminAction(adminId, 'UPDATE_QUESTION', 'Question', questionId, { wordId, questionType });
+      if (oldStatus !== status) {
+        await this.logContentReview('Question', questionId, oldStatus, status, adminId, 'Updated from question manager');
+      }
+      await this.logAdminAction(adminId, 'UPDATE_QUESTION', 'Question', questionId, { wordId, questionType, oldStatus, status });
     }
 
     return result.rowsAffected[0] > 0;
@@ -1806,6 +1826,7 @@ class AdminService {
       const correctAnswer = row.correctAnswer ?? row.CorrectAnswer;
       const optionsJson = row.optionsJson ?? row.OptionsJson ?? '[]';
       const explanation = row.explanation ?? row.Explanation ?? null;
+      const status = row.status ?? row.ContentStatus ?? 'Published';
 
       try {
         if (!wordId || !questionType || !questionText || !correctAnswer) {
@@ -1820,7 +1841,8 @@ class AdminService {
           questionText,
           optionsJson: optionsJson || '[]',
           correctAnswer,
-          explanation
+          explanation,
+          status
         }, adminId);
 
         results.success += 1;
@@ -2403,64 +2425,6 @@ class AdminService {
     return { inserted: result.recordset[0].inserted };
   }
 
-  // ── TopicCategories CRUD (Admin only) ──
-  static async getTopicCategories() {
-    const pool = await poolPromise;
-    const result = await pool.request().query(`
-      SELECT TopicCategoryID AS id, CategoryName AS name, CategoryCode AS code,
-             Description AS description, IconUrl AS iconUrl, DisplayOrder AS displayOrder,
-             IsActive AS isActive
-      FROM TopicCategories
-      ORDER BY DisplayOrder, CategoryName
-    `);
-    return result.recordset;
-  }
-
-  static async createTopicCategory(data) {
-    const { categoryName, categoryCode, description, iconUrl, displayOrder, isActive } = data;
-    const pool = await poolPromise;
-    const result = await pool.request()
-      .input('CategoryName', sql.NVarChar(200), categoryName)
-      .input('CategoryCode', sql.NVarChar(50), categoryCode)
-      .input('Description', sql.NVarChar(1000), description || null)
-      .input('IconUrl', sql.NVarChar(500), iconUrl || null)
-      .input('DisplayOrder', sql.Int, displayOrder || 0)
-      .input('IsActive', sql.Bit, isActive !== false)
-      .query(`
-        INSERT INTO TopicCategories (CategoryName, CategoryCode, Description, IconUrl, DisplayOrder, IsActive, CreatedAt, UpdatedAt)
-        OUTPUT inserted.TopicCategoryID AS id
-        VALUES (@CategoryName, @CategoryCode, @Description, @IconUrl, @DisplayOrder, @IsActive, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
-      `);
-    return result.recordset[0];
-  }
-
-  static async updateTopicCategory(id, data) {
-    const { categoryName, categoryCode, description, iconUrl, displayOrder, isActive } = data;
-    const pool = await poolPromise;
-    const result = await pool.request()
-      .input('ID', sql.BigInt, id)
-      .input('CategoryName', sql.NVarChar(200), categoryName)
-      .input('CategoryCode', sql.NVarChar(50), categoryCode)
-      .input('Description', sql.NVarChar(1000), description || null)
-      .input('IconUrl', sql.NVarChar(500), iconUrl || null)
-      .input('DisplayOrder', sql.Int, displayOrder || 0)
-      .input('IsActive', sql.Bit, isActive !== false)
-      .query(`
-        UPDATE TopicCategories
-        SET CategoryName=@CategoryName, CategoryCode=@CategoryCode, Description=@Description,
-            IconUrl=@IconUrl, DisplayOrder=@DisplayOrder, IsActive=@IsActive, UpdatedAt=SYSDATETIMEOFFSET()
-        WHERE TopicCategoryID=@ID
-      `);
-    return result.rowsAffected[0] > 0;
-  }
-
-  static async deleteTopicCategory(id) {
-    const pool = await poolPromise;
-    const result = await pool.request()
-      .input('ID', sql.BigInt, id)
-      .query('DELETE FROM TopicCategories WHERE TopicCategoryID=@ID');
-    return result.rowsAffected[0] > 0;
-  }
 }
 
 module.exports = AdminService;

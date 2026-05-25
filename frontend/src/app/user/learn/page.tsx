@@ -6,6 +6,7 @@ import { ArrowLeft, Check, Trophy, Volume2, X } from "lucide-react";
 import { userService } from "@/src/services/user.service";
 import { useAuth } from "@/src/app/context/AuthContext";
 import { Button } from "@/src/components/ui/button";
+import ReportDialog from "@/src/components/shared/ReportDialog";
 
 type Flashcard = {
   questionId?: number;
@@ -147,6 +148,16 @@ const StudentFlashcard = () => {
 
         {card && (
           <div className="relative" style={{ perspective: "2000px" }}>
+            <div className="mb-4 flex justify-end">
+              <ReportDialog
+                wordId={card.wordId}
+                questionId={card.questionId}
+                entityType="Word"
+                defaultType="WordIncorrect"
+                title={`Report word: ${card.term}`}
+                context={card.meaning}
+              />
+            </div>
             <div
               onClick={() => setFlipped(!flipped)}
               className="relative w-full h-[480px] cursor-pointer transition-all duration-700 ease-in-out"

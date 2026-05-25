@@ -26,6 +26,7 @@ export const ADMIN_ACCESS_PERMISSIONS: PermissionCode[] = [
   PERMISSIONS.manageQuestions,
   PERMISSIONS.manageTests,
   PERMISSIONS.reviewContent,
+  PERMISSIONS.manageReports,
   PERMISSIONS.manageNotifications,
   PERMISSIONS.manageSystemSettings,
   PERMISSIONS.viewAuditLogs,
