@@ -69,7 +69,7 @@ export default function AdminTopicCategoriesPage() {
       <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead><tr className="border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5">
+            <thead><tr className="border-b border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5">
               <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Tên</th>
               <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Mã</th>
               <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Thứ tự</th>

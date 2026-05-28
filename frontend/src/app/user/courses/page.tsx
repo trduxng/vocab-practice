@@ -132,18 +132,18 @@ const UserCoursesPage = () => {
 
   if (authLoading || loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#080d1a] text-sm font-semibold text-slate-200">
+      <div className="flex min-h-screen items-center justify-center bg-slate-100 dark:bg-slate-950 text-sm font-semibold text-slate-700 dark:text-slate-200">
         Đang tải lộ trình học...
       </div>
     );
   }
 
   return (
-    <div className="flex flex-1 flex-col bg-[#080d1a]">
+    <div className="flex flex-1 flex-col bg-slate-100 dark:bg-slate-950">
       <Topbar title="Lộ trình TOEIC" role="student" userName={user?.fullName} />
 
       <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 overflow-auto px-4 py-6 sm:px-6 lg:px-8">
-        <section className="rounded-lg border border-white/10 bg-[#111827] p-5">
+        <section className="rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 p-5 shadow-sm">
           <div className="mb-5 flex justify-end">
             <Button
               onClick={() => router.push("/user/learn")}
@@ -163,13 +163,13 @@ const UserCoursesPage = () => {
         </section>
 
         <section className="space-y-4">
-          <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-[#111827] px-4 py-3">
+          <div className="flex items-center gap-3 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 px-4 py-3 shadow-sm">
             <Search className="h-4 w-4 text-slate-500" />
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Tìm topic, mã khóa học..."
-              className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
+              className="min-w-0 flex-1 bg-transparent text-sm text-slate-900 dark:text-white outline-none placeholder:text-slate-500 dark:placeholder:text-slate-500 placeholder:text-slate-400"
             />
           </div>
 
@@ -186,7 +186,7 @@ const UserCoursesPage = () => {
                   className={`rounded-lg border p-4 text-left transition ${
                     isSelected
                       ? "border-cyan-400/50 bg-cyan-400/10"
-                      : "border-white/10 bg-[#111827] hover:border-white/20 hover:bg-white/5"
+                      : "border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-white/20 hover:bg-slate-50 dark:hover:bg-white/5"
                   }`}
                 >
                   <div className="mb-3 flex items-start justify-between gap-3">
@@ -194,19 +194,19 @@ const UserCoursesPage = () => {
                       <span className={`mb-2 inline-flex rounded-md border px-2 py-1 text-xs font-semibold ${tone}`}>
                         {getStage(topic, index)}
                       </span>
-                      <h2 className="truncate text-base font-bold text-white">{topic.name}</h2>
-                      <p className="mt-1 text-xs text-slate-500">{topic.code || "TOEIC"}</p>
+                      <h2 className="truncate text-base font-bold text-slate-900 dark:text-white">{topic.name}</h2>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 text-slate-500">{topic.code || "TOEIC"}</p>
                     </div>
-                    <span className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs font-semibold text-slate-300">
+                    <span className="rounded-md border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-2 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
                       {numberValue(topic.wordCount)} từ
                     </span>
                   </div>
 
-                  <p className="mb-4 line-clamp-2 text-sm leading-6 text-slate-400">
+                  <p className="mb-4 line-clamp-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
                     {topic.description || "Bộ từ vựng TOEIC cho quá trình học và ôn tập ngắn mỗi ngày."}
                   </p>
 
-                  <div className="mb-2 flex items-center justify-between text-xs text-slate-400">
+                  <div className="mb-2 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
                     <span>{numberValue(topic.masteredCount)} đã nắm chắc</span>
                     <span>{Math.round(progress)}%</span>
                   </div>
@@ -219,23 +219,23 @@ const UserCoursesPage = () => {
           </div>
 
           {filteredTopics.length === 0 && (
-            <div className="rounded-lg border border-white/10 bg-[#111827] p-6 text-center text-sm text-slate-400">
+            <div className="rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 p-6 text-center text-sm text-slate-500 dark:text-slate-400">
               Không tìm thấy topic phù hợp.
             </div>
           )}
         </section>
 
         {selectedTopic && (
-          <section className="rounded-lg border border-white/10 bg-[#111827]">
-            <div className="border-b border-white/10 p-5">
+          <section className="rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 shadow-sm">
+            <div className="border-b border-slate-200 dark:border-white/10 p-5">
               <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div>
-                  <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-cyan-200">
+                  <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-cyan-700 dark:text-cyan-200">
                     <ListChecks className="h-4 w-4" />
                     {selectedTopic.code || "Topic TOEIC"}
                   </div>
-                  <h2 className="text-2xl font-bold text-white">{selectedTopic.name}</h2>
-                  <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+                  <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{selectedTopic.name}</h2>
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">
                     {selectedTopic.description || "Học bằng flashcard, xem ví dụ, rồi ôn lại các từ đến hạn."}
                   </p>
                 </div>
@@ -250,7 +250,7 @@ const UserCoursesPage = () => {
                   </Button>
                   <Button
                     onClick={() => router.push(`/user/learn?topicId=${selectedTopic.id}&mode=learned`)}
-                    className="h-10 rounded-lg bg-white/10 px-4 text-sm font-semibold text-white hover:bg-white/15"
+                    className="h-10 rounded-lg bg-slate-100 dark:bg-white/10 px-4 text-sm font-semibold text-slate-900 dark:text-white hover:bg-slate-200 dark:hover:bg-white/15"
                   >
                     <RefreshCw className="h-4 w-4" />
                     Ôn đã học
@@ -260,7 +260,7 @@ const UserCoursesPage = () => {
                       setSelectedTopic(null);
                       setCourseWords([]);
                     }}
-                    className="h-10 rounded-lg bg-white/5 px-3 text-sm font-semibold text-white hover:bg-white/10"
+                    className="h-10 rounded-lg bg-slate-100 dark:bg-white/5 px-3 text-sm font-semibold text-slate-900 dark:text-white hover:bg-slate-200 dark:hover:bg-white/10"
                     aria-label="Đóng chi tiết topic"
                   >
                     <X className="h-4 w-4" />
@@ -276,11 +276,11 @@ const UserCoursesPage = () => {
               </div>
 
               <div className="mt-5">
-                <div className="mb-2 flex justify-between text-xs text-slate-400">
+                <div className="mb-2 flex justify-between text-xs text-slate-500 dark:text-slate-400">
                   <span>Hoàn thành topic</span>
                   <span>{Math.round(selectedProgress)}%</span>
                 </div>
-                <div className="h-2 overflow-hidden rounded-full bg-white/[0.08]">
+                <div className="h-2 overflow-hidden rounded-full bg-white/[0.08] dark:bg-white/[0.08] bg-slate-200">
                   <div className="h-full rounded-full bg-emerald-400" style={{ width: `${selectedProgress}%` }} />
                 </div>
               </div>
@@ -288,11 +288,11 @@ const UserCoursesPage = () => {
 
             <div className="max-h-[560px] overflow-auto">
               {wordsLoading ? (
-                <div className="p-8 text-center text-sm font-semibold text-slate-400">Đang tải từ vựng...</div>
+                <div className="p-8 text-center text-sm font-semibold text-slate-500 dark:text-slate-400">Đang tải từ vựng...</div>
               ) : courseWords.length === 0 ? (
-                <div className="p-8 text-center text-sm font-semibold text-slate-400">Topic này chưa có từ vựng.</div>
+                <div className="p-8 text-center text-sm font-semibold text-slate-500 dark:text-slate-400">Topic này chưa có từ vựng.</div>
               ) : (
-                <div className="divide-y divide-white/[0.08]">
+                <div className="divide-y divide-slate-200 dark:divide-white/[0.08]">
                   {courseWords.map((word) => (
                     <WordRow key={word.wordId} word={word} />
                   ))}
@@ -314,12 +314,12 @@ type MetricProps = {
 };
 
 const Metric = ({ icon: Icon, label, value, compact = false }: MetricProps) => (
-  <div className={`rounded-lg border border-white/10 bg-white/[0.04] ${compact ? "p-3" : "p-4"}`}>
-    <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-slate-400">
-      <Icon className="h-4 w-4 text-cyan-300" />
+  <div className={`rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.04] shadow-sm ${compact ? "p-3" : "p-4"}`}>
+    <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+      <Icon className="h-4 w-4 text-cyan-600 dark:text-cyan-300" />
       {label}
     </div>
-    <div className={`${compact ? "text-xl" : "text-2xl"} font-bold text-white`}>{value}</div>
+    <div className={`${compact ? "text-xl" : "text-2xl"} font-bold text-slate-900 dark:text-white`}>{value}</div>
   </div>
 );
 
@@ -330,9 +330,8 @@ const WordRow = ({ word }: { word: TopicWord }) => {
     <div className="grid gap-4 p-4 md:grid-cols-[1fr_1.4fr_130px] md:items-center">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <h3 className="truncate text-base font-bold text-white">{word.term}</h3>
-          {word.partOfSpeechName && (
-            <span className="rounded-md border border-cyan-400/20 bg-cyan-400/10 px-2 py-1 text-xs font-semibold text-cyan-200">
+          <h3 className="truncate text-base font-bold text-slate-900 dark:text-white">{word.term}</h3>
+          {word.partOfSpeechName && (              <span className="rounded-md border border-cyan-400/20 dark:border-cyan-400/20 border-cyan-400/30 bg-cyan-400/10 px-2 py-1 text-xs font-semibold text-cyan-700 dark:text-cyan-200">
               {word.partOfSpeechName}
             </span>
           )}
@@ -341,18 +340,18 @@ const WordRow = ({ word }: { word: TopicWord }) => {
       </div>
 
       <div className="min-w-0">
-        <p className="text-sm font-medium leading-6 text-slate-200">{word.meaning}</p>
+        <p className="text-sm font-medium leading-6 text-slate-700 dark:text-slate-200">{word.meaning}</p>
         {word.exampleSentence && (
           <p className="mt-1 truncate text-xs text-slate-500">{word.exampleSentence}</p>
         )}
       </div>
 
       <div>
-        <div className="mb-2 flex justify-between text-xs text-slate-500">
+        <div className="mb-2 flex justify-between text-xs text-slate-500 dark:text-slate-400 text-slate-500">
           <span>{word.memoryStatus || "Mới"}</span>
           <span>{mastery}/10</span>
         </div>
-        <div className="h-2 overflow-hidden rounded-full bg-white/[0.08]">
+        <div className="h-2 overflow-hidden rounded-full bg-white/[0.08] dark:bg-white/[0.08] bg-slate-200">
           <div className="h-full rounded-full bg-emerald-400" style={{ width: `${mastery * 10}%` }} />
         </div>
       </div>

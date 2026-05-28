@@ -1,12 +1,11 @@
-const { sql, poolPromise } = require('../config/db');
+const { sql, poolPromise } = require("../config/db");
 
 class UserService {
   static async getFlashcards(userId) {
     const pool = await poolPromise;
-    const result = await pool.request()
-      .input('UserID', sql.BigInt, userId)
+    const result = await pool.request().input("UserID", sql.BigInt, userId)
       .query(`
-        SELECT TOP 10 q.QuestionID AS questionId, q.QuestionText AS questionText, 
+        SELECT TOP 10 q.QuestionID AS questionId, q.QuestionText AS questionText,
                q.CorrectAnswer AS term, w.Phonetic AS phonetic, w.Meaning AS meaning,
                w.WordID AS wordId
         FROM Questions q
@@ -20,18 +19,18 @@ class UserService {
 
   static async getDueFlashcards(userId, { topicId = null, mode = null } = {}) {
     const pool = await poolPromise;
-    const result = await pool.request()
-      .input('UserID', sql.BigInt, userId)
-      .input('TopicID', sql.BigInt, topicId ? Number(topicId) : null)
-      .input('Mode', sql.NVarChar(20), mode || '')
-      .query(`
-        SELECT TOP 15 
-          q.QuestionID AS questionId, 
+    const result = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId)
+      .input("TopicID", sql.BigInt, topicId ? Number(topicId) : null)
+      .input("Mode", sql.NVarChar(20), mode || "").query(`
+        SELECT TOP 15
+          q.QuestionID AS questionId,
           q.QuestionType AS questionType,
-          COALESCE(q.QuestionText, w.Meaning) AS questionText, 
+          COALESCE(q.QuestionText, w.Meaning) AS questionText,
           COALESCE(q.CorrectAnswer, w.Term) AS correctAnswer,
           q.OptionsJson AS optionsJson,
-          w.Phonetic AS phonetic, 
+          w.Phonetic AS phonetic,
           w.Meaning AS meaning,
           w.Term AS term,
           w.AudioUrlUK AS audioUrlUK,
@@ -70,10 +69,10 @@ class UserService {
 
   static async getTopicWords(userId, topicId) {
     const pool = await poolPromise;
-    const result = await pool.request()
-      .input('UserID', sql.BigInt, userId)
-      .input('TopicID', sql.BigInt, topicId)
-      .query(`
+    const result = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId)
+      .input("TopicID", sql.BigInt, topicId).query(`
         SELECT
           w.WordID AS wordId,
           w.Term AS term,
@@ -102,23 +101,41 @@ class UserService {
     return result.recordset;
   }
 
-  static async submitAnswer({ userId, questionId, submittedAnswer }) {
+  static async submitAnswer({ userId, questionId, wordId, submittedAnswer, isCorrect }) {
     const pool = await poolPromise;
-    const result = await pool.request()
-      .input('UserID', sql.BigInt, userId)
-      .input('QuestionID', sql.BigInt, questionId)
-      .input('SubmittedAnswer', sql.NVarChar(1000), submittedAnswer || '')
-      .execute('usp_SubmitQuestionAttempt');
+    const result = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId)
+      .input("QuestionID", sql.BigInt, questionId)
+      .input("SubmittedAnswer", sql.NVarChar(1000), submittedAnswer || "")
+      .execute("usp_SubmitQuestionAttempt");
+
+    // Award XP for correct answers
+    const correct = isCorrect !== undefined ? Boolean(isCorrect) : (result.recordset[0]?.isCorrect === true);
+    const xpToAward = correct ? 10 : 0;
+    if (xpToAward > 0) {
+      await pool.request()
+        .input("UserID", sql.BigInt, userId)
+        .input("XPAwarded", sql.Int, xpToAward)
+        .query(`
+          UPDATE dbo.Users
+          SET
+            TotalXP = ISNULL(TotalXP, 0) + @XPAwarded,
+            CurrentLevel = FLOOR((ISNULL(TotalXP, 0) + @XPAwarded) / 100) + 1
+          WHERE UserID = @UserID
+        `);
+    }
+
     return result.recordset[0];
   }
 
   static async submitWordReview({ userId, wordId, isCorrect }) {
     const pool = await poolPromise;
-    const result = await pool.request()
-      .input('UserID', sql.BigInt, userId)
-      .input('WordID', sql.BigInt, wordId)
-      .input('IsCorrect', sql.Bit, Boolean(isCorrect))
-      .query(`
+    const result = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId)
+      .input("WordID", sql.BigInt, wordId)
+      .input("IsCorrect", sql.Bit, Boolean(isCorrect)).query(`
         DECLARE @Now DATETIMEOFFSET(7) = SYSDATETIMEOFFSET();
 
         MERGE UserWordProgress WITH (HOLDLOCK) AS target
@@ -173,6 +190,14 @@ class UserService {
             @Now
           )
         OUTPUT inserted.UserWordProgressID AS id, inserted.MasteryLevel AS masteryLevel, inserted.MemoryStatus AS memoryStatus;
+
+        -- Update total XP and level
+        UPDATE dbo.Users
+        SET
+          TotalXP = ISNULL(TotalXP, 0) + CASE WHEN @IsCorrect = 1 THEN 10 ELSE 0 END,
+          CurrentLevel = FLOOR((ISNULL(TotalXP, 0) + CASE WHEN @IsCorrect = 1 THEN 10 ELSE 0 END) / 100) + 1,
+          UpdatedAt = @Now
+        WHERE UserID = @UserID;
       `);
 
     return result.recordset[0];
@@ -180,17 +205,20 @@ class UserService {
 
   static async getUserStats(userId) {
     const pool = await poolPromise;
-    
+
     // 1. Total words learned
-    const learnedResult = await pool.request()
-      .input('UserID', sql.BigInt, userId)
-      .query('SELECT COUNT(*) AS total FROM UserWordProgress WHERE UserID = @UserID AND MasteryLevel >= 3');
+    const learnedResult = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId)
+      .query(
+        "SELECT COUNT(*) AS total FROM UserWordProgress WHERE UserID = @UserID AND MasteryLevel >= 3",
+      );
 
     // 2. Accuracy rate
-    const accuracyResult = await pool.request()
-      .input('UserID', sql.BigInt, userId)
-      .query(`
-        SELECT 
+    const accuracyResult = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId).query(`
+        SELECT
           CAST(SUM(CASE WHEN IsCorrect = 1 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0) AS DECIMAL(5,2)) AS accuracy,
           SUM(CASE WHEN IsCorrect = 1 THEN 1 ELSE 0 END) AS correct,
           SUM(CASE WHEN IsCorrect = 0 THEN 1 ELSE 0 END) AS wrong
@@ -198,9 +226,9 @@ class UserService {
       `);
 
     // 3. Weak words
-    const weakWordsResult = await pool.request()
-      .input('UserID', sql.BigInt, userId)
-      .query(`
+    const weakWordsResult = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId).query(`
         SELECT TOP 5 w.Term AS word, w.Meaning AS meaning
         FROM UserWordProgress uwp
         JOIN Words w ON uwp.WordID = w.WordID
@@ -209,15 +237,46 @@ class UserService {
       `);
 
     // 4. Recent attempts
-    const recentAttemptsResult = await pool.request()
-      .input('UserID', sql.BigInt, userId)
-      .query(`
+    const recentAttemptsResult = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId).query(`
         SELECT TOP 10 ea.SubmittedAnswer AS answer, ea.IsCorrect AS isCorrect, ea.AttemptedAt AS date, w.Term AS term
         FROM ExerciseAttempts ea
         JOIN Words w ON ea.WordID = w.WordID
         WHERE ea.UserID = @UserID
         ORDER BY ea.AttemptedAt DESC
       `);
+
+    // 3b. Real streak calculation (consecutive days)
+    const streakResult = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId).query(`
+        WITH DailyActivity AS (
+          SELECT DISTINCT CAST(AttemptedAt AS DATE) AS StudyDate
+          FROM ExerciseAttempts
+          WHERE UserID = @UserID
+        ),
+        RankedDates AS (
+          SELECT
+            StudyDate,
+            DATEDIFF(DAY, ROW_NUMBER() OVER (ORDER BY StudyDate DESC), StudyDate) AS grp
+          FROM DailyActivity
+        )
+        SELECT COUNT(*) AS streak
+        FROM RankedDates
+        WHERE grp = (SELECT MAX(grp) FROM RankedDates)
+      `);
+
+    // 3c. Total XP and Level
+    const xpResult = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId).query(`
+        SELECT TotalXP, CurrentLevel FROM dbo.Users WHERE UserID = @UserID
+      `);
+
+    const streak = streakResult.recordset[0]?.streak || 0;
+    const totalXP = xpResult.recordset[0]?.TotalXP || 0;
+    const currentLevel = xpResult.recordset[0]?.CurrentLevel || 1;
 
     const stats = {
       totalLearned: learnedResult.recordset[0].total,
@@ -226,37 +285,71 @@ class UserService {
       wrong: accuracyResult.recordset[0].wrong || 0,
       weakWords: weakWordsResult.recordset,
       recentAttempts: recentAttemptsResult.recordset,
-      streak: 5 
+      streak,
+      totalXP,
+      currentLevel,
     };
 
     stats.masteryTimeline = await this.getMasteryTimeline(userId);
 
     // 5. Daily trends (Last 7 days)
-    const trendsResult = await pool.request()
-      .input('UserID', sql.BigInt, userId)
-      .query(`
+    const trendsResult = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId).query(`
         SELECT CAST(AttemptedAt AS DATE) AS date, COUNT(*) AS count
         FROM ExerciseAttempts
         WHERE UserID = @UserID AND AttemptedAt >= DATEADD(day, -7, SYSDATETIMEOFFSET())
         GROUP BY CAST(AttemptedAt AS DATE)
         ORDER BY date ASC
       `);
-    
-    stats.dailyTrends = trendsResult.recordset.map(r => ({
-      day: new Date(r.date).toLocaleDateString('vi-VN', { weekday: 'short' }),
-      count: r.count
+
+    stats.dailyTrends = trendsResult.recordset.map((r) => ({
+      day: new Date(r.date).toLocaleDateString("vi-VN", { weekday: "short" }),
+      count: r.count,
     }));
 
     // Calculate Achievements
     stats.achievements = [
-      { id: 1, icon: "🌱", label: "Mới bắt đầu", unlocked: learnedResult.recordset[0].total > 0 },
-      { id: 2, icon: "💯", label: "Chăm chỉ", unlocked: (accuracyResult.recordset[0].correct || 0) >= 100 },
-      { id: 3, icon: "🎯", label: "Chính xác", unlocked: Math.round(accuracyResult.recordset[0].accuracy || 0) >= 90 && learnedResult.recordset[0].total >= 10 },
-      { id: 4, icon: "🏆", label: "Bậc thầy", unlocked: learnedResult.recordset[0].total >= 50 },
+      {
+        id: 1,
+        icon: "🌱",
+        label: "Mới bắt đầu",
+        unlocked: learnedResult.recordset[0].total > 0,
+      },
+      {
+        id: 2,
+        icon: "💯",
+        label: "Chăm chỉ",
+        unlocked: (accuracyResult.recordset[0].correct || 0) >= 100,
+      },
+      {
+        id: 3,
+        icon: "🎯",
+        label: "Chính xác",
+        unlocked:
+          Math.round(accuracyResult.recordset[0].accuracy || 0) >= 90 &&
+          learnedResult.recordset[0].total >= 10,
+      },
+      {
+        id: 4,
+        icon: "🏆",
+        label: "Bậc thầy",
+        unlocked: learnedResult.recordset[0].total >= 50,
+      },
       { id: 5, icon: "🔥", label: "Streak 7", unlocked: false },
-      { id: 6, icon: "⚡", label: "Tốc độ", unlocked: (accuracyResult.recordset[0].correct || 0) >= 10 },
-      { id: 7, icon: "📚", label: "Mọt sách", unlocked: learnedResult.recordset[0].total >= 20 },
-      { id: 8, icon: "🌟", label: "Ngôi sao", unlocked: false }
+      {
+        id: 6,
+        icon: "⚡",
+        label: "Tốc độ",
+        unlocked: (accuracyResult.recordset[0].correct || 0) >= 10,
+      },
+      {
+        id: 7,
+        icon: "📚",
+        label: "Mọt sách",
+        unlocked: learnedResult.recordset[0].total >= 20,
+      },
+      { id: 8, icon: "🌟", label: "Ngôi sao", unlocked: false },
     ];
 
     return stats;
@@ -269,8 +362,7 @@ class UserService {
     `);
 
     if (viewExists.recordset[0].viewId) {
-      const result = await pool.request()
-        .input('UserID', sql.BigInt, userId)
+      const result = await pool.request().input("UserID", sql.BigInt, userId)
         .query(`
           SELECT
             TotalWords AS totalWords,
@@ -287,8 +379,7 @@ class UserService {
       }
     }
 
-    const result = await pool.request()
-      .input('UserID', sql.BigInt, userId)
+    const result = await pool.request().input("UserID", sql.BigInt, userId)
       .query(`
         SELECT
           COUNT(*) AS totalWords,
@@ -304,29 +395,49 @@ class UserService {
       masteredWords: row.masteredWords || 0,
       completionPercentage: row.completionPercentage || 0,
       estimatedDaysToMastery: null,
-      projectedCompletionDate: null
+      projectedCompletionDate: null,
     };
   }
 
-  static async getMiniTests() {
+  static async getMiniTests(page = 1, pageSize = 20) {
     const pool = await poolPromise;
-    const result = await pool.request().query(`
-      SELECT mt.MiniTestID AS id, mt.TestTitle AS title, mt.Description AS description,
-             t.TopicName AS topicName, t.TopicCode AS topicCode
-      FROM MiniTests mt
-      LEFT JOIN Topics t ON mt.TopicID = t.TopicID
-      WHERE mt.IsPublished = 1
+    page = Math.max(1, page);
+    pageSize = Math.min(100, Math.max(1, pageSize));
+    const offset = (page - 1) * pageSize;
+
+    const countResult = await pool.request().query(`
+      SELECT COUNT(*) AS total FROM MiniTests WHERE IsPublished = 1
     `);
-    return result.recordset;
+    const total = countResult.recordset[0].total;
+
+    const result = await pool
+      .request()
+      .input("Offset", sql.Int, offset)
+      .input("PageSize", sql.Int, pageSize)      .query(`
+        SELECT mt.MiniTestID AS id, mt.TestTitle AS title, mt.Description AS description,
+               t.TopicName AS topicName, t.TopicCode AS topicCode,
+               mt.TotalQuestions AS totalQuestions
+        FROM MiniTests mt
+        LEFT JOIN Topics t ON mt.TopicID = t.TopicID
+        WHERE mt.IsPublished = 1
+        ORDER BY mt.CreatedAt DESC
+        OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
+      `);
+    return {
+      data: result.recordset,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 
   static async getMiniTestDetails(testId) {
     const pool = await poolPromise;
-    const result = await pool.request()
-      .input('MiniTestID', sql.BigInt, testId)
+    const result = await pool.request().input("MiniTestID", sql.BigInt, testId)
       .query(`
-        SELECT q.QuestionID AS questionId, q.QuestionType AS questionType, 
-               q.QuestionText AS questionText, q.OptionsJson AS optionsJson, 
+        SELECT q.QuestionID AS questionId, q.QuestionType AS questionType,
+               q.QuestionText AS questionText, q.OptionsJson AS optionsJson,
                q.CorrectAnswer AS correctAnswer, w.Term AS term
         FROM MiniTestItems mti
         JOIN Questions q ON mti.QuestionID = q.QuestionID
@@ -339,19 +450,39 @@ class UserService {
 
   static async updateProfile(userId, fullName) {
     const pool = await poolPromise;
-    await pool.request()
-      .input('UserID', sql.BigInt, userId)
-      .input('FullName', sql.NVarChar(200), fullName)
-      .query('UPDATE Users SET FullName = @FullName, UpdatedAt = SYSDATETIMEOFFSET() WHERE UserID = @UserID');
+    await pool
+      .request()
+      .input("UserID", sql.BigInt, userId)
+      .input("FullName", sql.NVarChar(200), fullName)
+      .query(
+        "UPDATE Users SET FullName = @FullName, UpdatedAt = SYSDATETIMEOFFSET() WHERE UserID = @UserID",
+      );
     return { id: userId, fullName };
   }
 
-  static async getTestHistory(userId) {
+  static async getTestHistory(userId, page = 1, pageSize = 20) {
     const pool = await poolPromise;
-    const result = await pool.request()
-      .input('UserID', sql.BigInt, userId)
+    page = Math.max(1, page);
+    pageSize = Math.min(100, Math.max(1, pageSize));
+    const offset = (page - 1) * pageSize;
+
+    const countResult = await pool.request().input("UserID", sql.BigInt, userId)
       .query(`
-        SELECT 
+        SELECT COUNT(DISTINCT CAST(ea.AttemptedAt AS DATE) + CAST(mt.MiniTestID AS NVARCHAR)) AS total
+        FROM ExerciseAttempts ea
+        JOIN Questions q ON ea.QuestionID = q.QuestionID
+        JOIN MiniTestItems mti ON q.QuestionID = mti.QuestionID
+        JOIN MiniTests mt ON mti.MiniTestID = mt.MiniTestID
+        WHERE ea.UserID = @UserID
+      `);
+    const total = countResult.recordset[0].total;
+
+    const result = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId)
+      .input("Offset", sql.Int, offset)
+      .input("PageSize", sql.Int, pageSize).query(`
+        SELECT
           CAST(ea.AttemptedAt AS DATE) AS date,
           mt.MiniTestID AS testId,
           mt.TestTitle AS testTitle,
@@ -364,18 +495,25 @@ class UserService {
         WHERE ea.UserID = @UserID
         GROUP BY CAST(ea.AttemptedAt AS DATE), mt.TestTitle, mt.MiniTestID
         ORDER BY date DESC
+        OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
       `);
-    return result.recordset;
+    return {
+      data: result.recordset,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 
   static async getTestSessionDetails(userId, testId, date) {
     const pool = await poolPromise;
-    const result = await pool.request()
-      .input('UserID', sql.BigInt, userId)
-      .input('MiniTestID', sql.BigInt, testId)
-      .input('Date', sql.Date, date)
-      .query(`
-        SELECT 
+    const result = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId)
+      .input("MiniTestID", sql.BigInt, testId)
+      .input("Date", sql.Date, date).query(`
+        SELECT
           q.QuestionText AS questionText,
           q.QuestionType AS questionType,
           q.OptionsJson AS optionsJson,
@@ -388,12 +526,567 @@ class UserService {
         JOIN Questions q ON ea.QuestionID = q.QuestionID
         JOIN MiniTestItems mti ON q.QuestionID = mti.QuestionID
         JOIN Words w ON q.WordID = w.WordID
-        WHERE ea.UserID = @UserID 
+        WHERE ea.UserID = @UserID
           AND mti.MiniTestID = @MiniTestID
           AND CAST(ea.AttemptedAt AS DATE) = @Date
       `);
     return result.recordset;
   }
-}
 
+  // =============== CALENDAR HEATMAP ===============
+  static async getActivityHeatmap(userId, year) {
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId)
+      .input("Year", sql.Int, year || new Date().getFullYear()).query(`
+        SELECT
+          CAST(AttemptedAt AS DATE) AS date,
+          COUNT(*) AS count
+        FROM ExerciseAttempts
+        WHERE UserID = @UserID
+          AND YEAR(AttemptedAt) = @Year
+        GROUP BY CAST(AttemptedAt AS DATE)
+        ORDER BY date ASC
+      `);
+    return result.recordset;
+  }
+
+  // =============== DAILY GOAL PROGRESS ===============
+  static async getDailyProgress(userId) {
+    const pool = await poolPromise;
+    const result = await pool.request().input("UserID", sql.BigInt, userId)
+      .query(`
+        SELECT COUNT(*) AS count
+        FROM ExerciseAttempts
+        WHERE UserID = @UserID
+          AND CAST(AttemptedAt AS DATE) = CAST(SYSDATETIMEOFFSET() AS DATE)
+      `);
+    return { todayCount: result.recordset[0].count || 0 };
+  }
+
+  // =============== SMART REVIEW QUEUE ===============
+  static async getSmartReviewQueue(userId, limit = 20) {
+    const pool = await poolPromise;
+    limit = Math.min(50, Math.max(1, limit));
+    const result = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId)
+      .input("Limit", sql.Int, limit).query(`
+        SELECT TOP (@Limit)
+          w.WordID AS wordId,
+          w.Term AS term,
+          w.Phonetic AS phonetic,
+          w.Meaning AS meaning,
+          w.AudioUrlUK AS audioUrlUK,
+          w.AudioUrlUS AS audioUrlUS,
+          p.PartOfSpeechName AS partOfSpeechName,
+          ISNULL(uwp.MasteryLevel, 0) AS masteryLevel,
+          ISNULL(uwp.MemoryStatus, N'New') AS memoryStatus,
+          uwp.LastReviewedAt AS lastReviewedAt,
+          uwp.NextReviewDate AS nextReviewDate,
+          uwp.RepetitionCount AS repetitionCount,
+          uwp.ConsecutiveWrong AS consecutiveWrong,
+          -- Priority score: lower = more urgent
+          CASE
+            WHEN uwp.NextReviewDate IS NULL THEN 0
+            WHEN uwp.NextReviewDate <= SYSDATETIMEOFFSET() THEN
+              DATEDIFF(hour, uwp.NextReviewDate, SYSDATETIMEOFFSET()) *
+              CASE WHEN uwp.ConsecutiveWrong > 0 THEN 3 ELSE 1 END
+            ELSE DATEDIFF(hour, SYSDATETIMEOFFSET(), uwp.NextReviewDate) * -1
+          END AS priorityScore
+        FROM Words w
+        LEFT JOIN PartOfSpeeches p ON w.PartOfSpeechID = p.PartOfSpeechID
+        LEFT JOIN UserWordProgress uwp ON w.WordID = uwp.WordID AND uwp.UserID = @UserID
+        WHERE (
+          uwp.NextReviewDate IS NULL
+          OR uwp.NextReviewDate <= DATEADD(day, 7, SYSDATETIMEOFFSET())
+        )
+        ORDER BY priorityScore DESC, uwp.MasteryLevel ASC
+      `);
+    return result.recordset;
+  }
+
+  // =============== BATCH MINITEST SUBMIT ===============
+  static async submitMiniTestBatch(userId, testId, answers) {
+    const pool = await poolPromise;
+    const transaction = new sql.Transaction(pool);
+
+    try {
+      await transaction.begin();
+
+      let correctCount = 0;
+      const results = [];
+
+      for (const answer of answers) {
+        const { questionId, submittedAnswer, wordId } = answer;
+        const isCorrect = Boolean(answer.isCorrect);
+        const xpAwarded = isCorrect ? 10 : 0;
+
+        // Insert exercise attempt
+        const req = new sql.Request(transaction);
+        req.input('UserID', sql.BigInt, userId);
+        req.input('QuestionID', sql.BigInt, questionId || null);
+        req.input('WordID', sql.BigInt, wordId || null);
+        req.input('SubmittedAnswer', sql.NVarChar(1000), String(submittedAnswer || '').slice(0, 1000));
+        req.input('IsCorrect', sql.Bit, isCorrect);
+        req.input('ScoreAwarded', sql.Decimal(5, 2), xpAwarded);
+
+        await req.query(`
+          INSERT INTO ExerciseAttempts (UserID, QuestionID, WordID, SubmittedAnswer, IsCorrect, ScoreAwarded, AttemptedAt)
+          VALUES (@UserID, @QuestionID, @WordID, @SubmittedAnswer, @IsCorrect, @ScoreAwarded, SYSDATETIMEOFFSET())
+        `);
+
+        // Update word progress if wordId is provided
+        if (wordId) {
+          const wordReq = new sql.Request(transaction);
+          wordReq.input('UserID', sql.BigInt, userId);
+          wordReq.input('WordID', sql.BigInt, wordId);
+          wordReq.input('IsCorrect', sql.Bit, isCorrect);
+
+          await wordReq.query(`
+            MERGE UserWordProgress WITH (HOLDLOCK) AS target
+            USING (SELECT @UserID AS UserID, @WordID AS WordID) AS source
+            ON target.UserID = source.UserID AND target.WordID = source.WordID
+            WHEN MATCHED THEN
+              UPDATE SET
+                MasteryLevel = CASE
+                  WHEN @IsCorrect = 1 AND target.MasteryLevel < 10 THEN target.MasteryLevel + 1
+                  WHEN @IsCorrect = 0 AND target.MasteryLevel > 0 THEN target.MasteryLevel - 1
+                  ELSE target.MasteryLevel
+                END,
+                RepetitionCount = target.RepetitionCount + 1,
+                ConsecutiveCorrect = CASE WHEN @IsCorrect = 1 THEN target.ConsecutiveCorrect + 1 ELSE 0 END,
+                ConsecutiveWrong = CASE WHEN @IsCorrect = 0 THEN target.ConsecutiveWrong + 1 ELSE 0 END,
+                LastReviewedAt = SYSDATETIMEOFFSET(),
+                NextReviewDate = CASE
+                  WHEN @IsCorrect = 1 THEN DATEADD(day,
+                    CASE
+                      WHEN target.MasteryLevel >= 8 THEN 14
+                      WHEN target.MasteryLevel >= 5 THEN 7
+                      WHEN target.MasteryLevel >= 2 THEN 3
+                      ELSE 1
+                    END,
+                    SYSDATETIMEOFFSET()
+                  )
+                  ELSE SYSDATETIMEOFFSET()
+                END,
+                LastScore = CASE WHEN @IsCorrect = 1 THEN 100.00 ELSE 0.00 END,
+                MemoryStatus = CASE
+                  WHEN @IsCorrect = 0 THEN N'Lapsed'
+                  WHEN target.MasteryLevel >= 7 THEN N'Mastered'
+                  WHEN target.MasteryLevel >= 2 THEN N'Reviewing'
+                  ELSE N'Learning'
+                END,
+                UpdatedAt = SYSDATETIMEOFFSET()
+            WHEN NOT MATCHED THEN
+              INSERT (UserID, WordID, MasteryLevel, EaseFactor, RepetitionCount, ConsecutiveCorrect, ConsecutiveWrong, LastReviewedAt, NextReviewDate, LastScore, MemoryStatus, CreatedAt, UpdatedAt)
+              VALUES (@UserID, @WordID, CASE WHEN @IsCorrect = 1 THEN 1 ELSE 0 END, 2.50, 1,
+                CASE WHEN @IsCorrect = 1 THEN 1 ELSE 0 END,
+                CASE WHEN @IsCorrect = 0 THEN 1 ELSE 0 END,
+                SYSDATETIMEOFFSET(),
+                CASE WHEN @IsCorrect = 1 THEN DATEADD(day, 1, SYSDATETIMEOFFSET()) ELSE SYSDATETIMEOFFSET() END,
+                CASE WHEN @IsCorrect = 1 THEN 100.00 ELSE 0.00 END,
+                CASE WHEN @IsCorrect = 1 THEN N'Learning' ELSE N'Lapsed' END,
+                SYSDATETIMEOFFSET(),
+                SYSDATETIMEOFFSET())
+              OUTPUT inserted.MasteryLevel AS masteryLevel, inserted.MemoryStatus AS memoryStatus;
+          `);
+        }
+
+        if (isCorrect) correctCount++;
+        results.push({
+          questionId,
+          wordId,
+          isCorrect,
+        });
+      }
+
+      // Update total XP and level after batch
+      const totalXpAwarded = correctCount * 10;
+      const xpReq = new sql.Request(transaction);
+      await xpReq
+        .input('UserID', sql.BigInt, userId)
+        .input('XPAwarded', sql.Int, totalXpAwarded)
+        .query(`
+          UPDATE dbo.Users
+          SET
+            TotalXP = ISNULL(TotalXP, 0) + @XPAwarded,
+            CurrentLevel = FLOOR((ISNULL(TotalXP, 0) + @XPAwarded) / 100) + 1,
+            UpdatedAt = SYSDATETIMEOFFSET()
+          WHERE UserID = @UserID
+        `);
+
+      await transaction.commit();
+
+      return {
+        total: answers.length,
+        correct: correctCount,
+        score: Math.round((correctCount / answers.length) * 100),
+        xpEarned: totalXpAwarded,
+        results,
+      };
+    } catch (err) {
+      await transaction.rollback();
+      throw err;
+    }
+  }
+
+  // =============== DAILY GOAL ===============
+  static async getDailyGoal(userId) {
+    const pool = await poolPromise;
+    const result = await pool.request().input("UserID", sql.BigInt, userId)
+      .query(`SELECT DailyGoal AS dailyGoal, SRSReviewLimit AS srsReviewLimit FROM dbo.Users WHERE UserID = @UserID`);
+    return result.recordset[0] || { dailyGoal: 20, srsReviewLimit: 15 };
+  }
+
+  static async updateDailyGoal(userId, dailyGoal) {
+    const pool = await poolPromise;
+    const goal = Math.min(100, Math.max(5, Number(dailyGoal) || 20));
+    await pool.request()
+      .input("UserID", sql.BigInt, userId)
+      .input("DailyGoal", sql.Int, goal)
+      .query(`UPDATE dbo.Users SET DailyGoal = @DailyGoal, UpdatedAt = SYSDATETIMEOFFSET() WHERE UserID = @UserID`);
+    return { dailyGoal: goal };
+  }
+
+  static async updateSRSReviewLimit(userId, limit) {
+    const pool = await poolPromise;
+    const newLimit = Math.min(50, Math.max(5, Number(limit) || 15));
+    await pool.request()
+      .input("UserID", sql.BigInt, userId)
+      .input("SRSReviewLimit", sql.Int, newLimit)
+      .query(`UPDATE dbo.Users SET SRSReviewLimit = @SRSReviewLimit, UpdatedAt = SYSDATETIMEOFFSET() WHERE UserID = @UserID`);
+    return { srsReviewLimit: newLimit };
+  }
+
+  // =============== NOTIFICATIONS ===============
+  static async getUserNotifications(userId, limit = 20) {
+    const pool = await poolPromise;
+    limit = Math.min(50, Math.max(1, limit));
+
+    // Check if table exists
+    const tableCheck = await pool.request().query(`
+      SELECT OBJECT_ID(N'dbo.Notifications', N'U') AS tableId
+    `);
+    if (!tableCheck.recordset[0].tableId) {
+      return { notifications: [], unreadCount: 0 };
+    }
+
+    const result = await pool
+      .request()
+      .input('UserID', sql.BigInt, userId)
+      .input('Limit', sql.Int, limit).query(`
+        SELECT TOP (@Limit)
+          NotificationID AS id,
+          Title AS title,
+          Message AS message,
+          Type AS type,
+          DeliveryChannel AS channel,
+          IsRead AS isRead,
+          ActionUrl AS actionUrl,
+          CreatedAt AS createdAt
+        FROM dbo.Notifications
+        WHERE UserID = @UserID
+        ORDER BY IsRead ASC, CreatedAt DESC
+      `);
+
+    const countResult = await pool
+      .request()
+      .input('UserID', sql.BigInt, userId).query(`
+        SELECT COUNT(*) AS total, SUM(CASE WHEN IsRead = 0 THEN 1 ELSE 0 END) AS unread
+        FROM dbo.Notifications
+        WHERE UserID = @UserID
+      `);
+
+    return {
+      notifications: result.recordset,
+      unreadCount: countResult.recordset[0]?.unread || 0,
+      total: countResult.recordset[0]?.total || 0,
+    };
+  }
+
+  static async markNotificationRead(userId, notificationId) {
+    const pool = await poolPromise;
+    const tableCheck = await pool.request().query(`
+      SELECT OBJECT_ID(N'dbo.Notifications', N'U') AS tableId
+    `);
+    if (!tableCheck.recordset[0].tableId) return { success: false };
+
+    await pool.request()
+      .input('UserID', sql.BigInt, userId)
+      .input('NotificationID', sql.BigInt, notificationId).query(`
+        UPDATE dbo.Notifications
+        SET IsRead = 1
+        WHERE NotificationID = @NotificationID AND UserID = @UserID
+      `);
+    return { success: true };
+  }
+
+  static async markAllNotificationsRead(userId) {
+    const pool = await poolPromise;
+    const tableCheck = await pool.request().query(`
+      SELECT OBJECT_ID(N'dbo.Notifications', N'U') AS tableId
+    `);
+    if (!tableCheck.recordset[0].tableId) return { success: false, count: 0 };
+
+    const result = await pool.request()
+      .input('UserID', sql.BigInt, userId).query(`
+        UPDATE dbo.Notifications
+        SET IsRead = 1
+        WHERE UserID = @UserID AND IsRead = 0
+      `);
+    return { success: true, count: result.rowsAffected[0] || 0 };
+  }
+
+  // =============== VOCABULARY NOTEBOOK ===============
+  static async getNotebook(userId, page = 1, pageSize = 20) {
+    const pool = await poolPromise;
+    page = Math.max(1, page);
+    pageSize = Math.min(50, Math.max(1, pageSize));
+    const offset = (page - 1) * pageSize;
+
+    const countResult = await pool.request().input("UserID", sql.BigInt, userId)
+      .query(`
+        SELECT COUNT(*) AS total FROM UserVocabularyNotebook
+        WHERE UserID = @UserID
+      `);
+    const total = countResult.recordset[0].total;
+
+    const result = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId)
+      .input("Offset", sql.Int, offset)
+      .input("PageSize", sql.Int, pageSize).query(`
+        SELECT
+          un.NotebookID AS notebookId,
+          un.UserID AS userId,
+          un.WordID AS wordId,
+          un.PersonalNote AS personalNote,
+          un.IsFavorite AS isFavorite,
+          un.AddedAt AS addedAt,
+          un.UpdatedAt AS updatedAt,
+          w.Term AS term,
+          w.Meaning AS meaning,
+          w.Phonetic AS phonetic,
+          p.PartOfSpeechName AS partOfSpeechName,
+          ISNULL(uwp.MasteryLevel, 0) AS masteryLevel
+        FROM UserVocabularyNotebook un
+        JOIN Words w ON un.WordID = w.WordID
+        LEFT JOIN PartOfSpeeches p ON w.PartOfSpeechID = p.PartOfSpeechID
+        LEFT JOIN UserWordProgress uwp ON w.WordID = uwp.WordID AND uwp.UserID = @UserID
+        WHERE un.UserID = @UserID
+        ORDER BY un.IsFavorite DESC, un.UpdatedAt DESC
+        OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
+      `);
+    return {
+      data: result.recordset,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+
+  static async addNotebookEntry(userId, wordId, personalNote) {
+    const pool = await poolPromise;
+    const existing = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId)
+      .input("WordID", sql.BigInt, wordId).query(`
+        SELECT NotebookID FROM UserVocabularyNotebook
+        WHERE UserID = @UserID AND WordID = @WordID
+      `);
+
+    if (existing.recordset.length > 0) {
+      // Update existing entry
+      const result = await pool
+        .request()
+        .input("NotebookID", sql.BigInt, existing.recordset[0].NotebookID)
+        .input("PersonalNote", sql.NVarChar(2000), personalNote || null).query(`
+          UPDATE UserVocabularyNotebook
+          SET PersonalNote = @PersonalNote, UpdatedAt = SYSDATETIMEOFFSET()
+          OUTPUT inserted.NotebookID AS notebookId, inserted.PersonalNote AS personalNote
+          WHERE NotebookID = @NotebookID
+        `);
+      return result.recordset[0];
+    }
+
+    const result = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId)
+      .input("WordID", sql.BigInt, wordId)
+      .input("PersonalNote", sql.NVarChar(2000), personalNote || null)
+      .input("IsFavorite", sql.Bit, false).query(`
+        INSERT INTO UserVocabularyNotebook (UserID, WordID, PersonalNote, IsFavorite, AddedAt, UpdatedAt)
+        OUTPUT inserted.NotebookID AS notebookId, inserted.PersonalNote AS personalNote
+        VALUES (@UserID, @WordID, @PersonalNote, @IsFavorite, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
+      `);
+    return result.recordset[0];
+  }
+
+  static async updateNotebookEntry(
+    notebookId,
+    userId,
+    { personalNote, isFavorite },
+  ) {
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input("NotebookID", sql.BigInt, notebookId)
+      .input("UserID", sql.BigInt, userId)
+      .input(
+        "PersonalNote",
+        sql.NVarChar(2000),
+        personalNote !== undefined ? personalNote : null,
+      )
+      .input(
+        "IsFavorite",
+        sql.Bit,
+        isFavorite !== undefined ? Boolean(isFavorite) : null,
+      ).query(`
+        UPDATE UserVocabularyNotebook
+        SET
+          PersonalNote = CASE WHEN @PersonalNote IS NOT NULL OR @PersonalNote IS NULL AND PersonalNote IS NOT NULL THEN COALESCE(@PersonalNote, PersonalNote) ELSE PersonalNote END,
+          IsFavorite = CASE WHEN @IsFavorite IS NOT NULL THEN @IsFavorite ELSE IsFavorite END,
+          UpdatedAt = SYSDATETIMEOFFSET()
+        OUTPUT inserted.NotebookID AS notebookId, inserted.PersonalNote AS personalNote, inserted.IsFavorite AS isFavorite
+        WHERE NotebookID = @NotebookID AND UserID = @UserID
+      `);
+    return result.recordset[0] || null;
+  }
+
+  static async deleteNotebookEntry(notebookId, userId) {
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input("NotebookID", sql.BigInt, notebookId)
+      .input("UserID", sql.BigInt, userId).query(`
+        DELETE FROM UserVocabularyNotebook
+        OUTPUT deleted.NotebookID AS notebookId
+        WHERE NotebookID = @NotebookID AND UserID = @UserID
+      `);
+    return result.recordset[0] || null;
+  }
+
+  // =============== SESSION SUMMARY ===============
+  static async getSessionSummary(userId) {
+    const pool = await poolPromise;
+    const result = await pool.request().input("UserID", sql.BigInt, userId)
+      .query(`
+        WITH SessionStats AS (
+          SELECT
+            COUNT(*) AS totalAttempts,
+            SUM(CASE WHEN IsCorrect = 1 THEN 1 ELSE 0 END) AS correctCount,
+            SUM(CASE WHEN IsCorrect = 0 THEN 1 ELSE 0 END) AS wrongCount,
+            COUNT(CASE WHEN IsCorrect = 1 THEN 1 ELSE NULL END) * 10 AS totalScoreAwarded
+          FROM ExerciseAttempts
+          WHERE UserID = @UserID
+            AND CAST(AttemptedAt AS DATE) = CAST(SYSDATETIMEOFFSET() AS DATE)
+        ),
+        XPInfo AS (
+          SELECT TotalXP, CurrentLevel FROM dbo.Users WHERE UserID = @UserID
+        )
+        SELECT
+          ss.totalAttempts,
+          ss.correctCount,
+          ss.wrongCount,
+          CASE WHEN ss.totalAttempts > 0
+            THEN CAST(ss.correctCount * 100.0 / ss.totalAttempts AS DECIMAL(5,1))
+            ELSE 0
+          END AS accuracy,
+          ss.totalScoreAwarded AS xpEarned,
+          xp.TotalXP,
+          xp.CurrentLevel
+        FROM SessionStats ss
+        CROSS JOIN XPInfo xp
+      `);
+
+    const row = result.recordset[0] || {
+      totalAttempts: 0,
+      correctCount: 0,
+      wrongCount: 0,
+      accuracy: 0,
+      xpEarned: 0,
+      TotalXP: 0,
+      CurrentLevel: 1,
+    };
+
+    // Get weak words separately
+    const weakResult = await pool.request().input("UserID", sql.BigInt, userId)
+      .query(`
+        SELECT TOP 10
+          w.WordID AS wordId,
+          w.Term AS term,
+          w.Meaning AS meaning,
+          COUNT(*) AS wrongCount
+        FROM ExerciseAttempts ea
+        JOIN Words w ON ea.WordID = w.WordID
+        WHERE ea.UserID = @UserID
+          AND CAST(ea.AttemptedAt AS DATE) = CAST(SYSDATETIMEOFFSET() AS DATE)
+          AND ea.IsCorrect = 0
+        GROUP BY w.WordID, w.Term, w.Meaning
+        ORDER BY wrongCount DESC
+      `);
+
+    return {
+      totalAttempts: row.totalAttempts,
+      correctCount: row.correctCount,
+      wrongCount: row.wrongCount,
+      accuracy: Number(row.accuracy),
+      xpEarned: Number(row.xpEarned),
+      totalXP: Number(row.TotalXP),
+      currentLevel: Number(row.CurrentLevel),
+      weakWords: weakResult.recordset,
+    };
+  }
+
+  // =============== MISTAKE REVIEW QUEUE ===============
+  static async getMistakeReviewQueue(userId, limit = 10) {
+    const pool = await poolPromise;
+    limit = Math.min(30, Math.max(1, limit));
+    const result = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId)
+      .input("Limit", sql.Int, limit).query(`
+        SELECT TOP (@Limit)
+          w.WordID AS wordId,
+          w.Term AS term,
+          w.Meaning AS meaning,
+          w.Phonetic AS phonetic,
+          p.PartOfSpeechName AS partOfSpeechName,
+          ISNULL(uwp.MasteryLevel, 0) AS masteryLevel,
+          ISNULL(uwp.MemoryStatus, N'New') AS memoryStatus,
+          uwp.ConsecutiveWrong AS consecutiveWrong,
+          recent.wrongCount
+        FROM (
+          SELECT WordID, COUNT(*) AS wrongCount
+          FROM ExerciseAttempts
+          WHERE UserID = @UserID
+            AND IsCorrect = 0
+            AND WordID IS NOT NULL
+          GROUP BY WordID
+          HAVING COUNT(*) >= 1
+        ) recent
+        JOIN Words w ON recent.WordID = w.WordID
+        LEFT JOIN PartOfSpeeches p ON w.PartOfSpeechID = p.PartOfSpeechID
+        LEFT JOIN UserWordProgress uwp ON w.WordID = uwp.WordID AND uwp.UserID = @UserID
+        ORDER BY recent.wrongCount DESC, uwp.MasteryLevel ASC
+      `);
+    return result.recordset;
+  }
+
+  static async checkNotebookEntry(userId, wordId) {
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId)
+      .input("WordID", sql.BigInt, wordId).query(`
+        SELECT un.NotebookID AS notebookId, un.PersonalNote AS personalNote, un.IsFavorite AS isFavorite
+        FROM UserVocabularyNotebook un
+        WHERE un.UserID = @UserID AND un.WordID = @WordID
+      `);
+    return result.recordset[0] || null;
+  }
+}
 module.exports = UserService;

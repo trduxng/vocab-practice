@@ -79,7 +79,7 @@ export default function AdminAnalytics() {
       <AdminPage>
         {loading ? (
           <AdminPanel>
-            <div className="py-12 text-center text-sm text-slate-500 dark:text-slate-400">Loading analytics...</div>
+            <div className="py-12 text-center text-sm text-slate-600 dark:text-slate-400">Loading analytics...</div>
           </AdminPanel>
         ) : (
           <>
@@ -126,7 +126,7 @@ export default function AdminAnalytics() {
             </div>
 
             <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
-              <AdminPanel title="Difficult topic heatmap" description="Cell values are accuracy percentages from real attempts." action={<Gauge className="h-4 w-4 text-slate-400" />}>
+              <AdminPanel title="Difficult topic heatmap" description="Cell values are accuracy percentages from real attempts." action={<Gauge className="h-4 w-4 text-slate-500" />}>
                 <div className="overflow-x-auto">
                   <div className="min-w-[620px]">
                     <div className="grid gap-2" style={{ gridTemplateColumns: `110px repeat(${dayLabels.length}, minmax(58px, 1fr))` }}>
@@ -143,7 +143,7 @@ export default function AdminAnalytics() {
                 </div>
               </AdminPanel>
 
-              <AdminPanel title="Study activity" description="Attempts by active day." action={<BarChart3 className="h-4 w-4 text-slate-400" />}>
+              <AdminPanel title="Study activity" description="Attempts by active day." action={<BarChart3 className="h-4 w-4 text-slate-500" />}>
                 <ChartFrame className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={studyActivity}>

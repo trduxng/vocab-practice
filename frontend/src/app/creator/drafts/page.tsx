@@ -54,7 +54,7 @@ export default function CreatorDraftsPage() {
       </div>
       <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 overflow-hidden">
         {items.length === 0 ? (
-          <div className="p-12 text-center text-slate-400">Không có bản nháp nào</div>
+          <div className="p-12 text-center text-slate-500">Không có bản nháp nào</div>
         ) : (
           <div className="divide-y divide-slate-100 dark:divide-white/5">
             {items.map((item) => (

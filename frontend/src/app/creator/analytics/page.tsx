@@ -66,9 +66,7 @@ export default function CreatorAnalyticsPage() {
       </div>
 
       {Object.keys(grouped).length === 0 && (
-        <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 p-12 text-center text-slate-400">
-          Chưa có dữ liệu phân tích. Hãy tạo nội dung trước!
-        </div>
+        <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 p-12 text-centertext-slate-500">Chưa có dữ liệu phân tích. Hãy tạo nội dung trước!</div>
       )}
     </div>
   );

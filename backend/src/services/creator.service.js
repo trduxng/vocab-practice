@@ -77,23 +77,43 @@ class CreatorService {
   // ── Topics CRUD ──
   static async getMyTopics(userId, filters = {}) {
     const pool = await poolPromise;
+    const page = Math.max(1, parseInt(filters.page) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(filters.pageSize) || 50));
+    const offset = (page - 1) * pageSize;
+
     const req = pool.request().input('UserID', sql.BigInt, userId);
     let where = 't.CreatedByUserID = @UserID';
     if (filters.status) {
       req.input('Status', sql.NVarChar(20), filters.status);
       where += ' AND t.ContentStatus = @Status';
     }
-    const result = await req.query(`
+
+    const countResult = await req.query(`
+      SELECT COUNT(*) AS total
+      FROM Topics t
+      WHERE ${where}
+    `);
+    const total = countResult.recordset[0].total;
+
+    const req2 = pool.request().input('UserID', sql.BigInt, userId).input('Offset', sql.Int, offset).input('PageSize', sql.Int, pageSize);
+    let where2 = 't.CreatedByUserID = @UserID';
+    if (filters.status) {
+      req2.input('Status', sql.NVarChar(20), filters.status);
+      where2 += ' AND t.ContentStatus = @Status';
+    }
+
+    const result = await req2.query(`
       SELECT t.TopicID AS id, t.TopicName AS name, t.TopicCode AS code,
              t.Description AS description, t.ContentStatus AS contentStatus,
              tc.CategoryName AS categoryName, t.TopicCategoryID AS categoryId,
              t.CreatedAt AS createdAt
       FROM Topics t
       LEFT JOIN TopicCategories tc ON t.TopicCategoryID = tc.TopicCategoryID
-      WHERE ${where}
+      WHERE ${where2}
       ORDER BY t.CreatedAt DESC
+      OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
     `);
-    return result.recordset;
+    return { data: result.recordset, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
   }
 
   static async createTopic(data, userId) {
@@ -188,22 +208,42 @@ class CreatorService {
   // ── Words CRUD ──
   static async getMyWords(userId, filters = {}) {
     const pool = await poolPromise;
+    const page = Math.max(1, parseInt(filters.page) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(filters.pageSize) || 50));
+    const offset = (page - 1) * pageSize;
+
     const req = pool.request().input('UserID', sql.BigInt, userId);
     let where = 'w.CreatedByUserID = @UserID';
     if (filters.status) {
       req.input('Status', sql.NVarChar(20), filters.status);
       where += ' AND w.ContentStatus = @Status';
     }
-    const result = await req.query(`
+
+    const countResult = await req.query(`
+      SELECT COUNT(*) AS total
+      FROM Words w
+      WHERE ${where}
+    `);
+    const total = countResult.recordset[0].total;
+
+    const req2 = pool.request().input('UserID', sql.BigInt, userId).input('Offset', sql.Int, offset).input('PageSize', sql.Int, pageSize);
+    let where2 = 'w.CreatedByUserID = @UserID';
+    if (filters.status) {
+      req2.input('Status', sql.NVarChar(20), filters.status);
+      where2 += ' AND w.ContentStatus = @Status';
+    }
+
+    const result = await req2.query(`
       SELECT w.WordID AS id, w.Term AS term, w.Meaning AS meaning, w.Phonetic AS phonetic,
              w.PartOfSpeechID AS partOfSpeechId, p.PartOfSpeechName AS partOfSpeechName,
              w.ContentStatus AS contentStatus, w.CreatedAt AS createdAt
       FROM Words w
       LEFT JOIN PartOfSpeeches p ON w.PartOfSpeechID = p.PartOfSpeechID
-      WHERE ${where}
+      WHERE ${where2}
       ORDER BY w.CreatedAt DESC
+      OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
     `);
-    return result.recordset;
+    return { data: result.recordset, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
   }
 
   static async createWord(data, userId) {
@@ -285,13 +325,32 @@ class CreatorService {
   // ── Questions CRUD ──
   static async getMyQuestions(userId, filters = {}) {
     const pool = await poolPromise;
+    const page = Math.max(1, parseInt(filters.page) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(filters.pageSize) || 50));
+    const offset = (page - 1) * pageSize;
+
     const req = pool.request().input('UserID', sql.BigInt, userId);
     let where = 'q.CreatedByUserID = @UserID';
     if (filters.status) {
       req.input('Status', sql.NVarChar(20), filters.status);
       where += ' AND q.ContentStatus = @Status';
     }
-    const result = await req.query(`
+
+    const countResult = await req.query(`
+      SELECT COUNT(*) AS total
+      FROM Questions q
+      WHERE ${where}
+    `);
+    const total = countResult.recordset[0].total;
+
+    const req2 = pool.request().input('UserID', sql.BigInt, userId).input('Offset', sql.Int, offset).input('PageSize', sql.Int, pageSize);
+    let where2 = 'q.CreatedByUserID = @UserID';
+    if (filters.status) {
+      req2.input('Status', sql.NVarChar(20), filters.status);
+      where2 += ' AND q.ContentStatus = @Status';
+    }
+
+    const result = await req2.query(`
       SELECT q.QuestionID AS id, q.WordID AS wordId, w.Term AS wordTerm,
              q.QuestionType AS questionType, q.QuestionText AS questionText,
              q.OptionsJson AS optionsJson, q.CorrectAnswer AS correctAnswer,
@@ -299,10 +358,11 @@ class CreatorService {
              q.CreatedAt AS createdAt
       FROM Questions q
       LEFT JOIN Words w ON q.WordID = w.WordID
-      WHERE ${where}
+      WHERE ${where2}
       ORDER BY q.CreatedAt DESC
+      OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
     `);
-    return result.recordset;
+    return { data: result.recordset, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
   }
 
   static async createQuestion(data, userId) {
@@ -359,23 +419,43 @@ class CreatorService {
   // ── MiniTests CRUD ──
   static async getMyMiniTests(userId, filters = {}) {
     const pool = await poolPromise;
+    const page = Math.max(1, parseInt(filters.page) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(filters.pageSize) || 50));
+    const offset = (page - 1) * pageSize;
+
     const req = pool.request().input('UserID', sql.BigInt, userId);
     let where = 'mt.CreatedByUserID = @UserID';
     if (filters.status) {
       req.input('Status', sql.NVarChar(20), filters.status);
       where += ' AND mt.ContentStatus = @Status';
     }
-    const result = await req.query(`
+
+    const countResult = await req.query(`
+      SELECT COUNT(*) AS total
+      FROM MiniTests mt
+      WHERE ${where}
+    `);
+    const total = countResult.recordset[0].total;
+
+    const req2 = pool.request().input('UserID', sql.BigInt, userId).input('Offset', sql.Int, offset).input('PageSize', sql.Int, pageSize);
+    let where2 = 'mt.CreatedByUserID = @UserID';
+    if (filters.status) {
+      req2.input('Status', sql.NVarChar(20), filters.status);
+      where2 += ' AND mt.ContentStatus = @Status';
+    }
+
+    const result = await req2.query(`
       SELECT mt.MiniTestID AS id, mt.TestTitle AS title, mt.Description AS description,
              t.TopicName AS topicName, mt.TotalQuestions AS totalQuestions,
              mt.IsPublished AS isPublished, mt.ContentStatus AS contentStatus,
              mt.CreatedAt AS createdAt
       FROM MiniTests mt
       LEFT JOIN Topics t ON mt.TopicID = t.TopicID
-      WHERE ${where}
+      WHERE ${where2}
       ORDER BY mt.CreatedAt DESC
+      OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
     `);
-    return result.recordset;
+    return { data: result.recordset, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
   }
 
   static async createMiniTest(data, userId) {

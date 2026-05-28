@@ -23,7 +23,7 @@ export default function CreatorMediaPage() {
       </div>
       <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 p-8 flex flex-col items-center justify-center text-center">
         <Image className="h-12 w-12 text-slate-300 dark:text-slate-600 mb-3" />
-        <p className="text-slate-400 text-sm">Chưa có media nào được upload</p>
+        <p className="text-slate-500 text-sm">Chưa có media nào được upload</p>
         <p className="text-slate-400 text-xs mt-1">Tính năng đang được phát triển hoàn thiện</p>
       </div>
     </div>

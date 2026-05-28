@@ -192,8 +192,8 @@ export default function AdminReportsPage() {
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
           <AdminPanel title="Learner tickets" description="Filter and select a report to review.">
             <div className="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-[minmax(220px,1fr)_repeat(4,160px)_auto]">
-              <div className="flex h-10 items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 dark:border-white/10 dark:bg-white/5">
-                <Search className="h-4 w-4 text-slate-400" />
+              <div className="flex h-10 items-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-3 dark:border-white/10 dark:bg-white/5">
+                <Search className="h-4 w-4 text-slate-500" />
                 <input
                   value={search}
                   onChange={(event) => {
@@ -201,7 +201,7 @@ export default function AdminReportsPage() {
                     setPage(1);
                   }}
                   placeholder="Search title, user, content"
-                  className="w-full bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400 dark:text-slate-200"
+                  className="w-full bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-500 dark:text-slate-200"
                 />
               </div>
               <Select value={status} onChange={(value) => { setStatus(value); setPage(1); }} options={statuses} label="All statuses" />
@@ -213,7 +213,7 @@ export default function AdminReportsPage() {
 
             <div className="overflow-hidden rounded-lg border border-slate-200 dark:border-white/10">
               <table className="w-full min-w-[980px] text-left text-sm">
-                <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
+                <thead className="border-b border-slate-200 bg-slate-100 text-xs uppercase tracking-wide text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
                   <tr>
                     <th className="px-4 py-3 font-medium">Report</th>
                     <th className="px-4 py-3 font-medium">Content</th>

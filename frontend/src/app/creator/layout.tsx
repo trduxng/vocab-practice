@@ -27,7 +27,7 @@ const CreatorLayout = ({ children }: { children: React.ReactNode }) => {
   if (!isAuthenticated || (!isCreator && !isAdmin)) return null;
 
   return (
-    <div className="flex min-h-screen bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-slate-100">
+    <div className="flex min-h-screen bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-slate-100">
       <Sidebar role="creator" />
       <div className="flex-1 flex flex-col min-w-0">{children}</div>
     </div>
