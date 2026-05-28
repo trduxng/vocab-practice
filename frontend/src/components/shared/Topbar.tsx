@@ -40,13 +40,12 @@ export default function Topbar({
       </div>
 
       <div className="flex items-center gap-2 md:gap-3">
+        {/* Search bar (UI placeholder — search functionality to be implemented) */}
         <div className="hidden h-9 w-64 items-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-3 lg:flex dark:border-white/10 dark:bg-white/5">
-          <Search className="h-4 w-4 text-slate-600" />
-          <input
-            type="text"
-            placeholder={role === "admin" ? "Tìm người dùng, bài kiểm tra, báo cáo" : "Tìm bài học, từ vựng, bài kiểm tra"}
-            className="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-600 dark:text-slate-200"
-          />
+          <Search className="h-4 w-4 text-slate-400 shrink-0" />
+          <span className="w-full text-sm text-slate-500 dark:text-slate-500 truncate select-none">
+            {role === "admin" ? "Tìm kiếm..." : "Tìm kiếm..."}
+          </span>
         </div>
 
         <button

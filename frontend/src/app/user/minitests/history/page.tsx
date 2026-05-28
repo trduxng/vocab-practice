@@ -32,25 +32,37 @@ const MiniTestHistoryPage = () => {
   const { user, loading: authLoading } = useAuth();
   const [history, setHistory] = useState<TestHistory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const pageSize = 15;
   const [selectedSession, setSelectedSession] = useState<TestHistory | null>(null);
   const [sessionDetails, setSessionDetails] = useState<SessionDetail[]>([]);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    const fetchHistory = async () => {
-      try {
-        const data = await userService.getTestHistory();
-        setHistory(data);
-      } catch (error) {
-        console.error("Failed to fetch test history", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (!user) return;
 
-    if (user) fetchHistory();
-  }, [user]);
+    let cancelled = false;
+    setLoading(true);
+
+    userService.getTestHistory(page, pageSize)
+      .then((result) => {
+        if (cancelled) return;
+        setHistory(result.data || []);
+        setTotalPages(result.totalPages || 1);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        console.error("Failed to fetch test history", error);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [user, page, pageSize]);
 
   const handleViewDetails = async (session: TestHistory) => {
     setSelectedSession(session);
@@ -129,6 +141,30 @@ const MiniTestHistoryPage = () => {
             </div>
           )}
         </div>
+        {/* Pagination */}
+        {!loading && totalPages > 1 && (
+          <div className="flex justify-center items-center gap-4 mt-8">
+            <Button
+              variant="outline"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              className="border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 rounded-xl text-xs h-10 px-6"
+            >
+              ← Trước
+            </Button>
+            <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">
+              Trang {page} / {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => p + 1)}
+              className="border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 rounded-xl text-xs h-10 px-6"
+            >
+              Sau →
+            </Button>
+          </div>
+        )}
       </main>
 
       <Dialog open={!!selectedSession} onOpenChange={() => setSelectedSession(null)}>

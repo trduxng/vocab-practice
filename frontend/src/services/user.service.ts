@@ -26,6 +26,11 @@ export const userService = {
     return response.data;
   },
 
+  async submitMiniTest(testId: number | string, answers: { questionId?: number; wordId?: number; submittedAnswer: string; isCorrect: boolean }[]) {
+    const response = await apiClient.post(`/user/minitests/${testId}/submit`, { answers });
+    return response.data;
+  },
+
   async submitReport(data: {
     reportType: 'WordIncorrect' | 'AudioIssue' | 'AnswerIncorrect' | 'Typo' | 'Other';
     entityType?: 'Word' | 'Question' | 'Audio' | 'General';
@@ -74,6 +79,21 @@ export const userService = {
   // =============== DAILY GOAL ===============
   async getDailyProgress() {
     const response = await apiClient.get('/user/goals/daily-progress');
+    return response.data;
+  },
+
+  async getDailyGoalSetting() {
+    const response = await apiClient.get('/user/goals/daily-goal');
+    return response.data;
+  },
+
+  async updateDailyGoal(dailyGoal: number) {
+    const response = await apiClient.put('/user/goals/daily-goal', { dailyGoal });
+    return response.data;
+  },
+
+  async updateSRSConfig(srsReviewLimit: number) {
+    const response = await apiClient.put('/user/goals/srs-config', { srsReviewLimit });
     return response.data;
   },
 

@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { Bell, LogOut, Mail, Save, Shield, Target, User } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Bell, Brain, LogOut, Mail, RefreshCw, Save, Shield, Target, User } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/src/app/context/AuthContext";
 import { userService } from "@/src/services/user.service";
@@ -20,18 +20,55 @@ export default function UserSettingsPage() {
   const { user, logout } = useAuth();
   const [fullName, setFullName] = useState(user?.fullName || "");
   const [loading, setLoading] = useState(false);
-  const [dailyWordGoal, setDailyWordGoal] = useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("dailyWordGoal");
-      return saved ? parseInt(saved, 10) : 20;
-    }
-    return 20;
-  });
+  const [goalLoading, setGoalLoading] = useState(true);
+  const [dailyWordGoal, setDailyWordGoal] = useState(20);
+  const [srsReviewLimit, setSrsReviewLimit] = useState(15);
+  const [savingGoal, setSavingGoal] = useState(false);
+  const [savingSrs, setSavingSrs] = useState(false);
 
-  const handleGoalChange = (value: number) => {
+  // Load daily goal and SRS config from backend
+  useEffect(() => {
+    if (!user) return;
+    setGoalLoading(true);
+    userService.getDailyGoalSetting()
+      .then((data) => {
+        if (data.dailyGoal) setDailyWordGoal(data.dailyGoal);
+        if (data.srsReviewLimit) setSrsReviewLimit(data.srsReviewLimit);
+      })
+      .catch(() => {
+        // Fallback to localStorage
+        const saved = typeof window !== "undefined" ? localStorage.getItem("dailyWordGoal") : null;
+        if (saved) setDailyWordGoal(parseInt(saved, 10));
+      })
+      .finally(() => setGoalLoading(false));
+  }, [user]);
+
+  const handleGoalChange = async (value: number) => {
     const goal = Math.max(5, Math.min(100, value));
     setDailyWordGoal(goal);
-    localStorage.setItem("dailyWordGoal", goal.toString());
+    setSavingGoal(true);
+    try {
+      await userService.updateDailyGoal(goal);
+      localStorage.setItem("dailyWordGoal", goal.toString());
+    } catch {
+      toast.error("Không thể đồng bộ mục tiêu lên máy chủ");
+    } finally {
+      setSavingGoal(false);
+    }
+  };
+
+  const handleSRSChange = async (value: number) => {
+    const limit = Math.max(5, Math.min(50, value));
+    setSrsReviewLimit(limit);
+    setSavingSrs(true);
+    try {
+      await userService.updateSRSConfig(limit);
+      toast.success(`Đã cập nhật số thẻ mỗi ngày: ${limit}`);
+    } catch {
+      toast.error("Không thể đồng bộ cấu hình SRS lên máy chủ");
+    } finally {
+      setSavingSrs(false);
+    }
   };
 
   const handleUpdate = async (event: React.FormEvent) => {
@@ -173,9 +210,69 @@ export default function UserSettingsPage() {
                   <span>100 từ</span>
                 </div>
               </div>
+              <div className="flex items-center gap-2 mt-2">
+                {goalLoading ? (
+                  <span className="text-[10px] text-slate-500"><RefreshCw size={12} className="inline animate-spin mr-1" />Đang tải...</span>
+                ) : (
+                  <span className="text-[10px] text-emerald-500 font-medium">
+                    <Save size={10} className="inline mr-1" />
+                    {savingGoal ? "Đang đồng bộ..." : "Đã đồng bộ với máy chủ"}
+                  </span>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* SRS Config Card */}
+        <Card className="bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-[32px] overflow-hidden shadow-sm">
+          <CardHeader className="p-8 border-b border-slate-200 dark:border-white/5 dark:bg-white/[0.02] bg-slate-50">
+            <CardTitle className="text-slate-900 dark:text-white text-lg font-black uppercase tracking-widest flex items-center gap-3">
+              <Brain
+                size={20}
+                className="text-purple-600 dark:text-purple-400"
+              />{" "}
+              Ôn tập thông minh (SRS)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-8">
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">
+                  Số thẻ ôn tập mỗi ngày
+                </label>
+                <div className="flex items-center gap-4">
+                  <input
+                    type="range"
+                    min={5}
+                    max={50}
+                    step={5}
+                    value={srsReviewLimit}
+                    onChange={(e) =>
+                      handleSRSChange(parseInt(e.target.value, 10))
+                    }
+                    className="flex-1 h-2 rounded-full appearance-none bg-slate-200 dark:bg-white/10 accent-purple-500 cursor-pointer"
+                  />
+                  <span className="text-slate-900 dark:text-white font-black text-2xl min-w-[3rem] text-center">
+                    {srsReviewLimit}
+                  </span>
+                </div>
+                <div className="flex justify-between text-[10px] text-slate-500 dark:text-slate-400">
+                  <span>5 thẻ</span>
+                  <span>50 thẻ</span>
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                  {savingSrs ? (
+                    <span className="text-[10px] text-purple-500 font-medium"><RefreshCw size={12} className="inline animate-spin mr-1" />Đang lưu...</span>
+                  ) : (
+                    <span className="text-[10px] text-emerald-500 font-medium">
+                      <Save size={10} className="inline mr-1" />Đã đồng bộ
+                    </span>
+                  )}
+                </div>
+              </div>
               <p className="text-xs text-slate-600 dark:text-slate-400 italic">
-                Mục tiêu này được lưu trên trình duyệt và hiển thị trên bảng
-                tổng quan.
+                Hệ thống SRS sẽ ưu tiên những từ bạn sắp quên. Số thẻ càng cao, bạn càng ôn được nhiều từ mỗi ngày.
               </p>
             </div>
           </CardContent>

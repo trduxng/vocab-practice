@@ -355,9 +355,10 @@ class UserService {
     const result = await pool
       .request()
       .input("Offset", sql.Int, offset)
-      .input("PageSize", sql.Int, pageSize).query(`
+      .input("PageSize", sql.Int, pageSize)      .query(`
         SELECT mt.MiniTestID AS id, mt.TestTitle AS title, mt.Description AS description,
-               t.TopicName AS topicName, t.TopicCode AS topicCode
+               t.TopicName AS topicName, t.TopicCode AS topicCode,
+               mt.TotalQuestions AS totalQuestions
         FROM MiniTests mt
         LEFT JOIN Topics t ON mt.TopicID = t.TopicID
         WHERE mt.IsPublished = 1
@@ -546,6 +547,141 @@ class UserService {
         ORDER BY priorityScore DESC, uwp.MasteryLevel ASC
       `);
     return result.recordset;
+  }
+
+  // =============== BATCH MINITEST SUBMIT ===============
+  static async submitMiniTestBatch(userId, testId, answers) {
+    const pool = await poolPromise;
+    const transaction = new sql.Transaction(pool);
+
+    try {
+      await transaction.begin();
+
+      let correctCount = 0;
+      const results = [];
+
+      for (const answer of answers) {
+        const { questionId, submittedAnswer, wordId } = answer;
+        const isCorrect = Boolean(answer.isCorrect);
+
+        // Insert exercise attempt
+        const req = new sql.Request(transaction);
+        req.input('UserID', sql.BigInt, userId);
+        req.input('QuestionID', sql.BigInt, questionId || null);
+        req.input('WordID', sql.BigInt, wordId || null);
+        req.input('SubmittedAnswer', sql.NVarChar(1000), String(submittedAnswer || '').slice(0, 1000));
+        req.input('IsCorrect', sql.Bit, isCorrect);
+
+        await req.query(`
+          INSERT INTO ExerciseAttempts (UserID, QuestionID, WordID, SubmittedAnswer, IsCorrect, AttemptedAt)
+          VALUES (@UserID, @QuestionID, @WordID, @SubmittedAnswer, @IsCorrect, SYSDATETIMEOFFSET())
+        `);
+
+        // Update word progress if wordId is provided
+        if (wordId) {
+          const wordReq = new sql.Request(transaction);
+          wordReq.input('UserID', sql.BigInt, userId);
+          wordReq.input('WordID', sql.BigInt, wordId);
+          wordReq.input('IsCorrect', sql.Bit, isCorrect);
+
+          await wordReq.query(`
+            MERGE UserWordProgress WITH (HOLDLOCK) AS target
+            USING (SELECT @UserID AS UserID, @WordID AS WordID) AS source
+            ON target.UserID = source.UserID AND target.WordID = source.WordID
+            WHEN MATCHED THEN
+              UPDATE SET
+                MasteryLevel = CASE
+                  WHEN @IsCorrect = 1 AND target.MasteryLevel < 10 THEN target.MasteryLevel + 1
+                  WHEN @IsCorrect = 0 AND target.MasteryLevel > 0 THEN target.MasteryLevel - 1
+                  ELSE target.MasteryLevel
+                END,
+                RepetitionCount = target.RepetitionCount + 1,
+                ConsecutiveCorrect = CASE WHEN @IsCorrect = 1 THEN target.ConsecutiveCorrect + 1 ELSE 0 END,
+                ConsecutiveWrong = CASE WHEN @IsCorrect = 0 THEN target.ConsecutiveWrong + 1 ELSE 0 END,
+                LastReviewedAt = SYSDATETIMEOFFSET(),
+                NextReviewDate = CASE
+                  WHEN @IsCorrect = 1 THEN DATEADD(day,
+                    CASE
+                      WHEN target.MasteryLevel >= 8 THEN 14
+                      WHEN target.MasteryLevel >= 5 THEN 7
+                      WHEN target.MasteryLevel >= 2 THEN 3
+                      ELSE 1
+                    END,
+                    SYSDATETIMEOFFSET()
+                  )
+                  ELSE SYSDATETIMEOFFSET()
+                END,
+                LastScore = CASE WHEN @IsCorrect = 1 THEN 100.00 ELSE 0.00 END,
+                MemoryStatus = CASE
+                  WHEN @IsCorrect = 0 THEN N'Lapsed'
+                  WHEN target.MasteryLevel >= 7 THEN N'Mastered'
+                  WHEN target.MasteryLevel >= 2 THEN N'Reviewing'
+                  ELSE N'Learning'
+                END,
+                UpdatedAt = SYSDATETIMEOFFSET()
+            WHEN NOT MATCHED THEN
+              INSERT (UserID, WordID, MasteryLevel, EaseFactor, RepetitionCount, ConsecutiveCorrect, ConsecutiveWrong, LastReviewedAt, NextReviewDate, LastScore, MemoryStatus, CreatedAt, UpdatedAt)
+              VALUES (@UserID, @WordID, CASE WHEN @IsCorrect = 1 THEN 1 ELSE 0 END, 2.50, 1,
+                CASE WHEN @IsCorrect = 1 THEN 1 ELSE 0 END,
+                CASE WHEN @IsCorrect = 0 THEN 1 ELSE 0 END,
+                SYSDATETIMEOFFSET(),
+                CASE WHEN @IsCorrect = 1 THEN DATEADD(day, 1, SYSDATETIMEOFFSET()) ELSE SYSDATETIMEOFFSET() END,
+                CASE WHEN @IsCorrect = 1 THEN 100.00 ELSE 0.00 END,
+                CASE WHEN @IsCorrect = 1 THEN N'Learning' ELSE N'Lapsed' END,
+                SYSDATETIMEOFFSET(),
+                SYSDATETIMEOFFSET())
+              OUTPUT inserted.MasteryLevel AS masteryLevel, inserted.MemoryStatus AS memoryStatus;
+          `);
+        }
+
+        if (isCorrect) correctCount++;
+        results.push({
+          questionId,
+          wordId,
+          isCorrect,
+        });
+      }
+
+      await transaction.commit();
+
+      return {
+        total: answers.length,
+        correct: correctCount,
+        score: Math.round((correctCount / answers.length) * 100),
+        results,
+      };
+    } catch (err) {
+      await transaction.rollback();
+      throw err;
+    }
+  }
+
+  // =============== DAILY GOAL ===============
+  static async getDailyGoal(userId) {
+    const pool = await poolPromise;
+    const result = await pool.request().input("UserID", sql.BigInt, userId)
+      .query(`SELECT DailyGoal AS dailyGoal, SRSReviewLimit AS srsReviewLimit FROM dbo.Users WHERE UserID = @UserID`);
+    return result.recordset[0] || { dailyGoal: 20, srsReviewLimit: 15 };
+  }
+
+  static async updateDailyGoal(userId, dailyGoal) {
+    const pool = await poolPromise;
+    const goal = Math.min(100, Math.max(5, Number(dailyGoal) || 20));
+    await pool.request()
+      .input("UserID", sql.BigInt, userId)
+      .input("DailyGoal", sql.Int, goal)
+      .query(`UPDATE dbo.Users SET DailyGoal = @DailyGoal, UpdatedAt = SYSDATETIMEOFFSET() WHERE UserID = @UserID`);
+    return { dailyGoal: goal };
+  }
+
+  static async updateSRSReviewLimit(userId, limit) {
+    const pool = await poolPromise;
+    const newLimit = Math.min(50, Math.max(5, Number(limit) || 15));
+    await pool.request()
+      .input("UserID", sql.BigInt, userId)
+      .input("SRSReviewLimit", sql.Int, newLimit)
+      .query(`UPDATE dbo.Users SET SRSReviewLimit = @SRSReviewLimit, UpdatedAt = SYSDATETIMEOFFSET() WHERE UserID = @UserID`);
+    return { srsReviewLimit: newLimit };
   }
 
   // =============== VOCABULARY NOTEBOOK ===============

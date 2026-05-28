@@ -82,30 +82,26 @@ const StudentDashboard = () => {
   const [heatmapData, setHeatmapData] = useState<
     { date: string; count: number }[]
   >([]);
-  const [dailyGoal, setDailyGoal] = useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("dailyWordGoal");
-      return saved ? parseInt(saved, 10) : 20;
-    }
-    return 20;
-  });
+  const [dailyGoal, setDailyGoal] = useState(20);
   const [todayCount, setTodayCount] = useState(0);
   const router = useRouter();
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [flashcardsData, statsData, heatmap, progress] =
+        const [flashcardsData, statsData, heatmap, progress, goalData] =
           await Promise.all([
             userService.getDueFlashcards(),
             userService.getStats(),
             userService.getActivityHeatmap(),
             userService.getDailyProgress(),
+            userService.getDailyGoalSetting().catch(() => ({ dailyGoal: 20 })),
           ]);
         setFlashcards(flashcardsData);
         setStats(statsData);
         setHeatmapData(heatmap || []);
         setTodayCount(progress?.todayCount || 0);
+        if (goalData?.dailyGoal) setDailyGoal(goalData.dailyGoal);
       } catch (error) {
         console.error("Failed to fetch dashboard data", error);
       } finally {
@@ -535,31 +531,35 @@ type StatCardProps = {
 };
 
 const StatCard = ({ icon: Icon, label, value, tone }: StatCardProps) => {
-  const toneClass = {
+  const toneStyles = {
     orange: {
       card: "bg-orange-500/10 border-orange-500/20",
+      cardDark: "dark:bg-orange-500/10 dark:border-orange-500/20",
       icon: "from-orange-500 to-red-500",
     },
     violet: {
       card: "bg-violet-500/10 border-violet-500/20",
+      cardDark: "dark:bg-violet-500/10 dark:border-violet-500/20",
       icon: "from-violet-500 to-purple-600",
     },
     blue: {
       card: "bg-blue-500/10 border-blue-500/20",
+      cardDark: "dark:bg-blue-500/10 dark:border-blue-500/20",
       icon: "from-blue-500 to-cyan-500",
     },
     amber: {
       card: "bg-amber-500/10 border-amber-500/20",
+      cardDark: "dark:bg-amber-500/10 dark:border-amber-500/20",
       icon: "from-amber-500 to-yellow-500",
     },
   }[tone];
 
   return (
     <div
-      className={`${toneClass.card} dark:${toneClass.card.split(" ").join(" dark:")} border dark:border-white/10 border-slate-200 rounded-2xl p-4 flex flex-col gap-2.5`}
+      className={`${toneStyles.card} ${toneStyles.cardDark} border dark:border-white/10 border-slate-200 rounded-2xl p-4 flex flex-col gap-2.5`}
     >
       <div
-        className={`w-9 h-9 rounded-xl bg-linear-to-br ${toneClass.icon} flex items-center justify-center shadow-lg`}
+        className={`w-9 h-9 rounded-xl bg-linear-to-br ${toneStyles.icon} flex items-center justify-center shadow-lg`}
       >
         <Icon size={16} className="text-white" />
       </div>

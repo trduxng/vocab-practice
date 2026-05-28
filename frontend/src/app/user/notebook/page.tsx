@@ -1,16 +1,15 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BookOpen,
-  Heart,
+  Download,
   Pencil,
   Search,
   Star,
   Trash2,
   Volume2,
-  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { userService } from "@/src/services/user.service";
@@ -122,6 +121,31 @@ export default function VocabularyNotebook() {
     }
   };
 
+  const exportCSV = useCallback(() => {
+    const headers = ["Từ", "Nghĩa", "Phiên âm", "Từ loại", "Thành thạo", "Yêu thích", "Ghi chú", "Ngày thêm"];
+    const rows = entries.map((e) => [
+      `"${e.term.replace(/"/g, '""')}"`,
+      `"${e.meaning.replace(/"/g, '""')}"`,
+      `"${(e.phonetic || "").replace(/"/g, '""')}"`,
+      `"${(e.partOfSpeechName || "").replace(/"/g, '""')}"`,
+      e.masteryLevel,
+      e.isFavorite ? "Có" : "Không",
+      `"${(e.personalNote || "").replace(/"/g, '""')}"`,
+      new Date(e.addedAt).toLocaleDateString("vi-VN"),
+    ]);
+
+    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `so_tay_tu_vung_${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+    toast.success("Đã xuất file CSV");
+  }, [entries]);
+
   const handleSaveNote = async () => {
     if (!editingEntry) return;
     setSaving(true);
@@ -196,6 +220,16 @@ export default function VocabularyNotebook() {
               </span>{" "}
               yêu thích
             </span>
+            {entries.length > 0 && (
+              <button
+                onClick={exportCSV}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:bg-blue-500/10 hover:text-blue-600 hover:border-blue-500/30 transition-all font-medium"
+                title="Xuất CSV"
+              >
+                <Download size={14} />
+                Xuất CSV
+              </button>
+            )}
           </div>
         </div>
 

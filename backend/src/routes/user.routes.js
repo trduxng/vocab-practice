@@ -20,6 +20,9 @@ router.get("/minitests/session-details", UserController.getTestSessionDetails);
 router.get("/minitests/:id", UserController.getMiniTestDetails);
 
 router.put("/profile", UserController.updateProfile);
+// Batch submit minitest answers
+router.post("/minitests/:id/submit", UserController.submitMiniTest);
+
 router.post(
   "/reports",
   validate(schemas.createReport),
@@ -31,6 +34,13 @@ router.get("/activity/heatmap", UserController.getActivityHeatmap);
 
 // Daily Goal Progress
 router.get("/goals/daily-progress", UserController.getDailyProgress);
+
+// Daily Goal
+router.get("/goals/daily-goal", UserController.getDailyGoal);
+router.put("/goals/daily-goal", UserController.updateDailyGoal);
+
+// SRS Config
+router.put("/goals/srs-config", UserController.updateSRSConfig);
 
 // Smart Review Queue
 router.get("/review/smart-queue", UserController.getSmartReviewQueue);

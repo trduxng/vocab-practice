@@ -21,29 +21,39 @@ const MiniTestsPage = () => {
   const { user, loading: authLoading } = useAuth();
   const [tests, setTests] = useState<MiniTest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const pageSize = 12;
   const router = useRouter();
 
   useEffect(() => {
-    const fetchTests = async () => {
-      try {
-        const data = await userService.getMiniTests();
-        setTests(data);
-      } catch (error) {
+    if (!user) return;
+
+    let cancelled = false;
+    setLoading(true);
+
+    userService.getMiniTests(page, pageSize)
+      .then((result) => {
+        if (cancelled) return;
+        setTests(result.data || []);
+        setTotalPages(result.totalPages || 1);
+      })
+      .catch((error) => {
+        if (cancelled) return;
         console.error("Failed to fetch mini tests", error);
-      } finally {
+      })
+      .finally(() => {
+        if (cancelled) return;
         setLoading(false);
-      }
-    };
+      });
 
-    if (user) {
-      fetchTests();
-    }
-  }, [user]);
+    return () => { cancelled = true; };
+  }, [user, page, pageSize]);
 
-  if (authLoading || loading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white">
-        Đang tải danh sách bài kiểm tra...
+        Đang xác thực...
       </div>
     );
   }
@@ -74,7 +84,21 @@ const MiniTestsPage = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {tests.length > 0 ? (
+          {loading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i} className="bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 overflow-hidden shadow-sm">
+                <CardContent className="p-6 space-y-4">
+                  <div className="flex justify-between items-start">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-200 dark:bg-white/10 animate-pulse" />
+                    <div className="w-16 h-5 rounded bg-slate-200 dark:bg-white/10 animate-pulse" />
+                  </div>
+                  <div className="h-6 w-3/4 bg-slate-200 dark:bg-white/10 rounded animate-pulse" />
+                  <div className="h-8 w-full bg-slate-200 dark:bg-white/10 rounded animate-pulse" />
+                  <div className="h-12 w-full bg-slate-200 dark:bg-white/10 rounded-2xl animate-pulse" />
+                </CardContent>
+              </Card>
+            ))
+          ) : tests.length > 0 ? (
             tests.map((test) => (
               <Card
                 key={test.id}
@@ -132,6 +156,30 @@ const MiniTestsPage = () => {
             </div>
           )}
         </div>
+        {/* Pagination */}
+        {!loading && totalPages > 1 && (
+          <div className="flex justify-center items-center gap-4 mt-8">
+            <Button
+              variant="outline"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              className="border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 rounded-xl text-xs h-10 px-6"
+            >
+              ← Trước
+            </Button>
+            <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">
+              Trang {page} / {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => p + 1)}
+              className="border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 rounded-xl text-xs h-10 px-6"
+            >
+              Sau →
+            </Button>
+          </div>
+        )}
       </main>
     </div>
   );

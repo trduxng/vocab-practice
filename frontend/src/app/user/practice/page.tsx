@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Brain, CheckCircle2, Clock, GripVertical, RefreshCw, Volume2, XCircle } from "lucide-react";
+import { toast } from "sonner";
 import { userService } from "@/src/services/user.service";
 import { useAuth } from "@/src/app/context/AuthContext";
 import { Button } from "@/src/components/ui/button";
@@ -15,7 +16,7 @@ const QUESTION_TIME = 20;
 type PracticeMode = "normal" | "smart" | null;
 
 type PracticeQuestion = {
-  questionId: number;
+  questionId?: number;
   wordId: number;
   questionType?: "MCQ" | "Dictation" | "DragDrop" | "FillBlank" | string;
   questionText?: string;
@@ -55,15 +56,15 @@ export default function UserPractice() {
       if (mode === "smart") {
         const smartQueue = await userService.getSmartReviewQueue(15);
         // Transform smart queue items into practice question format
+        // Note: questionId is intentionally omitted — these use wordId for review submission
         const mapped = smartQueue.map((item: Record<string, unknown>) => ({
-          questionId: item.wordId as number,
           wordId: item.wordId as number,
           questionType: "FillBlank",
           questionText: item.meaning as string,
           correctAnswer: item.term as string,
           term: item.term as string,
           meaning: item.meaning as string,
-        }));
+        } as PracticeQuestion));
         setQuestions(shuffle(mapped));
       } else {
         const searchParams = new URLSearchParams(window.location.search);
@@ -144,18 +145,23 @@ export default function UserPractice() {
     const correct = !isTimeout && isCorrect;
 
     try {
-      await userService.submitAnswer({
-        questionId: current.questionId,
+      // For smart review mode, questionId is omitted so backend uses submitWordReview path
+      const submitData: Record<string, unknown> = {
         wordId: current.wordId,
         submittedAnswer: isTimeout ? "TIMEOUT" : (submittedAnswer || "NONE"),
         isCorrect: correct,
         scoreAwarded: correct ? 1.0 : 0.0,
-      });
+      };
+      if (current.questionId) {
+        submitData.questionId = current.questionId;
+      }
+      await userService.submitAnswer(submitData);
 
       if (correct) setScore((value) => value + 1);
       setChecked(true);
     } catch (error) {
       console.error("Failed to submit answer", error);
+      toast.error("Không thể ghi nhận kết quả. Vui lòng thử lại.");
     }
   }, [checked, current, isCorrect, submittedAnswer]);
 

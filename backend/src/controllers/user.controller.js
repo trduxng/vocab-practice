@@ -147,6 +147,67 @@ class UserController {
     }
   }
 
+  // =============== DAILY GOAL ===============
+  static async getDailyGoal(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const data = await UserService.getDailyGoal(userId);
+      res.status(200).json(data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async updateDailyGoal(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const { dailyGoal } = req.body;
+      if (!dailyGoal || dailyGoal < 5 || dailyGoal > 100) {
+        return res.status(400).json({ message: 'Mục tiêu phải từ 5 đến 100 từ' });
+      }
+      const result = await UserService.updateDailyGoal(userId, dailyGoal);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async updateSRSConfig(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const { srsReviewLimit } = req.body;
+      if (!srsReviewLimit || srsReviewLimit < 5 || srsReviewLimit > 50) {
+        return res.status(400).json({ message: 'Số thẻ mỗi ngày phải từ 5 đến 50' });
+      }
+      const result = await UserService.updateSRSReviewLimit(userId, srsReviewLimit);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // =============== BATCH MINITEST SUBMIT ===============
+  static async submitMiniTest(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const { id } = req.params;
+      const { answers } = req.body;
+
+      if (!Array.isArray(answers) || answers.length === 0) {
+        return res.status(400).json({ message: 'Thiếu danh sách câu trả lời' });
+      }
+
+      const result = await UserService.submitMiniTestBatch(userId, id, answers);
+      res.status(200).json(result);
+    } catch (error) {
+      console.error('[UserController.submitMiniTest] Error:', error);
+      return res.status(500).json({
+        message: 'Lỗi server khi nộp bài kiểm tra',
+        error: error.message,
+      });
+    }
+  }
+
   // =============== CALENDAR HEATMAP ===============
   static async getActivityHeatmap(req, res, next) {
     try {
