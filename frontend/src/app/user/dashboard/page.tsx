@@ -59,6 +59,8 @@ type DashboardStats = {
   totalLearned?: number;
   accuracy?: number;
   correct?: number;
+  totalXP?: number;
+  currentLevel?: number;
   dailyTrends?: Array<{ day: string; count: number }>;
   achievements?: Achievement[];
   masteryTimeline?: MasteryTimeline;
@@ -175,7 +177,7 @@ const StudentDashboard = () => {
               <StatCard
                 icon={Trophy}
                 label="Kinh nghiệm"
-                value={`${(stats?.correct || 0) * 10} XP`}
+                value={`Lv.${stats?.currentLevel || 1} - ${stats?.totalXP || 0} XP`}
                 tone="amber"
               />
             </>
@@ -411,17 +413,16 @@ const StudentDashboard = () => {
                     Tiến độ cấp độ
                   </span>
                   <span className="text-slate-900 dark:text-white text-[10px] font-black uppercase tracking-widest">
-                    Cấp{" "}
                     {loading
                       ? "..."
-                      : Math.floor((stats?.correct || 0) / 10) + 1}
+                      : `Lv.${stats?.currentLevel || 1}`}
                   </span>
                 </div>
                 <div className="h-1.5 bg-white/5 rounded-full overflow-hidden p-[1px]">
                   <div
                     className="h-full rounded-full bg-amber-500 shadow-glow"
                     style={{
-                      width: `${loading ? 0 : ((stats?.correct || 0) % 10) * 10}%`,
+                      width: `${loading ? 0 : (stats?.totalXP || 0) % 100}%`,
                     }}
                   />
                 </div>

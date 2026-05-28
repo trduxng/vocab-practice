@@ -105,6 +105,20 @@ export const userService = {
     return response.data;
   },
 
+  // =============== SESSION SUMMARY ===============
+  async getSessionSummary() {
+    const response = await apiClient.get('/user/review/session-summary');
+    return response.data;
+  },
+
+  // =============== MISTAKE REVIEW QUEUE ===============
+  async getMistakeReviewQueue(limit?: number) {
+    const response = await apiClient.get('/user/review/mistakes', {
+      params: { limit: limit || 10 }
+    });
+    return response.data;
+  },
+
   // =============== VOCABULARY NOTEBOOK ===============
   async getNotebook(page = 1, pageSize = 20) {
     const response = await apiClient.get('/user/notebook', {
@@ -130,6 +144,35 @@ export const userService = {
 
   async checkNotebookEntry(wordId: number) {
     const response = await apiClient.get(`/user/notebook/check?wordId=${wordId}`);
+    return response.data;
+  },
+
+  // =============== NOTIFICATIONS ===============
+  async getNotifications(limit = 50) {
+    const response = await apiClient.get('/user/notifications', { params: { limit } });
+    return response.data as {
+      notifications: Array<{
+        id: number;
+        title: string;
+        message: string;
+        type: string;
+        channel: string;
+        isRead: boolean;
+        actionUrl: string | null;
+        createdAt: string;
+      }>;
+      unreadCount: number;
+      total: number;
+    };
+  },
+
+  async markNotificationRead(id: number) {
+    const response = await apiClient.put(`/user/notifications/${id}/read`);
+    return response.data;
+  },
+
+  async markAllNotificationsRead() {
+    const response = await apiClient.put('/user/notifications/read-all');
     return response.data;
   },
 };

@@ -101,7 +101,7 @@ class UserService {
     return result.recordset;
   }
 
-  static async submitAnswer({ userId, questionId, submittedAnswer }) {
+  static async submitAnswer({ userId, questionId, wordId, submittedAnswer, isCorrect }) {
     const pool = await poolPromise;
     const result = await pool
       .request()
@@ -109,6 +109,23 @@ class UserService {
       .input("QuestionID", sql.BigInt, questionId)
       .input("SubmittedAnswer", sql.NVarChar(1000), submittedAnswer || "")
       .execute("usp_SubmitQuestionAttempt");
+
+    // Award XP for correct answers
+    const correct = isCorrect !== undefined ? Boolean(isCorrect) : (result.recordset[0]?.isCorrect === true);
+    const xpToAward = correct ? 10 : 0;
+    if (xpToAward > 0) {
+      await pool.request()
+        .input("UserID", sql.BigInt, userId)
+        .input("XPAwarded", sql.Int, xpToAward)
+        .query(`
+          UPDATE dbo.Users
+          SET
+            TotalXP = ISNULL(TotalXP, 0) + @XPAwarded,
+            CurrentLevel = FLOOR((ISNULL(TotalXP, 0) + @XPAwarded) / 100) + 1
+          WHERE UserID = @UserID
+        `);
+    }
+
     return result.recordset[0];
   }
 
@@ -173,6 +190,14 @@ class UserService {
             @Now
           )
         OUTPUT inserted.UserWordProgressID AS id, inserted.MasteryLevel AS masteryLevel, inserted.MemoryStatus AS memoryStatus;
+
+        -- Update total XP and level
+        UPDATE dbo.Users
+        SET
+          TotalXP = ISNULL(TotalXP, 0) + CASE WHEN @IsCorrect = 1 THEN 10 ELSE 0 END,
+          CurrentLevel = FLOOR((ISNULL(TotalXP, 0) + CASE WHEN @IsCorrect = 1 THEN 10 ELSE 0 END) / 100) + 1,
+          UpdatedAt = @Now
+        WHERE UserID = @UserID;
       `);
 
     return result.recordset[0];
@@ -222,6 +247,37 @@ class UserService {
         ORDER BY ea.AttemptedAt DESC
       `);
 
+    // 3b. Real streak calculation (consecutive days)
+    const streakResult = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId).query(`
+        WITH DailyActivity AS (
+          SELECT DISTINCT CAST(AttemptedAt AS DATE) AS StudyDate
+          FROM ExerciseAttempts
+          WHERE UserID = @UserID
+        ),
+        RankedDates AS (
+          SELECT
+            StudyDate,
+            DATEDIFF(DAY, ROW_NUMBER() OVER (ORDER BY StudyDate DESC), StudyDate) AS grp
+          FROM DailyActivity
+        )
+        SELECT COUNT(*) AS streak
+        FROM RankedDates
+        WHERE grp = (SELECT MAX(grp) FROM RankedDates)
+      `);
+
+    // 3c. Total XP and Level
+    const xpResult = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId).query(`
+        SELECT TotalXP, CurrentLevel FROM dbo.Users WHERE UserID = @UserID
+      `);
+
+    const streak = streakResult.recordset[0]?.streak || 0;
+    const totalXP = xpResult.recordset[0]?.TotalXP || 0;
+    const currentLevel = xpResult.recordset[0]?.CurrentLevel || 1;
+
     const stats = {
       totalLearned: learnedResult.recordset[0].total,
       accuracy: Math.round(accuracyResult.recordset[0].accuracy || 0),
@@ -229,7 +285,9 @@ class UserService {
       wrong: accuracyResult.recordset[0].wrong || 0,
       weakWords: weakWordsResult.recordset,
       recentAttempts: recentAttemptsResult.recordset,
-      streak: 5,
+      streak,
+      totalXP,
+      currentLevel,
     };
 
     stats.masteryTimeline = await this.getMasteryTimeline(userId);
@@ -563,6 +621,7 @@ class UserService {
       for (const answer of answers) {
         const { questionId, submittedAnswer, wordId } = answer;
         const isCorrect = Boolean(answer.isCorrect);
+        const xpAwarded = isCorrect ? 10 : 0;
 
         // Insert exercise attempt
         const req = new sql.Request(transaction);
@@ -571,10 +630,11 @@ class UserService {
         req.input('WordID', sql.BigInt, wordId || null);
         req.input('SubmittedAnswer', sql.NVarChar(1000), String(submittedAnswer || '').slice(0, 1000));
         req.input('IsCorrect', sql.Bit, isCorrect);
+        req.input('ScoreAwarded', sql.Decimal(5, 2), xpAwarded);
 
         await req.query(`
-          INSERT INTO ExerciseAttempts (UserID, QuestionID, WordID, SubmittedAnswer, IsCorrect, AttemptedAt)
-          VALUES (@UserID, @QuestionID, @WordID, @SubmittedAnswer, @IsCorrect, SYSDATETIMEOFFSET())
+          INSERT INTO ExerciseAttempts (UserID, QuestionID, WordID, SubmittedAnswer, IsCorrect, ScoreAwarded, AttemptedAt)
+          VALUES (@UserID, @QuestionID, @WordID, @SubmittedAnswer, @IsCorrect, @ScoreAwarded, SYSDATETIMEOFFSET())
         `);
 
         // Update word progress if wordId is provided
@@ -642,12 +702,28 @@ class UserService {
         });
       }
 
+      // Update total XP and level after batch
+      const totalXpAwarded = correctCount * 10;
+      const xpReq = new sql.Request(transaction);
+      await xpReq
+        .input('UserID', sql.BigInt, userId)
+        .input('XPAwarded', sql.Int, totalXpAwarded)
+        .query(`
+          UPDATE dbo.Users
+          SET
+            TotalXP = ISNULL(TotalXP, 0) + @XPAwarded,
+            CurrentLevel = FLOOR((ISNULL(TotalXP, 0) + @XPAwarded) / 100) + 1,
+            UpdatedAt = SYSDATETIMEOFFSET()
+          WHERE UserID = @UserID
+        `);
+
       await transaction.commit();
 
       return {
         total: answers.length,
         correct: correctCount,
         score: Math.round((correctCount / answers.length) * 100),
+        xpEarned: totalXpAwarded,
         results,
       };
     } catch (err) {
@@ -682,6 +758,85 @@ class UserService {
       .input("SRSReviewLimit", sql.Int, newLimit)
       .query(`UPDATE dbo.Users SET SRSReviewLimit = @SRSReviewLimit, UpdatedAt = SYSDATETIMEOFFSET() WHERE UserID = @UserID`);
     return { srsReviewLimit: newLimit };
+  }
+
+  // =============== NOTIFICATIONS ===============
+  static async getUserNotifications(userId, limit = 20) {
+    const pool = await poolPromise;
+    limit = Math.min(50, Math.max(1, limit));
+
+    // Check if table exists
+    const tableCheck = await pool.request().query(`
+      SELECT OBJECT_ID(N'dbo.Notifications', N'U') AS tableId
+    `);
+    if (!tableCheck.recordset[0].tableId) {
+      return { notifications: [], unreadCount: 0 };
+    }
+
+    const result = await pool
+      .request()
+      .input('UserID', sql.BigInt, userId)
+      .input('Limit', sql.Int, limit).query(`
+        SELECT TOP (@Limit)
+          NotificationID AS id,
+          Title AS title,
+          Message AS message,
+          Type AS type,
+          DeliveryChannel AS channel,
+          IsRead AS isRead,
+          ActionUrl AS actionUrl,
+          CreatedAt AS createdAt
+        FROM dbo.Notifications
+        WHERE UserID = @UserID
+        ORDER BY IsRead ASC, CreatedAt DESC
+      `);
+
+    const countResult = await pool
+      .request()
+      .input('UserID', sql.BigInt, userId).query(`
+        SELECT COUNT(*) AS total, SUM(CASE WHEN IsRead = 0 THEN 1 ELSE 0 END) AS unread
+        FROM dbo.Notifications
+        WHERE UserID = @UserID
+      `);
+
+    return {
+      notifications: result.recordset,
+      unreadCount: countResult.recordset[0]?.unread || 0,
+      total: countResult.recordset[0]?.total || 0,
+    };
+  }
+
+  static async markNotificationRead(userId, notificationId) {
+    const pool = await poolPromise;
+    const tableCheck = await pool.request().query(`
+      SELECT OBJECT_ID(N'dbo.Notifications', N'U') AS tableId
+    `);
+    if (!tableCheck.recordset[0].tableId) return { success: false };
+
+    await pool.request()
+      .input('UserID', sql.BigInt, userId)
+      .input('NotificationID', sql.BigInt, notificationId).query(`
+        UPDATE dbo.Notifications
+        SET IsRead = 1
+        WHERE NotificationID = @NotificationID AND UserID = @UserID
+      `);
+    return { success: true };
+  }
+
+  static async markAllNotificationsRead(userId) {
+    const pool = await poolPromise;
+    const tableCheck = await pool.request().query(`
+      SELECT OBJECT_ID(N'dbo.Notifications', N'U') AS tableId
+    `);
+    if (!tableCheck.recordset[0].tableId) return { success: false, count: 0 };
+
+    const result = await pool.request()
+      .input('UserID', sql.BigInt, userId).query(`
+        UPDATE dbo.Notifications
+        SET IsRead = 1
+        WHERE UserID = @UserID AND IsRead = 0
+      `);
+    return { success: true, count: result.rowsAffected[0] || 0 };
   }
 
   // =============== VOCABULARY NOTEBOOK ===============
@@ -812,6 +967,113 @@ class UserService {
         WHERE NotebookID = @NotebookID AND UserID = @UserID
       `);
     return result.recordset[0] || null;
+  }
+
+  // =============== SESSION SUMMARY ===============
+  static async getSessionSummary(userId) {
+    const pool = await poolPromise;
+    const result = await pool.request().input("UserID", sql.BigInt, userId)
+      .query(`
+        WITH SessionStats AS (
+          SELECT
+            COUNT(*) AS totalAttempts,
+            SUM(CASE WHEN IsCorrect = 1 THEN 1 ELSE 0 END) AS correctCount,
+            SUM(CASE WHEN IsCorrect = 0 THEN 1 ELSE 0 END) AS wrongCount,
+            COUNT(CASE WHEN IsCorrect = 1 THEN 1 ELSE NULL END) * 10 AS totalScoreAwarded
+          FROM ExerciseAttempts
+          WHERE UserID = @UserID
+            AND CAST(AttemptedAt AS DATE) = CAST(SYSDATETIMEOFFSET() AS DATE)
+        ),
+        XPInfo AS (
+          SELECT TotalXP, CurrentLevel FROM dbo.Users WHERE UserID = @UserID
+        )
+        SELECT
+          ss.totalAttempts,
+          ss.correctCount,
+          ss.wrongCount,
+          CASE WHEN ss.totalAttempts > 0
+            THEN CAST(ss.correctCount * 100.0 / ss.totalAttempts AS DECIMAL(5,1))
+            ELSE 0
+          END AS accuracy,
+          ss.totalScoreAwarded AS xpEarned,
+          xp.TotalXP,
+          xp.CurrentLevel
+        FROM SessionStats ss
+        CROSS JOIN XPInfo xp
+      `);
+
+    const row = result.recordset[0] || {
+      totalAttempts: 0,
+      correctCount: 0,
+      wrongCount: 0,
+      accuracy: 0,
+      xpEarned: 0,
+      TotalXP: 0,
+      CurrentLevel: 1,
+    };
+
+    // Get weak words separately
+    const weakResult = await pool.request().input("UserID", sql.BigInt, userId)
+      .query(`
+        SELECT TOP 10
+          w.WordID AS wordId,
+          w.Term AS term,
+          w.Meaning AS meaning,
+          COUNT(*) AS wrongCount
+        FROM ExerciseAttempts ea
+        JOIN Words w ON ea.WordID = w.WordID
+        WHERE ea.UserID = @UserID
+          AND CAST(ea.AttemptedAt AS DATE) = CAST(SYSDATETIMEOFFSET() AS DATE)
+          AND ea.IsCorrect = 0
+        GROUP BY w.WordID, w.Term, w.Meaning
+        ORDER BY wrongCount DESC
+      `);
+
+    return {
+      totalAttempts: row.totalAttempts,
+      correctCount: row.correctCount,
+      wrongCount: row.wrongCount,
+      accuracy: Number(row.accuracy),
+      xpEarned: Number(row.xpEarned),
+      totalXP: Number(row.TotalXP),
+      currentLevel: Number(row.CurrentLevel),
+      weakWords: weakResult.recordset,
+    };
+  }
+
+  // =============== MISTAKE REVIEW QUEUE ===============
+  static async getMistakeReviewQueue(userId, limit = 10) {
+    const pool = await poolPromise;
+    limit = Math.min(30, Math.max(1, limit));
+    const result = await pool
+      .request()
+      .input("UserID", sql.BigInt, userId)
+      .input("Limit", sql.Int, limit).query(`
+        SELECT TOP (@Limit)
+          w.WordID AS wordId,
+          w.Term AS term,
+          w.Meaning AS meaning,
+          w.Phonetic AS phonetic,
+          p.PartOfSpeechName AS partOfSpeechName,
+          ISNULL(uwp.MasteryLevel, 0) AS masteryLevel,
+          ISNULL(uwp.MemoryStatus, N'New') AS memoryStatus,
+          uwp.ConsecutiveWrong AS consecutiveWrong,
+          recent.wrongCount
+        FROM (
+          SELECT WordID, COUNT(*) AS wrongCount
+          FROM ExerciseAttempts
+          WHERE UserID = @UserID
+            AND IsCorrect = 0
+            AND WordID IS NOT NULL
+          GROUP BY WordID
+          HAVING COUNT(*) >= 1
+        ) recent
+        JOIN Words w ON recent.WordID = w.WordID
+        LEFT JOIN PartOfSpeeches p ON w.PartOfSpeechID = p.PartOfSpeechID
+        LEFT JOIN UserWordProgress uwp ON w.WordID = uwp.WordID AND uwp.UserID = @UserID
+        ORDER BY recent.wrongCount DESC, uwp.MasteryLevel ASC
+      `);
+    return result.recordset;
   }
 
   static async checkNotebookEntry(userId, wordId) {

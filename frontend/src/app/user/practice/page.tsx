@@ -47,6 +47,22 @@ export default function UserPractice() {
   const [loading, setLoading] = useState(true);
   const [orderedItems, setOrderedItems] = useState<string[]>([]);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [sessionResults, setSessionResults] = useState<{
+    correctCount: number;
+    wrongCount: number;
+    totalAttempts: number;
+  }>({ correctCount: 0, wrongCount: 0, totalAttempts: 0 });
+  const [sessionSummary, setSessionSummary] = useState<{
+    totalAttempts: number;
+    correctCount: number;
+    wrongCount: number;
+    accuracy: number;
+    xpEarned: number;
+    totalXP: number;
+    currentLevel: number;
+    weakWords: Array<{ wordId: number; term: string; meaning: string; wrongCount: number }>;
+  } | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
   const router = useRouter();
 
   const fetchQuestions = useCallback(async (mode: PracticeMode) => {
@@ -159,6 +175,13 @@ export default function UserPractice() {
 
       if (correct) setScore((value) => value + 1);
       setChecked(true);
+
+      // Track session results
+      setSessionResults((prev) => ({
+        correctCount: prev.correctCount + (correct ? 1 : 0),
+        wrongCount: prev.wrongCount + (correct ? 0 : 1),
+        totalAttempts: prev.totalAttempts + 1,
+      }));
     } catch (error) {
       console.error("Failed to submit answer", error);
       toast.error("Không thể ghi nhận kết quả. Vui lòng thử lại.");
@@ -194,6 +217,14 @@ export default function UserPractice() {
       setIndex(questions.length);
     }
   };
+
+  // Fetch session summary when practice is completed (index >= questions.length)
+  useEffect(() => {
+    if (index >= questions.length && questions.length > 0 && !summaryLoading && !sessionSummary) {
+      setSummaryLoading(true);
+      userService.getSessionSummary().then(setSessionSummary).finally(() => setSummaryLoading(false));
+    }
+  }, [index, questions.length, summaryLoading, sessionSummary]);
 
   if (authLoading) {
     return <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white">Đang xác thực...</div>;
@@ -269,29 +300,101 @@ export default function UserPractice() {
   }
 
   if (index >= questions.length) {
-    const accuracy = Math.round((score / questions.length) * 100);
+    const localAccuracy = Math.round((score / questions.length) * 100);
+
+    const summary = sessionSummary;
+    const accuracy = summary?.accuracy ?? localAccuracy;
+    const totalXP = summary?.totalXP ?? 0;
+    const currentLevel = summary?.currentLevel ?? 1;
+    const xpEarned = summary?.xpEarned ?? 0;
+    const weakWords = summary?.weakWords ?? [];
+
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white px-4">
-        <Card className="w-full max-w-md bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 p-8 text-center rounded-[32px] shadow-sm">
-          <div className="w-20 h-20 bg-blue-600/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-blue-500/30">
-            <RefreshCw size={40} className="text-blue-400" />
-          </div>
-          <h1 className="text-3xl font-bold mb-2 text-slate-900 dark:text-white">Hoàn thành</h1>
-          <div className="flex justify-center gap-8 my-8">
-            <div>
-              <p className="text-slate-500 dark:text-slate-400 text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1">Điểm số</p>
-              <p className="text-2xl font-black text-slate-900 dark:text-white">{score}/{questions.length}</p>
+      <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white px-4 py-10">
+        <div className="w-full max-w-lg">
+          <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-[32px] p-10 shadow-sm text-center">
+            <div className="w-20 h-20 bg-blue-600/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-blue-500/30">
+              <RefreshCw size={40} className="text-blue-400" />
             </div>
-            <div>
-              <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1">Chính xác</p>
-              <p className="text-2xl font-black text-green-400">{accuracy}%</p>
+            <h1 className="text-3xl font-black mb-2 text-slate-900 dark:text-white">Hoàn thành</h1>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mb-8">Bạn đã hoàn thành phiên luyện tập.</p>
+
+            {/* Stats grid */}
+            <div className="grid grid-cols-3 gap-4 mb-8">
+              <div className="bg-blue-500/5 dark:bg-blue-500/5 bg-slate-50 rounded-2xl p-4 border border-blue-500/10">
+                <p className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-black tracking-widest mb-1">Độ chính xác</p>
+                <p className={`text-2xl font-black ${accuracy >= 80 ? 'text-green-400' : accuracy >= 50 ? 'text-amber-400' : 'text-red-400'}`}>
+                  {accuracy}%
+                </p>
+              </div>
+              <div className="bg-slate-50 dark:bg-white/3 rounded-2xl p-4 border border-slate-200 dark:border-white/5">
+                <p className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-black tracking-widest mb-1">Đúng/Sai</p>
+                <p className="text-2xl font-black text-slate-900 dark:text-white">
+                  <span className="text-green-400">{sessionResults.correctCount}</span>
+                  <span className="text-slate-400 mx-1">/</span>
+                  <span className="text-red-400">{sessionResults.wrongCount}</span>
+                </p>
+              </div>
+              <div className="bg-amber-500/5 dark:bg-amber-500/5 bg-amber-50/50 rounded-2xl p-4 border border-amber-500/10">
+                <p className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-black tracking-widest mb-1">XP nhận được</p>
+                <p className="text-2xl font-black text-amber-400">+{xpEarned}</p>
+              </div>
+            </div>
+
+            {/* Level & XP bar */}
+            <div className="bg-slate-50 dark:bg-white/3 rounded-2xl p-5 border border-slate-200 dark:border-white/5 mb-6 text-left">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Cấp độ {currentLevel}</span>
+                <span className="text-xs font-black text-slate-500 dark:text-slate-400">{totalXP} XP</span>
+              </div>
+              <div className="h-2.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
+                <div
+                  className="h-full rounded-full bg-linear-to-r from-amber-500 to-orange-400 transition-all duration-1000"
+                  style={{ width: `${totalXP % 100}%` }}
+                />
+              </div>
+              <p className="text-[10px] text-slate-500 dark:text-slate-500 mt-2 font-medium">
+                {100 - (totalXP % 100)} XP đến cấp tiếp theo
+              </p>
+            </div>
+
+            {/* Weak words */}
+            {weakWords.length > 0 && (
+              <div className="bg-red-500/5 dark:bg-red-500/5 bg-red-50/50 rounded-2xl p-5 border border-red-500/10 mb-6 text-left">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-black tracking-widest">
+                    Từ cần ôn lại ({weakWords.length})
+                  </p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const params = new URLSearchParams();
+                      params.set("mode", "smart");
+                      router.push(`/user/practice?${params.toString()}`);
+                    }}
+                    className="text-[10px] font-black uppercase tracking-widest text-blue-500 h-auto p-0"
+                  >
+                    Ôn ngay
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  {weakWords.slice(0, 5).map((w) => (
+                    <div key={w.wordId} className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-slate-900 dark:text-white">{w.term}</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">{w.meaning}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-4">
+              <Button variant="outline" onClick={() => window.location.reload()} className="flex-1 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white h-12 rounded-xl font-bold uppercase text-[10px] tracking-widest">Làm lại</Button>
+              <Button onClick={() => router.push("/user/dashboard")} className="flex-1 bg-blue-600 h-12 rounded-xl font-bold uppercase text-[10px] tracking-widest">Xong</Button>
             </div>
           </div>
-          <div className="flex gap-4">
-            <Button variant="outline" onClick={() => window.location.reload()} className="flex-1 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white h-12 rounded-xl">Làm lại</Button>
-            <Button onClick={() => router.push("/user/dashboard")} className="flex-1 bg-blue-600 h-12 rounded-xl font-bold uppercase text-[10px] tracking-widest">Xong</Button>
-          </div>
-        </Card>
+        </div>
       </div>
     );
   }

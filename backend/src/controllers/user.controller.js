@@ -15,7 +15,9 @@ class UserController {
         await UserService.submitAnswer({
           userId,
           questionId,
-          submittedAnswer
+          wordId,
+          submittedAnswer,
+          isCorrect
         });
       } else {
         await UserService.submitWordReview({
@@ -300,6 +302,62 @@ class UserController {
       if (!wordId) return res.status(400).json({ message: 'Thiếu wordId' });
       const entry = await UserService.checkNotebookEntry(userId, wordId);
       res.status(200).json(entry || {});
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // =============== NOTIFICATIONS ===============
+  static async getNotifications(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const limit = parseInt(req.query.limit) || 20;
+      const data = await UserService.getUserNotifications(userId, limit);
+      res.status(200).json(data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async markNotificationRead(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const { id } = req.params;
+      await UserService.markNotificationRead(userId, id);
+      res.status(200).json({ message: 'Đã đánh dấu đã đọc' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async markAllNotificationsRead(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const result = await UserService.markAllNotificationsRead(userId);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // =============== SESSION SUMMARY ===============
+  static async getSessionSummary(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const summary = await UserService.getSessionSummary(userId);
+      res.status(200).json(summary);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // =============== MISTAKE REVIEW QUEUE ===============
+  static async getMistakeReviewQueue(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const limit = parseInt(req.query.limit) || 10;
+      const queue = await UserService.getMistakeReviewQueue(userId, limit);
+      res.status(200).json(queue);
     } catch (error) {
       next(error);
     }

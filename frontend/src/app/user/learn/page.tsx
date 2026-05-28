@@ -25,6 +25,22 @@ const StudentFlashcard = () => {
   const [flipped, setFlipped] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sessionFinished, setSessionFinished] = useState(false);
+  const [sessionResults, setSessionResults] = useState<{
+    correctCount: number;
+    wrongCount: number;
+    totalAttempts: number;
+  }>({ correctCount: 0, wrongCount: 0, totalAttempts: 0 });
+  const [sessionSummary, setSessionSummary] = useState<{
+    totalAttempts: number;
+    correctCount: number;
+    wrongCount: number;
+    accuracy: number;
+    xpEarned: number;
+    totalXP: number;
+    currentLevel: number;
+    weakWords: Array<{ wordId: number; term: string; meaning: string; wrongCount: number }>;
+  } | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
   const router = useRouter();
 
   const speak = (text: string) => {
@@ -75,11 +91,20 @@ const StudentFlashcard = () => {
         scoreAwarded: isCorrect ? 1.0 : 0.0,
       });
 
+      setSessionResults((prev) => ({
+        correctCount: prev.correctCount + (isCorrect ? 1 : 0),
+        wrongCount: prev.wrongCount + (isCorrect ? 0 : 1),
+        totalAttempts: prev.totalAttempts + 1,
+      }));
+
       if (index < flashcards.length - 1) {
         setFlipped(false);
         setIndex((prev) => prev + 1);
       } else {
         setSessionFinished(true);
+        // Fetch session summary
+        setSummaryLoading(true);
+        userService.getSessionSummary().then(setSessionSummary).finally(() => setSummaryLoading(false));
       }
     } catch (error) {
       console.error("Failed to submit answer", error);
@@ -104,20 +129,100 @@ const StudentFlashcard = () => {
   }
 
   if (sessionFinished) {
+    const summary = sessionSummary;
+    const accuracy = summary?.accuracy ?? (sessionResults.totalAttempts > 0
+      ? Math.round((sessionResults.correctCount / sessionResults.totalAttempts) * 100)
+      : 0);
+    const totalXP = summary?.totalXP ?? 0;
+    const currentLevel = summary?.currentLevel ?? 1;
+    const xpEarned = summary?.xpEarned ?? 0;
+    const weakWords = summary?.weakWords ?? [];
+
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white p-6 text-center animate-in fade-in duration-500">
-        <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mb-6 border border-green-500/30">
-          <Check size={40} className="text-green-400" />
-        </div>
-        <h2 className="text-3xl font-bold mb-2">Hoàn thành phiên học!</h2>
-        <p className="text-slate-600 dark:text-slate-400 mb-8">Bạn vừa ôn tập xong {flashcards.length} từ vựng.</p>
-        <div className="flex gap-4">
-          <Button variant="outline" onClick={() => window.location.reload()} className="border-white/10 dark:border-white/10 border-slate-200 text-slate-900 dark:text-white h-12 px-8 rounded-xl font-bold uppercase text-[10px] tracking-widest">
-            Học tiếp
-          </Button>
-          <Button onClick={() => router.push("/user/dashboard")} className="bg-blue-600 h-12 px-8 rounded-xl font-bold uppercase text-[10px] tracking-widest">
-            Xong
-          </Button>
+      <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white px-4 py-10">
+        <div className="w-full max-w-lg">
+          <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-[32px] p-10 shadow-sm text-center">
+            <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-green-500/30">
+              <Check size={40} className="text-green-400" />
+            </div>
+
+            <h2 className="text-3xl font-black mb-2 text-slate-900 dark:text-white">Hoàn thành phiên học!</h2>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mb-8">
+              Bạn vừa ôn tập {sessionResults.totalAttempts} từ vựng. Hãy duy trì đều đặn mỗi ngày nhé!
+            </p>
+
+            {/* Stats grid */}
+            <div className="grid grid-cols-3 gap-4 mb-8">
+              <div className="bg-blue-500/5 dark:bg-blue-500/5 bg-slate-50 rounded-2xl p-4 border border-blue-500/10">
+                <p className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-black tracking-widest mb-1">Độ chính xác</p>
+                <p className={`text-2xl font-black ${accuracy >= 80 ? 'text-green-400' : accuracy >= 50 ? 'text-amber-400' : 'text-red-400'}`}>
+                  {accuracy}%
+                </p>
+              </div>
+              <div className="bg-slate-50 dark:bg-white/3 rounded-2xl p-4 border border-slate-200 dark:border-white/5">
+                <p className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-black tracking-widest mb-1">Đúng/Sai</p>
+                <p className="text-2xl font-black text-slate-900 dark:text-white">
+                  <span className="text-green-400">{sessionResults.correctCount}</span>
+                  <span className="text-slate-400 mx-1">/</span>
+                  <span className="text-red-400">{sessionResults.wrongCount}</span>
+                </p>
+              </div>
+              <div className="bg-amber-500/5 dark:bg-amber-500/5 bg-amber-50/50 rounded-2xl p-4 border border-amber-500/10">
+                <p className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-black tracking-widest mb-1">XP nhận được</p>
+                <p className="text-2xl font-black text-amber-400">+{xpEarned}</p>
+              </div>
+            </div>
+
+            {/* Level & XP bar */}
+            <div className="bg-slate-50 dark:bg-white/3 rounded-2xl p-5 border border-slate-200 dark:border-white/5 mb-6 text-left">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Cấp độ {currentLevel}</span>
+                <span className="text-xs font-black text-slate-500 dark:text-slate-400">{totalXP} XP</span>
+              </div>
+              <div className="h-2.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
+                <div
+                  className="h-full rounded-full bg-linear-to-r from-amber-500 to-orange-400 transition-all duration-1000"
+                  style={{ width: `${(totalXP % 100)}%` }}
+                />
+              </div>
+              <p className="text-[10px] text-slate-500 dark:text-slate-500 mt-2 font-medium">
+                {100 - (totalXP % 100)} XP đến cấp tiếp theo
+              </p>
+            </div>
+
+            {/* Weak words */}
+            {weakWords.length > 0 && (
+              <div className="bg-red-500/5 dark:bg-red-500/5 bg-red-50/50 rounded-2xl p-5 border border-red-500/10 mb-6 text-left">
+                <p className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-black tracking-widest mb-3">
+                  Từ cần ôn lại ({weakWords.length})
+                </p>
+                <div className="space-y-2">
+                  {weakWords.slice(0, 5).map((w) => (
+                    <div key={w.wordId} className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-slate-900 dark:text-white">{w.term}</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">{w.meaning}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-4">
+              <Button
+                variant="outline"
+                onClick={() => window.location.reload()}
+                className="flex-1 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white h-12 rounded-xl font-bold uppercase text-[10px] tracking-widest"
+              >
+                Học tiếp
+              </Button>
+              <Button
+                onClick={() => router.push("/user/dashboard")}
+                className="flex-1 bg-blue-600 h-12 rounded-xl font-bold uppercase text-[10px] tracking-widest"
+              >
+                Xong
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     );

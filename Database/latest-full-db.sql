@@ -1,498 +1,6 @@
-USE [ToeicVocabularyPlatform]
-GO
-/****** Object:  StoredProcedure [dbo].[usp_SubmitQuestionAttempt]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP PROCEDURE [dbo].[usp_SubmitQuestionAttempt]
-GO
-ALTER TABLE [dbo].[Words] DROP CONSTRAINT [CK_Words_DifficultyLevel]
-GO
-ALTER TABLE [dbo].[Words] DROP CONSTRAINT [CK_Words_ContentStatus]
-GO
-ALTER TABLE [dbo].[UserWordProgress] DROP CONSTRAINT [CK_UserWordProgress_RepetitionCount]
-GO
-ALTER TABLE [dbo].[UserWordProgress] DROP CONSTRAINT [CK_UserWordProgress_MemoryStatus]
-GO
-ALTER TABLE [dbo].[UserWordProgress] DROP CONSTRAINT [CK_UserWordProgress_MasteryLevel]
-GO
-ALTER TABLE [dbo].[UserWordProgress] DROP CONSTRAINT [CK_UserWordProgress_LastScore]
-GO
-ALTER TABLE [dbo].[UserWordProgress] DROP CONSTRAINT [CK_UserWordProgress_EaseFactor]
-GO
-ALTER TABLE [dbo].[UserWordProgress] DROP CONSTRAINT [CK_UserWordProgress_ConsecutiveWrong]
-GO
-ALTER TABLE [dbo].[UserWordProgress] DROP CONSTRAINT [CK_UserWordProgress_ConsecutiveCorrect]
-GO
-ALTER TABLE [dbo].[Users] DROP CONSTRAINT [CK_Users_UserRole]
-GO
-ALTER TABLE [dbo].[Topics] DROP CONSTRAINT [CK_Topics_ContentStatus]
-GO
-ALTER TABLE [dbo].[TopicCategories] DROP CONSTRAINT [CK_TopicCategories_DisplayOrder]
-GO
-ALTER TABLE [dbo].[Questions] DROP CONSTRAINT [CK_Questions_QuestionType]
-GO
-ALTER TABLE [dbo].[Questions] DROP CONSTRAINT [CK_Questions_OptionsJson_IsJson]
-GO
-ALTER TABLE [dbo].[Questions] DROP CONSTRAINT [CK_Questions_DifficultyLevel]
-GO
-ALTER TABLE [dbo].[Questions] DROP CONSTRAINT [CK_Questions_ContentStatus]
-GO
-ALTER TABLE [dbo].[MiniTests] DROP CONSTRAINT [CK_MiniTests_TotalQuestions]
-GO
-ALTER TABLE [dbo].[MiniTests] DROP CONSTRAINT [CK_MiniTests_ContentStatus]
-GO
-ALTER TABLE [dbo].[MiniTestItems] DROP CONSTRAINT [CK_MiniTestItems_DisplayOrder]
-GO
-ALTER TABLE [dbo].[MiniTestAttempts] DROP CONSTRAINT [CK_MiniTestAttempts_TotalQuestions]
-GO
-ALTER TABLE [dbo].[MiniTestAttempts] DROP CONSTRAINT [CK_MiniTestAttempts_Score]
-GO
-ALTER TABLE [dbo].[MiniTestAttempts] DROP CONSTRAINT [CK_MiniTestAttempts_CorrectCount]
-GO
-ALTER TABLE [dbo].[MediaAssets] DROP CONSTRAINT [CK_MediaAssets_MediaType]
-GO
-ALTER TABLE [dbo].[MediaAssets] DROP CONSTRAINT [CK_MediaAssets_FileSizeBytes]
-GO
-ALTER TABLE [dbo].[ExerciseAttempts] DROP CONSTRAINT [CK_ExerciseAttempts_ScoreAwarded]
-GO
-ALTER TABLE [dbo].[ExerciseAttempts] DROP CONSTRAINT [CK_ExerciseAttempts_AttemptMetadataJson_IsJson]
-GO
-ALTER TABLE [dbo].[ContentReviewLogs] DROP CONSTRAINT [CK_ContentReviewLogs_Status]
-GO
-ALTER TABLE [dbo].[ContentReviewLogs] DROP CONSTRAINT [CK_ContentReviewLogs_EntityType]
-GO
-ALTER TABLE [dbo].[ContentReports] DROP CONSTRAINT [CK_ContentReports_Status]
-GO
-ALTER TABLE [dbo].[ContentReports] DROP CONSTRAINT [CK_ContentReports_ReportType]
-GO
-ALTER TABLE [dbo].[ContentReports] DROP CONSTRAINT [CK_ContentReports_Priority]
-GO
-ALTER TABLE [dbo].[ContentReports] DROP CONSTRAINT [CK_ContentReports_EntityType]
-GO
-ALTER TABLE [dbo].[ContentMediaLinks] DROP CONSTRAINT [CK_ContentMediaLinks_EntityType]
-GO
-ALTER TABLE [dbo].[ContentMediaLinks] DROP CONSTRAINT [CK_ContentMediaLinks_DisplayOrder]
-GO
-ALTER TABLE [dbo].[WordTopics] DROP CONSTRAINT [FK_WordTopics_WordID]
-GO
-ALTER TABLE [dbo].[WordTopics] DROP CONSTRAINT [FK_WordTopics_TopicID]
-GO
-ALTER TABLE [dbo].[Words] DROP CONSTRAINT [FK_Words_ReviewedByUserID]
-GO
-ALTER TABLE [dbo].[Words] DROP CONSTRAINT [FK_Words_PartOfSpeechID]
-GO
-ALTER TABLE [dbo].[Words] DROP CONSTRAINT [FK_Words_CreatedByUserID]
-GO
-ALTER TABLE [dbo].[UserWordProgress] DROP CONSTRAINT [FK_UserWordProgress_WordID]
-GO
-ALTER TABLE [dbo].[UserWordProgress] DROP CONSTRAINT [FK_UserWordProgress_UserID]
-GO
-ALTER TABLE [dbo].[UserVocabularyNotebook] DROP CONSTRAINT [FK_UserVocabularyNotebook_WordID]
-GO
-ALTER TABLE [dbo].[UserVocabularyNotebook] DROP CONSTRAINT [FK_UserVocabularyNotebook_UserID]
-GO
-ALTER TABLE [dbo].[UserTopicEnrollments] DROP CONSTRAINT [FK_UserTopicEnrollments_UserID]
-GO
-ALTER TABLE [dbo].[UserTopicEnrollments] DROP CONSTRAINT [FK_UserTopicEnrollments_TopicID]
-GO
-ALTER TABLE [dbo].[Users] DROP CONSTRAINT [FK_Users_RoleID]
-GO
-ALTER TABLE [dbo].[Topics] DROP CONSTRAINT [FK_Topics_TopicCategoryID]
-GO
-ALTER TABLE [dbo].[Topics] DROP CONSTRAINT [FK_Topics_ReviewedByUserID]
-GO
-ALTER TABLE [dbo].[Topics] DROP CONSTRAINT [FK_Topics_CreatedByUserID]
-GO
-ALTER TABLE [dbo].[TopicCategories] DROP CONSTRAINT [FK_TopicCategories_CreatedByUserID]
-GO
-ALTER TABLE [dbo].[RolePermissions] DROP CONSTRAINT [FK_RolePermissions_Role]
-GO
-ALTER TABLE [dbo].[RolePermissions] DROP CONSTRAINT [FK_RolePermissions_Permission]
-GO
-ALTER TABLE [dbo].[Questions] DROP CONSTRAINT [FK_Questions_WordID]
-GO
-ALTER TABLE [dbo].[Questions] DROP CONSTRAINT [FK_Questions_ReviewedByUserID]
-GO
-ALTER TABLE [dbo].[Questions] DROP CONSTRAINT [FK_Questions_CreatedByUserID]
-GO
-ALTER TABLE [dbo].[MiniTests] DROP CONSTRAINT [FK_MiniTests_TopicID]
-GO
-ALTER TABLE [dbo].[MiniTests] DROP CONSTRAINT [FK_MiniTests_ReviewedByUserID]
-GO
-ALTER TABLE [dbo].[MiniTests] DROP CONSTRAINT [FK_MiniTests_CreatedByUserID]
-GO
-ALTER TABLE [dbo].[MiniTestItems] DROP CONSTRAINT [FK_MiniTestItems_QuestionID]
-GO
-ALTER TABLE [dbo].[MiniTestItems] DROP CONSTRAINT [FK_MiniTestItems_MiniTestID]
-GO
-ALTER TABLE [dbo].[MiniTestAttempts] DROP CONSTRAINT [FK_MiniTestAttempts_UserID]
-GO
-ALTER TABLE [dbo].[MiniTestAttempts] DROP CONSTRAINT [FK_MiniTestAttempts_MiniTestID]
-GO
-ALTER TABLE [dbo].[MediaAssets] DROP CONSTRAINT [FK_MediaAssets_UploadedByUserID]
-GO
-ALTER TABLE [dbo].[ExerciseAttempts] DROP CONSTRAINT [FK_ExerciseAttempts_WordID]
-GO
-ALTER TABLE [dbo].[ExerciseAttempts] DROP CONSTRAINT [FK_ExerciseAttempts_UserID]
-GO
-ALTER TABLE [dbo].[ExerciseAttempts] DROP CONSTRAINT [FK_ExerciseAttempts_QuestionID]
-GO
-ALTER TABLE [dbo].[ExampleSentences] DROP CONSTRAINT [FK_ExampleSentences_WordID]
-GO
-ALTER TABLE [dbo].[ContentReviewLogs] DROP CONSTRAINT [FK_ContentReviewLogs_ActionByUserID]
-GO
-ALTER TABLE [dbo].[ContentReports] DROP CONSTRAINT [FK_ContentReports_WordID]
-GO
-ALTER TABLE [dbo].[ContentReports] DROP CONSTRAINT [FK_ContentReports_ResolvedByUserID]
-GO
-ALTER TABLE [dbo].[ContentReports] DROP CONSTRAINT [FK_ContentReports_ReporterUserID]
-GO
-ALTER TABLE [dbo].[ContentReports] DROP CONSTRAINT [FK_ContentReports_QuestionID]
-GO
-ALTER TABLE [dbo].[ContentMediaLinks] DROP CONSTRAINT [FK_ContentMediaLinks_MediaAssetID]
-GO
-ALTER TABLE [dbo].[WordTopics] DROP CONSTRAINT [DF_WordTopics_AssignedAt]
-GO
-ALTER TABLE [dbo].[Words] DROP CONSTRAINT [DF_Words_ContentStatus]
-GO
-ALTER TABLE [dbo].[Words] DROP CONSTRAINT [DF_Words_UpdatedAt]
-GO
-ALTER TABLE [dbo].[Words] DROP CONSTRAINT [DF_Words_CreatedAt]
-GO
-ALTER TABLE [dbo].[Words] DROP CONSTRAINT [DF_Words_DifficultyLevel]
-GO
-ALTER TABLE [dbo].[UserWordProgress] DROP CONSTRAINT [DF_UserWordProgress_UpdatedAt]
-GO
-ALTER TABLE [dbo].[UserWordProgress] DROP CONSTRAINT [DF_UserWordProgress_CreatedAt]
-GO
-ALTER TABLE [dbo].[UserWordProgress] DROP CONSTRAINT [DF_UserWordProgress_MemoryStatus]
-GO
-ALTER TABLE [dbo].[UserWordProgress] DROP CONSTRAINT [DF_UserWordProgress_ConsecutiveWrong]
-GO
-ALTER TABLE [dbo].[UserWordProgress] DROP CONSTRAINT [DF_UserWordProgress_ConsecutiveCorrect]
-GO
-ALTER TABLE [dbo].[UserWordProgress] DROP CONSTRAINT [DF_UserWordProgress_RepetitionCount]
-GO
-ALTER TABLE [dbo].[UserWordProgress] DROP CONSTRAINT [DF_UserWordProgress_EaseFactor]
-GO
-ALTER TABLE [dbo].[UserWordProgress] DROP CONSTRAINT [DF_UserWordProgress_MasteryLevel]
-GO
-ALTER TABLE [dbo].[UserVocabularyNotebook] DROP CONSTRAINT [DF_UserVocabularyNotebook_UpdatedAt]
-GO
-ALTER TABLE [dbo].[UserVocabularyNotebook] DROP CONSTRAINT [DF_UserVocabularyNotebook_AddedAt]
-GO
-ALTER TABLE [dbo].[UserVocabularyNotebook] DROP CONSTRAINT [DF_UserVocabularyNotebook_IsFavorite]
-GO
-ALTER TABLE [dbo].[UserTopicEnrollments] DROP CONSTRAINT [DF_UserTopicEnrollments_IsActive]
-GO
-ALTER TABLE [dbo].[UserTopicEnrollments] DROP CONSTRAINT [DF_UserTopicEnrollments_EnrolledAt]
-GO
-ALTER TABLE [dbo].[Users] DROP CONSTRAINT [DF_Users_UpdatedAt]
-GO
-ALTER TABLE [dbo].[Users] DROP CONSTRAINT [DF_Users_CreatedAt]
-GO
-ALTER TABLE [dbo].[Users] DROP CONSTRAINT [DF_Users_IsActive]
-GO
-ALTER TABLE [dbo].[Topics] DROP CONSTRAINT [DF_Topics_ContentStatus]
-GO
-ALTER TABLE [dbo].[Topics] DROP CONSTRAINT [DF_Topics_UpdatedAt]
-GO
-ALTER TABLE [dbo].[Topics] DROP CONSTRAINT [DF_Topics_CreatedAt]
-GO
-ALTER TABLE [dbo].[TopicCategories] DROP CONSTRAINT [DF_TopicCategories_UpdatedAt]
-GO
-ALTER TABLE [dbo].[TopicCategories] DROP CONSTRAINT [DF_TopicCategories_CreatedAt]
-GO
-ALTER TABLE [dbo].[TopicCategories] DROP CONSTRAINT [DF_TopicCategories_IsActive]
-GO
-ALTER TABLE [dbo].[TopicCategories] DROP CONSTRAINT [DF_TopicCategories_DisplayOrder]
-GO
-ALTER TABLE [dbo].[Questions] DROP CONSTRAINT [DF_Questions_ContentStatus]
-GO
-ALTER TABLE [dbo].[Questions] DROP CONSTRAINT [DF_Questions_UpdatedAt]
-GO
-ALTER TABLE [dbo].[Questions] DROP CONSTRAINT [DF_Questions_CreatedAt]
-GO
-ALTER TABLE [dbo].[Questions] DROP CONSTRAINT [DF_Questions_DifficultyLevel]
-GO
-ALTER TABLE [dbo].[MiniTests] DROP CONSTRAINT [DF_MiniTests_ContentStatus]
-GO
-ALTER TABLE [dbo].[MiniTests] DROP CONSTRAINT [DF_MiniTests_UpdatedAt]
-GO
-ALTER TABLE [dbo].[MiniTests] DROP CONSTRAINT [DF_MiniTests_CreatedAt]
-GO
-ALTER TABLE [dbo].[MiniTests] DROP CONSTRAINT [DF_MiniTests_IsPublished]
-GO
-ALTER TABLE [dbo].[MiniTests] DROP CONSTRAINT [DF_MiniTests_TotalQuestions]
-GO
-ALTER TABLE [dbo].[MiniTestAttempts] DROP CONSTRAINT [DF_MiniTestAttempts_CorrectCount]
-GO
-ALTER TABLE [dbo].[MiniTestAttempts] DROP CONSTRAINT [DF_MiniTestAttempts_TotalQuestions]
-GO
-ALTER TABLE [dbo].[MiniTestAttempts] DROP CONSTRAINT [DF_MiniTestAttempts_StartedAt]
-GO
-ALTER TABLE [dbo].[MediaAssets] DROP CONSTRAINT [DF_MediaAssets_CreatedAt]
-GO
-ALTER TABLE [dbo].[ExerciseAttempts] DROP CONSTRAINT [DF_ExerciseAttempts_AttemptedAt]
-GO
-ALTER TABLE [dbo].[ExampleSentences] DROP CONSTRAINT [DF_ExampleSentences_UpdatedAt]
-GO
-ALTER TABLE [dbo].[ExampleSentences] DROP CONSTRAINT [DF_ExampleSentences_CreatedAt]
-GO
-ALTER TABLE [dbo].[ContentReviewLogs] DROP CONSTRAINT [DF_ContentReviewLogs_CreatedAt]
-GO
-ALTER TABLE [dbo].[ContentReports] DROP CONSTRAINT [DF_ContentReports_UpdatedAt]
-GO
-ALTER TABLE [dbo].[ContentReports] DROP CONSTRAINT [DF_ContentReports_CreatedAt]
-GO
-ALTER TABLE [dbo].[ContentReports] DROP CONSTRAINT [DF_ContentReports_Priority]
-GO
-ALTER TABLE [dbo].[ContentReports] DROP CONSTRAINT [DF_ContentReports_Status]
-GO
-ALTER TABLE [dbo].[ContentMediaLinks] DROP CONSTRAINT [DF_ContentMediaLinks_DisplayOrder]
-GO
-ALTER TABLE [dbo].[AdminAuditLogs] DROP CONSTRAINT [DF_AdminAuditLogs_CreatedAt]
-GO
-/****** Object:  Index [IX_WordTopics_TopicID]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP INDEX [IX_WordTopics_TopicID] ON [dbo].[WordTopics]
-GO
-/****** Object:  Index [IX_Words_PartOfSpeechID]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP INDEX [IX_Words_PartOfSpeechID] ON [dbo].[Words]
-GO
-/****** Object:  Index [IX_Words_CreatedByUserID]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP INDEX [IX_Words_CreatedByUserID] ON [dbo].[Words]
-GO
-/****** Object:  Index [UQ_Words_Term_PartOfSpeech]    Script Date: 28-May-26 3:33:39 PM ******/
-ALTER TABLE [dbo].[Words] DROP CONSTRAINT [UQ_Words_Term_PartOfSpeech]
-GO
-/****** Object:  Index [IX_UserWordProgress_WordID]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP INDEX [IX_UserWordProgress_WordID] ON [dbo].[UserWordProgress]
-GO
-/****** Object:  Index [IX_UserWordProgress_UserID_NextReviewDate]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP INDEX [IX_UserWordProgress_UserID_NextReviewDate] ON [dbo].[UserWordProgress]
-GO
-/****** Object:  Index [IX_UserWordProgress_UserID]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP INDEX [IX_UserWordProgress_UserID] ON [dbo].[UserWordProgress]
-GO
-/****** Object:  Index [IX_UserWordProgress_NextReviewDate]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP INDEX [IX_UserWordProgress_NextReviewDate] ON [dbo].[UserWordProgress]
-GO
-/****** Object:  Index [UQ_UserWordProgress_UserID_WordID]    Script Date: 28-May-26 3:33:39 PM ******/
-ALTER TABLE [dbo].[UserWordProgress] DROP CONSTRAINT [UQ_UserWordProgress_UserID_WordID]
-GO
-/****** Object:  Index [IX_UserVocabularyNotebook_WordID]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP INDEX [IX_UserVocabularyNotebook_WordID] ON [dbo].[UserVocabularyNotebook]
-GO
-/****** Object:  Index [IX_UserVocabularyNotebook_UserID]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP INDEX [IX_UserVocabularyNotebook_UserID] ON [dbo].[UserVocabularyNotebook]
-GO
-/****** Object:  Index [UQ_UserVocabularyNotebook_UserID_WordID]    Script Date: 28-May-26 3:33:39 PM ******/
-ALTER TABLE [dbo].[UserVocabularyNotebook] DROP CONSTRAINT [UQ_UserVocabularyNotebook_UserID_WordID]
-GO
-/****** Object:  Index [IX_UserTopicEnrollments_UserID]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP INDEX [IX_UserTopicEnrollments_UserID] ON [dbo].[UserTopicEnrollments]
-GO
-/****** Object:  Index [IX_UserTopicEnrollments_TopicID]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP INDEX [IX_UserTopicEnrollments_TopicID] ON [dbo].[UserTopicEnrollments]
-GO
-/****** Object:  Index [UQ_UserTopicEnrollments_UserID_TopicID]    Script Date: 28-May-26 3:33:39 PM ******/
-ALTER TABLE [dbo].[UserTopicEnrollments] DROP CONSTRAINT [UQ_UserTopicEnrollments_UserID_TopicID]
-GO
-/****** Object:  Index [UQ_Users_Email]    Script Date: 28-May-26 3:33:39 PM ******/
-ALTER TABLE [dbo].[Users] DROP CONSTRAINT [UQ_Users_Email]
-GO
-/****** Object:  Index [IX_Topics_TopicCategoryID_ContentStatus]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP INDEX [IX_Topics_TopicCategoryID_ContentStatus] ON [dbo].[Topics]
-GO
-/****** Object:  Index [UQ_Topics_TopicName]    Script Date: 28-May-26 3:33:39 PM ******/
-ALTER TABLE [dbo].[Topics] DROP CONSTRAINT [UQ_Topics_TopicName]
-GO
-/****** Object:  Index [UQ_Topics_TopicCode]    Script Date: 28-May-26 3:33:39 PM ******/
-ALTER TABLE [dbo].[Topics] DROP CONSTRAINT [UQ_Topics_TopicCode]
-GO
-/****** Object:  Index [IX_TopicCategories_IsActive_DisplayOrder]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP INDEX [IX_TopicCategories_IsActive_DisplayOrder] ON [dbo].[TopicCategories]
-GO
-/****** Object:  Index [UQ_TopicCategories_CategoryCode]    Script Date: 28-May-26 3:33:39 PM ******/
-ALTER TABLE [dbo].[TopicCategories] DROP CONSTRAINT [UQ_TopicCategories_CategoryCode]
-GO
-/****** Object:  Index [UQ__Roles__8A2B61603692C3D3]    Script Date: 28-May-26 3:33:39 PM ******/
-ALTER TABLE [dbo].[Roles] DROP CONSTRAINT [UQ__Roles__8A2B61603692C3D3]
-GO
-/****** Object:  Index [IX_Questions_WordID]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP INDEX [IX_Questions_WordID] ON [dbo].[Questions]
-GO
-/****** Object:  Index [IX_Questions_CreatedByUserID]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP INDEX [IX_Questions_CreatedByUserID] ON [dbo].[Questions]
-GO
-/****** Object:  Index [UQ__Permissi__91FE5750552D93DA]    Script Date: 28-May-26 3:33:39 PM ******/
-ALTER TABLE [dbo].[Permissions] DROP CONSTRAINT [UQ__Permissi__91FE5750552D93DA]
-GO
-/****** Object:  Index [UQ_PartOfSpeeches_Name]    Script Date: 28-May-26 3:33:39 PM ******/
-ALTER TABLE [dbo].[PartOfSpeeches] DROP CONSTRAINT [UQ_PartOfSpeeches_Name]
-GO
-/****** Object:  Index [UQ_PartOfSpeeches_Code]    Script Date: 28-May-26 3:33:39 PM ******/
-ALTER TABLE [dbo].[PartOfSpeeches] DROP CONSTRAINT [UQ_PartOfSpeeches_Code]
-GO
-/****** Object:  Index [IX_MiniTests_TopicID]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP INDEX [IX_MiniTests_TopicID] ON [dbo].[MiniTests]
-GO
-/****** Object:  Index [IX_MiniTestItems_QuestionID]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP INDEX [IX_MiniTestItems_QuestionID] ON [dbo].[MiniTestItems]
-GO
-/****** Object:  Index [UQ_MiniTestItems_MiniTestID_DisplayOrder]    Script Date: 28-May-26 3:33:39 PM ******/
-ALTER TABLE [dbo].[MiniTestItems] DROP CONSTRAINT [UQ_MiniTestItems_MiniTestID_DisplayOrder]
-GO
-/****** Object:  Index [IX_MiniTestAttempts_UserID]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP INDEX [IX_MiniTestAttempts_UserID] ON [dbo].[MiniTestAttempts]
-GO
-/****** Object:  Index [IX_MiniTestAttempts_MiniTestID]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP INDEX [IX_MiniTestAttempts_MiniTestID] ON [dbo].[MiniTestAttempts]
-GO
-/****** Object:  Index [IX_MediaAssets_UploadedByUserID]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP INDEX [IX_MediaAssets_UploadedByUserID] ON [dbo].[MediaAssets]
-GO
-/****** Object:  Index [IX_ExerciseAttempts_WordID]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP INDEX [IX_ExerciseAttempts_WordID] ON [dbo].[ExerciseAttempts]
-GO
-/****** Object:  Index [IX_ExerciseAttempts_UserID_AttemptedAt]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP INDEX [IX_ExerciseAttempts_UserID_AttemptedAt] ON [dbo].[ExerciseAttempts]
-GO
-/****** Object:  Index [IX_ExerciseAttempts_QuestionID]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP INDEX [IX_ExerciseAttempts_QuestionID] ON [dbo].[ExerciseAttempts]
-GO
-/****** Object:  Index [IX_ExampleSentences_WordID]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP INDEX [IX_ExampleSentences_WordID] ON [dbo].[ExampleSentences]
-GO
-/****** Object:  Index [IX_ContentReviewLogs_Entity]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP INDEX [IX_ContentReviewLogs_Entity] ON [dbo].[ContentReviewLogs]
-GO
-/****** Object:  Index [IX_ContentReviewLogs_ActionByUserID]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP INDEX [IX_ContentReviewLogs_ActionByUserID] ON [dbo].[ContentReviewLogs]
-GO
-/****** Object:  Index [IX_ContentReports_Status_CreatedAt]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP INDEX [IX_ContentReports_Status_CreatedAt] ON [dbo].[ContentReports]
-GO
-/****** Object:  Index [IX_ContentReports_ReportType]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP INDEX [IX_ContentReports_ReportType] ON [dbo].[ContentReports]
-GO
-/****** Object:  Index [IX_ContentReports_ReporterUserID]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP INDEX [IX_ContentReports_ReporterUserID] ON [dbo].[ContentReports]
-GO
-/****** Object:  Index [IX_ContentMediaLinks_MediaAssetID]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP INDEX [IX_ContentMediaLinks_MediaAssetID] ON [dbo].[ContentMediaLinks]
-GO
-/****** Object:  Index [IX_ContentMediaLinks_Entity]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP INDEX [IX_ContentMediaLinks_Entity] ON [dbo].[ContentMediaLinks]
-GO
-/****** Object:  Table [dbo].[UserVocabularyNotebook]    Script Date: 28-May-26 3:33:39 PM ******/
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[UserVocabularyNotebook]') AND type in (N'U'))
-DROP TABLE [dbo].[UserVocabularyNotebook]
-GO
-/****** Object:  Table [dbo].[Roles]    Script Date: 28-May-26 3:33:39 PM ******/
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Roles]') AND type in (N'U'))
-DROP TABLE [dbo].[Roles]
-GO
-/****** Object:  Table [dbo].[RolePermissions]    Script Date: 28-May-26 3:33:39 PM ******/
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[RolePermissions]') AND type in (N'U'))
-DROP TABLE [dbo].[RolePermissions]
-GO
-/****** Object:  Table [dbo].[Permissions]    Script Date: 28-May-26 3:33:39 PM ******/
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Permissions]') AND type in (N'U'))
-DROP TABLE [dbo].[Permissions]
-GO
-/****** Object:  Table [dbo].[PartOfSpeeches]    Script Date: 28-May-26 3:33:39 PM ******/
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[PartOfSpeeches]') AND type in (N'U'))
-DROP TABLE [dbo].[PartOfSpeeches]
-GO
-/****** Object:  Table [dbo].[MiniTestItems]    Script Date: 28-May-26 3:33:39 PM ******/
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[MiniTestItems]') AND type in (N'U'))
-DROP TABLE [dbo].[MiniTestItems]
-GO
-/****** Object:  Table [dbo].[MediaAssets]    Script Date: 28-May-26 3:33:39 PM ******/
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[MediaAssets]') AND type in (N'U'))
-DROP TABLE [dbo].[MediaAssets]
-GO
-/****** Object:  Table [dbo].[ExerciseAttempts]    Script Date: 28-May-26 3:33:39 PM ******/
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[ExerciseAttempts]') AND type in (N'U'))
-DROP TABLE [dbo].[ExerciseAttempts]
-GO
-/****** Object:  Table [dbo].[ExampleSentences]    Script Date: 28-May-26 3:33:39 PM ******/
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[ExampleSentences]') AND type in (N'U'))
-DROP TABLE [dbo].[ExampleSentences]
-GO
-/****** Object:  Table [dbo].[ContentReviewLogs]    Script Date: 28-May-26 3:33:39 PM ******/
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[ContentReviewLogs]') AND type in (N'U'))
-DROP TABLE [dbo].[ContentReviewLogs]
-GO
-/****** Object:  Table [dbo].[ContentReports]    Script Date: 28-May-26 3:33:39 PM ******/
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[ContentReports]') AND type in (N'U'))
-DROP TABLE [dbo].[ContentReports]
-GO
-/****** Object:  Table [dbo].[ContentMediaLinks]    Script Date: 28-May-26 3:33:39 PM ******/
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[ContentMediaLinks]') AND type in (N'U'))
-DROP TABLE [dbo].[ContentMediaLinks]
-GO
-/****** Object:  Table [dbo].[AdminAuditLogs]    Script Date: 28-May-26 3:33:39 PM ******/
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[AdminAuditLogs]') AND type in (N'U'))
-DROP TABLE [dbo].[AdminAuditLogs]
-GO
-/****** Object:  View [dbo].[vw_ContentCreatorContentSummary]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP VIEW [dbo].[vw_ContentCreatorContentSummary]
-GO
-/****** Object:  Table [dbo].[Questions]    Script Date: 28-May-26 3:33:39 PM ******/
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Questions]') AND type in (N'U'))
-DROP TABLE [dbo].[Questions]
-GO
-/****** Object:  Table [dbo].[Words]    Script Date: 28-May-26 3:33:39 PM ******/
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Words]') AND type in (N'U'))
-DROP TABLE [dbo].[Words]
-GO
-/****** Object:  Table [dbo].[Users]    Script Date: 28-May-26 3:33:39 PM ******/
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Users]') AND type in (N'U'))
-DROP TABLE [dbo].[Users]
-GO
-/****** Object:  View [dbo].[vw_TopicCategorySummary]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP VIEW [dbo].[vw_TopicCategorySummary]
-GO
-/****** Object:  Table [dbo].[TopicCategories]    Script Date: 28-May-26 3:33:39 PM ******/
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[TopicCategories]') AND type in (N'U'))
-DROP TABLE [dbo].[TopicCategories]
-GO
-/****** Object:  View [dbo].[vw_MiniTestAnalytics]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP VIEW [dbo].[vw_MiniTestAnalytics]
-GO
-/****** Object:  Table [dbo].[MiniTests]    Script Date: 28-May-26 3:33:39 PM ******/
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[MiniTests]') AND type in (N'U'))
-DROP TABLE [dbo].[MiniTests]
-GO
-/****** Object:  Table [dbo].[MiniTestAttempts]    Script Date: 28-May-26 3:33:39 PM ******/
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[MiniTestAttempts]') AND type in (N'U'))
-DROP TABLE [dbo].[MiniTestAttempts]
-GO
-/****** Object:  View [dbo].[vw_TopicLearningAnalytics]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP VIEW [dbo].[vw_TopicLearningAnalytics]
-GO
-/****** Object:  Table [dbo].[UserWordProgress]    Script Date: 28-May-26 3:33:39 PM ******/
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[UserWordProgress]') AND type in (N'U'))
-DROP TABLE [dbo].[UserWordProgress]
-GO
-/****** Object:  Table [dbo].[WordTopics]    Script Date: 28-May-26 3:33:39 PM ******/
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[WordTopics]') AND type in (N'U'))
-DROP TABLE [dbo].[WordTopics]
-GO
-/****** Object:  Table [dbo].[UserTopicEnrollments]    Script Date: 28-May-26 3:33:39 PM ******/
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[UserTopicEnrollments]') AND type in (N'U'))
-DROP TABLE [dbo].[UserTopicEnrollments]
-GO
-/****** Object:  Table [dbo].[Topics]    Script Date: 28-May-26 3:33:39 PM ******/
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Topics]') AND type in (N'U'))
-DROP TABLE [dbo].[Topics]
-GO
 USE [master]
 GO
-/****** Object:  Database [ToeicVocabularyPlatform]    Script Date: 28-May-26 3:33:39 PM ******/
-DROP DATABASE [ToeicVocabularyPlatform]
-GO
-/****** Object:  Database [ToeicVocabularyPlatform]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Database [ToeicVocabularyPlatform]    Script Date: 28-May-26 8:31:13 PM ******/
 CREATE DATABASE [ToeicVocabularyPlatform]
  CONTAINMENT = NONE
  ON  PRIMARY 
@@ -576,7 +84,7 @@ ALTER DATABASE [ToeicVocabularyPlatform] SET QUERY_STORE (OPERATION_MODE = READ_
 GO
 USE [ToeicVocabularyPlatform]
 GO
-/****** Object:  Table [dbo].[Topics]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Table [dbo].[Topics]    Script Date: 28-May-26 8:31:13 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -600,7 +108,7 @@ CREATE TABLE [dbo].[Topics](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[UserTopicEnrollments]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Table [dbo].[UserTopicEnrollments]    Script Date: 28-May-26 8:31:13 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -617,7 +125,7 @@ CREATE TABLE [dbo].[UserTopicEnrollments](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[WordTopics]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Table [dbo].[WordTopics]    Script Date: 28-May-26 8:31:13 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -633,7 +141,7 @@ CREATE TABLE [dbo].[WordTopics](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[UserWordProgress]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Table [dbo].[UserWordProgress]    Script Date: 28-May-26 8:31:13 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -659,7 +167,7 @@ CREATE TABLE [dbo].[UserWordProgress](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  View [dbo].[vw_TopicLearningAnalytics]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  View [dbo].[vw_TopicLearningAnalytics]    Script Date: 28-May-26 8:31:13 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -694,8 +202,9 @@ GROUP BY
     t.TopicName,
     t.TopicCode;
 
+
 GO
-/****** Object:  Table [dbo].[MiniTestAttempts]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Table [dbo].[MiniTestAttempts]    Script Date: 28-May-26 8:31:13 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -715,7 +224,7 @@ CREATE TABLE [dbo].[MiniTestAttempts](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[MiniTests]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Table [dbo].[MiniTests]    Script Date: 28-May-26 8:31:13 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -740,7 +249,7 @@ CREATE TABLE [dbo].[MiniTests](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  View [dbo].[vw_MiniTestAnalytics]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  View [dbo].[vw_MiniTestAnalytics]    Script Date: 28-May-26 8:31:13 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -773,8 +282,9 @@ GROUP BY
     mt.TopicID,
     t.TopicName;
 
+
 GO
-/****** Object:  Table [dbo].[TopicCategories]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Table [dbo].[TopicCategories]    Script Date: 28-May-26 8:31:13 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -796,7 +306,7 @@ CREATE TABLE [dbo].[TopicCategories](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  View [dbo].[vw_TopicCategorySummary]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  View [dbo].[vw_TopicCategorySummary]    Script Date: 28-May-26 8:31:13 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -846,8 +356,9 @@ GROUP BY
     tc.DisplayOrder,
     tc.IsActive;
 
+
 GO
-/****** Object:  Table [dbo].[Users]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Table [dbo].[Users]    Script Date: 28-May-26 8:31:13 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -862,13 +373,17 @@ CREATE TABLE [dbo].[Users](
 	[CreatedAt] [datetimeoffset](7) NOT NULL,
 	[UpdatedAt] [datetimeoffset](7) NOT NULL,
 	[RoleID] [int] NOT NULL,
+	[DailyGoal] [int] NOT NULL,
+	[SRSReviewLimit] [int] NOT NULL,
+	[TotalXP] [int] NOT NULL,
+	[CurrentLevel] [int] NOT NULL,
  CONSTRAINT [PK_Users] PRIMARY KEY CLUSTERED 
 (
 	[UserID] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[Words]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Table [dbo].[Words]    Script Date: 28-May-26 8:31:13 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -896,7 +411,7 @@ CREATE TABLE [dbo].[Words](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[Questions]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Table [dbo].[Questions]    Script Date: 28-May-26 8:31:13 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -923,7 +438,7 @@ CREATE TABLE [dbo].[Questions](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
-/****** Object:  View [dbo].[vw_ContentCreatorContentSummary]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  View [dbo].[vw_ContentCreatorContentSummary]    Script Date: 28-May-26 8:31:13 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -959,8 +474,9 @@ GROUP BY
     u.FullName,
     u.Email;
 
+
 GO
-/****** Object:  Table [dbo].[AdminAuditLogs]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Table [dbo].[AdminAuditLogs]    Script Date: 28-May-26 8:31:13 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -979,7 +495,7 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[ContentMediaLinks]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Table [dbo].[ContentMediaLinks]    Script Date: 28-May-26 8:31:13 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -997,7 +513,7 @@ CREATE TABLE [dbo].[ContentMediaLinks](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[ContentReports]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Table [dbo].[ContentReports]    Script Date: 28-May-26 8:31:13 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1024,7 +540,7 @@ CREATE TABLE [dbo].[ContentReports](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[ContentReviewLogs]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Table [dbo].[ContentReviewLogs]    Script Date: 28-May-26 8:31:13 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1044,7 +560,7 @@ CREATE TABLE [dbo].[ContentReviewLogs](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[ExampleSentences]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Table [dbo].[ExampleSentences]    Script Date: 28-May-26 8:31:13 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1063,7 +579,7 @@ CREATE TABLE [dbo].[ExampleSentences](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[ExerciseAttempts]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Table [dbo].[ExerciseAttempts]    Script Date: 28-May-26 8:31:13 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1085,7 +601,7 @@ CREATE TABLE [dbo].[ExerciseAttempts](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[MediaAssets]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Table [dbo].[MediaAssets]    Script Date: 28-May-26 8:31:13 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1107,7 +623,7 @@ CREATE TABLE [dbo].[MediaAssets](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[MiniTestItems]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Table [dbo].[MiniTestItems]    Script Date: 28-May-26 8:31:13 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1123,7 +639,28 @@ CREATE TABLE [dbo].[MiniTestItems](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[PartOfSpeeches]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Table [dbo].[Notifications]    Script Date: 28-May-26 8:31:13 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[Notifications](
+	[NotificationID] [bigint] IDENTITY(1,1) NOT NULL,
+	[UserID] [bigint] NOT NULL,
+	[Title] [nvarchar](200) NOT NULL,
+	[Message] [nvarchar](2000) NOT NULL,
+	[Type] [nvarchar](50) NOT NULL,
+	[DeliveryChannel] [nvarchar](20) NOT NULL,
+	[IsRead] [bit] NOT NULL,
+	[ActionUrl] [nvarchar](500) NULL,
+	[CreatedAt] [datetimeoffset](7) NOT NULL,
+ CONSTRAINT [PK_Notifications] PRIMARY KEY CLUSTERED 
+(
+	[NotificationID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+/****** Object:  Table [dbo].[PartOfSpeeches]    Script Date: 28-May-26 8:31:13 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1139,7 +676,7 @@ CREATE TABLE [dbo].[PartOfSpeeches](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[Permissions]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Table [dbo].[Permissions]    Script Date: 28-May-26 8:31:13 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1154,7 +691,7 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[RolePermissions]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Table [dbo].[RolePermissions]    Script Date: 28-May-26 8:31:13 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1169,7 +706,7 @@ CREATE TABLE [dbo].[RolePermissions](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[Roles]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Table [dbo].[Roles]    Script Date: 28-May-26 8:31:13 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1184,7 +721,7 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[UserVocabularyNotebook]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Table [dbo].[UserVocabularyNotebook]    Script Date: 28-May-26 8:31:13 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1431,14 +968,14 @@ SET IDENTITY_INSERT [dbo].[Topics] OFF
 GO
 SET IDENTITY_INSERT [dbo].[Users] ON 
 
-INSERT [dbo].[Users] ([UserID], [FullName], [Email], [PasswordHash], [UserRole], [IsActive], [CreatedAt], [UpdatedAt], [RoleID]) VALUES (1, N'Admin Test', N'admin@gmail.com', N'123', N'Admin', 1, CAST(N'2026-05-04T14:21:05.4591454+07:00' AS DateTimeOffset), CAST(N'2026-05-04T14:21:05.4591454+07:00' AS DateTimeOffset), 1)
-INSERT [dbo].[Users] ([UserID], [FullName], [Email], [PasswordHash], [UserRole], [IsActive], [CreatedAt], [UpdatedAt], [RoleID]) VALUES (2, N'User Test 1', N'user1@gmail.com', N'123', N'Learner', 1, CAST(N'2026-05-04T14:21:05.4591454+07:00' AS DateTimeOffset), CAST(N'2026-05-04T14:21:05.4591454+07:00' AS DateTimeOffset), 2)
-INSERT [dbo].[Users] ([UserID], [FullName], [Email], [PasswordHash], [UserRole], [IsActive], [CreatedAt], [UpdatedAt], [RoleID]) VALUES (3, N'User Test 2', N'user2@gmail.com', N'123', N'Learner', 1, CAST(N'2026-05-04T14:21:05.4591454+07:00' AS DateTimeOffset), CAST(N'2026-05-04T14:21:05.4591454+07:00' AS DateTimeOffset), 2)
-INSERT [dbo].[Users] ([UserID], [FullName], [Email], [PasswordHash], [UserRole], [IsActive], [CreatedAt], [UpdatedAt], [RoleID]) VALUES (4, N'Test User', N'test_1777884304484@example.com', N'$2b$10$TXCP2yMR0ahEnCkLqr4N7OYu0lYk9tD5iBLUpHphXsC9smRzsFlHu', N'Learner', 1, CAST(N'2026-05-04T15:45:04.5975996+07:00' AS DateTimeOffset), CAST(N'2026-05-04T15:45:04.5975996+07:00' AS DateTimeOffset), 2)
-INSERT [dbo].[Users] ([UserID], [FullName], [Email], [PasswordHash], [UserRole], [IsActive], [CreatedAt], [UpdatedAt], [RoleID]) VALUES (5, N'LAITUNG', N'tung@gmail.com', N'$2b$10$isQCzJzRMz0WDr3z/0cAq.obuGFaO8eqnhYL/sf5SKyoGKxXvmdcS', N'Admin', 1, CAST(N'2026-05-04T15:58:33.8227924+07:00' AS DateTimeOffset), CAST(N'2026-05-04T15:58:33.8227924+07:00' AS DateTimeOffset), 1)
-INSERT [dbo].[Users] ([UserID], [FullName], [Email], [PasswordHash], [UserRole], [IsActive], [CreatedAt], [UpdatedAt], [RoleID]) VALUES (8, N'System Admin', N'system@vocaboost.com', N'N/A', N'Admin', 1, CAST(N'2026-05-04T16:03:43.5110176+07:00' AS DateTimeOffset), CAST(N'2026-05-04T16:03:43.5110176+07:00' AS DateTimeOffset), 1)
-INSERT [dbo].[Users] ([UserID], [FullName], [Email], [PasswordHash], [UserRole], [IsActive], [CreatedAt], [UpdatedAt], [RoleID]) VALUES (9, N'Biên tập viên / Giáo viên', N'teacher@vocaboost.com', N'$2b$10$tNoClV7O7zNIX.oRHst5K.vYVKWxr0cGmaBe8nN5yi7J0YDd.l/l2', N'ContentCreator', 1, CAST(N'2026-05-17T22:18:18.1662343+07:00' AS DateTimeOffset), CAST(N'2026-05-18T13:50:57.6934183+07:00' AS DateTimeOffset), 3)
-INSERT [dbo].[Users] ([UserID], [FullName], [Email], [PasswordHash], [UserRole], [IsActive], [CreatedAt], [UpdatedAt], [RoleID]) VALUES (10, N'Nguyễn Hoàng Phúc', N'phuc2011@gmail.com', N'$2b$10$Hv/ILBgFJkQyhoSJ7QKiD.KmwoL5JfFBp1G9hrc7EB7/6MlxrFeY6', N'Learner', 1, CAST(N'2026-05-25T09:14:14.4312623+00:00' AS DateTimeOffset), CAST(N'2026-05-25T09:14:14.4312623+00:00' AS DateTimeOffset), 2)
+INSERT [dbo].[Users] ([UserID], [FullName], [Email], [PasswordHash], [UserRole], [IsActive], [CreatedAt], [UpdatedAt], [RoleID], [DailyGoal], [SRSReviewLimit], [TotalXP], [CurrentLevel]) VALUES (1, N'Admin Test', N'admin@gmail.com', N'123', N'Admin', 1, CAST(N'2026-05-04T14:21:05.4591454+07:00' AS DateTimeOffset), CAST(N'2026-05-04T14:21:05.4591454+07:00' AS DateTimeOffset), 1, 20, 15, 0, 1)
+INSERT [dbo].[Users] ([UserID], [FullName], [Email], [PasswordHash], [UserRole], [IsActive], [CreatedAt], [UpdatedAt], [RoleID], [DailyGoal], [SRSReviewLimit], [TotalXP], [CurrentLevel]) VALUES (2, N'User Test 1', N'user1@gmail.com', N'123', N'Learner', 1, CAST(N'2026-05-04T14:21:05.4591454+07:00' AS DateTimeOffset), CAST(N'2026-05-04T14:21:05.4591454+07:00' AS DateTimeOffset), 2, 20, 15, 0, 1)
+INSERT [dbo].[Users] ([UserID], [FullName], [Email], [PasswordHash], [UserRole], [IsActive], [CreatedAt], [UpdatedAt], [RoleID], [DailyGoal], [SRSReviewLimit], [TotalXP], [CurrentLevel]) VALUES (3, N'User Test 2', N'user2@gmail.com', N'123', N'Learner', 1, CAST(N'2026-05-04T14:21:05.4591454+07:00' AS DateTimeOffset), CAST(N'2026-05-04T14:21:05.4591454+07:00' AS DateTimeOffset), 2, 20, 15, 0, 1)
+INSERT [dbo].[Users] ([UserID], [FullName], [Email], [PasswordHash], [UserRole], [IsActive], [CreatedAt], [UpdatedAt], [RoleID], [DailyGoal], [SRSReviewLimit], [TotalXP], [CurrentLevel]) VALUES (4, N'Test User', N'test_1777884304484@example.com', N'$2b$10$TXCP2yMR0ahEnCkLqr4N7OYu0lYk9tD5iBLUpHphXsC9smRzsFlHu', N'Learner', 1, CAST(N'2026-05-04T15:45:04.5975996+07:00' AS DateTimeOffset), CAST(N'2026-05-04T15:45:04.5975996+07:00' AS DateTimeOffset), 2, 20, 15, 0, 1)
+INSERT [dbo].[Users] ([UserID], [FullName], [Email], [PasswordHash], [UserRole], [IsActive], [CreatedAt], [UpdatedAt], [RoleID], [DailyGoal], [SRSReviewLimit], [TotalXP], [CurrentLevel]) VALUES (5, N'LAITUNG', N'tung@gmail.com', N'$2b$10$isQCzJzRMz0WDr3z/0cAq.obuGFaO8eqnhYL/sf5SKyoGKxXvmdcS', N'Admin', 1, CAST(N'2026-05-04T15:58:33.8227924+07:00' AS DateTimeOffset), CAST(N'2026-05-04T15:58:33.8227924+07:00' AS DateTimeOffset), 1, 20, 15, 0, 1)
+INSERT [dbo].[Users] ([UserID], [FullName], [Email], [PasswordHash], [UserRole], [IsActive], [CreatedAt], [UpdatedAt], [RoleID], [DailyGoal], [SRSReviewLimit], [TotalXP], [CurrentLevel]) VALUES (8, N'System Admin', N'system@vocaboost.com', N'N/A', N'Admin', 1, CAST(N'2026-05-04T16:03:43.5110176+07:00' AS DateTimeOffset), CAST(N'2026-05-04T16:03:43.5110176+07:00' AS DateTimeOffset), 1, 20, 15, 0, 1)
+INSERT [dbo].[Users] ([UserID], [FullName], [Email], [PasswordHash], [UserRole], [IsActive], [CreatedAt], [UpdatedAt], [RoleID], [DailyGoal], [SRSReviewLimit], [TotalXP], [CurrentLevel]) VALUES (9, N'Biên tập viên / Giáo viên', N'teacher@vocaboost.com', N'$2b$10$tNoClV7O7zNIX.oRHst5K.vYVKWxr0cGmaBe8nN5yi7J0YDd.l/l2', N'ContentCreator', 1, CAST(N'2026-05-17T22:18:18.1662343+07:00' AS DateTimeOffset), CAST(N'2026-05-18T13:50:57.6934183+07:00' AS DateTimeOffset), 3, 20, 15, 0, 1)
+INSERT [dbo].[Users] ([UserID], [FullName], [Email], [PasswordHash], [UserRole], [IsActive], [CreatedAt], [UpdatedAt], [RoleID], [DailyGoal], [SRSReviewLimit], [TotalXP], [CurrentLevel]) VALUES (10, N'Nguyễn Hoàng Phúc', N'phuc2011@gmail.com', N'$2b$10$Hv/ILBgFJkQyhoSJ7QKiD.KmwoL5JfFBp1G9hrc7EB7/6MlxrFeY6', N'Learner', 1, CAST(N'2026-05-25T09:14:14.4312623+00:00' AS DateTimeOffset), CAST(N'2026-05-25T09:14:14.4312623+00:00' AS DateTimeOffset), 2, 20, 15, 0, 1)
 SET IDENTITY_INSERT [dbo].[Users] OFF
 GO
 SET IDENTITY_INSERT [dbo].[UserWordProgress] ON 
@@ -1519,7 +1056,7 @@ INSERT [dbo].[WordTopics] ([WordID], [TopicID], [AssignedAt]) VALUES (42, 2, CAS
 GO
 SET ANSI_PADDING ON
 GO
-/****** Object:  Index [IX_ContentMediaLinks_Entity]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [IX_ContentMediaLinks_Entity]    Script Date: 28-May-26 8:31:14 PM ******/
 CREATE NONCLUSTERED INDEX [IX_ContentMediaLinks_Entity] ON [dbo].[ContentMediaLinks]
 (
 	[EntityType] ASC,
@@ -1527,13 +1064,13 @@ CREATE NONCLUSTERED INDEX [IX_ContentMediaLinks_Entity] ON [dbo].[ContentMediaLi
 	[DisplayOrder] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Object:  Index [IX_ContentMediaLinks_MediaAssetID]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [IX_ContentMediaLinks_MediaAssetID]    Script Date: 28-May-26 8:31:14 PM ******/
 CREATE NONCLUSTERED INDEX [IX_ContentMediaLinks_MediaAssetID] ON [dbo].[ContentMediaLinks]
 (
 	[MediaAssetID] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Object:  Index [IX_ContentReports_ReporterUserID]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [IX_ContentReports_ReporterUserID]    Script Date: 28-May-26 8:31:14 PM ******/
 CREATE NONCLUSTERED INDEX [IX_ContentReports_ReporterUserID] ON [dbo].[ContentReports]
 (
 	[ReporterUserID] ASC,
@@ -1542,7 +1079,7 @@ CREATE NONCLUSTERED INDEX [IX_ContentReports_ReporterUserID] ON [dbo].[ContentRe
 GO
 SET ANSI_PADDING ON
 GO
-/****** Object:  Index [IX_ContentReports_ReportType]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [IX_ContentReports_ReportType]    Script Date: 28-May-26 8:31:14 PM ******/
 CREATE NONCLUSTERED INDEX [IX_ContentReports_ReportType] ON [dbo].[ContentReports]
 (
 	[ReportType] ASC
@@ -1550,14 +1087,14 @@ CREATE NONCLUSTERED INDEX [IX_ContentReports_ReportType] ON [dbo].[ContentReport
 GO
 SET ANSI_PADDING ON
 GO
-/****** Object:  Index [IX_ContentReports_Status_CreatedAt]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [IX_ContentReports_Status_CreatedAt]    Script Date: 28-May-26 8:31:14 PM ******/
 CREATE NONCLUSTERED INDEX [IX_ContentReports_Status_CreatedAt] ON [dbo].[ContentReports]
 (
 	[Status] ASC,
 	[CreatedAt] DESC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Object:  Index [IX_ContentReviewLogs_ActionByUserID]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [IX_ContentReviewLogs_ActionByUserID]    Script Date: 28-May-26 8:31:14 PM ******/
 CREATE NONCLUSTERED INDEX [IX_ContentReviewLogs_ActionByUserID] ON [dbo].[ContentReviewLogs]
 (
 	[ActionByUserID] ASC,
@@ -1566,7 +1103,7 @@ CREATE NONCLUSTERED INDEX [IX_ContentReviewLogs_ActionByUserID] ON [dbo].[Conten
 GO
 SET ANSI_PADDING ON
 GO
-/****** Object:  Index [IX_ContentReviewLogs_Entity]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [IX_ContentReviewLogs_Entity]    Script Date: 28-May-26 8:31:14 PM ******/
 CREATE NONCLUSTERED INDEX [IX_ContentReviewLogs_Entity] ON [dbo].[ContentReviewLogs]
 (
 	[EntityType] ASC,
@@ -1574,19 +1111,19 @@ CREATE NONCLUSTERED INDEX [IX_ContentReviewLogs_Entity] ON [dbo].[ContentReviewL
 	[CreatedAt] DESC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Object:  Index [IX_ExampleSentences_WordID]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [IX_ExampleSentences_WordID]    Script Date: 28-May-26 8:31:14 PM ******/
 CREATE NONCLUSTERED INDEX [IX_ExampleSentences_WordID] ON [dbo].[ExampleSentences]
 (
 	[WordID] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Object:  Index [IX_ExerciseAttempts_QuestionID]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [IX_ExerciseAttempts_QuestionID]    Script Date: 28-May-26 8:31:14 PM ******/
 CREATE NONCLUSTERED INDEX [IX_ExerciseAttempts_QuestionID] ON [dbo].[ExerciseAttempts]
 (
 	[QuestionID] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Object:  Index [IX_ExerciseAttempts_UserID_AttemptedAt]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [IX_ExerciseAttempts_UserID_AttemptedAt]    Script Date: 28-May-26 8:31:14 PM ******/
 CREATE NONCLUSTERED INDEX [IX_ExerciseAttempts_UserID_AttemptedAt] ON [dbo].[ExerciseAttempts]
 (
 	[UserID] ASC,
@@ -1594,55 +1131,69 @@ CREATE NONCLUSTERED INDEX [IX_ExerciseAttempts_UserID_AttemptedAt] ON [dbo].[Exe
 )
 INCLUDE([QuestionID],[WordID],[IsCorrect],[ScoreAwarded]) WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Object:  Index [IX_ExerciseAttempts_WordID]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [IX_ExerciseAttempts_WordID]    Script Date: 28-May-26 8:31:14 PM ******/
 CREATE NONCLUSTERED INDEX [IX_ExerciseAttempts_WordID] ON [dbo].[ExerciseAttempts]
 (
 	[WordID] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Object:  Index [IX_MediaAssets_UploadedByUserID]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [IX_MediaAssets_UploadedByUserID]    Script Date: 28-May-26 8:31:14 PM ******/
 CREATE NONCLUSTERED INDEX [IX_MediaAssets_UploadedByUserID] ON [dbo].[MediaAssets]
 (
 	[UploadedByUserID] ASC,
 	[CreatedAt] DESC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Object:  Index [IX_MiniTestAttempts_MiniTestID]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [IX_MiniTestAttempts_MiniTestID]    Script Date: 28-May-26 8:31:14 PM ******/
 CREATE NONCLUSTERED INDEX [IX_MiniTestAttempts_MiniTestID] ON [dbo].[MiniTestAttempts]
 (
 	[MiniTestID] ASC,
 	[StartedAt] DESC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Object:  Index [IX_MiniTestAttempts_UserID]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [IX_MiniTestAttempts_UserID]    Script Date: 28-May-26 8:31:14 PM ******/
 CREATE NONCLUSTERED INDEX [IX_MiniTestAttempts_UserID] ON [dbo].[MiniTestAttempts]
 (
 	[UserID] ASC,
 	[StartedAt] DESC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Object:  Index [UQ_MiniTestItems_MiniTestID_DisplayOrder]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [UQ_MiniTestItems_MiniTestID_DisplayOrder]    Script Date: 28-May-26 8:31:14 PM ******/
 ALTER TABLE [dbo].[MiniTestItems] ADD  CONSTRAINT [UQ_MiniTestItems_MiniTestID_DisplayOrder] UNIQUE NONCLUSTERED 
 (
 	[MiniTestID] ASC,
 	[DisplayOrder] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Object:  Index [IX_MiniTestItems_QuestionID]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [IX_MiniTestItems_QuestionID]    Script Date: 28-May-26 8:31:14 PM ******/
 CREATE NONCLUSTERED INDEX [IX_MiniTestItems_QuestionID] ON [dbo].[MiniTestItems]
 (
 	[QuestionID] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Object:  Index [IX_MiniTests_TopicID]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [IX_MiniTests_TopicID]    Script Date: 28-May-26 8:31:14 PM ******/
 CREATE NONCLUSTERED INDEX [IX_MiniTests_TopicID] ON [dbo].[MiniTests]
 (
 	[TopicID] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
+/****** Object:  Index [IX_Notifications_CreatedAt]    Script Date: 28-May-26 8:31:14 PM ******/
+CREATE NONCLUSTERED INDEX [IX_Notifications_CreatedAt] ON [dbo].[Notifications]
+(
+	[CreatedAt] DESC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+GO
+/****** Object:  Index [IX_Notifications_UserID_IsRead]    Script Date: 28-May-26 8:31:14 PM ******/
+CREATE NONCLUSTERED INDEX [IX_Notifications_UserID_IsRead] ON [dbo].[Notifications]
+(
+	[UserID] ASC,
+	[IsRead] ASC
+)
+INCLUDE([Title],[Message],[Type],[CreatedAt],[ActionUrl]) WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+GO
 SET ANSI_PADDING ON
 GO
-/****** Object:  Index [UQ_PartOfSpeeches_Code]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [UQ_PartOfSpeeches_Code]    Script Date: 28-May-26 8:31:14 PM ******/
 ALTER TABLE [dbo].[PartOfSpeeches] ADD  CONSTRAINT [UQ_PartOfSpeeches_Code] UNIQUE NONCLUSTERED 
 (
 	[PartOfSpeechCode] ASC
@@ -1650,7 +1201,7 @@ ALTER TABLE [dbo].[PartOfSpeeches] ADD  CONSTRAINT [UQ_PartOfSpeeches_Code] UNIQ
 GO
 SET ANSI_PADDING ON
 GO
-/****** Object:  Index [UQ_PartOfSpeeches_Name]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [UQ_PartOfSpeeches_Name]    Script Date: 28-May-26 8:31:14 PM ******/
 ALTER TABLE [dbo].[PartOfSpeeches] ADD  CONSTRAINT [UQ_PartOfSpeeches_Name] UNIQUE NONCLUSTERED 
 (
 	[PartOfSpeechName] ASC
@@ -1658,19 +1209,19 @@ ALTER TABLE [dbo].[PartOfSpeeches] ADD  CONSTRAINT [UQ_PartOfSpeeches_Name] UNIQ
 GO
 SET ANSI_PADDING ON
 GO
-/****** Object:  Index [UQ__Permissi__91FE5750552D93DA]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [UQ__Permissi__91FE5750DC9EAC6F]    Script Date: 28-May-26 8:31:14 PM ******/
 ALTER TABLE [dbo].[Permissions] ADD UNIQUE NONCLUSTERED 
 (
 	[PermissionCode] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Object:  Index [IX_Questions_CreatedByUserID]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [IX_Questions_CreatedByUserID]    Script Date: 28-May-26 8:31:14 PM ******/
 CREATE NONCLUSTERED INDEX [IX_Questions_CreatedByUserID] ON [dbo].[Questions]
 (
 	[CreatedByUserID] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Object:  Index [IX_Questions_WordID]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [IX_Questions_WordID]    Script Date: 28-May-26 8:31:14 PM ******/
 CREATE NONCLUSTERED INDEX [IX_Questions_WordID] ON [dbo].[Questions]
 (
 	[WordID] ASC
@@ -1678,7 +1229,7 @@ CREATE NONCLUSTERED INDEX [IX_Questions_WordID] ON [dbo].[Questions]
 GO
 SET ANSI_PADDING ON
 GO
-/****** Object:  Index [UQ__Roles__8A2B61603692C3D3]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [UQ__Roles__8A2B61609663FC30]    Script Date: 28-May-26 8:31:14 PM ******/
 ALTER TABLE [dbo].[Roles] ADD UNIQUE NONCLUSTERED 
 (
 	[RoleName] ASC
@@ -1686,7 +1237,7 @@ ALTER TABLE [dbo].[Roles] ADD UNIQUE NONCLUSTERED
 GO
 SET ANSI_PADDING ON
 GO
-/****** Object:  Index [UQ_TopicCategories_CategoryCode]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [UQ_TopicCategories_CategoryCode]    Script Date: 28-May-26 8:31:14 PM ******/
 ALTER TABLE [dbo].[TopicCategories] ADD  CONSTRAINT [UQ_TopicCategories_CategoryCode] UNIQUE NONCLUSTERED 
 (
 	[CategoryCode] ASC
@@ -1694,7 +1245,7 @@ ALTER TABLE [dbo].[TopicCategories] ADD  CONSTRAINT [UQ_TopicCategories_Category
 GO
 SET ANSI_PADDING ON
 GO
-/****** Object:  Index [IX_TopicCategories_IsActive_DisplayOrder]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [IX_TopicCategories_IsActive_DisplayOrder]    Script Date: 28-May-26 8:31:14 PM ******/
 CREATE NONCLUSTERED INDEX [IX_TopicCategories_IsActive_DisplayOrder] ON [dbo].[TopicCategories]
 (
 	[IsActive] ASC,
@@ -1704,7 +1255,7 @@ CREATE NONCLUSTERED INDEX [IX_TopicCategories_IsActive_DisplayOrder] ON [dbo].[T
 GO
 SET ANSI_PADDING ON
 GO
-/****** Object:  Index [UQ_Topics_TopicCode]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [UQ_Topics_TopicCode]    Script Date: 28-May-26 8:31:14 PM ******/
 ALTER TABLE [dbo].[Topics] ADD  CONSTRAINT [UQ_Topics_TopicCode] UNIQUE NONCLUSTERED 
 (
 	[TopicCode] ASC
@@ -1712,7 +1263,7 @@ ALTER TABLE [dbo].[Topics] ADD  CONSTRAINT [UQ_Topics_TopicCode] UNIQUE NONCLUST
 GO
 SET ANSI_PADDING ON
 GO
-/****** Object:  Index [UQ_Topics_TopicName]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [UQ_Topics_TopicName]    Script Date: 28-May-26 8:31:14 PM ******/
 ALTER TABLE [dbo].[Topics] ADD  CONSTRAINT [UQ_Topics_TopicName] UNIQUE NONCLUSTERED 
 (
 	[TopicName] ASC
@@ -1720,7 +1271,7 @@ ALTER TABLE [dbo].[Topics] ADD  CONSTRAINT [UQ_Topics_TopicName] UNIQUE NONCLUST
 GO
 SET ANSI_PADDING ON
 GO
-/****** Object:  Index [IX_Topics_TopicCategoryID_ContentStatus]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [IX_Topics_TopicCategoryID_ContentStatus]    Script Date: 28-May-26 8:31:14 PM ******/
 CREATE NONCLUSTERED INDEX [IX_Topics_TopicCategoryID_ContentStatus] ON [dbo].[Topics]
 (
 	[TopicCategoryID] ASC,
@@ -1729,74 +1280,74 @@ CREATE NONCLUSTERED INDEX [IX_Topics_TopicCategoryID_ContentStatus] ON [dbo].[To
 GO
 SET ANSI_PADDING ON
 GO
-/****** Object:  Index [UQ_Users_Email]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [UQ_Users_Email]    Script Date: 28-May-26 8:31:14 PM ******/
 ALTER TABLE [dbo].[Users] ADD  CONSTRAINT [UQ_Users_Email] UNIQUE NONCLUSTERED 
 (
 	[Email] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Object:  Index [UQ_UserTopicEnrollments_UserID_TopicID]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [UQ_UserTopicEnrollments_UserID_TopicID]    Script Date: 28-May-26 8:31:14 PM ******/
 ALTER TABLE [dbo].[UserTopicEnrollments] ADD  CONSTRAINT [UQ_UserTopicEnrollments_UserID_TopicID] UNIQUE NONCLUSTERED 
 (
 	[UserID] ASC,
 	[TopicID] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Object:  Index [IX_UserTopicEnrollments_TopicID]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [IX_UserTopicEnrollments_TopicID]    Script Date: 28-May-26 8:31:14 PM ******/
 CREATE NONCLUSTERED INDEX [IX_UserTopicEnrollments_TopicID] ON [dbo].[UserTopicEnrollments]
 (
 	[TopicID] ASC,
 	[IsActive] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Object:  Index [IX_UserTopicEnrollments_UserID]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [IX_UserTopicEnrollments_UserID]    Script Date: 28-May-26 8:31:14 PM ******/
 CREATE NONCLUSTERED INDEX [IX_UserTopicEnrollments_UserID] ON [dbo].[UserTopicEnrollments]
 (
 	[UserID] ASC,
 	[IsActive] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Object:  Index [UQ_UserVocabularyNotebook_UserID_WordID]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [UQ_UserVocabularyNotebook_UserID_WordID]    Script Date: 28-May-26 8:31:14 PM ******/
 ALTER TABLE [dbo].[UserVocabularyNotebook] ADD  CONSTRAINT [UQ_UserVocabularyNotebook_UserID_WordID] UNIQUE NONCLUSTERED 
 (
 	[UserID] ASC,
 	[WordID] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Object:  Index [IX_UserVocabularyNotebook_UserID]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [IX_UserVocabularyNotebook_UserID]    Script Date: 28-May-26 8:31:14 PM ******/
 CREATE NONCLUSTERED INDEX [IX_UserVocabularyNotebook_UserID] ON [dbo].[UserVocabularyNotebook]
 (
 	[UserID] ASC,
 	[IsFavorite] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Object:  Index [IX_UserVocabularyNotebook_WordID]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [IX_UserVocabularyNotebook_WordID]    Script Date: 28-May-26 8:31:14 PM ******/
 CREATE NONCLUSTERED INDEX [IX_UserVocabularyNotebook_WordID] ON [dbo].[UserVocabularyNotebook]
 (
 	[WordID] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Object:  Index [UQ_UserWordProgress_UserID_WordID]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [UQ_UserWordProgress_UserID_WordID]    Script Date: 28-May-26 8:31:14 PM ******/
 ALTER TABLE [dbo].[UserWordProgress] ADD  CONSTRAINT [UQ_UserWordProgress_UserID_WordID] UNIQUE NONCLUSTERED 
 (
 	[UserID] ASC,
 	[WordID] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Object:  Index [IX_UserWordProgress_NextReviewDate]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [IX_UserWordProgress_NextReviewDate]    Script Date: 28-May-26 8:31:14 PM ******/
 CREATE NONCLUSTERED INDEX [IX_UserWordProgress_NextReviewDate] ON [dbo].[UserWordProgress]
 (
 	[NextReviewDate] ASC
 )
 INCLUDE([UserID],[WordID],[MemoryStatus]) WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Object:  Index [IX_UserWordProgress_UserID]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [IX_UserWordProgress_UserID]    Script Date: 28-May-26 8:31:14 PM ******/
 CREATE NONCLUSTERED INDEX [IX_UserWordProgress_UserID] ON [dbo].[UserWordProgress]
 (
 	[UserID] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Object:  Index [IX_UserWordProgress_UserID_NextReviewDate]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [IX_UserWordProgress_UserID_NextReviewDate]    Script Date: 28-May-26 8:31:14 PM ******/
 CREATE NONCLUSTERED INDEX [IX_UserWordProgress_UserID_NextReviewDate] ON [dbo].[UserWordProgress]
 (
 	[UserID] ASC,
@@ -1804,7 +1355,7 @@ CREATE NONCLUSTERED INDEX [IX_UserWordProgress_UserID_NextReviewDate] ON [dbo].[
 )
 INCLUDE([WordID],[MasteryLevel],[MemoryStatus],[RepetitionCount],[EaseFactor]) WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Object:  Index [IX_UserWordProgress_WordID]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [IX_UserWordProgress_WordID]    Script Date: 28-May-26 8:31:14 PM ******/
 CREATE NONCLUSTERED INDEX [IX_UserWordProgress_WordID] ON [dbo].[UserWordProgress]
 (
 	[WordID] ASC
@@ -1812,26 +1363,26 @@ CREATE NONCLUSTERED INDEX [IX_UserWordProgress_WordID] ON [dbo].[UserWordProgres
 GO
 SET ANSI_PADDING ON
 GO
-/****** Object:  Index [UQ_Words_Term_PartOfSpeech]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [UQ_Words_Term_PartOfSpeech]    Script Date: 28-May-26 8:31:14 PM ******/
 ALTER TABLE [dbo].[Words] ADD  CONSTRAINT [UQ_Words_Term_PartOfSpeech] UNIQUE NONCLUSTERED 
 (
 	[Term] ASC,
 	[PartOfSpeechID] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Object:  Index [IX_Words_CreatedByUserID]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [IX_Words_CreatedByUserID]    Script Date: 28-May-26 8:31:14 PM ******/
 CREATE NONCLUSTERED INDEX [IX_Words_CreatedByUserID] ON [dbo].[Words]
 (
 	[CreatedByUserID] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Object:  Index [IX_Words_PartOfSpeechID]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [IX_Words_PartOfSpeechID]    Script Date: 28-May-26 8:31:14 PM ******/
 CREATE NONCLUSTERED INDEX [IX_Words_PartOfSpeechID] ON [dbo].[Words]
 (
 	[PartOfSpeechID] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Object:  Index [IX_WordTopics_TopicID]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  Index [IX_WordTopics_TopicID]    Script Date: 28-May-26 8:31:14 PM ******/
 CREATE NONCLUSTERED INDEX [IX_WordTopics_TopicID] ON [dbo].[WordTopics]
 (
 	[TopicID] ASC
@@ -1875,6 +1426,10 @@ ALTER TABLE [dbo].[MiniTests] ADD  CONSTRAINT [DF_MiniTests_UpdatedAt]  DEFAULT 
 GO
 ALTER TABLE [dbo].[MiniTests] ADD  CONSTRAINT [DF_MiniTests_ContentStatus]  DEFAULT (N'Draft') FOR [ContentStatus]
 GO
+ALTER TABLE [dbo].[Notifications] ADD  CONSTRAINT [DF_Notifications_IsRead]  DEFAULT ((0)) FOR [IsRead]
+GO
+ALTER TABLE [dbo].[Notifications] ADD  CONSTRAINT [DF_Notifications_CreatedAt]  DEFAULT (sysdatetimeoffset()) FOR [CreatedAt]
+GO
 ALTER TABLE [dbo].[Questions] ADD  CONSTRAINT [DF_Questions_DifficultyLevel]  DEFAULT ((1)) FOR [DifficultyLevel]
 GO
 ALTER TABLE [dbo].[Questions] ADD  CONSTRAINT [DF_Questions_CreatedAt]  DEFAULT (sysdatetimeoffset()) FOR [CreatedAt]
@@ -1902,6 +1457,14 @@ GO
 ALTER TABLE [dbo].[Users] ADD  CONSTRAINT [DF_Users_CreatedAt]  DEFAULT (sysdatetimeoffset()) FOR [CreatedAt]
 GO
 ALTER TABLE [dbo].[Users] ADD  CONSTRAINT [DF_Users_UpdatedAt]  DEFAULT (sysdatetimeoffset()) FOR [UpdatedAt]
+GO
+ALTER TABLE [dbo].[Users] ADD  CONSTRAINT [DF_Users_DailyGoal]  DEFAULT ((20)) FOR [DailyGoal]
+GO
+ALTER TABLE [dbo].[Users] ADD  CONSTRAINT [DF_Users_SRSReviewLimit]  DEFAULT ((15)) FOR [SRSReviewLimit]
+GO
+ALTER TABLE [dbo].[Users] ADD  CONSTRAINT [DF_Users_TotalXP]  DEFAULT ((0)) FOR [TotalXP]
+GO
+ALTER TABLE [dbo].[Users] ADD  CONSTRAINT [DF_Users_CurrentLevel]  DEFAULT ((1)) FOR [CurrentLevel]
 GO
 ALTER TABLE [dbo].[UserTopicEnrollments] ADD  CONSTRAINT [DF_UserTopicEnrollments_EnrolledAt]  DEFAULT (sysdatetimeoffset()) FOR [EnrolledAt]
 GO
@@ -2035,6 +1598,11 @@ REFERENCES [dbo].[Topics] ([TopicID])
 ON DELETE SET NULL
 GO
 ALTER TABLE [dbo].[MiniTests] CHECK CONSTRAINT [FK_MiniTests_TopicID]
+GO
+ALTER TABLE [dbo].[Notifications]  WITH CHECK ADD  CONSTRAINT [FK_Notifications_Users] FOREIGN KEY([UserID])
+REFERENCES [dbo].[Users] ([UserID])
+GO
+ALTER TABLE [dbo].[Notifications] CHECK CONSTRAINT [FK_Notifications_Users]
 GO
 ALTER TABLE [dbo].[Questions]  WITH CHECK ADD  CONSTRAINT [FK_Questions_CreatedByUserID] FOREIGN KEY([CreatedByUserID])
 REFERENCES [dbo].[Users] ([UserID])
@@ -2288,7 +1856,7 @@ ALTER TABLE [dbo].[Words]  WITH CHECK ADD  CONSTRAINT [CK_Words_DifficultyLevel]
 GO
 ALTER TABLE [dbo].[Words] CHECK CONSTRAINT [CK_Words_DifficultyLevel]
 GO
-/****** Object:  StoredProcedure [dbo].[usp_SubmitQuestionAttempt]    Script Date: 28-May-26 3:33:40 PM ******/
+/****** Object:  StoredProcedure [dbo].[usp_SubmitQuestionAttempt]    Script Date: 28-May-26 8:31:14 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2604,6 +2172,7 @@ BEGIN
         THROW 51000, @ThrowMsg, 1;
     END CATCH
 END
+
 GO
 USE [master]
 GO

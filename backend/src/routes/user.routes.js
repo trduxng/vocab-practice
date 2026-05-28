@@ -45,6 +45,17 @@ router.put("/goals/srs-config", UserController.updateSRSConfig);
 // Smart Review Queue
 router.get("/review/smart-queue", UserController.getSmartReviewQueue);
 
+// Notifications
+router.get("/notifications", UserController.getNotifications);
+router.put("/notifications/:id/read", UserController.markNotificationRead);
+router.put("/notifications/read-all", UserController.markAllNotificationsRead);
+
+// Session Summary
+router.get("/review/session-summary", UserController.getSessionSummary);
+
+// Mistake Review Queue
+router.get("/review/mistakes", UserController.getMistakeReviewQueue);
+
 // Vocabulary Notebook
 router.get("/notebook", UserController.getNotebook);
 router.get("/notebook/check", UserController.checkNotebookEntry);
