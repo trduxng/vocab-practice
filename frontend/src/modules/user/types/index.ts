@@ -19,6 +19,9 @@ export interface Flashcard {
   partOfSpeechName?: string;
   masteryLevel: number;
   memoryStatus: string;
+  repetitionCount?: number;
+  exampleSentence?: string;
+  exampleMeaning?: string;
 }
 
 // ---------- Practice Question ----------
@@ -82,6 +85,8 @@ export interface MiniTestResult {
   total: number;
   correct: number;
   score: number;
+  xpEarned?: number;
+  gamification?: GamificationReward;
   results: { questionId?: number; wordId?: number; isCorrect: boolean }[];
 }
 
@@ -110,6 +115,13 @@ export interface DashboardStats {
   accuracy?: number;
   correct?: number;
   wrong?: number;
+  totalXP?: number;
+  currentLevel?: number;
+  currentLevelXP?: number;
+  xpForNextLevel?: number;
+  xpToNextLevel?: number;
+  levelProgress?: number;
+  todayXP?: number;
   weakWords?: { word: string; meaning: string }[];
   recentAttempts?: { answer: string; isCorrect: boolean; date: string; term: string }[];
   dailyTrends?: { day: string; count: number }[];
@@ -127,15 +139,24 @@ export interface MasteryTimeline {
 
 export interface Achievement {
   id: number;
+  code?: string;
   icon: string;
   label: string;
+  description?: string;
   unlocked: boolean;
+  unlockedAt?: string;
+  seen?: boolean;
+  criteriaType?: string;
+  progress?: number;
+  target?: number;
+  progressPercentage?: number;
 }
 
 // ---------- Heatmap ----------
 export interface HeatmapEntry {
   date: string;
   count: number;
+  xpEarned?: number;
 }
 
 // ---------- Daily Goal ----------
@@ -163,6 +184,23 @@ export interface NotebookEntry {
   updatedAt: string;
 }
 
+export interface TopicWord {
+  wordId: number;
+  term: string;
+  meaning: string;
+  phonetic?: string;
+  partOfSpeechName?: string;
+  masteryLevel: number;
+  memoryStatus: string;
+  repetitionCount: number;
+  lastReviewedAt?: string;
+  nextReviewDate?: string;
+  notebookId?: number;
+  isInNotebook: boolean;
+  exampleSentence?: string;
+  exampleMeaning?: string;
+}
+
 // ---------- Paginated Response ----------
 export interface PaginatedResponse<T> {
   data: T[];
@@ -179,4 +217,163 @@ export interface SubmitAnswerData {
   submittedAnswer?: string;
   isCorrect?: boolean;
   scoreAwarded?: number;
+  reviewRating?: ReviewRating;
+  activityType?: "LearnWord";
+}
+
+export type ReviewRating = "Again" | "Hard" | "Good" | "Easy";
+
+export interface ReviewFeedback {
+  xpGained: number;
+  nextReviewDate?: string;
+  reviewRating?: ReviewRating;
+  memoryStatus?: string;
+  masteryLevel?: number;
+  gamification?: GamificationReward | null;
+}
+
+export interface GamificationReward {
+  xpEventId: number;
+  xpGained: number;
+  eventType: "LearnWord" | "PracticeComplete" | "MiniTestComplete" | "DailyLogin";
+  awarded: boolean;
+  totalXP: number;
+  currentLevel: number;
+  currentLevelXP: number;
+  xpForNextLevel: number;
+  xpToNextLevel: number;
+  nextLevelTotalXP: number;
+  levelProgress: number;
+  unlockedAchievements: Achievement[];
+}
+
+export interface GamificationProfile {
+  totalXP: number;
+  todayXP: number;
+  currentLevel: number;
+  currentLevelXP: number;
+  xpForNextLevel: number;
+  xpToNextLevel: number;
+  nextLevelTotalXP: number;
+  levelProgress: number;
+  wordsLearned: number;
+  streak: number;
+  bestTestScore: number;
+  achievements: Achievement[];
+  unseenAchievements: Achievement[];
+}
+
+// ---------- Progress Analytics ----------
+export interface ProgressActivityDay {
+  date: string;
+  activityCount: number;
+  xpEarned: number;
+}
+
+export interface VocabularyGrowthPoint {
+  date: string;
+  learnedWords: number;
+  masteredWords: number;
+}
+
+export interface TopicMasteryProgress {
+  topicId: number;
+  topicName: string;
+  totalWords: number;
+  learnedWords: number;
+  masteredWords: number;
+  averageMastery: number;
+  completionPercentage: number;
+}
+
+export interface RetentionStatistics {
+  correctAnswerRate: number;
+  forgottenWordRate: number;
+  reviewCompletionRate: number;
+  totalAnswers: number;
+  correctAnswers: number;
+  learnedWords: number;
+  forgottenWords: number;
+  upToDateWords: number;
+}
+
+export interface ProgressAnalytics {
+  summary: {
+    activeDays: number;
+    totalXP: number;
+    currentStreak: number;
+    learnedWords: number;
+    masteredWords: number;
+  };
+  activity: ProgressActivityDay[];
+  vocabularyGrowth: VocabularyGrowthPoint[];
+  topicMastery: TopicMasteryProgress[];
+  retention: RetentionStatistics;
+}
+
+// ---------- Learning Path ----------
+export type LearningPathStatus = "locked" | "available" | "completed";
+
+export interface LearningPathActivity {
+  type: "lesson" | "practice" | "miniTest";
+  title: string;
+  description: string;
+  status: LearningPathStatus;
+  route: string;
+  configured: boolean;
+}
+
+export interface LearningPathTopic {
+  pathTopicId: number;
+  topicId: number;
+  title: string;
+  code?: string;
+  description?: string;
+  status: LearningPathStatus;
+  completionPercentage: number;
+  totalWords: number;
+  learnedWords: number;
+  masteredWords: number;
+  activities: LearningPathActivity[];
+}
+
+export interface LearningPathLevel {
+  id: number;
+  code: string;
+  title: string;
+  targetScore: number;
+  description?: string;
+  displayOrder: number;
+  accentKey: string;
+  status: LearningPathStatus;
+  completionPercentage: number;
+  completedTopics: number;
+  totalTopics: number;
+  topics: LearningPathTopic[];
+}
+
+export interface LearningPathLessonPreview {
+  topicId: number;
+  title: string;
+  route: string;
+  status: LearningPathStatus;
+  completionPercentage: number;
+}
+
+export interface LearningPathRoadmap {
+  completionPercentage: number;
+  completedTopics: number;
+  totalTopics: number;
+  currentPosition: {
+    levelTitle?: string;
+    topicId: number;
+    topicTitle: string;
+    topicStatus: LearningPathStatus;
+    activityTitle: string;
+    activityRoute: string;
+    completionPercentage: number;
+  } | null;
+  currentLesson: LearningPathLessonPreview | null;
+  nextLesson: LearningPathLessonPreview | null;
+  levels: LearningPathLevel[];
 }

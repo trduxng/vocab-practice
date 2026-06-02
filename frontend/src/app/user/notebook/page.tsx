@@ -6,6 +6,7 @@ import {
   BookOpen,
   Download,
   Pencil,
+  Plus,
   Search,
   Star,
   Trash2,
@@ -18,6 +19,7 @@ import Topbar from "@/src/components/shared/Topbar";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 import { Skeleton } from "@/src/components/ui/skeleton";
+import VocabularyPreviewDialog from "@/src/components/user/notebook/VocabularyPreviewDialog";
 import {
   Dialog,
   DialogContent,
@@ -51,6 +53,8 @@ export default function VocabularyNotebook() {
   const [editingEntry, setEditingEntry] = useState<NotebookEntry | null>(null);
   const [editNote, setEditNote] = useState("");
   const [saving, setSaving] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const router = useRouter();
 
   useEffect(() => {
@@ -78,7 +82,7 @@ export default function VocabularyNotebook() {
     return () => {
       cancelled = true;
     };
-  }, [user, page]);
+  }, [user, page, refreshKey]);
 
   const speak = (text: string) => {
     if (typeof window !== "undefined" && window.speechSynthesis && text) {
@@ -104,7 +108,7 @@ export default function VocabularyNotebook() {
       toast.success(
         entry.isFavorite ? "Đã bỏ yêu thích" : "Đã đánh dấu yêu thích",
       );
-    } catch (error) {
+    } catch {
       toast.error("Không thể cập nhật");
     }
   };
@@ -116,7 +120,7 @@ export default function VocabularyNotebook() {
         prev.filter((e) => e.notebookId !== entry.notebookId),
       );
       toast.success("Đã xóa khỏi sổ tay");
-    } catch (error) {
+    } catch {
       toast.error("Không thể xóa");
     }
   };
@@ -162,7 +166,7 @@ export default function VocabularyNotebook() {
       );
       setEditingEntry(null);
       toast.success("Đã lưu ghi chú");
-    } catch (error) {
+    } catch {
       toast.error("Không thể lưu ghi chú");
     } finally {
       setSaving(false);
@@ -207,7 +211,15 @@ export default function VocabularyNotebook() {
               className="dark:bg-white/5 bg-white border-slate-200 dark:border-white/10 h-10 pl-10 rounded-xl text-sm text-slate-900 dark:text-white"
             />
           </div>
-          <div className="flex items-center gap-4 text-xs text-slate-600 dark:text-slate-400">
+          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600 dark:text-slate-400">
+            <button
+              type="button"
+              onClick={() => setPickerOpen(true)}
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-blue-600 px-3 text-[10px] font-black uppercase tracking-wide text-white transition-colors hover:bg-blue-700"
+            >
+              <Plus size={14} />
+              Thêm từ
+            </button>
             <span className="font-medium">
               <span className="font-black text-slate-900 dark:text-white">
                 {entries.length}
@@ -428,6 +440,13 @@ export default function VocabularyNotebook() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <VocabularyPreviewDialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        onNotebookChanged={() => setRefreshKey((value) => value + 1)}
+        onStartLearning={(topicId) => router.push(`/user/learn/${topicId}`)}
+      />
     </div>
   );
 }

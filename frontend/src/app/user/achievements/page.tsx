@@ -1,101 +1,134 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { Lock, ShieldCheck, Star, Trophy } from "lucide-react";
-import { userService } from "@/src/services/user.service";
-import { useAuth } from "@/src/app/context/AuthContext";
+import { useCallback, useEffect, useState } from "react";
+import { Award, Flame, Sparkles, Target } from "lucide-react";
 import Topbar from "@/src/components/shared/Topbar";
-import { Card, CardContent } from "@/src/components/ui/card";
+import { useAuth } from "@/src/app/context/AuthContext";
+import AchievementModal from "@/src/components/user/gamification/AchievementModal";
+import BadgeCard from "@/src/components/user/gamification/BadgeCard";
+import LevelProgressBar from "@/src/components/user/gamification/LevelProgressBar";
+import { userService } from "@/src/services/user.service";
+import type { Achievement, GamificationProfile } from "@/src/modules/user/types";
 
-type Achievement = {
-  id: number;
-  icon: string;
-  label: string;
-  unlocked: boolean;
-};
-
-type AchievementStats = {
-  achievements?: Achievement[];
-};
-
-const achievementDescription = (id: number) => {
-  const descriptions: Record<number, string> = {
-    1: "Bắt đầu hành trình học tập với từ vựng đầu tiên.",
-    2: "Trả lời đúng 100 câu hỏi luyện tập.",
-    3: "Duy trì độ chính xác trên 90% khi đã học ít nhất 10 từ.",
-    4: "Thành thạo 50 từ vựng.",
-    5: "Duy trì chuỗi học tập 7 ngày liên tục.",
-  };
-
-  return descriptions[id] || "Tiếp tục học tập để mở khóa huy hiệu này.";
-};
-
-const UserAchievements = () => {
+export default function UserAchievements() {
   const { user, loading: authLoading } = useAuth();
-  const [stats, setStats] = useState<AchievementStats | null>(null);
+  const [profile, setProfile] = useState<GamificationProfile | null>(null);
+  const [modalAchievements, setModalAchievements] = useState<Achievement[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const fetchProfile = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await userService.getGamificationProfile();
+      setProfile(data);
+      setModalAchievements(data.unseenAchievements);
+    } catch (error) {
+      console.error("Failed to fetch achievements", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const data = await userService.getStats();
-        setStats(data);
-      } catch (error) {
-        console.error("Failed to fetch achievements", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (!user) return;
+    const timeout = window.setTimeout(() => {
+      void fetchProfile();
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, [fetchProfile, user]);
 
-    if (user) fetchStats();
-  }, [user]);
-
-  if (authLoading || loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white">Đang tải bảng thành tích...</div>;
+  if (authLoading || loading || !profile) {
+    return <AchievementsSkeleton />;
   }
 
+  const unlockedCount = profile.achievements.filter((achievement) => achievement.unlocked).length;
+
   return (
-    <div className="flex-1 flex flex-col bg-slate-100 dark:bg-slate-950">
-      <Topbar title="Thành tích và huy hiệu" role="student" userName={user?.fullName} />
-
-      <main className="p-6 space-y-8 overflow-auto max-w-5xl mx-auto w-full py-12">
-        <div className="text-center mb-12">
-          <div className="w-20 h-20 bg-amber-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-amber-500/30 shadow-2xl">
-            <Trophy size={40} className="text-amber-500" />
+    <div className="flex flex-1 flex-col bg-slate-100 dark:bg-slate-950">
+      <Topbar title="Thành tích và huy hiệu" subtitle="Theo dõi XP, cấp độ và các cột mốc học tập." role="student" userName={user?.fullName} />
+      <main className="mx-auto w-full max-w-6xl space-y-6 overflow-auto p-4 sm:p-6">
+        <section className="rounded-[28px] border border-amber-200 bg-linear-to-br from-amber-50 via-white to-orange-50 p-5 shadow-sm dark:border-amber-500/20 dark:from-amber-500/10 dark:via-white/[0.04] dark:to-orange-500/10 sm:p-7">
+          <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr] lg:items-center">
+            <div>
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300">
+                <Award className="h-7 w-7" />
+              </div>
+              <h1 className="mt-4 text-3xl font-black tracking-tight text-slate-950 dark:text-white">Bảng thành tích</h1>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500 dark:text-slate-400">
+                Học từ mới, hoàn thành phiên luyện tập và chinh phục mini test để nhận XP và mở khóa huy hiệu.
+              </p>
+            </div>
+            <LevelProgressBar {...profile} />
           </div>
-          <h1 className="text-slate-900 dark:text-white text-3xl font-black uppercase tracking-tighter">Bảng thành tích</h1>
-          <p className="text-slate-500 dark:text-slate-400 text-slate-500 text-sm mt-2">Theo dõi các cột mốc học tập và mở khóa huy hiệu mới.</p>
+        </section>
+
+        <div className="grid grid-cols-3 gap-3">
+          <Metric icon={Sparkles} label="Tổng XP" value={profile.totalXP} tone="amber" />
+          <Metric icon={Flame} label="Streak" value={`${profile.streak} ngày`} tone="rose" />
+          <Metric icon={Target} label="Huy hiệu" value={`${unlockedCount}/${profile.achievements.length}`} tone="emerald" />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {stats?.achievements?.map((achievement) => (
-            <Card key={achievement.id} className={`dark:bg-white/3 bg-white border transition-all rounded-[32px] overflow-hidden ${achievement.unlocked ? "border-amber-500/20 shadow-lg shadow-amber-900/5" : "border-slate-200 dark:border-white/5 opacity-50"}`}>
-              <CardContent className="p-8 flex items-center gap-6">
-                <div className={`w-20 h-20 rounded-[24px] flex items-center justify-center text-4xl shadow-2xl transition-transform ${achievement.unlocked ? "bg-amber-500/10 border border-amber-500/20" : "bg-white/5 border border-white/5"}`}>
-                  {achievement.unlocked ? achievement.icon : <Lock size={24} className="text-slate-700" />}
-                </div>
-                <div className="flex-1">
-                  <h3 className={`font-black uppercase tracking-widest text-sm mb-1 ${achievement.unlocked ? "text-slate-900 dark:text-white" : "text-slate-600 dark:text-slate-600 text-slate-400"}`}>{achievement.label}</h3>
-                  <p className="text-slate-500 dark:text-slate-400 text-slate-500 text-xs leading-relaxed">{achievementDescription(achievement.id)}</p>
-                  {achievement.unlocked ? (
-                    <div className="mt-3 flex items-center gap-1.5 text-green-500 text-[10px] font-black uppercase tracking-widest">
-                      <ShieldCheck size={12} /> Đã đạt được
-                    </div>
-                  ) : (
-                    <div className="mt-3 text-slate-700 text-[10px] font-black uppercase tracking-widest">Chưa mở khóa</div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>            <div className="dark:bg-white/3 bg-white border border-slate-200 dark:border-white/8 rounded-[40px] p-10 mt-12 flex flex-col items-center text-center shadow-sm">
-              <Star size={32} className="text-blue-400 mb-4" />
-              <h3 className="text-slate-900 dark:text-white font-bold mb-2">Thử thách bản thân</h3>
-              <p className="text-slate-500 dark:text-slate-400 text-slate-500 text-sm max-w-sm">Tiếp tục học mỗi ngày để nhận thêm XP và nâng cấp huy hiệu của bạn.</p>
-        </div>
+        <section>
+          <div className="mb-4">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-600 dark:text-amber-300">Bộ sưu tập huy hiệu</p>
+            <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">Các cột mốc của bạn</h2>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {profile.achievements.map((achievement) => (
+              <BadgeCard key={achievement.id} achievement={achievement} />
+            ))}
+          </div>
+        </section>
       </main>
+
+      <AchievementModal
+        achievements={modalAchievements}
+        onClose={() => {
+          void userService.markAchievementsSeen(modalAchievements.map((achievement) => achievement.id));
+          setModalAchievements([]);
+        }}
+      />
     </div>
   );
-};
+}
 
-export default UserAchievements;
+function Metric({
+  icon: Icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: string | number;
+  tone: "amber" | "rose" | "emerald";
+}) {
+  const styles = {
+    amber: "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-300",
+    rose: "bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-300",
+    emerald: "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300",
+  };
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-white/10 dark:bg-white/[0.04] sm:p-4">
+      <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${styles[tone]}`}><Icon className="h-4 w-4" /></div>
+      <p className="mt-3 text-xl font-black text-slate-950 dark:text-white">{value}</p>
+      <p className="mt-1 text-[10px] font-black uppercase tracking-wider text-slate-400">{label}</p>
+    </div>
+  );
+}
+
+function AchievementsSkeleton() {
+  return (
+    <div className="flex flex-1 flex-col bg-slate-100 p-6 dark:bg-slate-950">
+      <div className="mx-auto w-full max-w-6xl animate-pulse">
+        <div className="h-56 rounded-[28px] bg-slate-200 dark:bg-white/10" />
+        <div className="mt-5 grid grid-cols-3 gap-3">
+          {Array.from({ length: 3 }).map((_, index) => <div key={index} className="h-28 rounded-2xl bg-slate-200 dark:bg-white/10" />)}
+        </div>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, index) => <div key={index} className="h-56 rounded-3xl bg-slate-200 dark:bg-white/10" />)}
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -7,9 +7,15 @@ const validate = (schema) => (req, res, next) => {
       query: req.query,
       params: req.params,
     });
-    req.body = parsed.body;
-    req.query = parsed.query;
-    req.params = parsed.params;
+    if (Object.prototype.hasOwnProperty.call(parsed, 'body')) {
+      req.body = parsed.body;
+    }
+    if (Object.prototype.hasOwnProperty.call(parsed, 'query')) {
+      req.query = parsed.query;
+    }
+    if (Object.prototype.hasOwnProperty.call(parsed, 'params')) {
+      req.params = parsed.params;
+    }
     next();
   } catch (error) {
     return res.status(400).json({
@@ -132,6 +138,15 @@ const schemas = {
       status: z.enum(['Open', 'InReview', 'Resolved', 'Rejected']).optional(),
       priority: z.enum(['Low', 'Normal', 'High', 'Urgent']).optional(),
       adminResponse: z.string().trim().max(2000).optional()
+    })
+  }),
+
+  aiWordSuggestion: z.object({
+    body: z.object({
+      term: z.string().trim().min(1).max(100),
+      meaning: z.string().trim().max(1000).optional(),
+      partOfSpeech: z.string().trim().max(100).optional(),
+      exampleCount: z.coerce.number().int().min(1).max(5).optional()
     })
   })
 };

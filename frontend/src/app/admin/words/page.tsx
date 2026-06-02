@@ -15,6 +15,7 @@ import {
   Plus,
   RefreshCw,
   Search,
+  Sparkles,
   Tags,
   Trash2,
   Upload,
@@ -26,6 +27,7 @@ import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import { Textarea } from '@/src/components/ui/textarea';
 import { adminService, type PaginationMeta } from '@/src/services/admin.service';
+import { aiService, type AiWordSuggestion } from '@/src/services/ai.service';
 import { categoriesService } from '@/src/services/categories.service';
 
 type ContentStatus = 'Draft' | 'PendingReview' | 'Published' | 'Rejected' | 'Archived';
@@ -205,6 +207,7 @@ export default function AdminWordsPage() {
   const [loadingWords, setLoadingWords] = useState(true);
   const [loadingTopics, setLoadingTopics] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [generatingSuggestion, setGeneratingSuggestion] = useState(false);
   const [importing, setImporting] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [showWordForm, setShowWordForm] = useState(false);
@@ -357,6 +360,57 @@ export default function AdminWordsPage() {
       toast.error(getErrorMessage(error, 'Không thể tải chi tiết từ vựng'));
     } finally {
       setLoadingDetail(false);
+    }
+  }
+
+  function applyAiSuggestion(suggestion: AiWordSuggestion) {
+    const suggestedPartOfSpeech = suggestion.partOfSpeech?.toLowerCase();
+    const matchedPartOfSpeech = suggestedPartOfSpeech
+      ? partsOfSpeech.find((part) => {
+          const name = part.name.toLowerCase();
+          return name === suggestedPartOfSpeech || name.includes(suggestedPartOfSpeech) || suggestedPartOfSpeech.includes(name);
+        })
+      : null;
+
+    setWordForm((current) => ({
+      ...current,
+      term: current.term.trim() || suggestion.term,
+      meaning: suggestion.meaning || current.meaning,
+      phonetic: suggestion.phonetic || current.phonetic,
+      partOfSpeechId: current.partOfSpeechId || (matchedPartOfSpeech ? String(matchedPartOfSpeech.id) : current.partOfSpeechId),
+      examples: suggestion.examples.length > 0
+        ? suggestion.examples.map((example) => ({
+            sentence: example.sentence,
+            meaning: example.meaning || '',
+          }))
+        : current.examples,
+    }));
+  }
+
+  async function handleSuggestWordContent() {
+    const term = wordForm.term.trim();
+    if (!term) {
+      toast.error('Vui lòng nhập từ vựng trước khi dùng AI');
+      return;
+    }
+
+    setGeneratingSuggestion(true);
+    try {
+      const partOfSpeech = partsOfSpeech.find((part) => String(part.id) === wordForm.partOfSpeechId)?.name;
+      const suggestion = await aiService.suggestWordContent({
+        term,
+        meaning: wordForm.meaning.trim() || undefined,
+        partOfSpeech,
+        exampleCount: 3,
+      });
+
+      applyAiSuggestion(suggestion);
+      toast.success('AI đã gợi ý nội dung cho từ vựng');
+    } catch (error) {
+      console.error('AI suggestion failed', error);
+      toast.error(getErrorMessage(error, 'Không thể tạo gợi ý AI'));
+    } finally {
+      setGeneratingSuggestion(false);
     }
   }
 
@@ -739,6 +793,11 @@ export default function AdminWordsPage() {
                         {statusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
                       </Select>
                     </Field>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button type="button" variant="outline" disabled={!wordForm.term.trim() || generatingSuggestion} onClick={handleSuggestWordContent} className="rounded-md">
+                      <Sparkles className="h-4 w-4" /> {generatingSuggestion ? 'AI đang gợi ý...' : 'AI gợi ý nghĩa và câu TOEIC'}
+                    </Button>
                   </div>
                   <Field label="Định nghĩa"><Input value={wordForm.meaning} onChange={(event) => setWordForm({ ...wordForm, meaning: event.target.value })} className="h-10 rounded-md" required /></Field>
                   <Field label="Chủ đề">

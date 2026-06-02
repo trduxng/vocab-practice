@@ -1,4 +1,5 @@
 import apiClient from '../lib/api-client';
+import type { GamificationProfile, GamificationReward, LearningPathRoadmap, ProgressAnalytics, ReviewFeedback, SubmitAnswerData, TopicWord } from '../modules/user/types';
 
 export const userService = {
   async getDueFlashcards(params?: { topicId?: number | string; mode?: string }) {
@@ -8,11 +9,33 @@ export const userService = {
 
   async getTopicWords(topicId: number | string) {
     const response = await apiClient.get(`/user/topics/${topicId}/words`);
-    return response.data;
+    return (response.data as TopicWord[]).map((word) => ({
+      ...word,
+      wordId: Number(word.wordId),
+      notebookId: word.notebookId ? Number(word.notebookId) : undefined,
+      masteryLevel: Number(word.masteryLevel || 0),
+      repetitionCount: Number(word.repetitionCount || 0),
+      isInNotebook: Boolean(word.isInNotebook),
+    }));
   },
 
   async getStats() {
     const response = await apiClient.get('/user/stats');
+    return response.data;
+  },
+
+  async getGamificationProfile() {
+    const response = await apiClient.get('/user/gamification/profile');
+    return response.data as GamificationProfile;
+  },
+
+  async completePracticeSession(data: { sessionKey: string; topicId?: number; correctCount: number; totalAttempts: number }) {
+    const response = await apiClient.post('/user/gamification/practice-complete', data);
+    return response.data as GamificationReward;
+  },
+
+  async markAchievementsSeen(achievementIds: number[]) {
+    const response = await apiClient.put('/user/gamification/achievements/seen', { achievementIds });
     return response.data;
   },
 
@@ -21,9 +44,19 @@ export const userService = {
     return response.data;
   },
 
-  async submitAnswer(data: unknown) {
+  async getProgressAnalytics() {
+    const response = await apiClient.get('/user/progress/analytics');
+    return response.data as ProgressAnalytics;
+  },
+
+  async getLearningPath() {
+    const response = await apiClient.get('/user/learning-path');
+    return response.data as LearningPathRoadmap;
+  },
+
+  async submitAnswer(data: SubmitAnswerData) {
     const response = await apiClient.post('/user/submit-answer', data);
-    return response.data;
+    return response.data as ReviewFeedback;
   },
 
   async submitMiniTest(testId: number | string, answers: { questionId?: number; wordId?: number; submittedAnswer: string; isCorrect: boolean }[]) {

@@ -1,6 +1,7 @@
 // vocab-practice/frontend/src/services/auth.service.ts
 import apiClient from "../lib/api-client";
 import type { PermissionCode } from "../modules/auth/types/permissions";
+import type { GamificationReward } from "../modules/user/types";
 
 type RegisterRequest = {
   fullName: string;
@@ -15,6 +16,7 @@ type LoginRequest = {
 
 type AuthResponse = {
   token: string;
+  gamification?: GamificationReward | null;
   user: {
     id: number;
     fullName: string;
@@ -60,6 +62,9 @@ export const authService = {
       // Lưu vào localStorage (cho client-side access)
       localStorage.setItem("token", res.token);
       localStorage.setItem("user", JSON.stringify(res.user));
+      if (res.gamification?.awarded) {
+        localStorage.setItem("pendingGamificationReward", JSON.stringify(res.gamification));
+      }
 
       // Lưu vào cookie (cho middleware server-side check)
       setCookie("token", res.token, 1);
