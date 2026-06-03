@@ -1,5 +1,7 @@
 const express = require("express");
 const UserController = require("../controllers/user.controller");
+const GamificationController = require("../controllers/gamification.controller");
+const LearningPathController = require("../controllers/learning-path.controller");
 const authMiddleware = require("../middlewares/auth");
 const { validate, schemas } = require("../middlewares/validate");
 
@@ -10,7 +12,11 @@ router.use(authMiddleware.verifyToken);
 router.post("/submit-answer", UserController.submitAnswer);
 router.get("/flashcards", UserController.getFlashcards);
 router.get("/stats", UserController.getStats);
+router.get("/gamification/profile", GamificationController.getProfile);
+router.post("/gamification/practice-complete", GamificationController.completePractice);
+router.put("/gamification/achievements/seen", GamificationController.markAchievementsSeen);
 router.get("/dashboard/mastery-timeline", UserController.getMasteryTimeline);
+router.get("/learning-path", LearningPathController.getRoadmap);
 router.get("/topics/:topicId/words", UserController.getTopicWords);
 
 // Mini Tests
@@ -31,6 +37,7 @@ router.post(
 
 // Calendar Heatmap
 router.get("/activity/heatmap", UserController.getActivityHeatmap);
+router.get("/progress/analytics", UserController.getProgressAnalytics);
 
 // Daily Goal Progress
 router.get("/goals/daily-progress", UserController.getDailyProgress);

@@ -1,145 +1,107 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { AlertCircle, BookOpen, Flame, TrendingUp } from "lucide-react";
-import { userService } from "@/src/services/user.service";
+import { useCallback, useEffect, useState } from "react";
+import { AlertCircle, RefreshCw } from "lucide-react";
 import { useAuth } from "@/src/app/context/AuthContext";
 import Topbar from "@/src/components/shared/Topbar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/src/components/ui/card";
+import ActivityHeatmap from "@/src/components/user/progress/ActivityHeatmap";
+import ProgressHero from "@/src/components/user/progress/ProgressHero";
+import ProgressSkeleton from "@/src/components/user/progress/ProgressSkeleton";
+import RetentionStats from "@/src/components/user/progress/RetentionStats";
+import TopicMastery from "@/src/components/user/progress/TopicMastery";
+import VocabularyGrowthChart from "@/src/components/user/progress/VocabularyGrowthChart";
+import XPTrendChart from "@/src/components/user/progress/XPTrendChart";
+import type { ProgressAnalytics } from "@/src/modules/user/types";
+import { userService } from "@/src/services/user.service";
 
-type ProgressStats = {
-  accuracy?: number;
-  totalLearned?: number;
-  correct?: number;
-  wrong?: number;
-  weakWords?: Array<{ word: string; meaning: string }>;
-  recentAttempts?: Array<{ date: string; term: string; isCorrect: boolean; answer: string }>;
-};
-
-const UserProgress = () => {
+export default function UserProgress() {
   const { user, loading: authLoading } = useAuth();
-  const [stats, setStats] = useState<ProgressStats | null>(null);
+  const [analytics, setAnalytics] = useState<ProgressAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  const fetchAnalytics = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+
+    try {
+      const data = await userService.getProgressAnalytics();
+      setAnalytics(data);
+    } catch (analyticsError) {
+      console.error("Failed to fetch progress analytics", analyticsError);
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const data = await userService.getStats();
-        setStats(data);
-      } catch (error) {
-        console.error("Failed to fetch stats", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (!user) return;
 
-    if (user) fetchStats();
-  }, [user]);
+    const timeout = window.setTimeout(() => {
+      void fetchAnalytics();
+    }, 0);
 
-  if (authLoading || loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white">Đang tải báo cáo...</div>;
+    return () => window.clearTimeout(timeout);
+  }, [fetchAnalytics, user]);
+
+  if (authLoading) {
+    return <div className="min-h-screen bg-slate-100 dark:bg-slate-950" />;
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-100 dark:bg-slate-950">
-      <Topbar title="Tiến độ học tập" role="student" userName={user?.fullName} />
+    <>
+      <Topbar
+        title="Tien do hoc tap"
+        subtitle="Theo doi hoat dong, XP, von tu vung va kha nang ghi nho."
+        role="student"
+        userName={user?.fullName || "Nguoi dung"}
+      />
 
-      <main className="p-6 space-y-6 overflow-auto bg-slate-100 dark:bg-slate-950">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 p-6 flex items-center gap-4 shadow-sm">
-            <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-400">
-              <TrendingUp size={24} />
-            </div>
-            <div>
-              <p className="text-slate-600 dark:text-slate-400 text-[10px] uppercase font-bold tracking-widest">Độ chính xác</p>
-              <p className="text-slate-900 dark:text-white text-2xl font-black">{stats?.accuracy || 0}%</p>
-            </div>
-          </Card>
+      <main className="flex-1 overflow-auto bg-slate-100 p-4 dark:bg-slate-950 sm:p-6">
+        <div className="mx-auto max-w-7xl">
+          {loading ? (
+            <ProgressSkeleton />
+          ) : error || !analytics ? (
+            <ProgressError onRetry={fetchAnalytics} />
+          ) : (
+            <div className="space-y-6">
+              <ProgressHero summary={analytics.summary} />
+              <ActivityHeatmap days={analytics.activity} />
 
-          <Card className="bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 p-6 flex items-center gap-4 shadow-sm">
-            <div className="w-12 h-12 rounded-2xl bg-green-500/10 flex items-center justify-center text-green-600 dark:text-green-400">
-              <BookOpen size={24} />
-            </div>
-            <div>
-              <p className="text-slate-600 dark:text-slate-400 text-[10px] uppercase font-bold tracking-widest">Từ đã học</p>
-              <p className="text-slate-900 dark:text-white text-2xl font-black">{stats?.totalLearned || 0}</p>
-            </div>
-          </Card>
+              <div className="grid gap-6 xl:grid-cols-2">
+                <XPTrendChart activity={analytics.activity} />
+                <VocabularyGrowthChart points={analytics.vocabularyGrowth} />
+              </div>
 
-          <Card className="bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 p-6 flex items-center gap-4 shadow-sm">
-            <div className="w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-600 dark:text-orange-400">
-              <Flame size={24} />
+              <TopicMastery topics={analytics.topicMastery} />
+              <RetentionStats stats={analytics.retention} />
             </div>
-            <div>
-              <p className="text-slate-600 dark:text-slate-400 text-[10px] uppercase font-bold tracking-widest">Kết quả luyện tập</p>
-              <p className="text-slate-900 dark:text-white text-2xl font-black">{stats?.correct || 0} đúng / {stats?.wrong || 0} sai</p>
-            </div>
-          </Card>
+          )}
         </div>
-
-        <Card className="bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 overflow-hidden shadow-sm">
-          <CardHeader className="dark:bg-white/5 bg-slate-50 border-b border-slate-200 dark:border-white/5">
-            <CardTitle className="text-slate-900 dark:text-white text-sm font-bold uppercase tracking-widest flex items-center gap-2">
-              <AlertCircle size={16} className="text-red-400" /> Từ vựng cần chú ý
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="divide-y divide-slate-200 dark:divide-white/5">
-              {stats?.weakWords?.length ? stats.weakWords.map((word, index) => (
-                <div key={`${word.word}-${index}`} className="flex justify-between items-center p-4 dark:hover:bg-white/2 hover:bg-slate-50 transition-colors group">
-                  <div>
-                    <p className="text-slate-900 dark:text-white font-bold group-hover:text-blue-400 transition-colors">{word.word}</p>
-                    <p className="text-slate-600 dark:text-slate-400 text-xs">{word.meaning}</p>
-                  </div>
-                  <span className="text-[10px] px-2 py-1 rounded bg-red-500/10 text-red-400 border border-red-500/20 uppercase font-bold">Cần ôn</span>
-                </div>
-              )) : (
-                <div className="p-10 text-center text-slate-500 dark:text-slate-600 italic">Chúc mừng! Bạn chưa có từ nào cần chú ý.</div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 overflow-hidden shadow-sm">
-          <CardHeader className="dark:bg-white/5 bg-slate-50 border-b border-slate-200 dark:border-white/5">
-            <CardTitle className="text-slate-900 dark:text-white text-sm font-bold uppercase tracking-widest">Lịch sử luyện tập gần đây</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead className="text-[10px] text-slate-500 dark:text-slate-600 uppercase font-black tracking-widest border-b border-slate-200 dark:border-white/5">
-                  <tr>
-                    <th className="px-6 py-4">Thời gian</th>
-                    <th className="px-6 py-4">Từ vựng</th>
-                    <th className="px-6 py-4">Kết quả</th>
-                    <th className="px-6 py-4">Câu trả lời</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 dark:divide-white/5">
-                  {stats?.recentAttempts?.length ? stats.recentAttempts.map((attempt, index) => (
-                    <tr key={`${attempt.term}-${index}`} className="dark:hover:bg-white/[0.02] hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-4 text-[10px] text-slate-600 dark:text-slate-400 font-mono">{new Date(attempt.date).toLocaleString("vi-VN")}</td>
-                      <td className="px-6 py-4 text-slate-900 dark:text-white font-bold">{attempt.term}</td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-tighter ${attempt.isCorrect ? "bg-green-500/10 text-green-400 border border-green-500/20" : "bg-red-500/10 text-red-400 border border-red-500/20"}`}>
-                          {attempt.isCorrect ? "Đúng" : "Sai"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-slate-500 text-xs italic">&quot;{attempt.answer}&quot;</td>
-                    </tr>
-                  )) : (
-                    <tr>
-                      <td colSpan={4} className="p-10 text-center text-slate-500 dark:text-slate-600 italic">Bạn chưa thực hiện lượt trả lời nào.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
       </main>
+    </>
+  );
+}
+
+function ProgressError({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="flex min-h-[420px] flex-col items-center justify-center rounded-[28px] border border-dashed border-rose-200 bg-white p-8 text-center dark:border-rose-500/20 dark:bg-white/[0.04]">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-100 text-rose-600 dark:bg-rose-500/15 dark:text-rose-300">
+        <AlertCircle className="h-6 w-6" />
+      </div>
+      <h2 className="mt-4 text-lg font-black text-slate-900 dark:text-white">Khong the tai tien do hoc tap</h2>
+      <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500 dark:text-slate-400">
+        Du lieu phan tich chua san sang. Hay thu tai lai trang.
+      </p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="mt-6 inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-black uppercase tracking-wide text-white transition-colors hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+      >
+        <RefreshCw className="h-4 w-4" />
+        Tai lai
+      </button>
     </div>
   );
-};
-
-export default UserProgress;
+}

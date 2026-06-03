@@ -4,6 +4,7 @@ import React, { useEffect } from "react";
 import Sidebar from "@/src/components/shared/Sidebar";
 import { useAuth } from "../context/AuthContext";
 import { useRouter } from "next/navigation";
+import DailyLoginCelebration from "@/src/components/user/gamification/DailyLoginCelebration";
 
 const StudentLayout = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -23,6 +24,7 @@ const StudentLayout = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <div className="flex min-h-screen bg-slate-100 dark:bg-slate-950">
+      <DailyLoginCelebration />
       <Sidebar role="student" />
       <div className="flex-1 flex flex-col min-w-0">{children}</div>
     </div>
