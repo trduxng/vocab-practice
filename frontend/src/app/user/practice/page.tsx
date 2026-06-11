@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Brain, CheckCircle2, Clock, GripVertical, RefreshCw, Volume2, XCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -10,6 +10,9 @@ import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 import { Card } from "@/src/components/ui/card";
 import ReportDialog from "@/src/components/shared/ReportDialog";
+import GamificationCelebration from "@/src/components/user/gamification/GamificationCelebration";
+import LevelProgressBar from "@/src/components/user/gamification/LevelProgressBar";
+import type { GamificationReward } from "@/src/modules/user/types";
 
 const QUESTION_TIME = 20;
 
@@ -36,7 +39,7 @@ const shuffle = <T,>(items: T[]) => {
 };
 
 export default function UserPractice() {
-  const { user, loading: authLoading } = useAuth();
+  const { loading: authLoading } = useAuth();
   const [questions, setQuestions] = useState<PracticeQuestion[]>([]);
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState("");
@@ -44,7 +47,7 @@ export default function UserPractice() {
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(QUESTION_TIME);
   const [practiceMode, setPracticeMode] = useState<PracticeMode>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [orderedItems, setOrderedItems] = useState<string[]>([]);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [sessionResults, setSessionResults] = useState<{
@@ -63,6 +66,10 @@ export default function UserPractice() {
     weakWords: Array<{ wordId: number; term: string; meaning: string; wrongCount: number }>;
   } | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
+  const [practiceReward, setPracticeReward] = useState<GamificationReward | null>(null);
+  const [finalizeAttempted, setFinalizeAttempted] = useState(false);
+  const practiceSessionKey = useRef("");
+  const autoStarted = useRef(false);
   const router = useRouter();
 
   const fetchQuestions = useCallback(async (mode: PracticeMode) => {
@@ -98,9 +105,26 @@ export default function UserPractice() {
 
   const handleModeSelect = useCallback((mode: PracticeMode) => {
     if (!mode) return;
+    if (!practiceSessionKey.current) {
+      practiceSessionKey.current = window.crypto.randomUUID();
+    }
     setPracticeMode(mode);
     fetchQuestions(mode);
   }, [fetchQuestions]);
+
+  useEffect(() => {
+    if (authLoading || autoStarted.current) return;
+
+    const searchParams = new URLSearchParams(window.location.search);
+    const requestedMode = searchParams.get("mode");
+    const topicId = searchParams.get("topicId");
+    const mode = requestedMode === "smart" ? "smart" : topicId || requestedMode === "normal" ? "normal" : null;
+
+    if (mode) {
+      autoStarted.current = true;
+      void Promise.resolve().then(() => handleModeSelect(mode));
+    }
+  }, [authLoading, handleModeSelect]);
 
   const current = questions[index];
   const expectedAnswer = String(current?.correctAnswer || current?.term || "");
@@ -220,18 +244,40 @@ export default function UserPractice() {
 
   // Fetch session summary when practice is completed (index >= questions.length)
   useEffect(() => {
-    if (index >= questions.length && questions.length > 0 && !summaryLoading && !sessionSummary) {
-      setSummaryLoading(true);
-      userService.getSessionSummary().then(setSessionSummary).finally(() => setSummaryLoading(false));
+    if (index >= questions.length && questions.length > 0 && !summaryLoading && !sessionSummary && !finalizeAttempted) {
+      const timeout = window.setTimeout(() => {
+        const topicId = Number(new URLSearchParams(window.location.search).get("topicId")) || undefined;
+        setFinalizeAttempted(true);
+        setSummaryLoading(true);
+        Promise.all([
+          userService.getSessionSummary(),
+          userService.completePracticeSession({
+            sessionKey: practiceSessionKey.current,
+            topicId,
+            correctCount: sessionResults.correctCount,
+            totalAttempts: sessionResults.totalAttempts,
+          }),
+        ])
+          .then(([summary, reward]) => {
+            setSessionSummary(summary);
+            setPracticeReward(reward);
+          })
+          .catch((error) => {
+            console.error("Failed to finalize practice session", error);
+            toast.error("Không thể ghi nhận XP hoàn thành phiên luyện tập.");
+          })
+          .finally(() => setSummaryLoading(false));
+      }, 0);
+      return () => window.clearTimeout(timeout);
     }
-  }, [index, questions.length, summaryLoading, sessionSummary]);
+  }, [finalizeAttempted, index, questions.length, sessionResults.correctCount, sessionResults.totalAttempts, summaryLoading, sessionSummary]);
 
   if (authLoading) {
     return <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white">Đang xác thực...</div>;
   }
 
   // Show mode selector before starting
-  if (questions.length === 0 && !loading) {
+  if (!practiceMode && !loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white p-6">
         <div className="w-full max-w-lg space-y-6 text-center">
@@ -293,8 +339,22 @@ export default function UserPractice() {
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white p-6 text-center">
         <CheckCircle2 size={64} className="text-green-500 mb-6 opacity-20" />
         <h2 className="text-2xl font-bold mb-2">Không có câu hỏi</h2>
-        <p className="text-slate-500 dark:text-slate-400 mb-8">Bạn đã hoàn thành hết mục tiêu luyện tập hôm nay.</p>
-        <Button onClick={() => router.push("/user/dashboard")} className="bg-blue-600">Quay về tổng quan</Button>
+        <p className="text-slate-500 dark:text-slate-400 mb-8">
+          {practiceMode === "smart"
+            ? "Hiện chưa có từ đã học nào cần ôn tập. Hãy học thêm từ mới hoặc chọn luyện tập thường."
+            : "Chủ đề này chưa có câu hỏi phù hợp. Hãy thử ôn tập thông minh hoặc chọn chủ đề khác."}
+        </p>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Button
+            onClick={() => handleModeSelect(practiceMode === "smart" ? "normal" : "smart")}
+            className="bg-blue-600"
+          >
+            Đổi chế độ
+          </Button>
+          <Button variant="outline" onClick={() => router.push("/user/courses")}>
+            Chọn chủ đề
+          </Button>
+        </div>
       </div>
     );
   }
@@ -306,11 +366,12 @@ export default function UserPractice() {
     const accuracy = summary?.accuracy ?? localAccuracy;
     const totalXP = summary?.totalXP ?? 0;
     const currentLevel = summary?.currentLevel ?? 1;
-    const xpEarned = summary?.xpEarned ?? 0;
+    const xpEarned = practiceReward?.xpGained ?? 0;
     const weakWords = summary?.weakWords ?? [];
 
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white px-4 py-10">
+        <GamificationCelebration reward={practiceReward} />
         <div className="w-full max-w-lg">
           <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-[32px] p-10 shadow-sm text-center">
             <div className="w-20 h-20 bg-blue-600/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-blue-500/30">
@@ -341,21 +402,14 @@ export default function UserPractice() {
               </div>
             </div>
 
-            {/* Level & XP bar */}
-            <div className="bg-slate-50 dark:bg-white/3 rounded-2xl p-5 border border-slate-200 dark:border-white/5 mb-6 text-left">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Cấp độ {currentLevel}</span>
-                <span className="text-xs font-black text-slate-500 dark:text-slate-400">{totalXP} XP</span>
-              </div>
-              <div className="h-2.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
-                <div
-                  className="h-full rounded-full bg-linear-to-r from-amber-500 to-orange-400 transition-all duration-1000"
-                  style={{ width: `${totalXP % 100}%` }}
-                />
-              </div>
-              <p className="text-[10px] text-slate-500 dark:text-slate-500 mt-2 font-medium">
-                {100 - (totalXP % 100)} XP đến cấp tiếp theo
-              </p>
+            <div className="mb-6 text-left">
+              <LevelProgressBar
+                totalXP={practiceReward?.totalXP ?? totalXP}
+                currentLevel={practiceReward?.currentLevel ?? currentLevel}
+                currentLevelXP={practiceReward?.currentLevelXP ?? 0}
+                xpForNextLevel={practiceReward?.xpForNextLevel ?? 100}
+                levelProgress={practiceReward?.levelProgress ?? 0}
+              />
             </div>
 
             {/* Weak words */}

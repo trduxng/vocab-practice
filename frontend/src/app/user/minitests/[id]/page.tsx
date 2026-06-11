@@ -2,13 +2,15 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { AlertCircle, ArrowLeft, Brain, CheckCircle2, ChevronRight, Timer, XCircle } from "lucide-react";
+import { AlertCircle, ArrowLeft, Brain, CheckCircle2, ChevronRight, Timer } from "lucide-react";
 import { userService } from "@/src/services/user.service";
 import { useAuth } from "@/src/app/context/AuthContext";
 import { Button } from "@/src/components/ui/button";
 import { Card } from "@/src/components/ui/card";
 import { toast } from "sonner";
 import ReportDialog from "@/src/components/shared/ReportDialog";
+import GamificationCelebration from "@/src/components/user/gamification/GamificationCelebration";
+import type { GamificationReward } from "@/src/modules/user/types";
 
 type TestQuestion = {
   questionId: number;
@@ -43,6 +45,8 @@ const MiniTestExecutionPage = () => {
     total: number;
     correct: number;
     score: number;
+    xpEarned?: number;
+    gamification?: GamificationReward;
     results: AnswerResult[];
   } | null>(null);
   const [showReview, setShowReview] = useState(false);
@@ -166,6 +170,7 @@ const MiniTestExecutionPage = () => {
 
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white p-4">
+        <GamificationCelebration reward={resultData?.gamification} />
         <Card className="w-full max-w-2xl bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 p-12 text-center rounded-[40px] shadow-sm">
           <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-8 border-2 ${accuracy >= 70 ? "bg-green-500/20 border-green-500/30" : accuracy >= 40 ? "bg-amber-500/20 border-amber-500/30" : "bg-red-500/20 border-red-500/30"}`}>
             {accuracy >= 70 ? (
@@ -177,7 +182,7 @@ const MiniTestExecutionPage = () => {
           <h1 className="text-5xl font-black uppercase tracking-tighter mb-2">Hoàn thành!</h1>
           <p className="text-slate-500 dark:text-slate-400 mb-10 font-medium">Kết quả của bạn đã được ghi nhận và lưu vào lịch sử.</p>
 
-          <div className="grid grid-cols-3 gap-4 mb-12">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-12">
             <div className="dark:bg-white/3 bg-slate-50 p-6 rounded-3xl border border-slate-200 dark:border-white/5">
               <p className="text-slate-600 dark:text-slate-400 text-[10px] uppercase font-black tracking-widest mb-2">Đúng</p>
               <p className="text-3xl font-black text-green-400">{correct}/{score}</p>
@@ -189,6 +194,10 @@ const MiniTestExecutionPage = () => {
             <div className="dark:bg-white/3 bg-slate-50 p-6 rounded-3xl border border-slate-200 dark:border-white/5">
               <p className="text-slate-600 dark:text-slate-400 text-[10px] uppercase font-black tracking-widest mb-2">Sai</p>
               <p className="text-3xl font-black text-red-400">{score - correct}</p>
+            </div>
+            <div className="dark:bg-white/3 bg-amber-50/50 p-6 rounded-3xl border border-amber-200 dark:border-amber-500/10">
+              <p className="text-slate-600 dark:text-slate-400 text-[10px] uppercase font-black tracking-widest mb-2">XP</p>
+              <p className="text-3xl font-black text-amber-500">+{resultData?.xpEarned || 0}</p>
             </div>
           </div>
 
@@ -331,7 +340,6 @@ const MiniTestExecutionPage = () => {
         {/* Progress dots */}
         <div className="flex flex-wrap gap-2.5 justify-center mb-6">
           {questions.map((question, qIndex) => {
-            const isCorrect = resultData?.results?.find((r) => r.questionId === question.questionId)?.isCorrect;
             return (
               <div
                 key={question.questionId}

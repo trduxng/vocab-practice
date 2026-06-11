@@ -5,29 +5,37 @@ class UserController {
   static async submitAnswer(req, res, next) {
     try {
       const userId = req.user.id;
-      const { questionId, wordId, submittedAnswer, isCorrect } = req.body;
+      const { questionId, wordId, submittedAnswer, isCorrect, reviewRating, activityType } = req.body;
 
       if (!questionId && !wordId) {
         return res.status(400).json({ message: 'Thiếu questionId' });
       }
 
+      let feedback;
       if (questionId) {
-        await UserService.submitAnswer({
+        feedback = await UserService.submitAnswer({
           userId,
           questionId,
           wordId,
           submittedAnswer,
-          isCorrect
+          isCorrect,
+          reviewRating,
+          activityType
         });
       } else {
-        await UserService.submitWordReview({
+        feedback = await UserService.submitWordReview({
           userId,
           wordId,
-          isCorrect: Boolean(isCorrect)
+          isCorrect: Boolean(isCorrect),
+          reviewRating,
+          activityType
         });
       }
 
-      return res.status(200).json({ message: 'Lưu kết quả thành công' });
+      return res.status(200).json({
+        message: 'Lưu kết quả thành công',
+        ...feedback
+      });
     } catch (error) {
       console.error('[UserController.submitAnswer] Full Error:', error);
       return res.status(500).json({ 
@@ -216,6 +224,15 @@ class UserController {
       const userId = req.user.id;
       const year = parseInt(req.query.year) || new Date().getFullYear();
       const data = await UserService.getActivityHeatmap(userId, year);
+      res.status(200).json(data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getProgressAnalytics(req, res, next) {
+    try {
+      const data = await UserService.getProgressAnalytics(req.user.id);
       res.status(200).json(data);
     } catch (error) {
       next(error);

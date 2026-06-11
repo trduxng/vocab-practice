@@ -1,6 +1,7 @@
 const { poolPromise, sql } = require('../config/db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const GamificationService = require('./gamification.service');
 
 class AuthService {
   static async register(fullName, email, password) {
@@ -80,9 +81,18 @@ class AuthService {
     };
 
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1d' });
+    let gamification = null;
+    if (user.role === 'Learner') {
+      try {
+        gamification = await GamificationService.awardDailyLogin(user.id);
+      } catch (error) {
+        console.error('[AuthService.login] Failed to award daily login XP:', error);
+      }
+    }
 
     return {
       token,
+      gamification,
       user: {
         id: user.id,
         fullName: user.fullName,

@@ -19,6 +19,7 @@ const userRoutes = require('./routes/user.routes');
 const progressRoutes = require('./routes/progress.routes');
 const creatorRoutes = require('./routes/creator.routes');
 const reviewRoutes = require('./routes/review.routes');
+const aiRoutes = require('./routes/ai.routes');
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -75,6 +76,7 @@ app.use('/api/user', userRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/creator', creatorRoutes);
 app.use('/api/admin/content-review', reviewRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Error Handler Middleware
 app.use(errorHandler);

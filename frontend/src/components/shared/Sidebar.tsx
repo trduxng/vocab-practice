@@ -73,7 +73,7 @@ const creatorLinks: NavLink[] = [
 const studentLinks: NavLink[] = [
   { icon: LayoutDashboard, label: "Tổng quan", href: "/user/dashboard" },
   { icon: BookOpen, label: "Lộ trình", href: "/user/courses" },
-  { icon: Brain, label: "Học từ", href: "/user/learn" },
+  { icon: Brain, label: "Học theo chủ đề", href: "/user/learn" },
   { icon: Target, label: "Luyện tập", href: "/user/practice" },
   { icon: FileText, label: "Bài kiểm tra", href: "/user/minitests" },
   { icon: Heart, label: "Sổ tay", href: "/user/notebook" },
