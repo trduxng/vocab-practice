@@ -136,6 +136,30 @@ export default function RegisterPage() {
               )}
             </div>
 
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
+                Vai trò
+              </label>
+              <div className="relative">
+                <Input type="button"></Input>
+                {/* <Lock
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600"
+                  size={18}
+                />
+                <Input
+                  {...register("password")}
+                  type="password"
+                  className={`bg-white/5 border-white/10 h-14 pl-12 rounded-2xl text-white transition-all focus:border-blue-500 focus:bg-white/[0.07] ${errors.password ? "border-red-500/50 bg-red-500/5" : ""}`}
+                  placeholder="••••••••"
+                /> */}
+              </div>
+              {errors.password && (
+                <p className="text-red-400 text-[10px] font-bold uppercase ml-1">
+                  {errors.password?.message}
+                </p>
+              )}
+            </div>
+
             <Button
               type="submit"
               disabled={isSubmitting}
