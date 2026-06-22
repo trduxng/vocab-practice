@@ -29,6 +29,7 @@ import { Textarea } from '@/src/components/ui/textarea';
 import { adminService, type PaginationMeta } from '@/src/services/admin.service';
 import { aiService, type AiWordSuggestion } from '@/src/services/ai.service';
 import { categoriesService } from '@/src/services/categories.service';
+import { adminLabel } from '@/src/lib/admin-i18n';
 
 type ContentStatus = 'Draft' | 'PendingReview' | 'Published' | 'Rejected' | 'Archived';
 type AdminTab = 'words' | 'topics' | 'categories' | 'import';
@@ -125,10 +126,10 @@ type ImportPreview = {
 };
 
 const tabs: Array<{ id: AdminTab; label: string; icon: React.ElementType }> = [
-  { id: 'words', label: 'Words', icon: Layers3 },
-  { id: 'topics', label: 'Topics', icon: Tags },
-  { id: 'categories', label: 'Categories', icon: FolderTree },
-  { id: 'import', label: 'Import', icon: FileSpreadsheet },
+  { id: 'words', label: 'Từ vựng', icon: Layers3 },
+  { id: 'topics', label: 'Chủ đề', icon: Tags },
+  { id: 'categories', label: 'Danh mục', icon: FolderTree },
+  { id: 'import', label: 'Nhập dữ liệu', icon: FileSpreadsheet },
 ];
 
 const statusOptions: ContentStatus[] = ['Draft', 'PendingReview', 'Published', 'Rejected', 'Archived'];
@@ -252,7 +253,7 @@ export default function AdminWordsPage() {
       setPartOfSpeeches(posData);
       setTopicCategories(categoryData);
     } catch (error) {
-      console.error('Failed to fetch reference data', error);
+      console.error('Không thể tải dữ liệu tham chiếu', error);
       toast.error('Không thể tải dữ liệu danh mục');
     }
   }, []);
@@ -268,7 +269,7 @@ export default function AdminWordsPage() {
       setTopics(response.items);
       setTopicPagination(response.pagination);
     } catch (error) {
-      console.error('Failed to fetch topics', error);
+      console.error('Không thể tải chủ đề', error);
       toast.error(getErrorMessage(error, 'Không thể tải chủ đề'));
     } finally {
       setLoadingTopics(false);
@@ -291,7 +292,7 @@ export default function AdminWordsPage() {
       setWords(response.items);
       setWordPagination(response.pagination);
     } catch (error) {
-      console.error('Failed to fetch words', error);
+      console.error('Không thể tải từ vựng', error);
       toast.error(getErrorMessage(error, 'Không thể tải từ vựng'));
     } finally {
       setLoadingWords(false);
@@ -356,7 +357,7 @@ export default function AdminWordsPage() {
       const detail = await adminService.getWordDetail<WordDetail>(wordId);
       setSelectedWord(detail);
     } catch (error) {
-      console.error('Fetch word detail failed', error);
+      console.error('Không thể tải chi tiết từ vựng', error);
       toast.error(getErrorMessage(error, 'Không thể tải chi tiết từ vựng'));
     } finally {
       setLoadingDetail(false);
@@ -407,7 +408,7 @@ export default function AdminWordsPage() {
       applyAiSuggestion(suggestion);
       toast.success('AI đã gợi ý nội dung cho từ vựng');
     } catch (error) {
-      console.error('AI suggestion failed', error);
+      console.error('Không thể lấy gợi ý từ AI', error);
       toast.error(getErrorMessage(error, 'Không thể tạo gợi ý AI'));
     } finally {
       setGeneratingSuggestion(false);
@@ -448,7 +449,7 @@ export default function AdminWordsPage() {
       fetchWords();
       fetchTopics();
     } catch (error) {
-      console.error('Save word failed', error);
+      console.error('Không thể lưu từ vựng', error);
       toast.error(getErrorMessage(error, 'Lỗi khi lưu từ vựng'));
     } finally {
       setSaving(false);
@@ -465,7 +466,7 @@ export default function AdminWordsPage() {
       fetchTopics();
       if (selectedWord?.id === word.id) setSelectedWord(null);
     } catch (error) {
-      console.error('Archive word failed', error);
+      console.error('Không thể lưu trữ từ vựng', error);
       toast.error(getErrorMessage(error, 'Lưu trữ từ vựng thất bại'));
     }
   }
@@ -480,7 +481,7 @@ export default function AdminWordsPage() {
       fetchTopics();
       if (selectedWord?.id === word.id) setSelectedWord(null);
     } catch (error) {
-      console.error('Hard delete word failed', error);
+      console.error('Không thể xóa vĩnh viễn từ vựng', error);
       toast.error(getErrorMessage(error, 'Bạn không có quyền xóa vĩnh viễn hoặc thao tác thất bại'));
     }
   }
@@ -532,7 +533,7 @@ export default function AdminWordsPage() {
       fetchTopics();
       fetchReferenceData();
     } catch (error) {
-      console.error('Save topic failed', error);
+      console.error('Không thể lưu chủ đề', error);
       toast.error(getErrorMessage(error, 'Lưu chủ đề thất bại'));
     } finally {
       setSaving(false);
@@ -549,7 +550,7 @@ export default function AdminWordsPage() {
       fetchTopics();
       fetchReferenceData();
     } catch (error) {
-      console.error('Delete topic failed', error);
+      console.error('Không thể xóa chủ đề', error);
       toast.error(getErrorMessage(error, 'Xóa chủ đề thất bại'));
     }
   }
@@ -601,7 +602,7 @@ export default function AdminWordsPage() {
       fetchReferenceData();
       fetchTopics();
     } catch (error) {
-      console.error('Save category failed', error);
+      console.error('Không thể lưu danh mục', error);
       toast.error(getErrorMessage(error, 'Lưu danh mục thất bại'));
     } finally {
       setSaving(false);
@@ -617,7 +618,7 @@ export default function AdminWordsPage() {
       fetchReferenceData();
       fetchTopics();
     } catch (error) {
-      console.error('Disable category failed', error);
+      console.error('Không thể tắt danh mục', error);
       toast.error(getErrorMessage(error, 'Tắt danh mục thất bại'));
     }
   }
@@ -646,7 +647,7 @@ export default function AdminWordsPage() {
     try {
       const payload = await readImportFile(file);
       if (Array.isArray(payload) && payload.length === 0) {
-        toast.error('File không có dữ liệu để import');
+      toast.error('Tệp không có dữ liệu để nhập');
         return;
       }
 
@@ -654,13 +655,13 @@ export default function AdminWordsPage() {
       setImportPayload(payload);
       setImportPreview(preview);
       if (preview.invalid > 0) {
-        toast.warning(`Preview có ${preview.invalid} dòng lỗi cần sửa`);
+        toast.warning(`Bản xem trước có ${preview.invalid} dòng lỗi cần sửa`);
       } else {
-        toast.success(`Preview hợp lệ ${preview.valid} dòng`);
+        toast.success(`Có ${preview.valid} dòng hợp lệ`);
       }
     } catch (error) {
-      console.error('Preview import failed', error);
-      toast.error(getErrorMessage(error, error instanceof Error ? error.message : 'Preview import thất bại'));
+      console.error('Không thể xem trước dữ liệu nhập', error);
+      toast.error(getErrorMessage(error, error instanceof Error ? error.message : 'Xem trước dữ liệu nhập thất bại'));
     } finally {
       setPreviewing(false);
     }
@@ -669,14 +670,14 @@ export default function AdminWordsPage() {
   async function handleConfirmImport() {
     if (!importPayload || !importPreview) return;
     if (importPreview.invalid > 0) {
-      toast.error('Vui lòng sửa các dòng lỗi trước khi import');
+      toast.error('Vui lòng sửa các dòng lỗi trước khi nhập');
       return;
     }
 
     setImporting(true);
     try {
       const result = await adminService.bulkImportWords(importPayload);
-      const message = `Import thành công ${result.success || 0} dòng, lỗi ${result.failed || 0} dòng`;
+      const message = `Nhập thành công ${result.success || 0} dòng, lỗi ${result.failed || 0} dòng`;
       if (result.failed > 0) {
         toast.warning(message);
       } else {
@@ -687,8 +688,8 @@ export default function AdminWordsPage() {
       fetchWords();
       fetchTopics();
     } catch (error) {
-      console.error('Import words failed', error);
-      toast.error(getErrorMessage(error, 'Import từ vựng thất bại'));
+      console.error('Không thể nhập từ vựng', error);
+      toast.error(getErrorMessage(error, 'Nhập từ vựng thất bại'));
     } finally {
       setImporting(false);
     }
@@ -711,7 +712,7 @@ export default function AdminWordsPage() {
 
   return (
     <div className="flex flex-1 flex-col bg-[#080d1a]">
-      <Topbar title="Quản lý từ vựng" subtitle="Quản lý từ, chủ đề, danh mục và import dữ liệu học tập." role="admin" />
+      <Topbar title="Quản lý từ vựng" subtitle="Quản lý từ, chủ đề, danh mục và nhập dữ liệu học tập." role="admin" />
       <AdminPage>
         <AdminPanel>
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
@@ -749,11 +750,11 @@ export default function AdminWordsPage() {
                 </Select>
                 <Select value={selectedPartOfSpeechId} onChange={(value) => { setSelectedPartOfSpeechId(value); setWordPage(1); }}>
                   <option value="">Tất cả loại từ</option>
-                  {partsOfSpeech.map((part) => <option key={part.id} value={part.id}>{part.name}</option>)}
+                  {partsOfSpeech.map((part) => <option key={part.id} value={part.id}>{adminLabel(part.name)}</option>)}
                 </Select>
                 <Select value={wordStatus} onChange={(value) => { setWordStatus(value); setWordPage(1); }}>
                   <option value="">Tất cả trạng thái</option>
-                  {statusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
+                  {statusOptions.map((status) => <option key={status} value={status}>{adminLabel(status)}</option>)}
                 </Select>
                 <Select value={sortBy} onChange={(value) => { setSortBy(value as SortBy); setWordPage(1); }}>
                   <option value="createdAt">Mới tạo</option>
@@ -770,7 +771,7 @@ export default function AdminWordsPage() {
                   <label className="flex h-10 items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 text-xs text-slate-300"><input type="checkbox" checked={missingExamples} onChange={(event) => { setMissingExamples(event.target.checked); setWordPage(1); }} /> Thiếu ví dụ</label>
                   <label className="flex h-10 items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 text-xs text-slate-300"><input type="checkbox" checked={missingQuestions} onChange={(event) => { setMissingQuestions(event.target.checked); setWordPage(1); }} /> Chưa có câu hỏi</label>
                   <IconButton label="Xóa bộ lọc" onClick={resetWordFilters}><X className="h-4 w-4" /></IconButton>
-                  <ToolbarButton onClick={() => setActiveTab('import')}><Upload className="h-4 w-4" />Import</ToolbarButton>
+                  <ToolbarButton onClick={() => setActiveTab('import')}><Upload className="h-4 w-4" />Nhập dữ liệu</ToolbarButton>
                   <ToolbarButton active onClick={() => { resetWordForm(); setShowWordForm(true); }}><Plus className="h-4 w-4" />Thêm từ</ToolbarButton>
                 </div>
               </div>
@@ -785,12 +786,12 @@ export default function AdminWordsPage() {
                     <Field label="Loại từ">
                       <Select value={wordForm.partOfSpeechId} onChange={(value) => setWordForm({ ...wordForm, partOfSpeechId: value })} required>
                         <option value="">Chọn loại từ</option>
-                        {partsOfSpeech.map((part) => <option key={part.id} value={part.id}>{part.name}</option>)}
+                        {partsOfSpeech.map((part) => <option key={part.id} value={part.id}>{adminLabel(part.name)}</option>)}
                       </Select>
                     </Field>
                     <Field label="Trạng thái">
                       <Select value={wordForm.status} onChange={(value) => setWordForm({ ...wordForm, status: value as ContentStatus })}>
-                        {statusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
+                        {statusOptions.map((status) => <option key={status} value={status}>{adminLabel(status)}</option>)}
                       </Select>
                     </Field>
                   </div>
@@ -843,7 +844,7 @@ export default function AdminWordsPage() {
             <TableShell>
               <table className="w-full min-w-[1080px] text-left text-sm">
                 <thead className="border-b border-white/10 bg-white/5 text-xs uppercase tracking-wide text-slate-400">
-                  <tr><th className="px-4 py-3">Từ vựng</th><th className="px-4 py-3">Loại</th><th className="px-4 py-3">Định nghĩa</th><th className="px-4 py-3">Chủ đề</th><th className="px-4 py-3">Coverage</th><th className="px-4 py-3">Trạng thái</th><th className="px-4 py-3 text-right">Thao tác</th></tr>
+                  <tr><th className="px-4 py-3">Từ vựng</th><th className="px-4 py-3">Loại</th><th className="px-4 py-3">Định nghĩa</th><th className="px-4 py-3">Chủ đề</th><th className="px-4 py-3">Mức độ bao phủ</th><th className="px-4 py-3">Trạng thái</th><th className="px-4 py-3 text-right">Thao tác</th></tr>
                 </thead>
                 <tbody className="divide-y divide-white/10">
                   {loadingWords ? (
@@ -853,11 +854,11 @@ export default function AdminWordsPage() {
                   ) : words.map((word) => (
                     <tr key={word.id} className="hover:bg-white/5">
                       <td className="px-4 py-4"><p className="font-semibold text-white">{word.term}</p><p className="text-xs text-slate-500">{word.phonetic || 'Chưa có phiên âm'} · {formatDate(word.updatedAt || word.createdAt)}</p></td>
-                      <td className="px-4 py-4"><StatusBadge tone="blue">{word.partOfSpeechName || 'N/A'}</StatusBadge></td>
+                      <td className="px-4 py-4"><StatusBadge tone="blue">{word.partOfSpeechName ? adminLabel(word.partOfSpeechName) : 'Chưa có'}</StatusBadge></td>
                       <td className="max-w-md px-4 py-4 text-slate-300">{word.meaning}</td>
                       <td className="px-4 py-4"><div className="flex flex-wrap gap-1.5">{word.topics?.map((topic) => <StatusBadge key={topic.id}>{topic.name}</StatusBadge>)}</div></td>
                       <td className="px-4 py-4 text-slate-300"><p>{Number(word.exampleCount || 0)} ví dụ</p><p className="text-xs text-slate-500">{Number(word.questionCount || 0)} câu hỏi</p></td>
-                      <td className="px-4 py-4"><StatusBadge tone={statusTone[word.status] || 'slate'}>{word.status}</StatusBadge></td>
+                      <td className="px-4 py-4"><StatusBadge tone={statusTone[word.status] || 'slate'}>{adminLabel(word.status)}</StatusBadge></td>
                       <td className="px-4 py-4">
                         <div className="flex justify-end gap-2">
                           <IconButton label="Xem chi tiết" onClick={() => openWordDetail(word.id)}><Eye className="h-4 w-4" /></IconButton>
@@ -890,7 +891,7 @@ export default function AdminWordsPage() {
                 </Field>
                 <Field label="Trạng thái">
                   <Select value={topicForm.status} onChange={(value) => setTopicForm({ ...topicForm, status: value as ContentStatus })}>
-                    {statusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
+                    {statusOptions.map((status) => <option key={status} value={status}>{adminLabel(status)}</option>)}
                   </Select>
                 </Field>
                 <FormActions saving={saving} onCancel={resetTopicForm} submitLabel={editingTopic ? 'Cập nhật chủ đề' : 'Tạo chủ đề'} />
@@ -910,7 +911,7 @@ export default function AdminWordsPage() {
                   </Select>
                   <Select value={topicStatus} onChange={(value) => { setTopicStatus(value); setTopicPage(1); }}>
                     <option value="">Tất cả trạng thái</option>
-                    {statusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
+                    {statusOptions.map((status) => <option key={status} value={status}>{adminLabel(status)}</option>)}
                   </Select>
                   <IconButton label="Tải lại" onClick={() => { fetchTopics(); fetchReferenceData(); }}><RefreshCw className="h-4 w-4" /></IconButton>
                 </div>
@@ -931,7 +932,7 @@ export default function AdminWordsPage() {
                         <td className="px-4 py-4"><p className="font-semibold text-white">{topic.name}</p><p className="text-xs text-slate-500">{topic.code || 'Chưa có mã'} · {topic.description || 'Chưa có mô tả'}</p></td>
                         <td className="px-4 py-4 text-slate-300">{topic.categoryName || 'Chưa phân loại'}</td>
                         <td className="px-4 py-4 text-slate-300">{Number(topic.wordCount || 0).toLocaleString('vi-VN')} từ</td>
-                        <td className="px-4 py-4"><StatusBadge tone={statusTone[topic.status]}>{topic.status}</StatusBadge></td>
+                        <td className="px-4 py-4"><StatusBadge tone={statusTone[topic.status]}>{adminLabel(topic.status)}</StatusBadge></td>
                         <td className="px-4 py-4 text-slate-400">{formatDate(topic.updatedAt)}</td>
                         <td className="px-4 py-4">
                           <div className="flex justify-end gap-2">
@@ -951,7 +952,7 @@ export default function AdminWordsPage() {
 
         {activeTab === 'categories' && (
           <div className="grid grid-cols-1 gap-5 xl:grid-cols-[420px_minmax(0,1fr)]">
-            <AdminPanel title={editingCategory ? 'Sửa danh mục' : 'Tạo danh mục'} description="Nhóm chủ đề để admin lọc và tổ chức kho từ vựng.">
+            <AdminPanel title={editingCategory ? 'Sửa danh mục' : 'Tạo danh mục'} description="Nhóm chủ đề để quản trị viên lọc và tổ chức kho từ vựng.">
               <form onSubmit={handleSaveCategory} className="space-y-4">
                 <Field label="Tên danh mục"><Input value={categoryForm.name} onChange={(event) => setCategoryForm({ ...categoryForm, name: event.target.value })} className="h-10 rounded-md" required /></Field>
                 <Field label="Mã danh mục"><Input value={categoryForm.code} onChange={(event) => setCategoryForm({ ...categoryForm, code: event.target.value })} className="h-10 rounded-md" placeholder="Tự tạo nếu bỏ trống" /></Field>
@@ -975,7 +976,7 @@ export default function AdminWordsPage() {
                       <td className="px-4 py-4"><p className="font-semibold text-white">{category.name}</p><p className="text-xs text-slate-500">{category.code || 'Chưa có mã'} · {category.description || 'Chưa có mô tả'}</p></td>
                       <td className="px-4 py-4 text-slate-300">{Number(category.topicCount || 0).toLocaleString('vi-VN')}</td>
                       <td className="px-4 py-4 text-slate-300">{Number(category.wordCount || 0).toLocaleString('vi-VN')}</td>
-                      <td className="px-4 py-4"><StatusBadge tone={category.isActive ? 'emerald' : 'slate'}>{category.isActive ? 'Active' : 'Inactive'}</StatusBadge></td>
+                      <td className="px-4 py-4"><StatusBadge tone={category.isActive ? 'emerald' : 'slate'}>{category.isActive ? 'Đang hoạt động' : 'Đã tắt'}</StatusBadge></td>
                       <td className="px-4 py-4">
                         <div className="flex justify-end gap-2">
                           <IconButton label="Sửa danh mục" onClick={() => startEditCategory(category)}><Edit2 className="h-4 w-4" /></IconButton>
@@ -992,14 +993,14 @@ export default function AdminWordsPage() {
 
         {activeTab === 'import' && (
           <div className="grid grid-cols-1 gap-5 xl:grid-cols-[420px_minmax(0,1fr)]">
-            <AdminPanel title="Import CSV/Excel" description="Preview và validate trước khi import thật vào hệ thống.">
+            <AdminPanel title="Nhập CSV/Excel" description="Xem trước và kiểm tra dữ liệu trước khi nhập vào hệ thống.">
               <div className="space-y-4">
                 <input ref={fileInputRef} type="file" accept=".csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="hidden" onChange={handlePreviewFile} />
                 <Button type="button" disabled={previewing} onClick={() => fileInputRef.current?.click()} className="h-10 w-full rounded-md bg-blue-600 hover:bg-blue-700">
-                  <Upload className="h-4 w-4" /> {previewing ? 'Đang preview...' : 'Chọn file để preview'}
+                  <Upload className="h-4 w-4" /> {previewing ? 'Đang xem trước...' : 'Chọn tệp để xem trước'}
                 </Button>
                 <Button type="button" disabled={!importPreview || importPreview.invalid > 0 || importing} onClick={handleConfirmImport} className="h-10 w-full rounded-md bg-emerald-600 hover:bg-emerald-700">
-                  <Check className="h-4 w-4" /> {importing ? 'Đang import...' : 'Import dữ liệu hợp lệ'}
+                  <Check className="h-4 w-4" /> {importing ? 'Đang nhập...' : 'Nhập dữ liệu hợp lệ'}
                 </Button>
                 <div className="grid grid-cols-2 gap-2">
                   <Button type="button" variant="outline" onClick={downloadCsvTemplate} className="rounded-md"><Download className="h-4 w-4" />CSV mẫu</Button>
@@ -1012,9 +1013,9 @@ export default function AdminWordsPage() {
               </div>
             </AdminPanel>
 
-            <AdminPanel title="Preview import" description="Các dòng lỗi cần được sửa trước khi import.">
+            <AdminPanel title="Xem trước dữ liệu nhập" description="Các dòng lỗi cần được sửa trước khi nhập.">
               {!importPreview ? (
-                <div className="py-12 text-center text-sm text-slate-500">Chưa có file preview.</div>
+                <div className="py-12 text-center text-sm text-slate-500">Chưa có tệp để xem trước.</div>
               ) : (
                 <div className="space-y-4">
                   <div className="grid grid-cols-3 gap-3">
@@ -1031,7 +1032,7 @@ export default function AdminWordsPage() {
                             <tr key={row.row} className={row.valid ? 'hover:bg-white/5' : 'bg-rose-500/5'}>
                               <td className="px-3 py-2 text-slate-300">{row.row}</td>
                               <td className="px-3 py-2"><p className="font-medium text-white">{row.term || 'Thiếu từ'}</p><p className="text-xs text-slate-500">{row.meaning || 'Thiếu nghĩa'}</p></td>
-                              <td className="px-3 py-2 text-slate-300">{row.partOfSpeech?.name || 'Không hợp lệ'}</td>
+                              <td className="px-3 py-2 text-slate-300">{row.partOfSpeech?.name ? adminLabel(row.partOfSpeech.name) : 'Không hợp lệ'}</td>
                               <td className="px-3 py-2 text-slate-300">{row.topics.map((topic) => topic.name).join(', ') || 'Không có'}</td>
                               <td className="px-3 py-2"><StatusBadge tone={row.valid ? 'emerald' : 'rose'}>{row.valid ? 'OK' : 'Lỗi'}</StatusBadge></td>
                               <td className="px-3 py-2 text-rose-300">{row.errors.join('; ')}</td>
@@ -1168,7 +1169,7 @@ function WordDrawer({
           <div>
             <p className="text-xs uppercase tracking-wide text-slate-500">Chi tiết từ vựng</p>
             <h2 className="mt-1 text-xl font-semibold">{loading ? 'Đang tải...' : word?.term}</h2>
-            {word && <p className="mt-1 text-sm text-slate-400">{word.phonetic || 'Chưa có phiên âm'} · {word.partOfSpeechName || 'N/A'}</p>}
+            {word && <p className="mt-1 text-sm text-slate-400">{word.phonetic || 'Chưa có phiên âm'} · {word.partOfSpeechName ? adminLabel(word.partOfSpeechName) : 'Chưa có loại từ'}</p>}
           </div>
           <IconButton label="Đóng" onClick={onClose}><X className="h-4 w-4" /></IconButton>
         </div>
@@ -1176,7 +1177,7 @@ function WordDrawer({
         {!loading && word && (
           <div className="mt-6 space-y-5">
             <div className="flex flex-wrap gap-2">
-              <StatusBadge tone={statusTone[word.status] || 'slate'}>{word.status}</StatusBadge>
+              <StatusBadge tone={statusTone[word.status] || 'slate'}>{adminLabel(word.status)}</StatusBadge>
               <StatusBadge tone="blue">{Number(word.exampleCount || 0)} ví dụ</StatusBadge>
               <StatusBadge tone="violet">{Number(word.questionCount || 0)} câu hỏi</StatusBadge>
             </div>
@@ -1205,8 +1206,8 @@ function WordDrawer({
               <div className="space-y-3">
                 {word.questions?.length ? word.questions.map((question) => (
                   <div key={question.id} className="rounded-md border border-white/10 p-3">
-                    <div className="flex items-start justify-between gap-3"><p className="text-sm font-medium text-white">{question.questionText}</p><StatusBadge tone={statusTone[question.status] || 'slate'}>{question.status}</StatusBadge></div>
-                    <p className="mt-2 text-xs text-slate-400">{question.questionType} · Đáp án: {question.correctAnswer || 'N/A'}</p>
+                    <div className="flex items-start justify-between gap-3"><p className="text-sm font-medium text-white">{question.questionText}</p><StatusBadge tone={statusTone[question.status] || 'slate'}>{adminLabel(question.status)}</StatusBadge></div>
+                    <p className="mt-2 text-xs text-slate-400">{adminLabel(question.questionType)} · Đáp án: {question.correctAnswer || 'Không có'}</p>
                   </div>
                 )) : <p className="text-sm text-slate-500">Chưa có câu hỏi.</p>}
               </div>
@@ -1215,8 +1216,8 @@ function WordDrawer({
               <div className="space-y-3">
                 {word.auditLogs?.length ? word.auditLogs.map((log) => (
                   <div key={log.id} className="rounded-md border border-white/10 p-3">
-                    <p className="text-sm font-medium text-white">{log.action}</p>
-                    <p className="mt-1 text-xs text-slate-500">{formatDate(log.createdAt)} · {log.adminName || 'Admin'}</p>
+                    <p className="text-sm font-medium text-white">{adminLabel(log.action)}</p>
+                    <p className="mt-1 text-xs text-slate-500">{formatDate(log.createdAt)} · {log.adminName || 'Quản trị viên'}</p>
                     {log.details && <p className="mt-2 line-clamp-3 text-xs text-slate-400">{log.details}</p>}
                   </div>
                 )) : <p className="text-sm text-slate-500">Chưa có lịch sử sửa.</p>}

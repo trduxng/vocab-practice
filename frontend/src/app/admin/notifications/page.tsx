@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Topbar from "@/src/components/shared/Topbar";
 import { AdminPage, AdminPanel, KpiCard, StatusBadge, TableShell, ToolbarButton } from "@/src/components/admin/AdminPrimitives";
 import { adminService, type PaginationMeta } from "@/src/services/admin.service";
+import { adminLabel } from "@/src/lib/admin-i18n";
 import { BellRing, CalendarClock, MailCheck, Megaphone, Send, UsersRound } from "lucide-react";
 
 type NotificationItem = {
@@ -22,8 +23,8 @@ type NotificationItem = {
 export default function NotificationsPage() {
   const [channel, setChannel] = useState("InApp");
   const [audience, setAudience] = useState("All users");
-  const [subject, setSubject] = useState("New quiz recommendations are ready");
-  const [message, setMessage] = useState("Fresh quizzes, streak goals, and review words are ready.");
+  const [subject, setSubject] = useState("Đề xuất bài kiểm tra mới đã sẵn sàng");
+  const [message, setMessage] = useState("Bài kiểm tra mới, mục tiêu chuỗi học và từ cần ôn đã sẵn sàng.");
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -43,7 +44,7 @@ export default function NotificationsPage() {
       setNotifications(data.items);
       setPagination(data.pagination);
     } catch (error) {
-      console.error("Failed to fetch notifications", error);
+      console.error("Không thể tải thông báo", error);
     } finally {
       setLoading(false);
     }
@@ -65,8 +66,8 @@ export default function NotificationsPage() {
       });
       await fetchNotifications();
     } catch (error) {
-      console.error("Failed to send announcement", error);
-      alert("Failed to send announcement. Check permissions and migration status.");
+      console.error("Không thể gửi thông báo", error);
+      alert("Gửi thông báo thất bại. Vui lòng kiểm tra quyền truy cập và trạng thái cập nhật cơ sở dữ liệu.");
     } finally {
       setSending(false);
     }
@@ -78,8 +79,8 @@ export default function NotificationsPage() {
       await adminService.createDailyReminders();
       await fetchNotifications();
     } catch (error) {
-      console.error("Failed to create daily reminders", error);
-      alert("Failed to create reminders. Run migration_alignment_improvements.sql first.");
+      console.error("Không thể tạo lời nhắc hằng ngày", error);
+      alert("Tạo lời nhắc thất bại. Vui lòng chạy migration_alignment_improvements.sql trước.");
     } finally {
       setSending(false);
     }
@@ -97,25 +98,25 @@ export default function NotificationsPage() {
 
   return (
     <>
-      <Topbar title="Notifications" subtitle="Send announcements and queue daily study reminders." role="admin" userName="Admin" />
+      <Topbar title="Thông báo" subtitle="Gửi thông báo và tạo lời nhắc học hằng ngày." role="admin" />
       <AdminPage>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <KpiCard label="Sent today" value={String(sentToday)} change="live" icon={Send} tone="blue" />
-          <KpiCard label="Unread" value={String(unread)} change="in app" icon={BellRing} tone="emerald" />
-          <KpiCard label="In-app messages" value={String(inApp)} change="total" icon={MailCheck} tone="violet" />
-          <KpiCard label="Daily reminders" value={String(daily)} change="queued" icon={CalendarClock} tone="amber" />
+          <KpiCard label="Đã gửi hôm nay" value={String(sentToday)} change="trực tiếp" icon={Send} tone="blue" />
+          <KpiCard label="Chưa đọc" value={String(unread)} change="trong ứng dụng" icon={BellRing} tone="emerald" />
+          <KpiCard label="Thông báo trong ứng dụng" value={String(inApp)} change="tổng cộng" icon={MailCheck} tone="violet" />
+          <KpiCard label="Lời nhắc hằng ngày" value={String(daily)} change="đã tạo" icon={CalendarClock} tone="amber" />
         </div>
 
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[420px_minmax(0,1fr)]">
-          <AdminPanel title="Send announcement" description="Compose an in-app, email, or push notification record." action={<BellRing className="h-4 w-4 text-slate-400" />}>
+          <AdminPanel title="Gửi thông báo" description="Soạn thông báo trong ứng dụng, email hoặc thông báo đẩy." action={<BellRing className="h-4 w-4 text-slate-400" />}>
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Channel</label>
+                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Kênh gửi</label>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {[
-                    { label: "In-app", value: "InApp" },
+                    { label: "Trong ứng dụng", value: "InApp" },
                     { label: "Email", value: "Email" },
-                    { label: "Push", value: "PushNotification" },
+                    { label: "Thông báo đẩy", value: "PushNotification" },
                   ].map((item) => (
                     <ToolbarButton key={item.value} active={channel === item.value} onClick={() => setChannel(item.value)}>
                       {item.label}
@@ -125,28 +126,32 @@ export default function NotificationsPage() {
               </div>
 
               <div>
-                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Audience</label>
+                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Đối tượng nhận</label>
                 <select value={audience} onChange={(event) => setAudience(event.target.value)} className="mt-2 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none dark:border-white/10 dark:bg-slate-950 dark:text-slate-200">
-                  {["All users", "Learners", "Admins"].map((item) => <option key={item} value={item}>{item}</option>)}
+                  {[
+                    { value: "All users", label: "Tất cả người dùng" },
+                    { value: "Learners", label: "Học viên" },
+                    { value: "Admins", label: "Quản trị viên" },
+                  ].map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Subject</label>
+                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Tiêu đề</label>
                 <input value={subject} onChange={(event) => setSubject(event.target.value)} className="mt-2 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none dark:border-white/10 dark:bg-slate-950 dark:text-slate-200" />
               </div>
 
               <div>
-                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Message</label>
+                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Nội dung</label>
                 <textarea value={message} onChange={(event) => setMessage(event.target.value)} rows={5} className="mt-2 w-full resize-none rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none dark:border-white/10 dark:bg-slate-950 dark:text-slate-200" />
               </div>
 
               <div className="flex flex-wrap gap-2">
                 <ToolbarButton active onClick={sendAnnouncement}>
-                  <Send className="h-4 w-4" />{sending ? "Sending..." : "Send announcement"}
+                  <Send className="h-4 w-4" />{sending ? "Đang gửi..." : "Gửi thông báo"}
                 </ToolbarButton>
                 <ToolbarButton onClick={createDailyReminders}>
-                  <CalendarClock className="h-4 w-4" />Queue reminders
+                  <CalendarClock className="h-4 w-4" />Tạo lời nhắc
                 </ToolbarButton>
               </div>
             </div>
@@ -161,7 +166,7 @@ export default function NotificationsPage() {
                     setSearch(event.target.value);
                     setPage(1);
                   }}
-                  placeholder="Search notification, user, or email"
+                  placeholder="Tìm thông báo, người dùng hoặc email"
                   className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none dark:border-white/10 dark:bg-slate-950 dark:text-slate-200"
                 />
               </div>
@@ -170,18 +175,18 @@ export default function NotificationsPage() {
               <table className="w-full min-w-[760px] text-left text-sm">
                 <thead className="border-b border-slate-200 bg-slate-100 text-xs uppercase tracking-wide text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
                   <tr>
-                    <th className="px-4 py-3 font-medium">Message</th>
-                    <th className="px-4 py-3 font-medium">User</th>
-                    <th className="px-4 py-3 font-medium">Channel</th>
-                    <th className="px-4 py-3 font-medium">Date</th>
-                    <th className="px-4 py-3 font-medium">Status</th>
+                    <th className="px-4 py-3 font-medium">Nội dung</th>
+                    <th className="px-4 py-3 font-medium">Người dùng</th>
+                    <th className="px-4 py-3 font-medium">Kênh gửi</th>
+                    <th className="px-4 py-3 font-medium">Ngày gửi</th>
+                    <th className="px-4 py-3 font-medium">Trạng thái</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-white/10">
                   {loading ? (
-                    <tr><td className="px-4 py-6 text-slate-500" colSpan={5}>Loading notifications...</td></tr>
+                    <tr><td className="px-4 py-6 text-slate-500" colSpan={5}>Đang tải thông báo...</td></tr>
                   ) : notifications.length === 0 ? (
-                    <tr><td className="px-4 py-6 text-slate-500" colSpan={5}>No notifications yet.</td></tr>
+                    <tr><td className="px-4 py-6 text-slate-500" colSpan={5}>Chưa có thông báo.</td></tr>
                   ) : notifications.map((item) => (
                     <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-white/5">
                       <td className="px-4 py-4">
@@ -194,32 +199,32 @@ export default function NotificationsPage() {
                         </div>
                       </td>
                       <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{item.fullName || item.email || item.userId}</td>
-                      <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{item.deliveryChannel}</td>
-                      <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{new Date(item.createdAt).toLocaleDateString()}</td>
-                      <td className="px-4 py-4"><StatusBadge tone={item.isRead ? "slate" : "blue"}>{item.isRead ? "Read" : item.type}</StatusBadge></td>
+                      <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{adminLabel(item.deliveryChannel)}</td>
+                      <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{new Date(item.createdAt).toLocaleDateString("vi-VN")}</td>
+                      <td className="px-4 py-4"><StatusBadge tone={item.isRead ? "slate" : "blue"}>{item.isRead ? "Đã đọc" : adminLabel(item.type)}</StatusBadge></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
               {pagination && (
                 <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between dark:border-white/10">
-                  <span>Showing {notifications.length} of {pagination.total} notifications</span>
+                  <span>Hiển thị {notifications.length} / {pagination.total} thông báo</span>
                   <div className="flex items-center gap-2">
                     <ToolbarButton onClick={() => setPage((current) => Math.max(1, current - 1))}>
-                      Previous
+                      Trước
                     </ToolbarButton>
-                    <span>Page {pagination.page} of {pagination.totalPages}</span>
+                    <span>Trang {pagination.page} / {pagination.totalPages}</span>
                     <ToolbarButton onClick={() => setPage((current) => Math.min(pagination.totalPages, current + 1))}>
-                      Next
+                      Sau
                     </ToolbarButton>
                   </div>
                 </div>
               )}
             </TableShell>
 
-            <AdminPanel title="Reminder rules" description="Daily reminders are generated only once per learner per day when review words are due." action={<UsersRound className="h-4 w-4 text-slate-400" />}>
+            <AdminPanel title="Quy tắc nhắc học" description="Mỗi học viên chỉ nhận một lời nhắc mỗi ngày khi có từ vựng đến hạn ôn." action={<UsersRound className="h-4 w-4 text-slate-400" />}>
               <div className="rounded-md border border-slate-200 p-3 text-sm text-slate-600 dark:border-white/10 dark:text-slate-300">
-                The backend stores notification records now. Email and push delivery can be connected to an SMTP or push provider using the same DeliveryChannel field.
+                Hệ thống hiện đã lưu bản ghi thông báo. Có thể kết nối dịch vụ SMTP hoặc nhà cung cấp thông báo đẩy qua cùng trường DeliveryChannel.
               </div>
             </AdminPanel>
           </div>

@@ -24,7 +24,7 @@ const AdminLayout = ({ children }: { children: React.ReactNode }) => {
   }, [loading, isAuthenticated, canAccessAdmin, router]);
 
   if (loading) {
-    return <div className="min-h-screen bg-[#080d1a] flex items-center justify-center text-white font-mono">ADMIN ACCESS AUTHORIZING...</div>;
+    return <div className="min-h-screen bg-[#080d1a] flex items-center justify-center text-white font-mono">ĐANG XÁC THỰC QUYỀN QUẢN TRỊ...</div>;
   }
 
   if (!isAuthenticated || !canAccessAdmin) return null;

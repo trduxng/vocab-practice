@@ -10,6 +10,7 @@ import { Textarea } from '@/src/components/ui/textarea';
 import { FileText, Plus, Search, Trash2, ListChecks, Check, Archive } from 'lucide-react';
 import Topbar from '@/src/components/shared/Topbar';
 import { toast } from 'sonner';
+import { adminLabel } from '@/src/lib/admin-i18n';
 
 type MiniTestItem = {
   id: number;
@@ -61,8 +62,8 @@ export default function AdminMiniTestsPage() {
       }
       setAllQuestions(questions);
     } catch (error) {
-      console.error('Failed to fetch admin data', error);
-      toast.error('Khong the tai du lieu');
+      console.error('Không thể tải dữ liệu quản trị', error);
+      toast.error('Không thể tải dữ liệu');
     } finally {
       setLoading(false);
     }
@@ -83,7 +84,7 @@ export default function AdminMiniTestsPage() {
   const handleCreateTest = async (event: React.FormEvent) => {
     event.preventDefault();
     if (newTest.selectedQuestionIds.length === 0) {
-      toast.error('Vui long chon it nhat 1 cau hoi');
+      toast.error('Vui lòng chọn ít nhất 1 câu hỏi');
       return;
     }
 
@@ -94,13 +95,13 @@ export default function AdminMiniTestsPage() {
         topicId: parseInt(newTest.topicId, 10),
         questionIds: newTest.selectedQuestionIds
       });
-      toast.success('Tao mini test thanh cong');
+      toast.success('Tạo bài kiểm tra thành công');
       setShowAddForm(false);
       setNewTest({ title: '', description: '', topicId: '', selectedQuestionIds: [] });
       fetchData();
     } catch (error) {
-      console.error('Failed to create mini test', error);
-      toast.error('Tao mini test that bai');
+      console.error('Không thể tạo bài kiểm tra', error);
+      toast.error('Tạo bài kiểm tra thất bại');
     }
   };
 
@@ -112,68 +113,68 @@ export default function AdminMiniTestsPage() {
   };
 
   const handleDeleteTest = async (id: number) => {
-    if (!confirm('Xoa mini test nay? Lich su lam bai lien quan cung se bi xoa.')) return;
+    if (!confirm('Xóa bài kiểm tra này? Lịch sử làm bài liên quan cũng sẽ bị xóa.')) return;
 
     try {
       await adminService.deleteMiniTest(id);
-      toast.success('Xoa mini test thanh cong');
+      toast.success('Xóa bài kiểm tra thành công');
       fetchData();
     } catch (error) {
-      console.error('Failed to delete mini test', error);
-      toast.error('Xoa mini test that bai');
+      console.error('Không thể xóa bài kiểm tra', error);
+      toast.error('Xóa bài kiểm tra thất bại');
     }
   };
 
   const handlePublishTest = async (id: number) => {
     try {
       await adminService.publishMiniTest(id);
-      toast.success('Xuat ban mini test thanh cong');
+      toast.success('Xuất bản bài kiểm tra thành công');
       fetchData();
     } catch (error) {
-      console.error('Failed to publish mini test', error);
-      toast.error('Xuat ban mini test that bai');
+      console.error('Không thể xuất bản bài kiểm tra', error);
+      toast.error('Xuất bản bài kiểm tra thất bại');
     }
   };
 
   const handleArchiveTest = async (id: number) => {
     try {
       await adminService.archiveMiniTest(id);
-      toast.success('Luu tru mini test thanh cong');
+      toast.success('Lưu trữ bài kiểm tra thành công');
       fetchData();
     } catch (error) {
-      console.error('Failed to archive mini test', error);
-      toast.error('Luu tru mini test that bai');
+      console.error('Không thể lưu trữ bài kiểm tra', error);
+      toast.error('Lưu trữ bài kiểm tra thất bại');
     }
   };
 
   if (loading && tests.length === 0) {
-    return <div className="p-10 text-white bg-[#080d1a] min-h-screen font-mono">LOADING TEST ENGINE...</div>;
+    return <div className="p-10 text-white bg-[#080d1a] min-h-screen font-mono">ĐANG TẢI DỮ LIỆU BÀI KIỂM TRA...</div>;
   }
 
   return (
     <div className="flex-1 flex flex-col bg-[#080d1a]">
-      <Topbar title="Quan ly Mini Test" role="admin" />
+      <Topbar title="Quản lý bài kiểm tra" role="admin" />
 
       <main className="p-6 space-y-6 overflow-auto">
         <div className="flex justify-between items-center">
           <h2 className="text-white font-bold flex items-center gap-2">
-            <FileText size={20} className="text-blue-500" /> Danh sach bai thi
+            <FileText size={20} className="text-blue-500" /> Danh sách bài kiểm tra
           </h2>
           <Button onClick={() => setShowAddForm(true)} className="bg-blue-600 hover:bg-blue-700 gap-2">
-            <Plus size={16} /> Tao bai thi moi
+            <Plus size={16} /> Tạo bài kiểm tra mới
           </Button>
         </div>
 
         {showAddForm && (
           <Card className="bg-white/5 border-white/10 text-white rounded-[32px] overflow-hidden animate-in slide-in-from-top-4 duration-300">
             <CardHeader className="bg-blue-600/10 border-b border-white/5">
-              <CardTitle className="text-sm uppercase tracking-widest font-black text-blue-400">Thiet ke Mini Test</CardTitle>
+              <CardTitle className="text-sm uppercase tracking-widest font-black text-blue-400">Thiết kế bài kiểm tra</CardTitle>
             </CardHeader>
             <CardContent className="p-8">
               <form onSubmit={handleCreateTest} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Tieu de bai thi</label>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Tiêu đề bài kiểm tra</label>
                     <Input
                       value={newTest.title}
                       onChange={(event) => setNewTest({ ...newTest, title: event.target.value })}
@@ -182,14 +183,14 @@ export default function AdminMiniTestsPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Chu de bai thi</label>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Chủ đề bài kiểm tra</label>
                     <select
                       className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-4 text-sm text-white outline-none"
                       value={newTest.topicId}
                       onChange={(event) => setNewTest({ ...newTest, topicId: event.target.value })}
                       required
                     >
-                      <option value="">Chon chu de</option>
+                      <option value="">Chọn chủ đề</option>
                       {topics.map((topic) => (
                         <option key={topic.id} value={topic.id}>{topic.name}</option>
                       ))}
@@ -198,7 +199,7 @@ export default function AdminMiniTestsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Mo ta bai thi</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Mô tả bài kiểm tra</label>
                   <Textarea
                     value={newTest.description}
                     onChange={(event) => setNewTest({ ...newTest, description: event.target.value })}
@@ -209,7 +210,7 @@ export default function AdminMiniTestsPage() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                      <ListChecks size={14} className="text-blue-400" /> Chon cau hoi ({newTest.selectedQuestionIds.length})
+                      <ListChecks size={14} className="text-blue-400" /> Chọn câu hỏi ({newTest.selectedQuestionIds.length})
                     </label>
                     <div className="relative w-48">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={12} />
@@ -217,7 +218,7 @@ export default function AdminMiniTestsPage() {
                         value={questionFilter}
                         onChange={(event) => setQuestionFilter(event.target.value)}
                         className="pl-8 bg-white/5 border-white/10 h-8 text-[10px] text-white"
-                        placeholder="Loc cau hoi..."
+                        placeholder="Lọc câu hỏi..."
                       />
                     </div>
                   </div>
@@ -234,7 +235,7 @@ export default function AdminMiniTestsPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-bold truncate">{question.questionText}</p>
-                          <p className="text-[9px] opacity-60">Tu: {question.term} - {question.questionType}</p>
+                          <p className="text-[9px] opacity-60">Từ: {question.term} - {adminLabel(question.questionType)}</p>
                         </div>
                       </div>
                     ))}
@@ -242,8 +243,8 @@ export default function AdminMiniTestsPage() {
                 </div>
 
                 <div className="flex justify-end gap-3 pt-6 border-t border-white/5">
-                  <Button type="button" variant="ghost" onClick={() => setShowAddForm(false)} className="px-8 h-11 rounded-xl text-slate-400">Huy</Button>
-                  <Button type="submit" className="bg-blue-600 hover:bg-blue-700 px-10 h-11 rounded-xl font-bold shadow-xl shadow-blue-900/20">Xuat ban bai thi</Button>
+                  <Button type="button" variant="ghost" onClick={() => setShowAddForm(false)} className="px-8 h-11 rounded-xl text-slate-400">Hủy</Button>
+                  <Button type="submit" className="bg-blue-600 hover:bg-blue-700 px-10 h-11 rounded-xl font-bold shadow-xl shadow-blue-900/20">Tạo bài kiểm tra</Button>
                 </div>
               </form>
             </CardContent>
@@ -268,12 +269,12 @@ export default function AdminMiniTestsPage() {
                   </div>
                 </div>
                 <h3 className="text-white font-bold text-lg mb-2">{test.title}</h3>
-                <p className="text-slate-500 text-xs line-clamp-2 h-8 mb-4">{test.description || 'Khong co mo ta.'}</p>
+                <p className="text-slate-500 text-xs line-clamp-2 h-8 mb-4">{test.description || 'Không có mô tả.'}</p>
 
                 <div className="flex items-center gap-3 pt-4 border-t border-white/5">
-                  <span className="text-[10px] px-2 py-1 rounded bg-white/5 text-slate-400 font-bold border border-white/5">{test.topicName || 'Tong hop'}</span>
-                  <span className="text-[10px] px-2 py-1 rounded bg-blue-500/10 text-blue-400 font-bold border border-blue-500/20 uppercase">{test.totalQuestions} cau hoi</span>
-                  <span className="text-[10px] px-2 py-1 rounded bg-white/5 text-slate-400 font-bold border border-white/5">{test.status || 'Published'}</span>
+                  <span className="text-[10px] px-2 py-1 rounded bg-white/5 text-slate-400 font-bold border border-white/5">{test.topicName || 'Tổng hợp'}</span>
+                  <span className="text-[10px] px-2 py-1 rounded bg-blue-500/10 text-blue-400 font-bold border border-blue-500/20 uppercase">{test.totalQuestions} câu hỏi</span>
+                  <span className="text-[10px] px-2 py-1 rounded bg-white/5 text-slate-400 font-bold border border-white/5">{adminLabel(test.status || 'Published')}</span>
                 </div>
               </CardContent>
             </Card>
@@ -281,16 +282,16 @@ export default function AdminMiniTestsPage() {
           {tests.length === 0 && !loading && (
             <div className="col-span-full py-32 text-center text-slate-700 flex flex-col items-center gap-4">
               <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center"><FileText size={40} className="opacity-20" /></div>
-              <p className="font-bold uppercase tracking-widest text-xs text-balance">Hien chua co Mini Test nao</p>
+              <p className="font-bold uppercase tracking-widest text-xs text-balance">Hiện chưa có bài kiểm tra nào</p>
             </div>
           )}
         </div>
         {pagination && (
           <div className="flex flex-col gap-3 rounded-2xl border border-white/8 bg-white/3 px-5 py-4 text-sm text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-            <span>Hien thi {tests.length} / {pagination.total} mini test</span>
+            <span>Hiển thị {tests.length} / {pagination.total} bài kiểm tra</span>
             <div className="flex items-center gap-2">
               <Button type="button" variant="ghost" disabled={page <= 1 || loading} onClick={() => setPage((current) => Math.max(1, current - 1))}>
-                Truoc
+                Trước
               </Button>
               <span>Trang {pagination.page}/{pagination.totalPages}</span>
               <Button type="button" variant="ghost" disabled={page >= pagination.totalPages || loading} onClick={() => setPage((current) => Math.min(pagination.totalPages, current + 1))}>

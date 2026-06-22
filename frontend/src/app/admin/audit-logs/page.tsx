@@ -5,6 +5,7 @@ import Topbar from "@/src/components/shared/Topbar";
 import { AdminPage, AdminPanel, KpiCard, StatusBadge, ToolbarButton } from "@/src/components/admin/AdminPrimitives";
 import { DataTable, type DataTableColumn } from "@/src/modules/admin/components/DataTable";
 import { adminService, type PaginationMeta } from "@/src/services/admin.service";
+import { adminLabel, formatAdminDate, formatAdminNumber } from "@/src/lib/admin-i18n";
 import { Activity, Database, Eye, History, RefreshCw, Search, ShieldCheck, UserRound } from "lucide-react";
 
 type AuditLog = {
@@ -27,16 +28,11 @@ const defaultPagination: PaginationMeta = {
 };
 
 function formatDate(value?: string) {
-  if (!value) return "Unknown";
-  return new Intl.DateTimeFormat("vi-VN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
-}
-
-function compactNumber(value?: number | null) {
-  return Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(Number(value || 0));
+  return formatAdminDate(value);
 }
 
 function formatDetails(details?: string | null) {
-  if (!details) return "No details";
+  if (!details) return "Không có chi tiết";
   try {
     return JSON.stringify(JSON.parse(details), null, 2);
   } catch {
@@ -70,7 +66,7 @@ export default function AdminAuditLogsPage() {
       setLogs(data.items);
       setPagination(data.pagination);
     } catch (error) {
-      console.error("Failed to fetch audit logs", error);
+      console.error("Không thể tải nhật ký hệ thống", error);
       setLogs([]);
       setPagination(defaultPagination);
     } finally {
@@ -92,43 +88,43 @@ export default function AdminAuditLogsPage() {
     () => [
       {
         key: "action",
-        header: "Action",
+        header: "Hành động",
         cell: (log) => (
           <div>
-            <p className="font-medium text-slate-950 dark:text-white">{log.action}</p>
+            <p className="font-medium text-slate-950 dark:text-white">{adminLabel(log.action)}</p>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">#{log.id}</p>
           </div>
         ),
       },
       {
         key: "entity",
-        header: "Entity",
+        header: "Đối tượng",
         cell: (log) => (
           <div className="flex items-center gap-2">
             <Database className="h-4 w-4 text-slate-400" />
             <div>
-              <p>{log.entityType}</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">ID {log.entityId || "N/A"}</p>
+              <p>{adminLabel(log.entityType)}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Mã {log.entityId || "Không có"}</p>
             </div>
           </div>
         ),
       },
       {
         key: "admin",
-        header: "Actor",
+        header: "Người thực hiện",
         cell: (log) => (
           <div className="flex items-center gap-2">
             <UserRound className="h-4 w-4 text-slate-400" />
             <div>
-              <p>{log.adminName || "System"}</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">{log.adminEmail || `User #${log.adminId || "N/A"}`}</p>
+              <p>{log.adminName || "Hệ thống"}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{log.adminEmail || `Người dùng #${log.adminId || "Không có"}`}</p>
             </div>
           </div>
         ),
       },
       {
         key: "createdAt",
-        header: "Time",
+        header: "Thời gian",
         cell: (log) => <span className="text-slate-600 dark:text-slate-300">{formatDate(log.createdAt)}</span>,
       },
       {
@@ -142,7 +138,7 @@ export default function AdminAuditLogsPage() {
             className="inline-flex h-8 items-center gap-2 rounded-md border border-slate-200 px-2.5 text-sm font-medium text-slate-700 hover:text-slate-950 dark:border-white/10 dark:text-slate-300 dark:hover:text-white"
           >
             <Eye className="h-4 w-4" />
-            View
+            Xem
           </button>
         ),
       },
@@ -152,21 +148,21 @@ export default function AdminAuditLogsPage() {
 
   return (
     <>
-      <Topbar title="Audit logs" subtitle="Admin actions, moderation events, and operational changes." role="admin" userName="Admin" />
+      <Topbar title="Nhật ký hệ thống" subtitle="Theo dõi hành động quản trị, sự kiện kiểm duyệt và thay đổi vận hành." role="admin" />
       <AdminPage>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <KpiCard label="Total events" value={compactNumber(pagination.total)} change="AdminAuditLogs" icon={History} tone="blue" />
-          <KpiCard label="Loaded page" value={String(logs.length)} change={`Page ${pagination.page}`} icon={Activity} tone="emerald" />
-          <KpiCard label="Entity types" value={String(entityTypes.length)} change="Current result set" icon={ShieldCheck} tone="violet" />
+          <KpiCard label="Tổng sự kiện" value={formatAdminNumber(pagination.total)} change="Nhật ký quản trị" icon={History} tone="blue" />
+          <KpiCard label="Số dòng đã tải" value={String(logs.length)} change={`Trang ${pagination.page}`} icon={Activity} tone="emerald" />
+          <KpiCard label="Loại đối tượng" value={String(entityTypes.length)} change="Trong kết quả hiện tại" icon={ShieldCheck} tone="violet" />
         </div>
 
         <AdminPanel
-          title="Audit trail"
-          description="Server-side paginated audit events from AdminAuditLogs."
+          title="Lịch sử thao tác"
+          description="Các sự kiện quản trị được phân trang từ máy chủ."
           action={
             <ToolbarButton onClick={() => void loadAuditLogs(pagination.page)}>
               <RefreshCw className="h-4 w-4" />
-              Refresh
+              Làm mới
             </ToolbarButton>
           }
         >
@@ -176,7 +172,7 @@ export default function AdminAuditLogsPage() {
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search action, entity, admin, details"
+                placeholder="Tìm hành động, đối tượng, quản trị viên hoặc chi tiết"
                 className="w-full bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-500 dark:text-slate-200"
               />
             </div>
@@ -185,10 +181,10 @@ export default function AdminAuditLogsPage() {
               onChange={(event) => setEntityType(event.target.value)}
               className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none dark:border-white/10 dark:bg-slate-950 dark:text-slate-200"
             >
-              <option value="">All entities</option>
+              <option value="">Tất cả đối tượng</option>
               {entityTypes.map((type) => (
                 <option key={type} value={type}>
-                  {type}
+                  {adminLabel(type)}
                 </option>
               ))}
             </select>
@@ -199,8 +195,8 @@ export default function AdminAuditLogsPage() {
             rows={logs}
             getRowId={(log) => log.id}
             loading={loading}
-            emptyTitle="No audit events"
-            emptyDescription="No admin actions match the current filters."
+            emptyTitle="Không có sự kiện nhật ký"
+            emptyDescription="Không có hành động quản trị phù hợp với bộ lọc hiện tại."
             pagination={pagination}
             onPageChange={(page) => void loadAuditLogs(page)}
           />
@@ -211,18 +207,18 @@ export default function AdminAuditLogsPage() {
             <div className="w-full max-w-2xl rounded-lg border border-slate-200 bg-white p-5 shadow-xl dark:border-white/10 dark:bg-slate-950" onClick={(event) => event.stopPropagation()}>
               <div className="mb-4 flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-base font-semibold text-slate-950 dark:text-white">{selectedLog.action}</h2>
+                  <h2 className="text-base font-semibold text-slate-950 dark:text-white">{adminLabel(selectedLog.action)}</h2>
                   <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                    {selectedLog.entityType} #{selectedLog.entityId || "N/A"} · {formatDate(selectedLog.createdAt)}
+                    {adminLabel(selectedLog.entityType)} #{selectedLog.entityId || "Không có"} · {formatDate(selectedLog.createdAt)}
                   </p>
                 </div>
-                <StatusBadge tone="blue">Audit #{selectedLog.id}</StatusBadge>
+                <StatusBadge tone="blue">Nhật ký #{selectedLog.id}</StatusBadge>
               </div>
               <pre className="max-h-[55vh] overflow-auto rounded-md border border-slate-200 bg-slate-100 p-4 text-xs text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
                 {formatDetails(selectedLog.details)}
               </pre>
               <div className="mt-4 flex justify-end">
-                <ToolbarButton onClick={() => setSelectedLog(null)}>Close</ToolbarButton>
+                <ToolbarButton onClick={() => setSelectedLog(null)}>Đóng</ToolbarButton>
               </div>
             </div>
           </div>

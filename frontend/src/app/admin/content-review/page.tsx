@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import Topbar from "@/src/components/shared/Topbar";
 import { AdminPage, AdminPanel, KpiCard, StatusBadge, TableShell, ToolbarButton } from "@/src/components/admin/AdminPrimitives";
 import { adminService } from "@/src/services/admin.service";
+import { adminLabel } from "@/src/lib/admin-i18n";
 import {
   Archive,
   CalendarDays,
@@ -199,18 +200,18 @@ export default function AdminContentReviewPage() {
 
   return (
     <>
-      <Topbar title="Duyệt nội dung" subtitle="Phê duyệt, từ chối hoặc lưu trữ nội dung do Creator gửi lên." role="admin" userName="Admin" />
+      <Topbar title="Duyệt nội dung" subtitle="Phê duyệt, từ chối hoặc lưu trữ nội dung do biên tập viên gửi lên." role="admin" />
       <AdminPage>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <KpiCard label="Đang chờ" value={String(counts.All)} change="Nội dung cần xử lý" icon={Clock3} tone="amber" />
-          <KpiCard label="Từ vựng" value={String(counts.Word)} change="Word pending" icon={FileText} tone="emerald" />
-          <KpiCard label="Câu hỏi" value={String(counts.Question)} change="Question pending" icon={FileQuestion} tone="blue" />
-          <KpiCard label="Bài học/test" value={String(counts.Topic + counts.MiniTest)} change="Topic và mini test" icon={Layers3} tone="violet" />
+          <KpiCard label="Từ vựng" value={String(counts.Word)} change="Từ vựng chờ duyệt" icon={FileText} tone="emerald" />
+          <KpiCard label="Câu hỏi" value={String(counts.Question)} change="Câu hỏi chờ duyệt" icon={FileQuestion} tone="blue" />
+          <KpiCard label="Chủ đề / bài kiểm tra" value={String(counts.Topic + counts.MiniTest)} change="Chủ đề và bài kiểm tra chờ duyệt" icon={Layers3} tone="violet" />
         </div>
 
         <AdminPanel
           title="Hàng đợi duyệt"
-          description="Chỉ hiển thị nội dung có trạng thái PendingReview."
+          description="Chỉ hiển thị nội dung có trạng thái chờ duyệt."
           action={
             <ToolbarButton onClick={() => void loadContent({ quiet: true })}>
               <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
@@ -273,7 +274,7 @@ export default function AdminContentReviewPage() {
                           <td className="px-4 py-4">
                             <p className="max-w-md truncate font-medium text-slate-950 dark:text-white">{item.title}</p>
                             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                              {item.entityType} #{item.entityId}
+                              {typeLabel[item.entityType]} #{item.entityId}
                             </p>
                           </td>
                           <td className="px-4 py-4">
@@ -287,7 +288,7 @@ export default function AdminContentReviewPage() {
                               <UserRound className="h-4 w-4 text-slate-400" />
                               <div>
                                 <p>{item.creatorName}</p>
-                                <p className="text-xs text-slate-500 dark:text-slate-400">User #{item.creatorId}</p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">Người dùng #{item.creatorId}</p>
                               </div>
                             </div>
                           </td>
@@ -360,7 +361,7 @@ export default function AdminContentReviewPage() {
                 value={rejectReason}
                 onChange={(event) => setRejectReason(event.target.value)}
                 rows={4}
-                placeholder="Nhập lý do để Creator biết cần chỉnh gì"
+                placeholder="Nhập lý do để biên tập viên biết nội dung cần chỉnh sửa"
                 className="w-full resize-none rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-slate-200"
               />
               <div className="mt-4 flex justify-end gap-2">
@@ -405,7 +406,7 @@ export default function AdminContentReviewPage() {
                     <div key={log.id} className="rounded-md border border-slate-200 p-3 dark:border-white/10">
                       <div className="flex items-center justify-between gap-3">
                         <p className="text-sm font-medium text-slate-950 dark:text-white">
-                          {log.oldStatus || "None"} → {log.newStatus}
+                          {adminLabel(log.oldStatus, "Không có")} → {adminLabel(log.newStatus)}
                         </p>
                         <span className="text-xs text-slate-500 dark:text-slate-400">{formatDate(log.createdAt)}</span>
                       </div>
