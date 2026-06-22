@@ -1,8 +1,8 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-.history/
-
-# dependencies
+# ==========================================
+# DEPENDENCIES
+# ==========================================
 node_modules/
 .pnp
 .pnp.*
@@ -12,79 +12,85 @@ node_modules/
 !.yarn/releases
 !.yarn/versions
 
-# testing
-coverage/
-
-# next.js / frontend
+# ==========================================
+# BUILD OUTPUTS
+# ==========================================
 .next/
 out/
 dist/
-
-# production / build outputs
 build/
 *.tsbuildinfo
+coverage/
 
-# misc
-.DS_Store
-*.pem
+# ==========================================
+# ENVIRONMENT FILES
+# ==========================================
+.env
+.env.local
+.env.*.local
+
+# ==========================================
+# IDE / EDITOR
+# ==========================================
 .vscode/
 .idea/
+*.swp
+*.swo
+*.swn
+*~
 
-# AI agent artifacts
+# ==========================================
+# OS FILES
+# ==========================================
+.DS_Store
+Thumbs.db
+*.pem
+
+# ==========================================
+# LOG FILES
+# ==========================================
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+lerna-debug.log*
+dev-server.*.log
+server.log
+
+# ==========================================
+# TEMP OFFICE FILES
+# ==========================================
+~$*.docx
+~$*.doc
+.$*.docx
+.$*.doc
+
+# ==========================================
+# AI AGENT ARTIFACTS
+# ==========================================
 .codegraph/
 .gemini/
 AGENTS.md
 CLAUDE.md
 conductor/
 .cgcignore
+mcp.json
 
-# Runtime log files
-*.log
-dev-server.*.log
-server.log
+# ==========================================
+# PROJECT-SPECIFIC
+# ==========================================
+.history/
+backend/plan.md
+backend/yarn.lock
 
-# Temp Office files
-~$*.docx
-~$*.doc
-.$*.docx
-.$*.doc
-
-# Next.js auto-generated
+# Auto-generated
 next-env.d.ts
 
 # Binary exports
 *.mv2
 
-# Backend plans
-backend/plan.md
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-lerna-debug.log*
-
-# env files (can opt-in for committing if needed)
-.env
-.env.local
-.env.*.local
-
-# vercel
+# ==========================================
+# DEPLOY / CI
+# ==========================================
 .vercel
-
-# IDE
-.vscode
-.idea
-*.swp
-*.swo
-
-# OS
-Thumbs.db
-
-.cgcignore
-mcp.json
-
-.history/
-#backend
-./backend/yarn.lock
