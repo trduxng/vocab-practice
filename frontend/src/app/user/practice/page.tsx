@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Brain, CheckCircle2, Clock, GripVertical, RefreshCw, Volume2, XCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, Brain, CheckCircle2, Clock, GripVertical, RefreshCw, Volume2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { userService } from "@/src/services/user.service";
 import { useAuth } from "@/src/app/context/AuthContext";
@@ -281,47 +281,57 @@ export default function UserPractice() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white p-6">
         <div className="w-full max-w-lg space-y-6 text-center">
-          <div className="w-16 h-16 bg-blue-600/20 rounded-full flex items-center justify-center mx-auto border border-blue-500/30">
-            <Brain size={32} className="text-blue-400" />
+          <div className="animate-in zoom-in-95 duration-500">
+            <div className="w-20 h-20 bg-linear-to-br from-blue-600/20 to-blue-500/10 rounded-[28px] flex items-center justify-center mx-auto border border-blue-500/30 shadow-lg shadow-blue-900/10">
+              <Brain size={40} className="text-blue-400" />
+            </div>
           </div>
-          <h2 className="text-2xl font-black mb-2">Chọn chế độ luyện tập</h2>
-          <p className="text-slate-600 dark:text-slate-400 text-sm mb-8">Chọn cách bạn muốn ôn tập từ vựng hôm nay.</p>
+          <div className="animate-in slide-in-from-bottom-4 duration-500">
+            <h2 className="text-3xl font-black mb-3 tracking-tight">Chọn chế độ luyện tập</h2>
+            <p className="text-slate-600 dark:text-slate-400 text-sm max-w-sm mx-auto leading-relaxed">
+              Chọn cách bạn muốn ôn tập từ vựng hôm nay. Mỗi chế độ có cách tiếp cận khác nhau để giúp bạn ghi nhớ từ hiệu quả.
+            </p>
+          </div>
 
-          <div className="grid gap-4">
+          <div className="grid gap-4 mt-8">
             <button
               onClick={() => handleModeSelect("normal")}
-              className="group p-6 rounded-3xl border-2 border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 text-left transition-all hover:border-blue-500/40 hover:shadow-lg"
+              className="group relative overflow-hidden p-7 rounded-[28px] border-2 border-slate-200 bg-white text-left transition-all duration-300 hover:-translate-y-1 hover:border-blue-400/50 hover:shadow-xl hover:shadow-blue-900/5 dark:border-white/10 dark:bg-white/[0.04] dark:hover:border-blue-500/30"
             >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0">
-                  <RefreshCw size={22} className="text-blue-500" />
+              <div className="absolute inset-0 -translate-x-full bg-linear-to-r from-transparent via-blue-500/5 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+              <div className="relative flex items-center gap-5">
+                <div className="w-14 h-14 rounded-2xl bg-linear-to-br from-blue-500/15 to-blue-600/10 border border-blue-500/20 flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
+                  <RefreshCw size={26} className="text-blue-500" />
                 </div>
-                <div>
-                  <h3 className="font-black text-slate-900 dark:text-white mb-1">Luyện tập thường</h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-400">Câu hỏi ngẫu nhiên từ các chủ đề bạn đang học</p>
+                <div className="flex-1">
+                  <h3 className="font-black text-lg text-slate-900 dark:text-white mb-1.5">Luyện tập thường</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">Câu hỏi ngẫu nhiên từ các chủ đề bạn đang học</p>
                 </div>
+                <ArrowRight className="h-6 w-6 shrink-0 text-slate-300 transition-transform duration-300 group-hover:translate-x-1 group-hover:text-blue-500" />
               </div>
             </button>
 
             <button
               onClick={() => handleModeSelect("smart")}
-              className="group p-6 rounded-3xl border-2 border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 text-left transition-all hover:border-emerald-500/40 hover:shadow-lg"
+              className="group relative overflow-hidden p-7 rounded-[28px] border-2 border-slate-200 bg-white text-left transition-all duration-300 hover:-translate-y-1 hover:border-emerald-400/50 hover:shadow-xl hover:shadow-emerald-900/5 dark:border-white/10 dark:bg-white/[0.04] dark:hover:border-emerald-500/30"
             >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
-                  <Brain size={22} className="text-emerald-500" />
+              <div className="absolute inset-0 -translate-x-full bg-linear-to-r from-transparent via-emerald-500/5 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+              <div className="relative flex items-center gap-5">
+                <div className="w-14 h-14 rounded-2xl bg-linear-to-br from-emerald-500/15 to-emerald-600/10 border border-emerald-500/20 flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3">
+                  <Brain size={26} className="text-emerald-500" />
                 </div>
-                <div>
-                  <h3 className="font-black text-slate-900 dark:text-white mb-1">Ôn tập thông minh</h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-400">Ưu tiên từ sắp quên, hay sai nhiều nhất theo SRS</p>
+                <div className="flex-1">
+                  <h3 className="font-black text-lg text-slate-900 dark:text-white mb-1.5">Ôn tập thông minh</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">Ưu tiên từ sắp quên, hay sai nhiều nhất theo SRS</p>
                 </div>
+                <ArrowRight className="h-6 w-6 shrink-0 text-slate-300 transition-transform duration-300 group-hover:translate-x-1 group-hover:text-emerald-500" />
               </div>
             </button>
           </div>
 
           <button
             onClick={() => router.push("/user/dashboard")}
-            className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-bold uppercase tracking-widest transition-colors"
+            className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-bold uppercase tracking-widest transition-colors mt-4"
           >
             ← Quay về tổng quan
           </button>
@@ -372,33 +382,39 @@ export default function UserPractice() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white px-4 py-10">
         <GamificationCelebration reward={practiceReward} />
-        <div className="w-full max-w-lg">
-          <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-[32px] p-10 shadow-sm text-center">
-            <div className="w-20 h-20 bg-blue-600/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-blue-500/30">
-              <RefreshCw size={40} className="text-blue-400" />
+        <div className="w-full max-w-lg animate-in zoom-in-95 duration-500">
+          <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-[40px] p-10 shadow-sm text-center">
+            {/* Circular accuracy display */}
+            <div className="relative mx-auto mb-6 h-24 w-24">
+              <svg className="h-full w-full -rotate-90" viewBox="0 0 36 36">
+                <circle cx="18" cy="18" r="15.5" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-100 dark:text-white/5" />
+                <circle
+                  cx="18" cy="18" r="15.5" fill="none" stroke="currentColor" strokeWidth="2"
+                  strokeDasharray={`${accuracy * 0.97} 100`}
+                  className={`${accuracy >= 80 ? 'text-green-500' : accuracy >= 50 ? 'text-amber-500' : 'text-red-500'}`}
+                  strokeLinecap="round"
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className={`text-3xl font-black ${accuracy >= 80 ? 'text-green-500' : accuracy >= 50 ? 'text-amber-500' : 'text-red-500'}`}>{accuracy}%</span>
+              </div>
             </div>
             <h1 className="text-3xl font-black mb-2 text-slate-900 dark:text-white">Hoàn thành</h1>
-            <p className="text-slate-500 dark:text-slate-400 text-sm mb-8">Bạn đã hoàn thành phiên luyện tập.</p>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mb-8">Bạn đã hoàn thành phiên luyện tập với độ chính xác {accuracy}%.</p>
 
             {/* Stats grid */}
-            <div className="grid grid-cols-3 gap-4 mb-8">
-              <div className="bg-blue-500/5 dark:bg-blue-500/5 bg-slate-50 rounded-2xl p-4 border border-blue-500/10">
-                <p className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-black tracking-widest mb-1">Độ chính xác</p>
-                <p className={`text-2xl font-black ${accuracy >= 80 ? 'text-green-400' : accuracy >= 50 ? 'text-amber-400' : 'text-red-400'}`}>
-                  {accuracy}%
-                </p>
-              </div>
-              <div className="bg-slate-50 dark:bg-white/3 rounded-2xl p-4 border border-slate-200 dark:border-white/5">
-                <p className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-black tracking-widest mb-1">Đúng/Sai</p>
+            <div className="grid grid-cols-2 gap-3 mb-8">
+              <div className="bg-slate-50 dark:bg-white/[0.03] rounded-2xl p-4 border border-slate-200 dark:border-white/5">
+                <p className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-black tracking-widest mb-1">Đúng / Sai</p>
                 <p className="text-2xl font-black text-slate-900 dark:text-white">
-                  <span className="text-green-400">{sessionResults.correctCount}</span>
+                  <span className="text-green-500">{sessionResults.correctCount}</span>
                   <span className="text-slate-400 mx-1">/</span>
-                  <span className="text-red-400">{sessionResults.wrongCount}</span>
+                  <span className="text-red-500">{sessionResults.wrongCount}</span>
                 </p>
               </div>
-              <div className="bg-amber-500/5 dark:bg-amber-500/5 bg-amber-50/50 rounded-2xl p-4 border border-amber-500/10">
+              <div className="bg-amber-50/50 dark:bg-amber-500/[0.04] rounded-2xl p-4 border border-amber-200 dark:border-amber-500/15">
                 <p className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-black tracking-widest mb-1">XP nhận được</p>
-                <p className="text-2xl font-black text-amber-400">+{xpEarned}</p>
+                <p className="text-2xl font-black text-amber-500">+{xpEarned}</p>
               </div>
             </div>
 
@@ -414,27 +430,26 @@ export default function UserPractice() {
 
             {/* Weak words */}
             {weakWords.length > 0 && (
-              <div className="bg-red-500/5 dark:bg-red-500/5 bg-red-50/50 rounded-2xl p-5 border border-red-500/10 mb-6 text-left">
+              <div className="bg-red-50/50 dark:bg-red-500/[0.04] rounded-2xl p-5 border border-red-200 dark:border-red-500/15 mb-6 text-left">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-black tracking-widest">
                     Từ cần ôn lại ({weakWords.length})
                   </p>
-                  <Button
-                    variant="ghost"
-                    size="sm"
+                  <button
+                    type="button"
                     onClick={() => {
                       const params = new URLSearchParams();
                       params.set("mode", "smart");
                       router.push(`/user/practice?${params.toString()}`);
                     }}
-                    className="text-[10px] font-black uppercase tracking-widest text-blue-500 h-auto p-0"
+                    className="text-[10px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-500 transition-colors"
                   >
-                    Ôn ngay
-                  </Button>
+                    Ôn ngay →
+                  </button>
                 </div>
                 <div className="space-y-2">
                   {weakWords.slice(0, 5).map((w) => (
-                    <div key={w.wordId} className="flex items-center justify-between">
+                    <div key={w.wordId} className="flex items-center justify-between py-1.5">
                       <span className="text-sm font-bold text-slate-900 dark:text-white">{w.term}</span>
                       <span className="text-xs text-slate-500 dark:text-slate-400">{w.meaning}</span>
                     </div>
@@ -443,9 +458,9 @@ export default function UserPractice() {
               </div>
             )}
 
-            <div className="flex gap-4">
-              <Button variant="outline" onClick={() => window.location.reload()} className="flex-1 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white h-12 rounded-xl font-bold uppercase text-[10px] tracking-widest">Làm lại</Button>
-              <Button onClick={() => router.push("/user/dashboard")} className="flex-1 bg-blue-600 h-12 rounded-xl font-bold uppercase text-[10px] tracking-widest">Xong</Button>
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => window.location.reload()} className="flex-1 border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 h-12 rounded-xl font-bold uppercase text-[10px] tracking-widest hover:bg-slate-100 dark:hover:bg-white/5">Làm lại</Button>
+              <Button onClick={() => router.push("/user/dashboard")} className="flex-1 bg-blue-600 hover:bg-blue-500 h-12 rounded-xl font-bold uppercase text-[10px] tracking-widest shadow-lg shadow-blue-900/20">Hoàn tất</Button>
             </div>
           </div>
         </div>

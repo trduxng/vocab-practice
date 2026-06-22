@@ -67,19 +67,21 @@ const MiniTestsPage = () => {
       />
 
       <main className="p-6 space-y-6 overflow-auto max-w-5xl mx-auto w-full">
-        <div className="bg-blue-600/10 border border-blue-500/20 rounded-3xl p-8 mb-8 relative overflow-hidden">
+        <div className="group relative overflow-hidden rounded-[30px] bg-linear-to-br from-blue-700 via-indigo-700 to-violet-800 p-8 text-white shadow-xl shadow-blue-900/15">
+          {/* Animated gradient overlay */}
+          <div className="absolute inset-0 bg-linear-to-r from-white/5 via-transparent to-white/5 opacity-0 transition-opacity duration-700 group-hover:opacity-100" />
           <div className="relative z-10">
-            <h2 className="text-white dark:text-white text-blue-900 text-2xl font-black uppercase tracking-tighter mb-2 text-balance">
+            <h2 className="text-2xl font-black tracking-tight mb-2 text-balance">
               Thử thách trình độ của bạn
             </h2>
-            <p className="text-blue-300/60 text-sm max-w-md">
+            <p className="text-blue-100/80 text-sm max-w-md leading-relaxed">
               Các bài kiểm tra ngắn giúp bạn tổng hợp kiến thức và đo lường sự
               tiến bộ thực tế sau mỗi chủ đề.
             </p>
           </div>
           <FileText
             size={180}
-            className="absolute -right-10 -bottom-10 text-blue-500 opacity-10 rotate-12"
+            className="absolute -right-10 -bottom-10 text-white opacity-5 rotate-12 transition-all duration-500 group-hover:scale-110 group-hover:opacity-10"
           />
         </div>
 
@@ -100,54 +102,46 @@ const MiniTestsPage = () => {
             ))
           ) : tests.length > 0 ? (
             tests.map((test) => (
-              <Card
+              <article
                 key={test.id}
-                className="bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 hover:border-blue-500/30 transition-all group overflow-hidden shadow-sm"
+                className="group relative overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-blue-300 hover:shadow-xl hover:shadow-blue-900/10 dark:border-white/10 dark:bg-white/[0.04] dark:hover:border-blue-500/30"
               >
-                <CardContent className="p-0">
-                  <div className="p-6">
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
-                        <FileText size={24} />
-                      </div>
-                      <span className="text-[10px] px-2 py-1 rounded bg-white/5 text-slate-500 font-bold uppercase tracking-widest border border-white/5">
-                        {test.topicName || "Tổng hợp"}
-                      </span>
+                <div className="absolute inset-0 -translate-x-full bg-linear-to-r from-transparent via-blue-500/5 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+                <div className="relative p-6">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-linear-to-br from-blue-500/15 to-indigo-500/10 border border-blue-500/20 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
+                      <FileText size={24} className="text-blue-500" />
                     </div>
-                    <h3 className="text-slate-900 dark:text-white font-bold text-lg mb-2 group-hover:text-blue-400 transition-colors">
-                      {test.title}
-                    </h3>
-                    <p className="text-slate-500 dark:text-slate-400 text-slate-500 text-xs line-clamp-2 mb-6 h-8">
-                      {test.description ||
-                        "Bài kiểm tra đánh giá năng lực từ vựng tổng hợp."}
-                    </p>
-
-                    <div className="flex items-center gap-4 text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest mb-6">
-                      <span className="flex items-center gap-1.5">
-                        <Clock
-                          size={12}
-                          className="text-blue-600 dark:text-blue-500"
-                        />{" "}
-                        10 phút
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <BookOpen
-                          size={12}
-                          className="text-blue-600 dark:text-blue-500"
-                        />{" "}
-                        {test.totalQuestions || 0} câu
-                      </span>
-                    </div>
-
-                    <Button
-                      onClick={() => router.push(`/user/minitests/${test.id}`)}
-                      className="w-full bg-white dark:bg-white text-slate-900 hover:bg-blue-600 hover:text-white font-black text-xs uppercase tracking-widest py-6 rounded-2xl transition-all border border-slate-200 dark:border-transparent"
-                    >
-                      Bắt đầu làm bài <ChevronRight size={14} />
-                    </Button>
+                    <span className="text-[10px] px-2.5 py-1 rounded-lg bg-slate-100 text-slate-500 font-black uppercase tracking-widest border border-slate-200 dark:bg-white/10 dark:border-white/10 dark:text-slate-400">
+                      {test.topicName || "Tổng hợp"}
+                    </span>
                   </div>
-                </CardContent>
-              </Card>
+                  <h3 className="text-slate-900 dark:text-white font-bold text-lg mb-2 transition-colors group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                    {test.title}
+                  </h3>
+                  <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed line-clamp-2 mb-6 h-8">
+                    {test.description ||
+                      "Bài kiểm tra đánh giá năng lực từ vựng tổng hợp."}
+                  </p>
+
+                  <div className="flex items-center gap-4 text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest mb-6">
+                    <span className="flex items-center gap-1.5">
+                      <Clock size={12} className="text-blue-500" /> 10 phút
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <BookOpen size={12} className="text-blue-500" /> {test.totalQuestions || 0} câu
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/user/minitests/${test.id}`)}
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-slate-200 bg-white px-4 py-4 text-[11px] font-black uppercase tracking-widest text-slate-700 transition-all duration-300 hover:border-blue-500 hover:bg-blue-600 hover:text-white dark:border-white/10 dark:bg-transparent dark:text-slate-300 dark:hover:border-blue-500 dark:hover:bg-blue-600 dark:hover:text-white"
+                  >
+                    Bắt đầu làm bài <ChevronRight size={14} />
+                  </button>
+                </div>
+              </article>
             ))
           ) : (
             <div className="col-span-2 py-20 text-center text-slate-500 dark:text-slate-600 border border-dashed border-slate-200 dark:border-white/10 rounded-3xl">

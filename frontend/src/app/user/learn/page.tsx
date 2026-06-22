@@ -70,10 +70,15 @@ export default function VocabularyTopicsPage() {
             <EmptyTopics />
           ) : (
             <div className="space-y-6">
-              <section className="overflow-hidden rounded-[30px] bg-linear-to-br from-emerald-600 via-teal-600 to-cyan-700 p-5 text-white shadow-xl shadow-emerald-900/15 sm:p-7">
-                <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+              <section className="group relative overflow-hidden rounded-[30px] bg-linear-to-br from-emerald-600 via-teal-600 to-cyan-700 p-5 text-white shadow-xl shadow-emerald-900/15 transition-all duration-500 sm:p-7">
+                {/* Animated gradient overlay */}
+                <div className="absolute inset-0 bg-linear-to-r from-white/5 via-transparent to-white/5 opacity-0 transition-opacity duration-700 group-hover:opacity-100" />
+                
+                <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
                   <div>
-                    <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-100">Vocabulary roadmap</p>
+                    <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-100">
+                      <span className="inline-block animate-pulse">◆</span> Vocabulary roadmap
+                    </p>
                     <h1 className="mt-2 max-w-2xl text-2xl font-black tracking-tight sm:text-4xl">
                       Chọn chủ đề bạn muốn học hôm nay.
                     </h1>
@@ -84,14 +89,14 @@ export default function VocabularyTopicsPage() {
                   <button
                     type="button"
                     onClick={() => router.push(roadmap.currentLesson?.route || `/user/learn/${topics[0].topicId}`)}
-                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-white px-5 text-sm font-black text-emerald-700 shadow-lg transition-transform hover:-translate-y-0.5"
+                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-white px-5 text-sm font-black text-emerald-700 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-xl active:scale-95"
                   >
                     <Sparkles className="h-4 w-4" />
                     Tiếp tục học
                   </button>
                 </div>
 
-                <div className="mt-7 grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <div className="relative mt-7 grid grid-cols-2 gap-3 lg:grid-cols-4">
                   <HeroMetric icon={Layers3} value={`${topics.length}`} label="Chủ đề" />
                   <HeroMetric icon={BookOpen} value={`${learnedWords}/${totalWords}`} label="Từ đã học" />
                   <HeroMetric icon={CheckCircle2} value={`${masteredWords}`} label="Đã thành thạo" />
@@ -99,7 +104,7 @@ export default function VocabularyTopicsPage() {
                 </div>
               </section>
 
-              {roadmap.levels.map((level) => {
+              {roadmap.levels.map((level, levelIndex) => {
                 const levelTopics = level.topics.filter((topic) => topic.totalWords > 0);
                 if (levelTopics.length === 0) return null;
 
@@ -108,15 +113,21 @@ export default function VocabularyTopicsPage() {
                     <div className="mb-3 flex items-end justify-between gap-3">
                       <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
-                          Mục tiêu {level.targetScore} điểm
+                          Cấp độ {levelIndex + 1} • Mục tiêu {level.targetScore} điểm
                         </p>
                         <h2 className="mt-1 text-xl font-black tracking-tight text-slate-950 dark:text-white">{level.title}</h2>
                       </div>
                       <span className="text-xs font-bold text-slate-400">{levelTopics.length} chủ đề</span>
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                      {levelTopics.map((topic) => (
-                        <TopicCard key={topic.pathTopicId} topic={topic} onOpen={() => router.push(`/user/learn/${topic.topicId}`)} />
+                      {levelTopics.map((topic, topicIndex) => (
+                        <div
+                          key={topic.pathTopicId}
+                          className="animate-in fade-in slide-in-from-bottom-4 duration-500"
+                          style={{ animationDelay: `${topicIndex * 80}ms` }}
+                        >
+                          <TopicCard topic={topic} onOpen={() => router.push(`/user/learn/${topic.topicId}`)} />
+                        </div>
                       ))}
                     </div>
                   </section>
@@ -137,25 +148,46 @@ function TopicCard({ topic, onOpen }: { topic: LearningPathTopic; onOpen: () => 
     <button
       type="button"
       onClick={onOpen}
-      className="group overflow-hidden rounded-[24px] border border-slate-200 bg-white text-left shadow-sm transition-all hover:-translate-y-1 hover:border-emerald-300 hover:shadow-lg dark:border-white/10 dark:bg-white/[0.04] dark:hover:border-emerald-500/40"
+      className="group relative overflow-hidden rounded-[24px] border border-slate-200 bg-white text-left shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:border-emerald-300 hover:shadow-xl hover:shadow-emerald-900/10 dark:border-white/10 dark:bg-white/[0.04] dark:hover:border-emerald-500/40 dark:hover:shadow-emerald-500/5"
     >
-      <div className="bg-linear-to-br from-emerald-500 via-teal-600 to-cyan-700 p-5 text-white">
+      {/* Hover shimmer effect */}
+      <div className="absolute inset-0 -translate-x-full bg-linear-to-r from-transparent via-white/10 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+      
+      <div className="relative bg-linear-to-br from-emerald-500 via-teal-600 to-cyan-700 p-5 text-white">
         <div className="flex items-start justify-between gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/15 bg-white/15">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/15 bg-white/15 backdrop-blur-sm transition-transform duration-300 group-hover:scale-110">
             <BookOpen className="h-6 w-6" />
           </div>
-          <ArrowRight className="h-5 w-5 text-white/70 transition-transform group-hover:translate-x-1" />
+          <ArrowRight className="h-5 w-5 text-white/70 transition-all duration-300 group-hover:translate-x-1 group-hover:text-white" />
         </div>
         <p className="mt-7 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-100">{topic.code || "TOEIC vocabulary"}</p>
         <h3 className="mt-1 min-h-14 text-lg font-black leading-6">{topic.title}</h3>
       </div>
-      <div className="p-4">
+      <div className="relative p-4">
         <div className="flex items-center justify-between gap-3 text-xs font-bold">
-          <span className="text-emerald-600 dark:text-emerald-300">{topic.learnedWords}/{topic.totalWords} đã học</span>
+          <span className="text-emerald-600 transition-colors group-hover:text-emerald-500 dark:text-emerald-300">{topic.learnedWords}/{topic.totalWords} đã học</span>
           <span className="text-slate-400">{topic.masteredWords} thành thạo</span>
         </div>
         <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
-          <div className="h-full rounded-full bg-linear-to-r from-emerald-500 to-cyan-400 transition-all" style={{ width: `${progress}%` }} />
+          <div
+            className="h-full rounded-full bg-linear-to-r from-emerald-500 to-cyan-400 transition-all duration-700 ease-out"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        <div className="mt-3 flex items-center gap-1.5">
+          {progress >= 100 ? (
+            <span className="flex items-center gap-1 text-[10px] font-black text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 className="h-3 w-3" /> Hoàn thành
+            </span>
+          ) : progress > 0 ? (
+            <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+              Đang học • {progress}%
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 text-[10px] font-bold text-slate-400">
+              Chưa bắt đầu
+            </span>
+          )}
         </div>
       </div>
     </button>
@@ -175,13 +207,20 @@ function HeroMetric({ icon: Icon, value, label }: { icon: React.ElementType; val
 function TopicsSkeleton() {
   return (
     <div className="animate-pulse space-y-6">
-      <div className="h-72 rounded-[30px] bg-slate-200 dark:bg-white/10" />
+      <div className="h-72 rounded-[30px] bg-slate-200/50 dark:bg-white/5 shimmer" />
       {Array.from({ length: 2 }).map((_, section) => (
         <div key={section}>
-          <div className="mb-3 h-7 w-40 rounded-lg bg-slate-200 dark:bg-white/10" />
+          <div className="mb-3 h-7 w-40 rounded-lg bg-slate-200/50 dark:bg-white/5" />
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 3 }).map((__, index) => (
-              <div key={index} className="h-64 rounded-[24px] bg-slate-200 dark:bg-white/10" />
+              <div key={index} className="flex h-64 flex-col overflow-hidden rounded-[24px] bg-slate-200/50 dark:bg-white/5">
+                <div className="h-2/5 bg-slate-300/30 dark:bg-white/5" />
+                <div className="flex-1 space-y-3 p-4">
+                  <div className="h-3 w-24 rounded bg-slate-300/30 dark:bg-white/5" />
+                  <div className="h-3 w-full rounded bg-slate-300/30 dark:bg-white/5" />
+                  <div className="h-2 w-full rounded-full bg-slate-300/30 dark:bg-white/5" />
+                </div>
+              </div>
             ))}
           </div>
         </div>
