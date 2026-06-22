@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Sidebar from "@/src/components/shared/Sidebar";
 import { useAuth } from "../context/AuthContext";
 import { useRouter } from "next/navigation";
@@ -13,15 +13,23 @@ const AdminLayout = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
   const canAccessAdmin = hasAnyPermission(ADMIN_ACCESS_PERMISSIONS);
 
+  const [mounted, setMounted] = useState(false);
+
   useEffect(() => {
-    if (!loading) {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!loading && mounted) {
       if (!isAuthenticated) {
         router.push('/login');
       } else if (!canAccessAdmin) {
         router.push('/user/dashboard');
       }
     }
-  }, [loading, isAuthenticated, canAccessAdmin, router]);
+  }, [loading, isAuthenticated, canAccessAdmin, router, mounted]);
+
+  if (!mounted) return null;
 
   if (loading) {
     return <div className="min-h-screen bg-[#080d1a] flex items-center justify-center text-white font-mono">ADMIN ACCESS AUTHORIZING...</div>;

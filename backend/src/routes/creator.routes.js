@@ -1,6 +1,7 @@
 const express = require('express');
 const CreatorController = require('../controllers/creator.controller');
 const { verifyToken, checkPermission } = require('../middlewares/auth');
+const { upload } = require('../middlewares/upload');
 
 const router = express.Router();
 
@@ -25,6 +26,7 @@ router.post('/topics/:id/submit-review', checkPermission('SUBMIT_CONTENT_REVIEW'
 // Words
 router.get('/words', checkPermission('MANAGE_WORDS'), CreatorController.getWords);
 router.post('/words', checkPermission('MANAGE_WORDS'), CreatorController.createWord);
+router.post('/words/bulk', checkPermission('MANAGE_WORDS'), CreatorController.bulkCreateWords);
 router.put('/words/:id', checkPermission('MANAGE_WORDS'), CreatorController.updateWord);
 router.delete('/words/:id', checkPermission('MANAGE_WORDS'), CreatorController.deleteWord);
 router.post('/words/:id/submit-review', checkPermission('SUBMIT_CONTENT_REVIEW'), CreatorController.submitWordForReview);
@@ -44,5 +46,10 @@ router.delete('/mini-tests/:id', checkPermission('MANAGE_TESTS'), CreatorControl
 router.post('/mini-tests/:id/items', checkPermission('MANAGE_TESTS'), CreatorController.addMiniTestItem);
 router.delete('/mini-tests/:id/items/:questionId', checkPermission('MANAGE_TESTS'), CreatorController.removeMiniTestItem);
 router.post('/mini-tests/:id/submit-review', checkPermission('SUBMIT_CONTENT_REVIEW'), CreatorController.submitMiniTestForReview);
+
+// Media
+router.get('/media', checkPermission('MANAGE_WORDS'), CreatorController.getMedia);
+router.post('/media', checkPermission('MANAGE_WORDS'), upload.array('file', 10), CreatorController.uploadMedia);
+router.delete('/media/:id', checkPermission('MANAGE_WORDS'), CreatorController.deleteMedia);
 
 module.exports = router;

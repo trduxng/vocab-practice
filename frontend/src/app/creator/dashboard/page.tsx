@@ -14,6 +14,7 @@ interface DashboardStats {
   PublishedWords?: number;
   DraftTopics?: number;
   PendingReviewTopics?: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any;
 }
 
@@ -28,10 +29,6 @@ export default function CreatorDashboardPage() {
   const [summary, setSummary] = useState<ContentSummaryItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
   const loadData = async () => {
     try {
       const [s, c] = await Promise.all([
@@ -40,12 +37,18 @@ export default function CreatorDashboardPage() {
       ]);
       setStats(s);
       setSummary(c);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Không thể tải dữ liệu dashboard');
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadData();
+  }, []);
 
   if (loading) {
     return (

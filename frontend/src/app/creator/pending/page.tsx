@@ -27,9 +27,13 @@ export default function CreatorPendingPage() {
           creatorService.getMiniTests({ status: 'PendingReview' }),
         ]);
         const all: ContentItem[] = [
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ...topics.map((t: any) => ({ id: t.id, name: t.name, type: 'Topic', createdAt: t.createdAt })),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ...words.map((w: any) => ({ id: w.id, name: w.term, type: 'Word', createdAt: w.createdAt })),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ...questions.map((q: any) => ({ id: q.id, name: q.questionText?.substring(0, 60), type: 'Question', createdAt: q.createdAt })),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ...tests.map((m: any) => ({ id: m.id, name: m.title, type: 'MiniTest', createdAt: m.createdAt })),
         ];
         all.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());

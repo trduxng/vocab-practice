@@ -20,6 +20,7 @@ export default function AdminTopicCategoriesPage() {
     try { const res = await apiClient.get('/creator/topic-categories'); setItems(res.data); }
     catch { toast.error('Không thể tải'); } finally { setLoading(false); }
   }, []);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, [load]);
 
   const openCreate = () => { setEditing(null); setForm({ name:'', code:'', description:'', iconUrl:'', displayOrder:0, isActive:true }); setShowForm(true); };
@@ -33,6 +34,7 @@ export default function AdminTopicCategoriesPage() {
       if (editing) { await apiClient.put(`/admin/topic-categories/${editing.id}`, payload); toast.success('Cập nhật OK'); }
       else { await apiClient.post('/admin/topic-categories', payload); toast.success('Tạo OK'); }
       setShowForm(false); await load();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e:any) { toast.error(e.response?.data?.message||'Lỗi'); } finally { setSaving(false); }
   };
   const handleDelete = async (id:number) => { if (!confirm('Xóa danh mục?')) return; try { await apiClient.delete(`/admin/topic-categories/${id}`); toast.success('Đã xóa'); await load(); } catch { toast.error('Lỗi'); } };

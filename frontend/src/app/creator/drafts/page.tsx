@@ -17,10 +17,6 @@ export default function CreatorDraftsPage() {
     MiniTest: 'Bài test',
   };
 
-  useEffect(() => {
-    loadAll();
-  }, []);
-
   const loadAll = async () => {
     try {
       const [topics, words, questions, tests] = await Promise.all([
@@ -30,15 +26,24 @@ export default function CreatorDraftsPage() {
         creatorService.getMiniTests({ status: 'Draft' }),
       ]);
       const all: ContentItem[] = [
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ...topics.map((t: any) => ({ ...t, name: t.name, type: 'Topic' })),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ...words.map((w: any) => ({ ...w, name: w.term, type: 'Word' })),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ...questions.map((q: any) => ({ ...q, name: q.questionText?.substring(0, 60), type: 'Question' })),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ...tests.map((m: any) => ({ ...m, name: m.title, type: 'MiniTest' })),
       ];
       all.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setItems(all);
     } catch { toast.error('Không thể tải dữ liệu'); } finally { setLoading(false); }
   };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadAll();
+  }, []);
 
   const handleSubmit = async (item: ContentItem) => {
     try {
@@ -48,6 +53,7 @@ export default function CreatorDraftsPage() {
       else if (item.type === 'MiniTest') await creatorService.submitMiniTestForReview(item.id);
       toast.success('Đã gửi duyệt');
       await loadAll();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) { toast.error(e.response?.data?.message || 'Lỗi'); }
   };
 

@@ -3,9 +3,7 @@
 import {
   Users,
   Clock,
-  BarChart2,
   ArrowRight,
-  Trophy,
   Star,
   BookOpen, // Thêm import này
 } from "lucide-react";

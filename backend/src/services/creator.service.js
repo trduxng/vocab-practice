@@ -304,6 +304,60 @@ class CreatorService {
     }
   }
 
+  static async bulkCreateWords(wordsData, userId) {
+    const pool = await poolPromise;
+    const transaction = new sql.Transaction(pool);
+    try {
+      await transaction.begin();
+      const insertedIds = [];
+
+      for (const data of wordsData) {
+        const { term, meaning, phonetic, partOfSpeechId, topicIds, examples } = data;
+        const req = new sql.Request(transaction);
+        const wordResult = await req
+          .input('Term', sql.NVarChar(200), term)
+          .input('Meaning', sql.NVarChar(1000), meaning)
+          .input('Phonetic', sql.NVarChar(255), phonetic || '')
+          .input('PartOfSpeechID', sql.Int, partOfSpeechId || 1) // default Noun if not provided
+          .input('CreatedByUserID', sql.BigInt, userId)
+          .query(`
+            INSERT INTO Words (Term, Meaning, Phonetic, PartOfSpeechID, CreatedByUserID,
+                               ContentStatus, CreatedAt, UpdatedAt)
+            OUTPUT inserted.WordID AS id
+            VALUES (@Term, @Meaning, @Phonetic, @PartOfSpeechID, @CreatedByUserID,
+                    'Draft', SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
+          `);
+        const wordId = wordResult.recordset[0].id;
+        insertedIds.push(wordId);
+
+        if (Array.isArray(topicIds)) {
+          for (const tid of topicIds) {
+            const r = new sql.Request(transaction);
+            await r.input('WordID', sql.BigInt, wordId)
+              .input('TopicID', sql.BigInt, tid)
+              .query(`INSERT INTO WordTopics (WordID, TopicID, AssignedAt) VALUES (@WordID, @TopicID, SYSDATETIMEOFFSET())`);
+          }
+        }
+
+        const validExamples = Array.isArray(examples) ? examples.filter(e => String(e?.sentence ?? '').trim()) : [];
+        for (const ex of validExamples) {
+          const r = new sql.Request(transaction);
+          await r.input('WordID', sql.BigInt, wordId)
+            .input('SentenceText', sql.NVarChar(2000), ex.sentence)
+            .input('SentenceTranslation', sql.NVarChar(2000), ex.meaning || '')
+            .query(`INSERT INTO ExampleSentences (WordID, SentenceText, SentenceTranslation, CreatedAt, UpdatedAt)
+                    VALUES (@WordID, @SentenceText, @SentenceTranslation, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())`);
+        }
+      }
+
+      await transaction.commit();
+      return { count: insertedIds.length, ids: insertedIds };
+    } catch (err) {
+      await transaction.rollback();
+      throw err;
+    }
+  }
+
   static async updateWord(id, data, userId) {
     const { term, meaning, phonetic, partOfSpeechId } = data;
     const pool = await poolPromise;
@@ -600,6 +654,86 @@ class CreatorService {
       throw new Error('Tất cả câu hỏi trong bài test phải được Published trước khi gửi duyệt');
     }
     return this.submitForReview('minitest', id, userId);
+  }
+
+  // ── Media CRUD ──
+  static async getMyMedia(userId, filters = {}) {
+    const pool = await poolPromise;
+    const page = Math.max(1, parseInt(filters.page) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(filters.pageSize) || 24));
+    const offset = (page - 1) * pageSize;
+
+    const req = pool.request().input('UserID', sql.BigInt, userId);
+    let where = 'm.UploadedByUserID = @UserID';
+    if (filters.mediaType) {
+      req.input('MediaType', sql.NVarChar(30), filters.mediaType);
+      where += ' AND m.MediaType = @MediaType';
+    }
+    if (filters.search) {
+      req.input('Search', sql.NVarChar(255), `%${filters.search}%`);
+      where += ' AND m.FileName LIKE @Search';
+    }
+
+    const countResult = await req.query(`SELECT COUNT(*) AS total FROM MediaAssets m WHERE ${where}`);
+    const total = countResult.recordset[0].total;
+
+    const req2 = pool.request().input('UserID', sql.BigInt, userId).input('Offset', sql.Int, offset).input('PageSize', sql.Int, pageSize);
+    let where2 = 'm.UploadedByUserID = @UserID';
+    if (filters.mediaType) {
+      req2.input('MediaType', sql.NVarChar(30), filters.mediaType);
+      where2 += ' AND m.MediaType = @MediaType';
+    }
+    if (filters.search) {
+      req2.input('Search', sql.NVarChar(255), `%${filters.search}%`);
+      where2 += ' AND m.FileName LIKE @Search';
+    }
+
+    const result = await req2.query(`
+      SELECT m.MediaAssetID AS id, m.FileName AS fileName, m.FileUrl AS fileUrl,
+             m.MediaType AS mediaType, m.MimeType AS mimeType, m.FileSizeBytes AS fileSizeBytes,
+             m.AltText AS altText, m.Transcript AS transcript, m.CreatedAt AS createdAt
+      FROM MediaAssets m
+      WHERE ${where2}
+      ORDER BY m.CreatedAt DESC
+      OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
+    `);
+    return { data: result.recordset, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+  }
+
+  static async createMedia(file, userId, metadata = {}) {
+    const { ALLOWED_TYPES } = require('../middlewares/upload');
+    const mediaType = ALLOWED_TYPES[file.mimetype] || 'Image';
+    const fileUrl = `/uploads/media/${file.filename}`;
+
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('UploadedByUserID', sql.BigInt, userId)
+      .input('MediaType', sql.NVarChar(30), mediaType)
+      .input('FileUrl', sql.NVarChar(1000), fileUrl)
+      .input('FileName', sql.NVarChar(255), file.originalname)
+      .input('MimeType', sql.NVarChar(100), file.mimetype)
+      .input('FileSizeBytes', sql.BigInt, file.size)
+      .input('AltText', sql.NVarChar(500), metadata.altText || null)
+      .input('Transcript', sql.NVarChar(2000), metadata.transcript || null)
+      .query(`
+        INSERT INTO MediaAssets (UploadedByUserID, MediaType, FileUrl, FileName, MimeType,
+                                 FileSizeBytes, AltText, Transcript, CreatedAt)
+        OUTPUT inserted.MediaAssetID AS id, inserted.FileUrl AS fileUrl, inserted.FileName AS fileName,
+               inserted.MediaType AS mediaType, inserted.MimeType AS mimeType,
+               inserted.FileSizeBytes AS fileSizeBytes, inserted.CreatedAt AS createdAt
+        VALUES (@UploadedByUserID, @MediaType, @FileUrl, @FileName, @MimeType,
+                @FileSizeBytes, @AltText, @Transcript, SYSDATETIMEOFFSET())
+      `);
+    return result.recordset[0];
+  }
+
+  static async deleteMedia(id, userId) {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('MediaAssetID', sql.BigInt, id)
+      .input('UserID', sql.BigInt, userId)
+      .query(`DELETE FROM MediaAssets WHERE MediaAssetID = @MediaAssetID AND UploadedByUserID = @UserID`);
+    return result.rowsAffected[0] > 0;
   }
 }
 

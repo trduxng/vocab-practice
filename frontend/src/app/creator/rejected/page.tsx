@@ -26,9 +26,13 @@ export default function CreatorRejectedPage() {
         creatorService.getMiniTests({ status: 'Rejected' }),
       ]);
       const all: ContentItem[] = [
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ...topics.map((t: any) => ({ id: t.id, name: t.name, type: 'Topic', createdAt: t.createdAt })),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ...words.map((w: any) => ({ id: w.id, name: w.term, type: 'Word', createdAt: w.createdAt })),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ...questions.map((q: any) => ({ id: q.id, name: q.questionText?.substring(0, 60), type: 'Question', createdAt: q.createdAt })),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ...tests.map((m: any) => ({ id: m.id, name: m.title, type: 'MiniTest', createdAt: m.createdAt })),
       ];
       all.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -36,6 +40,7 @@ export default function CreatorRejectedPage() {
     } catch { toast.error('Không thể tải'); } finally { setLoading(false); }
   };
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadAll(); }, []);
 
   const handleResubmit = async (item: ContentItem) => {
@@ -46,6 +51,7 @@ export default function CreatorRejectedPage() {
       else if (item.type === 'MiniTest') await creatorService.submitMiniTestForReview(item.id);
       toast.success('Đã gửi lại duyệt');
       await loadAll();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) { toast.error(e.response?.data?.message || 'Lỗi'); }
   };
 

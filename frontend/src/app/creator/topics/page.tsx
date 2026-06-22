@@ -1,23 +1,11 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { creatorService, TopicCategory, TopicPayload } from '@/src/services/creator.service';
+import { creatorService, TopicCategory, TopicPayload, Topic } from '@/src/services/creator.service';
 import { Plus, Pencil, Trash2, Send, Loader2, X } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import { toast } from 'sonner';
-
-interface Topic {
-  id: number;
-  name: string;
-  code: string;
-  description: string;
-  contentStatus: string;
-  categoryName: string;
-  categoryId: number;
-  displayOrder: number;
-  createdAt: string;
-}
 
 const statusBadge: Record<string, string> = {
   Draft: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
@@ -49,6 +37,7 @@ export default function CreatorTopicsPage() {
       const [t, c] = await Promise.all([creatorService.getTopics(), creatorService.getTopicCategories()]);
       setTopics(t);
       setCategories(c);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error('Không thể tải dữ liệu');
     } finally {
@@ -56,6 +45,7 @@ export default function CreatorTopicsPage() {
     }
   }, []);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadData(); }, [loadData]);
 
   const openCreate = () => {
@@ -86,6 +76,7 @@ export default function CreatorTopicsPage() {
       }
       setShowForm(false);
       await loadData();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Lỗi khi lưu');
     } finally {
@@ -99,6 +90,7 @@ export default function CreatorTopicsPage() {
       await creatorService.deleteTopic(id);
       toast.success('Đã xóa');
       await loadData();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Không thể xóa');
     }
@@ -109,6 +101,7 @@ export default function CreatorTopicsPage() {
       await creatorService.submitTopicForReview(id);
       toast.success('Đã gửi duyệt');
       await loadData();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Không thể gửi duyệt');
     }

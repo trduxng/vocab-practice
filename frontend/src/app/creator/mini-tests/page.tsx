@@ -1,12 +1,11 @@
 'use client';
 import React, { useEffect, useState, useCallback } from 'react';
-import { creatorService, MiniTestPayload } from '@/src/services/creator.service';
+import { creatorService, MiniTestPayload, MiniTest } from '@/src/services/creator.service';
 import { Plus, Pencil, Trash2, Send, Loader2, X } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import { toast } from 'sonner';
 
-interface MiniTest { id: number; title: string; description: string; topicName: string; totalQuestions: number; isPublished: boolean; contentStatus: string; createdAt: string; }
 const statusBadge: Record<string,string> = { Draft:'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300', PendingReview:'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300', Published:'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300', Rejected:'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' };
 const statusLabels: Record<string, string> = { Draft: 'Bản nháp', PendingReview: 'Chờ duyệt', Published: 'Đã xuất bản', Rejected: 'Bị từ chối' };
 
@@ -22,6 +21,7 @@ export default function CreatorMiniTestsPage() {
   const load = useCallback(async () => {
     try { setItems(await creatorService.getMiniTests()); } catch { toast.error('Không thể tải'); } finally { setLoading(false); }
   }, []);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, [load]);
 
   const openCreate = () => { setEditing(null); setForm({ title:'', description:'', topicId:0, questionIds:[] }); setQidsInput(''); setShowForm(true); };
@@ -36,9 +36,11 @@ export default function CreatorMiniTestsPage() {
       if (editing) { await creatorService.updateMiniTest(editing.id, payload); toast.success('Cập nhật OK'); }
       else { await creatorService.createMiniTest(payload); toast.success('Tạo OK'); }
       setShowForm(false); await load();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e:any) { toast.error(e.response?.data?.message||'Lỗi'); } finally { setSaving(false); }
   };
   const handleDelete = async (id:number) => { if (!confirm('Xóa bài test?')) return; try { await creatorService.deleteMiniTest(id); toast.success('Đã xóa'); await load(); } catch { toast.error('Lỗi'); } };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleSubmit = async (id:number) => { try { await creatorService.submitMiniTestForReview(id); toast.success('Đã gửi duyệt'); await load(); } catch (e:any) { toast.error(e.response?.data?.message||'Lỗi'); } };
 
   if (loading) return <div className="flex-1 flex items-center justify-center p-8"><Loader2 className="animate-spin h-8 w-8 text-blue-500" /></div>;

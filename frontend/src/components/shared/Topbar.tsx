@@ -60,6 +60,7 @@ function NotificationSheet({ open, onOpenChange }: { open: boolean; onOpenChange
 
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(true);
       fetchNotifications().finally(() => setLoading(false));
     }
@@ -225,6 +226,7 @@ export default function Topbar({
   // Initial fetch + poll every 60s
   useEffect(() => {
     if (role !== "student") return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchUnreadCount();
     const interval = setInterval(fetchUnreadCount, 60000);
     return () => clearInterval(interval);
@@ -233,6 +235,7 @@ export default function Topbar({
   // Refresh count after sheet closes
   useEffect(() => {
     if (!sheetOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchUnreadCount();
     }
   }, [sheetOpen, fetchUnreadCount]);

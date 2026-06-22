@@ -27,6 +27,7 @@ export default function StudyReminder() {
 
   useEffect(() => {
     if ("Notification" in window) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPermission(Notification.permission);
     }
     const saved = localStorage.getItem("studyReminderSchedule") as ReminderSchedule | null;
@@ -34,6 +35,17 @@ export default function StudyReminder() {
       setSchedule(saved);
     }
   }, []);
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const sendStudyReminder = (scheduled: ReminderSchedule) => {
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+
+    new Notification("VocaBoost - Nhắc nhở học tập", {
+      body: `Đã đến lúc học từ vựng! Hãy dành vài phút để ôn tập.`,
+      icon: "/favicon.ico",
+      tag: "vocab-study-reminder",
+    });
+  };
 
   useEffect(() => {
     localStorage.setItem("studyReminderSchedule", schedule);
@@ -53,17 +65,6 @@ export default function StudyReminder() {
 
     return () => clearInterval(timer);
   }, [schedule, permission]);
-
-  const sendStudyReminder = (scheduled: ReminderSchedule) => {
-    if (!("Notification" in window) || Notification.permission !== "granted") return;
-
-    const label = SCHEDULE_LABELS[scheduled];
-    new Notification("VocaBoost - Nhắc nhở học tập", {
-      body: `Đã đến lúc học từ vựng! Hãy dành vài phút để ôn tập.`,
-      icon: "/favicon.ico",
-      tag: "vocab-study-reminder",
-    });
-  };
 
   const requestPermission = async () => {
     if (!("Notification" in window)) {

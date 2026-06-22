@@ -93,9 +93,6 @@ function clampLevel(level: number, levelCount: number) {
   return Math.max(0, Math.min(levelCount - 1, level));
 }
 
-function sameMonth(a: Date, b: Date) {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
-}
 
 function formatMonth(d: Date) {
   return d.toLocaleDateString("en-US", { month: "short" });

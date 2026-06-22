@@ -94,6 +94,17 @@ class CreatorController {
     } catch (err) { next(err); }
   }
 
+  static async bulkCreateWords(req, res, next) {
+    try {
+      const { words } = req.body;
+      if (!Array.isArray(words) || words.length === 0) {
+        return res.status(400).json({ message: 'Danh sách từ vựng không hợp lệ' });
+      }
+      const result = await CreatorService.bulkCreateWords(words, req.user.id);
+      res.status(201).json({ message: `Đã import thành công ${result.count} từ vựng`, data: result });
+    } catch (err) { next(err); }
+  }
+
   static async updateWord(req, res, next) {
     try {
       const ok = await CreatorService.updateWord(req.params.id, req.body, req.user.id);
@@ -213,6 +224,41 @@ class CreatorController {
       if (err.message.includes('Published')) return res.status(400).json({ message: err.message });
       next(err);
     }
+  }
+
+  // Media
+  static async getMedia(req, res, next) {
+    try {
+      const data = await CreatorService.getMyMedia(req.user.id, req.query);
+      res.json(data);
+    } catch (err) { next(err); }
+  }
+
+  static async uploadMedia(req, res, next) {
+    try {
+      const files = req.files || (req.file ? [req.file] : []);
+      if (files.length === 0) return res.status(400).json({ message: 'Không có file nào được upload' });
+      const results = [];
+      for (const file of files) {
+        const media = await CreatorService.createMedia(file, req.user.id, {
+          altText: req.body.altText,
+          transcript: req.body.transcript,
+        });
+        results.push(media);
+      }
+      res.status(201).json({
+        message: `Upload thành công ${results.length} file`,
+        data: results.length === 1 ? results[0] : results,
+      });
+    } catch (err) { next(err); }
+  }
+
+  static async deleteMedia(req, res, next) {
+    try {
+      const ok = await CreatorService.deleteMedia(req.params.id, req.user.id);
+      if (!ok) return res.status(404).json({ message: 'Không tìm thấy hoặc không có quyền' });
+      res.json({ message: 'Xóa thành công' });
+    } catch (err) { next(err); }
   }
 }
 
