@@ -1,5 +1,5 @@
 import type { ElementType, ReactNode } from "react";
-import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { AlertCircle, ArrowDownRight, ArrowUpRight, Loader2, Trash2, X } from "lucide-react";
 
 type Tone = "slate" | "blue" | "emerald" | "amber" | "rose" | "violet";
 
@@ -149,6 +149,90 @@ export function TableShell({ children }: { children: ReactNode }) {
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
       <div className="overflow-x-auto">{children}</div>
+    </div>
+  );
+}
+
+export function AdminLoadingState({ label = "Đang tải dữ liệu..." }: { label?: string }) {
+  return (
+    <div className="flex min-h-40 items-center justify-center rounded-lg border border-slate-200 bg-white p-8 text-sm text-slate-500 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-400">
+      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+      {label}
+    </div>
+  );
+}
+
+export function AdminErrorState({
+  title = "Không thể tải dữ liệu",
+  description = "Vui lòng kiểm tra kết nối và thử lại.",
+  onRetry,
+}: {
+  title?: string;
+  description?: string;
+  onRetry?: () => void;
+}) {
+  return (
+    <div className="flex min-h-40 flex-col items-center justify-center rounded-lg border border-rose-200 bg-rose-50/70 p-8 text-center dark:border-rose-500/20 dark:bg-rose-500/10">
+      <AlertCircle className="h-7 w-7 text-rose-500" />
+      <p className="mt-3 text-sm font-semibold text-slate-950 dark:text-white">{title}</p>
+      <p className="mt-1 max-w-lg text-sm text-slate-600 dark:text-slate-400">{description}</p>
+      {onRetry && (
+        <button type="button" onClick={onRetry} className="mt-4 inline-flex h-9 items-center rounded-md border border-rose-300 bg-white px-3 text-sm font-medium text-rose-700 hover:bg-rose-50 dark:border-rose-500/30 dark:bg-slate-950 dark:text-rose-300">
+          Thử lại
+        </button>
+      )}
+    </div>
+  );
+}
+
+export function ConfirmDialog({
+  open,
+  title,
+  description,
+  confirmLabel = "Xóa",
+  busy = false,
+  destructive = true,
+  onCancel,
+  onConfirm,
+}: {
+  open: boolean;
+  title: string;
+  description: string;
+  confirmLabel?: string;
+  busy?: boolean;
+  destructive?: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm" onClick={onCancel}>
+      <div role="alertdialog" aria-modal="true" aria-labelledby="confirm-dialog-title" className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-5 shadow-xl dark:border-white/10 dark:bg-slate-950" onClick={(event) => event.stopPropagation()}>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 id="confirm-dialog-title" className="text-base font-semibold text-slate-950 dark:text-white">{title}</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400">{description}</p>
+          </div>
+          <button type="button" onClick={onCancel} aria-label="Đóng" className="text-slate-400 hover:text-slate-700 dark:hover:text-white">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="mt-5 flex justify-end gap-2">
+          <button type="button" onClick={onCancel} disabled={busy} className="inline-flex h-9 items-center rounded-md border border-slate-200 px-3 text-sm font-medium text-slate-700 disabled:opacity-50 dark:border-white/10 dark:text-slate-300">
+            Hủy
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={busy}
+            className={`inline-flex h-9 items-center gap-2 rounded-md px-3 text-sm font-medium text-white disabled:opacity-50 ${destructive ? "bg-rose-600 hover:bg-rose-500" : "bg-slate-950 hover:bg-slate-800 dark:bg-white dark:text-slate-950"}`}
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : destructive ? <Trash2 className="h-4 w-4" /> : null}
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

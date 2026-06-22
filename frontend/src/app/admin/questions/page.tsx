@@ -20,11 +20,12 @@ import {
   X,
 } from "lucide-react";
 import Topbar from "@/src/components/shared/Topbar";
-import { AdminPage, AdminPanel, IconButton, KpiCard, StatusBadge, ToolbarButton } from "@/src/components/admin/AdminPrimitives";
+import { AdminPage, AdminPanel, ConfirmDialog, IconButton, KpiCard, StatusBadge, ToolbarButton } from "@/src/components/admin/AdminPrimitives";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 import { Textarea } from "@/src/components/ui/textarea";
 import { adminService, type PaginationMeta } from "@/src/services/admin.service";
+import { adminLabel } from "@/src/lib/admin-i18n";
 
 type ContentStatus = "Draft" | "PendingReview" | "Published" | "Rejected" | "Archived";
 type QuestionType = "MCQ" | "FillBlank" | "DragDrop" | "Dictation" | "FlashcardCheck" | "AudioRecognition";
@@ -130,6 +131,7 @@ export default function AdminQuestionsPage() {
   const [wordPagination, setWordPagination] = useState<PaginationMeta | null>(null);
   const [onlyMissingQuestions, setOnlyMissingQuestions] = useState(false);
   const [loadingWords, setLoadingWords] = useState(true);
+  const [wordsError, setWordsError] = useState("");
 
   const [questionQuery, setQuestionQuery] = useState("");
   const [questionTypeFilter, setQuestionTypeFilter] = useState("");
@@ -137,6 +139,7 @@ export default function AdminQuestionsPage() {
   const [questionsPage, setQuestionsPage] = useState(1);
   const [questionsPagination, setQuestionsPagination] = useState<PaginationMeta | null>(null);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
+  const [questionsError, setQuestionsError] = useState("");
 
   const [form, setForm] = useState<QuestionForm>(emptyForm);
   const [editingQuestion, setEditingQuestion] = useState<QuestionItem | null>(null);
@@ -144,6 +147,8 @@ export default function AdminQuestionsPage() {
   const [saving, setSaving] = useState(false);
   const [bulkImporting, setBulkImporting] = useState(false);
   const [bulkResult, setBulkResult] = useState<BulkImportResult | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<QuestionItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const selectedQuestionCount = questionsPagination?.total ?? questions.length;
   const publishedCount = questions.filter((question) => question.status === "Published").length;
@@ -151,6 +156,7 @@ export default function AdminQuestionsPage() {
 
   const fetchWords = useCallback(async () => {
     setLoadingWords(true);
+    setWordsError("");
     try {
       const response = await adminService.getWordsPage<WordItem>(wordPage, 20, {
         search: wordQuery.trim(),
@@ -165,8 +171,10 @@ export default function AdminQuestionsPage() {
         return response.items.find((word) => word.id === current.id) || current;
       });
     } catch (error) {
-      console.error("Failed to fetch words", error);
-      toast.error(getErrorMessage(error, "Cannot load vocabulary"));
+      console.error("Không thể tải từ vựng", error);
+      const message = getErrorMessage(error, "Không thể tải danh sách từ vựng");
+      setWordsError(message);
+      toast.error(message);
     } finally {
       setLoadingWords(false);
     }
@@ -176,10 +184,12 @@ export default function AdminQuestionsPage() {
     if (!selectedWord) {
       setQuestions([]);
       setQuestionsPagination(null);
+      setQuestionsError("");
       return;
     }
 
     setLoadingQuestions(true);
+    setQuestionsError("");
     try {
       const response = await adminService.getQuestionsByWordPage<QuestionItem>(selectedWord.id, questionsPage, 10, {
         search: questionQuery.trim(),
@@ -189,8 +199,10 @@ export default function AdminQuestionsPage() {
       setQuestions(response.items);
       setQuestionsPagination(response.pagination);
     } catch (error) {
-      console.error("Failed to fetch questions", error);
-      toast.error(getErrorMessage(error, "Cannot load questions"));
+      console.error("Không thể tải câu hỏi", error);
+      const message = getErrorMessage(error, "Không thể tải danh sách câu hỏi");
+      setQuestionsError(message);
+      toast.error(message);
     } finally {
       setLoadingQuestions(false);
     }
@@ -268,14 +280,14 @@ export default function AdminQuestionsPage() {
   }
 
   function buildPayload() {
-    if (!selectedWord) throw new Error("Select a word first");
+    if (!selectedWord) throw new Error("Vui lòng chọn từ vựng trước");
     const questionText = form.questionText.trim();
     const correctAnswer = form.correctAnswer.trim();
     const options = form.options.map((option) => option.trim()).filter(Boolean);
 
-    if (questionText.length < 5) throw new Error("Question text must have at least 5 characters");
-    if (!correctAnswer) throw new Error("Correct answer is required");
-    if (form.questionType === "MCQ" && options.length < 2) throw new Error("MCQ needs at least 2 options");
+    if (questionText.length < 5) throw new Error("Nội dung câu hỏi phải có ít nhất 5 ký tự");
+    if (!correctAnswer) throw new Error("Vui lòng nhập đáp án đúng");
+    if (form.questionType === "MCQ" && options.length < 2) throw new Error("Câu trắc nghiệm cần ít nhất 2 lựa chọn");
 
     return {
       wordId: selectedWord.id,
@@ -297,31 +309,34 @@ export default function AdminQuestionsPage() {
       const payload = buildPayload();
       if (editingQuestion) {
         await adminService.updateQuestion(editingQuestion.id, payload);
-        toast.success("Question updated");
+        toast.success("Đã cập nhật câu hỏi");
       } else {
         await adminService.createQuestion(payload);
-        toast.success("Question created");
+        toast.success("Đã tạo câu hỏi");
       }
       resetForm();
       await Promise.all([fetchQuestions(), fetchWords()]);
     } catch (error) {
-      console.error("Failed to save question", error);
-      toast.error(error instanceof Error ? error.message : getErrorMessage(error, "Cannot save question"));
+      console.error("Không thể lưu câu hỏi", error);
+      toast.error(error instanceof Error ? error.message : getErrorMessage(error, "Không thể lưu câu hỏi"));
     } finally {
       setSaving(false);
     }
   }
 
-  async function deleteQuestion(question: QuestionItem) {
-    if (!window.confirm("Delete this question? It will be removed from related mini tests.")) return;
-
+  async function deleteQuestion() {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await adminService.deleteQuestion(question.id);
-      toast.success("Question deleted");
+      await adminService.deleteQuestion(deleteTarget.id);
+      toast.success("Đã xóa câu hỏi");
+      setDeleteTarget(null);
       await Promise.all([fetchQuestions(), fetchWords()]);
     } catch (error) {
-      console.error("Failed to delete question", error);
-      toast.error(getErrorMessage(error, "Cannot delete question"));
+      console.error("Không thể xóa câu hỏi", error);
+      toast.error(getErrorMessage(error, "Không thể xóa câu hỏi"));
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -335,11 +350,11 @@ export default function AdminQuestionsPage() {
       const csv = await file.text();
       const result = await adminService.bulkImportQuestions(csv);
       setBulkResult(result);
-      toast.success(`Imported ${result.success} questions`);
+      toast.success(`Đã nhập ${result.success} câu hỏi`);
       await Promise.all([fetchQuestions(), fetchWords()]);
     } catch (error) {
-      console.error("Failed to import questions", error);
-      toast.error(getErrorMessage(error, "CSV import failed"));
+      console.error("Không thể nhập câu hỏi", error);
+      toast.error(getErrorMessage(error, "Nhập dữ liệu CSV thất bại"));
     } finally {
       setBulkImporting(false);
       event.target.value = "";
@@ -365,23 +380,23 @@ export default function AdminQuestionsPage() {
 
   return (
     <>
-      <Topbar title="Question management" subtitle="Create, edit, filter, import, and review questions by vocabulary word." role="admin" userName="Admin" />
+      <Topbar title="Quản lý câu hỏi" subtitle="Tạo, sửa, lọc, nhập dữ liệu và duyệt câu hỏi theo từng từ vựng." role="admin" />
       <AdminPage>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <KpiCard label="Selected word questions" value={compactNumber(selectedQuestionCount)} change={selectedWord?.term || "No word selected"} icon={FileQuestion} tone="blue" />
-          <KpiCard label="Published on page" value={compactNumber(publishedCount)} change={`${draftLikeCount} draft/review items`} icon={Check} tone="emerald" />
-          <KpiCard label="Vocabulary results" value={compactNumber(wordPagination?.total)} change={onlyMissingQuestions ? "Missing questions only" : "Search result count"} icon={ListChecks} tone="violet" />
-          <KpiCard label="Import result" value={bulkResult ? compactNumber(bulkResult.success) : "0"} change={bulkResult ? `${bulkResult.failed} failed` : "CSV ready"} icon={Upload} tone={bulkResult?.failed ? "rose" : "amber"} />
+          <KpiCard label="Câu hỏi của từ đã chọn" value={compactNumber(selectedQuestionCount)} change={selectedWord?.term || "Chưa chọn từ vựng"} icon={FileQuestion} tone="blue" />
+          <KpiCard label="Đã xuất bản trên trang" value={compactNumber(publishedCount)} change={`${draftLikeCount} mục nháp/chờ duyệt`} icon={Check} tone="emerald" />
+          <KpiCard label="Kết quả từ vựng" value={compactNumber(wordPagination?.total)} change={onlyMissingQuestions ? "Chỉ từ chưa có câu hỏi" : "Số kết quả tìm kiếm"} icon={ListChecks} tone="violet" />
+          <KpiCard label="Kết quả nhập dữ liệu" value={bulkResult ? compactNumber(bulkResult.success) : "0"} change={bulkResult ? `${bulkResult.failed} dòng lỗi` : "Sẵn sàng nhập CSV"} icon={Upload} tone={bulkResult?.failed ? "rose" : "amber"} />
         </div>
 
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
           <AdminPanel
-            title="Vocabulary"
-            description="Pick a word to manage its question set."
+            title="Từ vựng"
+            description="Chọn một từ để quản lý bộ câu hỏi tương ứng."
             action={
               <ToolbarButton onClick={() => void fetchWords()}>
                 <RefreshCw className={`h-4 w-4 ${loadingWords ? "animate-spin" : ""}`} />
-                Refresh
+                Làm mới
               </ToolbarButton>
             }
           >
@@ -394,7 +409,7 @@ export default function AdminQuestionsPage() {
                     setWordQuery(event.target.value);
                     setWordPage(1);
                   }}
-                  placeholder="Search word or meaning"
+                  placeholder="Tìm từ hoặc nghĩa"
                   className="w-full bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-600 dark:text-slate-200"
                 />
               </div>
@@ -409,17 +424,19 @@ export default function AdminQuestionsPage() {
                   }}
                   className="h-4 w-4 rounded border-slate-300"
                 />
-                Show words without questions
+                Hiển thị từ chưa có câu hỏi
               </label>
 
               <div className="max-h-[650px] space-y-2 overflow-y-auto pr-1">
                 {loadingWords && words.length === 0 ? (
                   <div className="py-12 text-center text-sm text-slate-500">
                     <Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin" />
-                    Loading vocabulary...
+                    Đang tải từ vựng...
                   </div>
+                ) : wordsError ? (
+                  <InlineError message={wordsError} onRetry={() => void fetchWords()} />
                 ) : words.length === 0 ? (
-                  <EmptyState icon={HelpCircle} title="No words found" description="Try another search or clear the missing-question filter." />
+                  <EmptyState icon={HelpCircle} title="Không tìm thấy từ vựng" description="Hãy thử từ khóa khác hoặc bỏ bộ lọc từ chưa có câu hỏi." />
                 ) : (
                   words.map((word) => (
                     <button
@@ -439,7 +456,7 @@ export default function AdminQuestionsPage() {
                         </div>
                         <StatusBadge tone={Number(word.questionCount || 0) > 0 ? "emerald" : "amber"}>{Number(word.questionCount || 0)}</StatusBadge>
                       </div>
-                      <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{word.partOfSpeechName || "No part of speech"}</p>
+                      <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{word.partOfSpeechName ? adminLabel(word.partOfSpeechName) : "Chưa có loại từ"}</p>
                     </button>
                   ))
                 )}
@@ -457,33 +474,33 @@ export default function AdminQuestionsPage() {
 
           <div className="space-y-5">
             <AdminPanel
-              title={selectedWord ? selectedWord.term : "No word selected"}
-              description={selectedWord ? selectedWord.meaning : "Select a vocabulary item before creating questions."}
+              title={selectedWord ? selectedWord.term : "Chưa chọn từ vựng"}
+              description={selectedWord ? selectedWord.meaning : "Hãy chọn một từ vựng trước khi tạo câu hỏi."}
               action={
                 <div className="flex flex-wrap gap-2">
                   <ToolbarButton onClick={downloadTemplate}>
                     <Download className="h-4 w-4" />
-                    CSV template
+                    CSV mẫu
                   </ToolbarButton>
                   <label className="inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 transition-colors hover:text-slate-950 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-300 dark:hover:text-white">
                     <Upload className="h-4 w-4" />
-                    {bulkImporting ? "Importing..." : "Import CSV"}
+                    {bulkImporting ? "Đang nhập..." : "Nhập CSV"}
                     <input type="file" accept=".csv,text/csv,text/plain" className="hidden" disabled={bulkImporting} onChange={importQuestions} />
                   </label>
                   <ToolbarButton active onClick={openCreateForm}>
                     <Plus className="h-4 w-4" />
-                    New question
+                    Câu hỏi mới
                   </ToolbarButton>
                 </div>
               }
             >
               {bulkResult && (
                 <div className="mb-4 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
-                  Imported {bulkResult.success} rows, failed {bulkResult.failed}.
+                  Đã nhập {bulkResult.success} dòng, lỗi {bulkResult.failed} dòng.
                   {bulkResult.errors?.length ? (
                     <div className="mt-2 max-h-24 overflow-auto text-xs text-rose-500">
                       {bulkResult.errors.slice(0, 5).map((error) => (
-                        <p key={`${error.row}-${error.message}`}>Row {error.row}: {error.message}</p>
+                        <p key={`${error.row}-${error.message}`}>Dòng {error.row}: {error.message}</p>
                       ))}
                     </div>
                   ) : null}
@@ -494,29 +511,29 @@ export default function AdminQuestionsPage() {
                 <form onSubmit={saveQuestion} className="mb-5 space-y-4 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/[0.04]">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <h2 className="text-sm font-semibold text-slate-950 dark:text-white">{editingQuestion ? "Edit question" : "Create question"}</h2>
-                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Linked to {selectedWord.term}</p>
+                      <h2 className="text-sm font-semibold text-slate-950 dark:text-white">{editingQuestion ? "Sửa câu hỏi" : "Tạo câu hỏi"}</h2>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Gắn với từ {selectedWord.term}</p>
                     </div>
-                    <IconButton label="Close form" onClick={resetForm}><X className="h-4 w-4" /></IconButton>
+                    <IconButton label="Đóng biểu mẫu" onClick={resetForm}><X className="h-4 w-4" /></IconButton>
                   </div>
 
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                    <Field label="Type">
+                    <Field label="Loại câu hỏi">
                       <Select value={form.questionType} onChange={(value) => setForm((current) => ({ ...current, questionType: value as QuestionType }))}>
-                        {questionTypes.map((type) => <option key={type} value={type}>{type}</option>)}
+                        {questionTypes.map((type) => <option key={type} value={type}>{adminLabel(type)}</option>)}
                       </Select>
                     </Field>
-                    <Field label="Status">
+                    <Field label="Trạng thái">
                       <Select value={form.status} onChange={(value) => setForm((current) => ({ ...current, status: value as ContentStatus }))}>
-                        {statusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
+                        {statusOptions.map((status) => <option key={status} value={status}>{adminLabel(status)}</option>)}
                       </Select>
                     </Field>
-                    <Field label="Correct answer">
+                    <Field label="Đáp án đúng">
                       <Input value={form.correctAnswer} onChange={(event) => setForm((current) => ({ ...current, correctAnswer: event.target.value }))} className="h-10 rounded-md" required />
                     </Field>
                   </div>
 
-                  <Field label="Question text">
+                  <Field label="Nội dung câu hỏi">
                     <Textarea
                       value={form.questionText}
                       onChange={(event) => setForm((current) => ({ ...current, questionText: event.target.value }))}
@@ -526,29 +543,29 @@ export default function AdminQuestionsPage() {
                   </Field>
 
                   {form.questionType === "MCQ" && (
-                    <Field label="Answer options">
+                    <Field label="Các lựa chọn">
                       <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                         {form.options.map((option, index) => (
                           <div key={index} className="flex items-center gap-2">
                             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-slate-200 text-xs font-semibold text-slate-500 dark:border-white/10">{String.fromCharCode(65 + index)}</span>
                             <Input value={option} onChange={(event) => updateOption(index, event.target.value)} className="h-10 rounded-md" />
-                            <button type="button" onClick={() => setForm((current) => ({ ...current, correctAnswer: option }))} className="h-10 rounded-md border border-slate-200 px-2 text-xs text-slate-500 dark:border-white/10">Use</button>
-                            {form.options.length > 2 && <IconButton label="Remove option" tone="rose" onClick={() => removeOption(index)}><X className="h-4 w-4" /></IconButton>}
+                            <button type="button" onClick={() => setForm((current) => ({ ...current, correctAnswer: option }))} className="h-10 rounded-md border border-slate-200 px-2 text-xs text-slate-500 dark:border-white/10">Chọn</button>
+                            {form.options.length > 2 && <IconButton label="Xóa lựa chọn" tone="rose" onClick={() => removeOption(index)}><X className="h-4 w-4" /></IconButton>}
                           </div>
                         ))}
                       </div>
-                      <Button type="button" variant="outline" onClick={addOption} className="mt-2 h-9 rounded-md">Add option</Button>
+                      <Button type="button" variant="outline" onClick={addOption} className="mt-2 h-9 rounded-md">Thêm lựa chọn</Button>
                     </Field>
                   )}
 
-                  <Field label="Explanation">
+                  <Field label="Giải thích">
                     <Textarea value={form.explanation} onChange={(event) => setForm((current) => ({ ...current, explanation: event.target.value }))} className="min-h-20 rounded-md" />
                   </Field>
 
                   <div className="flex justify-end gap-2 border-t border-slate-200 pt-4 dark:border-white/10">
-                    <Button type="button" variant="ghost" onClick={resetForm} className="rounded-md">Cancel</Button>
+                    <Button type="button" variant="ghost" onClick={resetForm} className="rounded-md">Hủy</Button>
                     <Button type="submit" disabled={saving} className="rounded-md bg-blue-600 hover:bg-blue-700">
-                      {saving ? "Saving..." : editingQuestion ? "Update question" : "Create question"}
+                      {saving ? "Đang lưu..." : editingQuestion ? "Cập nhật câu hỏi" : "Tạo câu hỏi"}
                     </Button>
                   </div>
                 </form>
@@ -563,26 +580,26 @@ export default function AdminQuestionsPage() {
                       setQuestionQuery(event.target.value);
                       setQuestionsPage(1);
                     }}
-                    placeholder="Search text, answer, explanation"
+                    placeholder="Tìm nội dung, đáp án hoặc giải thích"
                     className="w-full bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-600 dark:text-slate-200"
                   />
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <Filter className="h-4 w-4 text-slate-500" />
                   <Select value={questionTypeFilter} onChange={(value) => { setQuestionTypeFilter(value); setQuestionsPage(1); }}>
-                    <option value="">All types</option>
-                    {questionTypes.map((type) => <option key={type} value={type}>{type}</option>)}
+                    <option value="">Tất cả loại câu hỏi</option>
+                    {questionTypes.map((type) => <option key={type} value={type}>{adminLabel(type)}</option>)}
                   </Select>
                   <Select value={questionStatusFilter} onChange={(value) => { setQuestionStatusFilter(value); setQuestionsPage(1); }}>
-                    <option value="">All statuses</option>
-                    {statusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
+                    <option value="">Tất cả trạng thái</option>
+                    {statusOptions.map((status) => <option key={status} value={status}>{adminLabel(status)}</option>)}
                   </Select>
                 </div>
               </div>
 
               <div className="mb-4 flex flex-wrap gap-2">
                 {questionTypeStats.filter((item) => item.count > 0).map((item) => (
-                  <StatusBadge key={item.type} tone="slate">{item.type}: {item.count}</StatusBadge>
+                  <StatusBadge key={item.type} tone="slate">{adminLabel(item.type)}: {item.count}</StatusBadge>
                 ))}
               </div>
 
@@ -590,11 +607,11 @@ export default function AdminQuestionsPage() {
                 <table className="w-full min-w-[920px] text-left text-sm">
                   <thead className="border-b border-slate-200 bg-slate-100 text-xs uppercase tracking-wide text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
                     <tr>
-                      <th className="px-4 py-3 font-medium">Question</th>
-                      <th className="px-4 py-3 font-medium">Type</th>
-                      <th className="px-4 py-3 font-medium">Answer</th>
-                      <th className="px-4 py-3 font-medium">Status</th>
-                      <th className="px-4 py-3 text-right font-medium">Actions</th>
+                      <th className="px-4 py-3 font-medium">Câu hỏi</th>
+                      <th className="px-4 py-3 font-medium">Loại</th>
+                      <th className="px-4 py-3 font-medium">Đáp án</th>
+                      <th className="px-4 py-3 font-medium">Trạng thái</th>
+                      <th className="px-4 py-3 text-right font-medium">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-white/10">
@@ -602,13 +619,15 @@ export default function AdminQuestionsPage() {
                       <tr>
                         <td colSpan={5} className="px-4 py-12 text-center text-sm text-slate-500">
                           <Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin" />
-                          Loading questions...
+                          Đang tải câu hỏi...
                         </td>
                       </tr>
+                    ) : questionsError ? (
+                      <tr><td colSpan={5}><InlineError message={questionsError} onRetry={() => void fetchQuestions()} /></td></tr>
                     ) : !selectedWord ? (
-                      <tr><td colSpan={5}><EmptyState icon={HelpCircle} title="Select a word" description="The question list is loaded per vocabulary word." /></td></tr>
+                      <tr><td colSpan={5}><EmptyState icon={HelpCircle} title="Chọn một từ vựng" description="Danh sách câu hỏi được tải theo từng từ vựng." /></td></tr>
                     ) : questions.length === 0 ? (
-                      <tr><td colSpan={5}><EmptyState icon={FileQuestion} title="No questions yet" description="Create one manually or import a CSV file." /></td></tr>
+                      <tr><td colSpan={5}><EmptyState icon={FileQuestion} title="Chưa có câu hỏi" description="Hãy tạo thủ công hoặc nhập từ tệp CSV." /></td></tr>
                     ) : questions.map((question) => (
                       <tr key={question.id} className="hover:bg-slate-50 dark:hover:bg-white/5">
                         <td className="px-4 py-4">
@@ -616,15 +635,15 @@ export default function AdminQuestionsPage() {
                           <QuestionOptions optionsJson={question.optionsJson} />
                           {question.explanation && <p className="mt-2 line-clamp-2 text-xs text-slate-600 dark:text-slate-400">{question.explanation}</p>}
                         </td>
-                        <td className="px-4 py-4"><StatusBadge tone="blue">{question.questionType}</StatusBadge></td>
+                        <td className="px-4 py-4"><StatusBadge tone="blue">{adminLabel(question.questionType)}</StatusBadge></td>
                         <td className="px-4 py-4 text-slate-700 dark:text-slate-300">{question.correctAnswer}</td>
                         <td className="px-4 py-4">
-                          <StatusBadge tone={statusTone[question.status || "Published"]}>{question.status || "Published"}</StatusBadge>
+                          <StatusBadge tone={statusTone[question.status || "Published"]}>{adminLabel(question.status || "Published")}</StatusBadge>
                         </td>
                         <td className="px-4 py-4">
                           <div className="flex justify-end gap-2">
-                            <IconButton label="Edit question" onClick={() => openEditForm(question)}><Edit2 className="h-4 w-4" /></IconButton>
-                            <IconButton label="Delete question" tone="rose" onClick={() => void deleteQuestion(question)}><Trash2 className="h-4 w-4" /></IconButton>
+                            <IconButton label="Sửa câu hỏi" onClick={() => openEditForm(question)}><Edit2 className="h-4 w-4" /></IconButton>
+                            <IconButton label="Xóa câu hỏi" tone="rose" onClick={() => setDeleteTarget(question)}><Trash2 className="h-4 w-4" /></IconButton>
                           </div>
                         </td>
                       </tr>
@@ -641,6 +660,14 @@ export default function AdminQuestionsPage() {
             </AdminPanel>
           </div>
         </div>
+        <ConfirmDialog
+          open={Boolean(deleteTarget)}
+          title="Xóa câu hỏi?"
+          description="Câu hỏi sẽ bị xóa và tự động được gỡ khỏi các mini test liên quan. Thao tác này không thể hoàn tác."
+          busy={deleting}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={() => void deleteQuestion()}
+        />
       </AdminPage>
     </>
   );
@@ -677,13 +704,24 @@ function EmptyState({ icon: Icon, title, description }: { icon: React.ElementTyp
   );
 }
 
+function InlineError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="py-10 text-center text-sm text-rose-500">
+      <p>{message}</p>
+      <button type="button" onClick={onRetry} className="mt-3 rounded-md border border-rose-200 px-3 py-1.5 text-xs font-medium hover:bg-rose-50 dark:border-rose-500/30 dark:hover:bg-rose-500/10">
+        Thử lại
+      </button>
+    </div>
+  );
+}
+
 function PaginationBar({ pagination, loading, onPageChange }: { pagination: PaginationMeta; loading: boolean; onPageChange: (page: number) => void }) {
   return (
     <div className="flex flex-col gap-3 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between dark:text-slate-400">
-      <span>Page {pagination.page} of {pagination.totalPages} - {pagination.total} records</span>
+      <span>Trang {pagination.page} / {pagination.totalPages} - {pagination.total} bản ghi</span>
       <div className="flex items-center gap-2">
-        <Button type="button" variant="ghost" disabled={pagination.page <= 1 || loading} onClick={() => onPageChange(Math.max(1, pagination.page - 1))} className="rounded-md">Previous</Button>
-        <Button type="button" variant="ghost" disabled={pagination.page >= pagination.totalPages || loading} onClick={() => onPageChange(Math.min(pagination.totalPages, pagination.page + 1))} className="rounded-md">Next</Button>
+        <Button type="button" variant="ghost" disabled={pagination.page <= 1 || loading} onClick={() => onPageChange(Math.max(1, pagination.page - 1))} className="rounded-md">Trước</Button>
+        <Button type="button" variant="ghost" disabled={pagination.page >= pagination.totalPages || loading} onClick={() => onPageChange(Math.min(pagination.totalPages, pagination.page + 1))} className="rounded-md">Sau</Button>
       </div>
     </div>
   );

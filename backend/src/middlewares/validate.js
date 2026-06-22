@@ -110,6 +110,42 @@ const schemas = {
     })
   }),
 
+  createAdminUser: z.object({
+    body: z.object({
+      fullName: z.string().trim().min(2).max(200),
+      email: z.string().trim().email().max(255),
+      password: z.string().min(6).max(200),
+      role: z.enum(['Admin', 'Learner', 'ContentCreator']),
+      isActive: z.boolean().optional()
+    })
+  }),
+
+  updateAdminUser: z.object({
+    body: z.object({
+      fullName: z.string().trim().min(2).max(200),
+      email: z.string().trim().email().max(255),
+      password: z.string().min(6).max(200).optional(),
+      role: z.enum(['Admin', 'Learner', 'ContentCreator']),
+      isActive: z.boolean()
+    })
+  }),
+
+  updateAdminUserRole: z.object({
+    body: z.object({
+      role: z.enum(['Admin', 'Learner', 'ContentCreator'])
+    })
+  }),
+
+  announcement: z.object({
+    body: z.object({
+      audience: z.enum(['All users', 'Learners', 'Admins']).optional(),
+      title: z.string().trim().min(3).max(200),
+      message: z.string().trim().min(5).max(2000),
+      deliveryChannel: z.enum(['InApp', 'Email', 'PushNotification']).optional(),
+      actionUrl: z.string().trim().max(1000).nullable().optional()
+    })
+  }),
+
   contentStatus: z.object({
     body: z.object({
       entityType: z.enum(['Topic', 'Word', 'Question', 'MiniTest']),
@@ -117,6 +153,17 @@ const schemas = {
       status: z.enum(['Draft', 'PendingReview', 'Published', 'Rejected', 'Archived']),
       comment: z.string().trim().max(2000).optional()
     })
+  }),
+
+  contentReviewTarget: z.object({
+    params: z.object({
+      entityType: z.enum(['Topic', 'Word', 'Question', 'MiniTest']),
+      entityId: z.coerce.number().int().positive()
+    }),
+    body: z.object({
+      reason: z.string().trim().max(2000).optional(),
+      comment: z.string().trim().max(2000).optional()
+    }).optional().default({})
   }),
 
   createReport: z.object({
