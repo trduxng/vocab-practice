@@ -3,10 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import Topbar from "@/src/components/shared/Topbar";
 import ChartFrame from "@/src/components/admin/ChartFrame";
-import { AdminPage, AdminPanel, KpiCard, StatusBadge, chartColors } from "@/src/components/admin/AdminPrimitives";
+import { AdminErrorState, AdminLoadingState, AdminPage, AdminPanel, KpiCard, StatusBadge, chartColors } from "@/src/components/admin/AdminPrimitives";
 import { adminService } from "@/src/services/admin.service";
 import { adminLabel, formatAdminNumber, translateAdminText } from "@/src/lib/admin-i18n";
-import { Activity, CheckCircle2, ClipboardList, Clock3, PieChart as PieChartIcon, Sparkles, Users } from "lucide-react";
+import { Activity, BookOpen, CheckCircle2, ClipboardList, Clock3, FileQuestion, PieChart as PieChartIcon, Sparkles, Users } from "lucide-react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 type Tone = "slate" | "blue" | "emerald" | "amber" | "rose" | "violet";
@@ -69,16 +69,21 @@ function formatUptime(seconds?: number) {
 export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [refreshIndex, setRefreshIndex] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
 
     async function fetchStats() {
+      setLoading(true);
+      setError("");
       try {
         const data = await adminService.getStats();
         if (!cancelled) setStats(data);
       } catch (error) {
         console.error("Không thể tải số liệu tổng quan", error);
+        if (!cancelled) setError("API thống kê quản trị chưa phản hồi. Vui lòng thử lại.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -88,13 +93,13 @@ export default function AdminDashboard() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshIndex]);
 
   const userGrowth = useMemo(() => {
-    return (stats?.userGrowth || []).reduce<Array<{ date: string; users: number }>>((items, item) => {
-      const previous = items.at(-1)?.users || 0;
-      return [...items, { date: item.date?.slice(5) || "", users: previous + Number(item.users || 0) }];
-    }, []);
+    return (stats?.userGrowth || []).map((item) => ({
+      date: item.date?.slice(5) || "",
+      users: Number(item.users || 0),
+    }));
   }, [stats]);
 
   const userTypes = useMemo(() => {
@@ -115,17 +120,20 @@ export default function AdminDashboard() {
 
       <AdminPage>
         {loading ? (
-          <AdminPanel>
-            <div className="py-12 text-center text-sm text-slate-500 dark:text-slate-400">Đang tải dữ liệu quản trị...</div>
-          </AdminPanel>
+          <AdminLoadingState label="Đang tải dữ liệu quản trị..." />
+        ) : error ? (
+          <AdminErrorState description={error} onRetry={() => setRefreshIndex((value) => value + 1)} />
         ) : (
           <>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <KpiCard label="Tổng người dùng" value={formatAdminNumber(stats?.totalUsers)} change={`${formatAdminNumber(stats?.totalCreators)} biên tập viên`} icon={Users} tone="blue" />
-              <KpiCard label="Hoạt động hôm nay" value={formatAdminNumber(stats?.activeUsersToday)} change="Học viên duy nhất trong 24 giờ" icon={Activity} tone="emerald" />
-              <KpiCard label="Nội dung chờ duyệt" value={formatAdminNumber(stats?.pendingReviews)} change="Nội dung do biên tập viên gửi" trend="down" icon={Clock3} tone="amber" />
-              <KpiCard label="Chủ đề đã xuất bản" value={formatAdminNumber(stats?.publishedTopics)} change={`${formatAdminNumber(stats?.totalWords)} từ vựng`} icon={ClipboardList} tone="violet" />
-              <KpiCard label="Tổng bài kiểm tra" value={formatAdminNumber(stats?.totalMiniTests)} change={`${formatAdminNumber(stats?.totalQuestions)} câu hỏi`} icon={CheckCircle2} tone="rose" />
+              <KpiCard label="Tổng từ vựng" value={formatAdminNumber(stats?.totalWords)} change="Kho từ vựng hiện có" icon={BookOpen} tone="emerald" />
+              <KpiCard label="Tổng chủ đề" value={formatAdminNumber(stats?.totalTopics)} change={`${formatAdminNumber(stats?.publishedTopics)} đã xuất bản`} icon={ClipboardList} tone="violet" />
+              <KpiCard label="Tổng câu hỏi" value={formatAdminNumber(stats?.totalQuestions)} change="Ngân hàng câu hỏi" icon={FileQuestion} tone="amber" />
+              <KpiCard label="Tổng mini test" value={formatAdminNumber(stats?.totalMiniTests)} change="Bài kiểm tra trong hệ thống" icon={CheckCircle2} tone="rose" />
+              <KpiCard label="Người dùng mới" value={formatAdminNumber(stats?.newUsersThisWeek)} change="Trong 7 ngày gần nhất" icon={Sparkles} tone="blue" />
+              <KpiCard label="Đang hoạt động" value={formatAdminNumber(stats?.activeUsersToday)} change="Học viên duy nhất trong 24 giờ" icon={Activity} tone="emerald" />
+              <KpiCard label="Nội dung chờ duyệt" value={formatAdminNumber(stats?.pendingReviews)} change="Cần quản trị viên xử lý" trend="down" icon={Clock3} tone="amber" />
             </div>
 
             <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">

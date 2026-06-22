@@ -20,7 +20,7 @@ import {
   X,
 } from "lucide-react";
 import Topbar from "@/src/components/shared/Topbar";
-import { AdminPage, AdminPanel, IconButton, KpiCard, StatusBadge, ToolbarButton } from "@/src/components/admin/AdminPrimitives";
+import { AdminPage, AdminPanel, ConfirmDialog, IconButton, KpiCard, StatusBadge, ToolbarButton } from "@/src/components/admin/AdminPrimitives";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 import { Textarea } from "@/src/components/ui/textarea";
@@ -131,6 +131,7 @@ export default function AdminQuestionsPage() {
   const [wordPagination, setWordPagination] = useState<PaginationMeta | null>(null);
   const [onlyMissingQuestions, setOnlyMissingQuestions] = useState(false);
   const [loadingWords, setLoadingWords] = useState(true);
+  const [wordsError, setWordsError] = useState("");
 
   const [questionQuery, setQuestionQuery] = useState("");
   const [questionTypeFilter, setQuestionTypeFilter] = useState("");
@@ -138,6 +139,7 @@ export default function AdminQuestionsPage() {
   const [questionsPage, setQuestionsPage] = useState(1);
   const [questionsPagination, setQuestionsPagination] = useState<PaginationMeta | null>(null);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
+  const [questionsError, setQuestionsError] = useState("");
 
   const [form, setForm] = useState<QuestionForm>(emptyForm);
   const [editingQuestion, setEditingQuestion] = useState<QuestionItem | null>(null);
@@ -145,6 +147,8 @@ export default function AdminQuestionsPage() {
   const [saving, setSaving] = useState(false);
   const [bulkImporting, setBulkImporting] = useState(false);
   const [bulkResult, setBulkResult] = useState<BulkImportResult | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<QuestionItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const selectedQuestionCount = questionsPagination?.total ?? questions.length;
   const publishedCount = questions.filter((question) => question.status === "Published").length;
@@ -152,6 +156,7 @@ export default function AdminQuestionsPage() {
 
   const fetchWords = useCallback(async () => {
     setLoadingWords(true);
+    setWordsError("");
     try {
       const response = await adminService.getWordsPage<WordItem>(wordPage, 20, {
         search: wordQuery.trim(),
@@ -167,7 +172,9 @@ export default function AdminQuestionsPage() {
       });
     } catch (error) {
       console.error("Không thể tải từ vựng", error);
-      toast.error(getErrorMessage(error, "Không thể tải danh sách từ vựng"));
+      const message = getErrorMessage(error, "Không thể tải danh sách từ vựng");
+      setWordsError(message);
+      toast.error(message);
     } finally {
       setLoadingWords(false);
     }
@@ -177,10 +184,12 @@ export default function AdminQuestionsPage() {
     if (!selectedWord) {
       setQuestions([]);
       setQuestionsPagination(null);
+      setQuestionsError("");
       return;
     }
 
     setLoadingQuestions(true);
+    setQuestionsError("");
     try {
       const response = await adminService.getQuestionsByWordPage<QuestionItem>(selectedWord.id, questionsPage, 10, {
         search: questionQuery.trim(),
@@ -191,7 +200,9 @@ export default function AdminQuestionsPage() {
       setQuestionsPagination(response.pagination);
     } catch (error) {
       console.error("Không thể tải câu hỏi", error);
-      toast.error(getErrorMessage(error, "Không thể tải danh sách câu hỏi"));
+      const message = getErrorMessage(error, "Không thể tải danh sách câu hỏi");
+      setQuestionsError(message);
+      toast.error(message);
     } finally {
       setLoadingQuestions(false);
     }
@@ -313,16 +324,19 @@ export default function AdminQuestionsPage() {
     }
   }
 
-  async function deleteQuestion(question: QuestionItem) {
-    if (!window.confirm("Xóa câu hỏi này? Câu hỏi cũng sẽ bị gỡ khỏi các bài kiểm tra liên quan.")) return;
-
+  async function deleteQuestion() {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await adminService.deleteQuestion(question.id);
+      await adminService.deleteQuestion(deleteTarget.id);
       toast.success("Đã xóa câu hỏi");
+      setDeleteTarget(null);
       await Promise.all([fetchQuestions(), fetchWords()]);
     } catch (error) {
       console.error("Không thể xóa câu hỏi", error);
       toast.error(getErrorMessage(error, "Không thể xóa câu hỏi"));
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -419,6 +433,8 @@ export default function AdminQuestionsPage() {
                     <Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin" />
                     Đang tải từ vựng...
                   </div>
+                ) : wordsError ? (
+                  <InlineError message={wordsError} onRetry={() => void fetchWords()} />
                 ) : words.length === 0 ? (
                   <EmptyState icon={HelpCircle} title="Không tìm thấy từ vựng" description="Hãy thử từ khóa khác hoặc bỏ bộ lọc từ chưa có câu hỏi." />
                 ) : (
@@ -606,6 +622,8 @@ export default function AdminQuestionsPage() {
                           Đang tải câu hỏi...
                         </td>
                       </tr>
+                    ) : questionsError ? (
+                      <tr><td colSpan={5}><InlineError message={questionsError} onRetry={() => void fetchQuestions()} /></td></tr>
                     ) : !selectedWord ? (
                       <tr><td colSpan={5}><EmptyState icon={HelpCircle} title="Chọn một từ vựng" description="Danh sách câu hỏi được tải theo từng từ vựng." /></td></tr>
                     ) : questions.length === 0 ? (
@@ -625,7 +643,7 @@ export default function AdminQuestionsPage() {
                         <td className="px-4 py-4">
                           <div className="flex justify-end gap-2">
                             <IconButton label="Sửa câu hỏi" onClick={() => openEditForm(question)}><Edit2 className="h-4 w-4" /></IconButton>
-                            <IconButton label="Xóa câu hỏi" tone="rose" onClick={() => void deleteQuestion(question)}><Trash2 className="h-4 w-4" /></IconButton>
+                            <IconButton label="Xóa câu hỏi" tone="rose" onClick={() => setDeleteTarget(question)}><Trash2 className="h-4 w-4" /></IconButton>
                           </div>
                         </td>
                       </tr>
@@ -642,6 +660,14 @@ export default function AdminQuestionsPage() {
             </AdminPanel>
           </div>
         </div>
+        <ConfirmDialog
+          open={Boolean(deleteTarget)}
+          title="Xóa câu hỏi?"
+          description="Câu hỏi sẽ bị xóa và tự động được gỡ khỏi các mini test liên quan. Thao tác này không thể hoàn tác."
+          busy={deleting}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={() => void deleteQuestion()}
+        />
       </AdminPage>
     </>
   );
@@ -674,6 +700,17 @@ function EmptyState({ icon: Icon, title, description }: { icon: React.ElementTyp
       <Icon className="mx-auto mb-3 h-8 w-8 text-slate-300 dark:text-slate-600" />
       <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{title}</p>
       <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{description}</p>
+    </div>
+  );
+}
+
+function InlineError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="py-10 text-center text-sm text-rose-500">
+      <p>{message}</p>
+      <button type="button" onClick={onRetry} className="mt-3 rounded-md border border-rose-200 px-3 py-1.5 text-xs font-medium hover:bg-rose-50 dark:border-rose-500/30 dark:hover:bg-rose-500/10">
+        Thử lại
+      </button>
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import Topbar from "@/src/components/shared/Topbar";
-import { AdminPage, AdminPanel, IconButton, KpiCard, StatusBadge, TableShell, ToolbarButton } from "@/src/components/admin/AdminPrimitives";
+import { AdminErrorState, AdminPage, AdminPanel, IconButton, KpiCard, StatusBadge, TableShell, ToolbarButton } from "@/src/components/admin/AdminPrimitives";
 import { adminService } from "@/src/services/admin.service";
 import { adminLabel, formatAdminDate, formatAdminNumber, translateAdminText } from "@/src/lib/admin-i18n";
 import { Archive, BookOpenCheck, CheckCircle2, Edit3, FileQuestion, Flag, FolderKanban, Layers3, Plus, Search, Tags } from "lucide-react";
@@ -65,16 +65,20 @@ export default function AdminCourses() {
   const [query, setQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [refreshIndex, setRefreshIndex] = useState(0);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
 
     async function fetchContent() {
+      setLoading(true);
+      setError("");
       try {
         const response = await adminService.getContentManagement();
         if (!cancelled) setData(response);
       } catch (error) {
         console.error("Không thể tải dữ liệu quản lý nội dung", error);
+        if (!cancelled) setError("Không thể tải dữ liệu quản lý nội dung.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -121,6 +125,8 @@ export default function AdminCourses() {
           <AdminPanel>
             <div className="py-12 text-center text-sm text-slate-500 dark:text-slate-400">Đang tải nội dung...</div>
           </AdminPanel>
+        ) : error ? (
+          <AdminErrorState description={error} onRetry={() => setRefreshIndex((value) => value + 1)} />
         ) : (
           <>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

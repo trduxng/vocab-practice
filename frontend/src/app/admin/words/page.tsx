@@ -22,7 +22,7 @@ import {
   X,
 } from 'lucide-react';
 import Topbar from '@/src/components/shared/Topbar';
-import { AdminPage, AdminPanel, IconButton, StatusBadge, TableShell, ToolbarButton } from '@/src/components/admin/AdminPrimitives';
+import { AdminPage, AdminPanel, ConfirmDialog, IconButton, StatusBadge, TableShell, ToolbarButton } from '@/src/components/admin/AdminPrimitives';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import { Textarea } from '@/src/components/ui/textarea';
@@ -30,11 +30,18 @@ import { adminService, type PaginationMeta } from '@/src/services/admin.service'
 import { aiService, type AiWordSuggestion } from '@/src/services/ai.service';
 import { categoriesService } from '@/src/services/categories.service';
 import { adminLabel } from '@/src/lib/admin-i18n';
+import { usePermissions } from '@/src/modules/auth/hooks/usePermissions';
+import { PERMISSIONS } from '@/src/modules/auth/types/permissions';
 
 type ContentStatus = 'Draft' | 'PendingReview' | 'Published' | 'Rejected' | 'Archived';
 type AdminTab = 'words' | 'topics' | 'categories' | 'import';
 type SortBy = 'createdAt' | 'updatedAt' | 'term' | 'questionCount' | 'exampleCount';
 type SortDirection = 'asc' | 'desc';
+type PendingAction =
+  | { kind: 'archiveWord'; item: WordItem | WordDetail }
+  | { kind: 'hardDeleteWord'; item: WordItem | WordDetail }
+  | { kind: 'deleteTopic'; item: TopicItem }
+  | { kind: 'disableCategory'; item: TopicCategory };
 
 type CategoryOption = {
   id: number;
@@ -200,6 +207,8 @@ function getCanHardDelete() {
 }
 
 export default function AdminWordsPage() {
+  const { hasAnyPermission } = usePermissions();
+  const canManageTopicCategories = hasAnyPermission([PERMISSIONS.manageTopicCategories, PERMISSIONS.manageTopics]);
   const [activeTab, setActiveTab] = useState<AdminTab>('words');
   const [words, setWords] = useState<WordItem[]>([]);
   const [topics, setTopics] = useState<TopicItem[]>([]);
@@ -207,6 +216,8 @@ export default function AdminWordsPage() {
   const [partsOfSpeech, setPartOfSpeeches] = useState<CategoryOption[]>([]);
   const [loadingWords, setLoadingWords] = useState(true);
   const [loadingTopics, setLoadingTopics] = useState(true);
+  const [wordsError, setWordsError] = useState('');
+  const [topicsError, setTopicsError] = useState('');
   const [saving, setSaving] = useState(false);
   const [generatingSuggestion, setGeneratingSuggestion] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -235,6 +246,8 @@ export default function AdminWordsPage() {
   const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
   const [importPayload, setImportPayload] = useState<unknown[] | string | null>(null);
   const [canHardDelete, setCanHardDelete] = useState(false);
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pageSize = 20;
 
@@ -260,6 +273,7 @@ export default function AdminWordsPage() {
 
   const fetchTopics = useCallback(async () => {
     setLoadingTopics(true);
+    setTopicsError('');
     try {
       const response = await adminService.getTopicsPage<TopicItem>(topicPage, 50, {
         search: topicSearch.trim(),
@@ -270,7 +284,9 @@ export default function AdminWordsPage() {
       setTopicPagination(response.pagination);
     } catch (error) {
       console.error('Không thể tải chủ đề', error);
-      toast.error(getErrorMessage(error, 'Không thể tải chủ đề'));
+      const message = getErrorMessage(error, 'Không thể tải chủ đề');
+      setTopicsError(message);
+      toast.error(message);
     } finally {
       setLoadingTopics(false);
     }
@@ -278,6 +294,7 @@ export default function AdminWordsPage() {
 
   const fetchWords = useCallback(async () => {
     setLoadingWords(true);
+    setWordsError('');
     try {
       const response = await adminService.getWordsPage<WordItem>(wordPage, pageSize, {
         topicId: selectedTopicId,
@@ -293,7 +310,9 @@ export default function AdminWordsPage() {
       setWordPagination(response.pagination);
     } catch (error) {
       console.error('Không thể tải từ vựng', error);
-      toast.error(getErrorMessage(error, 'Không thể tải từ vựng'));
+      const message = getErrorMessage(error, 'Không thể tải từ vựng');
+      setWordsError(message);
+      toast.error(message);
     } finally {
       setLoadingWords(false);
     }
@@ -417,6 +436,14 @@ export default function AdminWordsPage() {
 
   async function handleSaveWord(event: React.FormEvent) {
     event.preventDefault();
+    if (!wordForm.term.trim() || !wordForm.meaning.trim()) {
+      toast.error('Từ vựng và nghĩa là bắt buộc');
+      return;
+    }
+    if (wordForm.term.trim().length > 200 || wordForm.meaning.trim().length > 2000) {
+      toast.error('Từ vựng hoặc nghĩa vượt quá độ dài cho phép');
+      return;
+    }
     const partOfSpeechId = Number(wordForm.partOfSpeechId);
     if (!partOfSpeechId) {
       toast.error('Vui lòng chọn loại từ');
@@ -457,8 +484,6 @@ export default function AdminWordsPage() {
   }
 
   async function handleArchiveWord(word: WordItem) {
-    if (!confirm(`Lưu trữ từ "${word.term}"? Từ sẽ không bị xóa khỏi dữ liệu hệ thống.`)) return;
-
     try {
       await adminService.deleteWord(word.id);
       toast.success('Đã lưu trữ từ vựng');
@@ -472,8 +497,6 @@ export default function AdminWordsPage() {
   }
 
   async function handleHardDeleteWord(word: WordItem | WordDetail) {
-    if (!confirm(`Xóa vĩnh viễn từ "${word.term}"? Câu hỏi, tiến độ học và lượt làm liên quan sẽ bị xóa.`)) return;
-
     try {
       await adminService.hardDeleteWord(word.id);
       toast.success('Xóa vĩnh viễn từ vựng thành công');
@@ -541,9 +564,6 @@ export default function AdminWordsPage() {
   }
 
   async function handleDeleteTopic(topic: TopicItem) {
-    const verb = topic.wordCount > 0 || topic.miniTestCount ? 'lưu trữ' : 'xóa';
-    if (!confirm(`Bạn muốn ${verb} chủ đề "${topic.name}"?`)) return;
-
     try {
       const result = await adminService.deleteTopic(topic.id);
       toast.success(result.archived ? 'Đã lưu trữ chủ đề vì đang có nội dung liên quan' : 'Xóa chủ đề thành công');
@@ -610,8 +630,6 @@ export default function AdminWordsPage() {
   }
 
   async function handleDisableCategory(category: TopicCategory) {
-    if (!confirm(`Tắt danh mục "${category.name}"? Các chủ đề trong danh mục sẽ được bỏ liên kết danh mục.`)) return;
-
     try {
       await adminService.deleteTopicCategory(category.id);
       toast.success('Đã tắt danh mục chủ đề');
@@ -620,6 +638,20 @@ export default function AdminWordsPage() {
     } catch (error) {
       console.error('Không thể tắt danh mục', error);
       toast.error(getErrorMessage(error, 'Tắt danh mục thất bại'));
+    }
+  }
+
+  async function confirmPendingAction() {
+    if (!pendingAction) return;
+    setConfirming(true);
+    try {
+      if (pendingAction.kind === 'archiveWord') await handleArchiveWord(pendingAction.item);
+      if (pendingAction.kind === 'hardDeleteWord') await handleHardDeleteWord(pendingAction.item);
+      if (pendingAction.kind === 'deleteTopic') await handleDeleteTopic(pendingAction.item);
+      if (pendingAction.kind === 'disableCategory') await handleDisableCategory(pendingAction.item);
+      setPendingAction(null);
+    } finally {
+      setConfirming(false);
     }
   }
 
@@ -717,7 +749,7 @@ export default function AdminWordsPage() {
         <AdminPanel>
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex flex-wrap gap-2">
-              {tabs.map((tab) => {
+              {tabs.filter((tab) => tab.id !== 'categories' || canManageTopicCategories).map((tab) => {
                 const Icon = tab.icon;
                 return (
                   <ToolbarButton key={tab.id} active={activeTab === tab.id} onClick={() => setActiveTab(tab.id)}>
@@ -849,6 +881,8 @@ export default function AdminWordsPage() {
                 <tbody className="divide-y divide-white/10">
                   {loadingWords ? (
                     <EmptyRow colSpan={7} text="Đang tải từ vựng..." />
+                  ) : wordsError ? (
+                    <ErrorRow colSpan={7} text={wordsError} onRetry={() => void fetchWords()} />
                   ) : words.length === 0 ? (
                     <EmptyRow colSpan={7} text="Chưa có từ vựng phù hợp." />
                   ) : words.map((word) => (
@@ -863,8 +897,8 @@ export default function AdminWordsPage() {
                         <div className="flex justify-end gap-2">
                           <IconButton label="Xem chi tiết" onClick={() => openWordDetail(word.id)}><Eye className="h-4 w-4" /></IconButton>
                           <IconButton label="Sửa từ" onClick={() => handleEditWord(word)}><Edit2 className="h-4 w-4" /></IconButton>
-                          <IconButton label="Lưu trữ từ" tone="rose" onClick={() => handleArchiveWord(word)}><Archive className="h-4 w-4" /></IconButton>
-                          {canHardDelete && <IconButton label="Xóa vĩnh viễn" tone="rose" onClick={() => handleHardDeleteWord(word)}><Trash2 className="h-4 w-4" /></IconButton>}
+                          <IconButton label="Lưu trữ từ" tone="rose" onClick={() => setPendingAction({ kind: 'archiveWord', item: word })}><Archive className="h-4 w-4" /></IconButton>
+                          {canHardDelete && <IconButton label="Xóa vĩnh viễn" tone="rose" onClick={() => setPendingAction({ kind: 'hardDeleteWord', item: word })}><Trash2 className="h-4 w-4" /></IconButton>}
                         </div>
                       </td>
                     </tr>
@@ -925,6 +959,8 @@ export default function AdminWordsPage() {
                   <tbody className="divide-y divide-white/10">
                     {loadingTopics ? (
                       <EmptyRow colSpan={6} text="Đang tải chủ đề..." />
+                    ) : topicsError ? (
+                      <ErrorRow colSpan={6} text={topicsError} onRetry={() => void fetchTopics()} />
                     ) : topics.length === 0 ? (
                       <EmptyRow colSpan={6} text="Chưa có chủ đề phù hợp." />
                     ) : topics.map((topic) => (
@@ -937,7 +973,7 @@ export default function AdminWordsPage() {
                         <td className="px-4 py-4">
                           <div className="flex justify-end gap-2">
                             <IconButton label="Sửa chủ đề" onClick={() => startEditTopic(topic)}><Edit2 className="h-4 w-4" /></IconButton>
-                            <IconButton label={topic.wordCount > 0 ? 'Lưu trữ chủ đề' : 'Xóa chủ đề'} tone="rose" onClick={() => handleDeleteTopic(topic)}>{topic.wordCount > 0 ? <Archive className="h-4 w-4" /> : <Trash2 className="h-4 w-4" />}</IconButton>
+                            <IconButton label={topic.wordCount > 0 ? 'Lưu trữ chủ đề' : 'Xóa chủ đề'} tone="rose" onClick={() => setPendingAction({ kind: 'deleteTopic', item: topic })}>{topic.wordCount > 0 ? <Archive className="h-4 w-4" /> : <Trash2 className="h-4 w-4" />}</IconButton>
                           </div>
                         </td>
                       </tr>
@@ -980,7 +1016,7 @@ export default function AdminWordsPage() {
                       <td className="px-4 py-4">
                         <div className="flex justify-end gap-2">
                           <IconButton label="Sửa danh mục" onClick={() => startEditCategory(category)}><Edit2 className="h-4 w-4" /></IconButton>
-                          <IconButton label="Tắt danh mục" tone="rose" onClick={() => handleDisableCategory(category)}><Archive className="h-4 w-4" /></IconButton>
+                          <IconButton label="Tắt danh mục" tone="rose" onClick={() => setPendingAction({ kind: 'disableCategory', item: category })}><Archive className="h-4 w-4" /></IconButton>
                         </div>
                       </td>
                     </tr>
@@ -1056,10 +1092,35 @@ export default function AdminWordsPage() {
           canHardDelete={canHardDelete}
           onClose={() => setSelectedWord(null)}
           onEdit={(word) => handleEditWord(word)}
-          onArchive={(word) => handleArchiveWord(word)}
-          onHardDelete={(word) => handleHardDeleteWord(word)}
+          onArchive={(word) => setPendingAction({ kind: 'archiveWord', item: word })}
+          onHardDelete={(word) => setPendingAction({ kind: 'hardDeleteWord', item: word })}
         />
       )}
+      <ConfirmDialog
+        open={Boolean(pendingAction)}
+        title={
+          pendingAction?.kind === 'hardDeleteWord'
+            ? 'Xóa vĩnh viễn từ vựng?'
+            : pendingAction?.kind === 'deleteTopic'
+              ? 'Xóa hoặc lưu trữ chủ đề?'
+              : pendingAction?.kind === 'disableCategory'
+                ? 'Tắt danh mục chủ đề?'
+                : 'Lưu trữ từ vựng?'
+        }
+        description={
+          pendingAction?.kind === 'hardDeleteWord'
+            ? `Từ "${pendingAction.item.term}" cùng câu hỏi, tiến độ học và lượt làm liên quan sẽ bị xóa vĩnh viễn.`
+            : pendingAction?.kind === 'deleteTopic'
+              ? `Chủ đề "${pendingAction.item.name}" sẽ được lưu trữ nếu đang có nội dung liên quan, nếu không sẽ bị xóa.`
+              : pendingAction?.kind === 'disableCategory'
+                ? `Danh mục "${pendingAction.item.name}" sẽ bị tắt và các chủ đề được bỏ liên kết danh mục.`
+                : `Từ "${pendingAction?.item.term || ''}" sẽ chuyển sang trạng thái lưu trữ và không còn hiển thị cho học viên.`
+        }
+        confirmLabel={pendingAction?.kind === 'hardDeleteWord' ? 'Xóa vĩnh viễn' : pendingAction?.kind === 'disableCategory' ? 'Tắt danh mục' : 'Xác nhận'}
+        busy={confirming}
+        onCancel={() => setPendingAction(null)}
+        onConfirm={() => void confirmPendingAction()}
+      />
     </div>
   );
 }
@@ -1088,6 +1149,19 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function EmptyRow({ colSpan, text }: { colSpan: number; text: string }) {
   return <tr><td colSpan={colSpan} className="px-4 py-12 text-center text-sm text-slate-500">{text}</td></tr>;
+}
+
+function ErrorRow({ colSpan, text, onRetry }: { colSpan: number; text: string; onRetry: () => void }) {
+  return (
+    <tr>
+      <td colSpan={colSpan} className="px-4 py-12 text-center text-sm text-rose-300">
+        <p>{text}</p>
+        <button type="button" onClick={onRetry} className="mt-3 rounded-md border border-rose-500/30 px-3 py-1.5 text-xs font-medium hover:bg-rose-500/10">
+          Thử lại
+        </button>
+      </td>
+    </tr>
+  );
 }
 
 function FormActions({ saving, onCancel, submitLabel }: { saving: boolean; onCancel: () => void; submitLabel: string }) {

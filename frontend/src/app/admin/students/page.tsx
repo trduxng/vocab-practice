@@ -9,6 +9,8 @@ import { adminLabel } from "@/src/lib/admin-i18n";
 import {
   AdminPage,
   AdminPanel,
+  AdminErrorState,
+  ConfirmDialog,
   IconButton,
   KpiCard,
   StatusBadge,
@@ -153,12 +155,16 @@ export default function AdminStudents() {
   const [panelMode, setPanelMode] = useState<PanelMode>("view");
   const [form, setForm] = useState<UserFormState>(emptyForm);
   const [loading, setLoading] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState<ManagedUser | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [pagination, setPagination] = useState<PaginationMeta | null>(null);
   const pageSize = 10;
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
+    setError("");
     try {
       const data = await adminService.getStudentsPage<ApiUser>({
         page,
@@ -176,6 +182,7 @@ export default function AdminStudents() {
       return mapped;
     } catch (error) {
       console.error("Không thể tải người dùng", error);
+      setError("Không thể tải danh sách người dùng từ máy chủ.");
       toast.error("Không thể tải danh sách người dùng");
       return [];
     } finally {
@@ -215,6 +222,14 @@ export default function AdminStudents() {
   function validateForm() {
     if (!form.fullName.trim() || !form.email.trim()) {
       toast.error("Vui lòng nhập họ tên và email");
+      return false;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      toast.error("Email không đúng định dạng");
+      return false;
+    }
+    if (form.fullName.trim().length < 2) {
+      toast.error("Họ tên cần ít nhất 2 ký tự");
       return false;
     }
 
@@ -289,18 +304,21 @@ export default function AdminStudents() {
     }
   }
 
-  async function deleteUser(user: ManagedUser) {
-    if (!window.confirm(`Xóa người dùng ${user.email}?`)) return;
-
+  async function deleteUser() {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await adminService.deleteStudent(user.id);
+      await adminService.deleteStudent(deleteTarget.id);
       const mapped = await fetchUsers();
       setSelectedUser(mapped[0] || null);
       setPanelMode("view");
+      setDeleteTarget(null);
       toast.success("Xóa người dùng thành công");
     } catch (error: unknown) {
       console.error("Không thể xóa người dùng", error);
       toast.error(getApiErrorMessage(error, "Xóa người dùng thất bại"));
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -349,6 +367,9 @@ export default function AdminStudents() {
               </div>
             </AdminPanel>
 
+            {error ? (
+              <AdminErrorState description={error} onRetry={() => void fetchUsers()} />
+            ) : (
             <TableShell>
               <table className="w-full min-w-[940px] text-left text-sm">
                 <thead className="border-b border-slate-200 bg-slate-100 text-xs uppercase tracking-wide text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
@@ -411,7 +432,7 @@ export default function AdminStudents() {
                           ) : (
                             <IconButton label="Khóa người dùng" tone="rose" onClick={() => toggleStatus(user)}><Ban className="h-4 w-4" /></IconButton>
                           )}
-                          <IconButton label="Xóa người dùng" tone="rose" onClick={() => deleteUser(user)}><Trash2 className="h-4 w-4" /></IconButton>
+                          <IconButton label="Xóa người dùng" tone="rose" onClick={() => setDeleteTarget(user)}><Trash2 className="h-4 w-4" /></IconButton>
                         </div>
                       </td>
                     </tr>
@@ -427,6 +448,7 @@ export default function AdminStudents() {
                 </div>
               </div>
             </TableShell>
+            )}
           </div>
 
           <AdminPanel
@@ -560,7 +582,7 @@ export default function AdminStudents() {
                   ) : (
                     <ToolbarButton onClick={() => toggleStatus(selectedUser)}><ShieldOff className="h-4 w-4" />Khóa</ToolbarButton>
                   )}
-                  <ToolbarButton onClick={() => deleteUser(selectedUser)}><Trash2 className="h-4 w-4" />Xóa</ToolbarButton>
+                  <ToolbarButton onClick={() => setDeleteTarget(selectedUser)}><Trash2 className="h-4 w-4" />Xóa</ToolbarButton>
                 </div>
               </>
             ) : (
@@ -568,6 +590,14 @@ export default function AdminStudents() {
             )}
           </AdminPanel>
         </div>
+        <ConfirmDialog
+          open={Boolean(deleteTarget)}
+          title="Xóa người dùng?"
+          description={`Tài khoản ${deleteTarget?.email || ""} sẽ bị xóa. Nếu tài khoản đã tạo nội dung, máy chủ sẽ từ chối và bạn nên khóa tài khoản thay thế.`}
+          busy={deleting}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={() => void deleteUser()}
+        />
       </AdminPage>
     </>
   );

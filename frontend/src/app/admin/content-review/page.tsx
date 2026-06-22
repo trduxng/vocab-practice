@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import Topbar from "@/src/components/shared/Topbar";
-import { AdminPage, AdminPanel, KpiCard, StatusBadge, TableShell, ToolbarButton } from "@/src/components/admin/AdminPrimitives";
+import { AdminErrorState, AdminPage, AdminPanel, ConfirmDialog, KpiCard, StatusBadge, TableShell, ToolbarButton } from "@/src/components/admin/AdminPrimitives";
 import { adminService } from "@/src/services/admin.service";
 import { adminLabel } from "@/src/lib/admin-i18n";
 import {
@@ -92,14 +92,19 @@ export default function AdminContentReviewPage() {
   const [logs, setLogs] = useState<ReviewLog[]>([]);
   const [logTarget, setLogTarget] = useState<PendingItem | null>(null);
   const [logsLoading, setLogsLoading] = useState(false);
+  const [archiveTarget, setArchiveTarget] = useState<PendingItem | null>(null);
+  const [error, setError] = useState("");
 
   async function loadContent(options: { quiet?: boolean } = {}) {
     if (options.quiet) setRefreshing(true);
+    setError("");
     try {
       const data = await adminService.getPendingContent();
       setItems(data as PendingItem[]);
     } catch (error) {
-      toast.error(getErrorMessage(error, "Không thể tải danh sách chờ duyệt"));
+      const message = getErrorMessage(error, "Không thể tải danh sách chờ duyệt");
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -152,6 +157,10 @@ export default function AdminContentReviewPage() {
 
   async function reject() {
     if (!rejectTarget) return;
+    if (rejectReason.trim().length < 5) {
+      toast.error("Vui lòng nhập lý do từ chối ít nhất 5 ký tự");
+      return;
+    }
 
     const key = `${rejectTarget.entityType}-${rejectTarget.entityId}-reject`;
     setBusyKey(key);
@@ -168,14 +177,15 @@ export default function AdminContentReviewPage() {
     }
   }
 
-  async function archive(item: PendingItem) {
-    if (!window.confirm(`Lưu trữ "${item.title}"?`)) return;
-
+  async function archive() {
+    if (!archiveTarget) return;
+    const item = archiveTarget;
     const key = `${item.entityType}-${item.entityId}-archive`;
     setBusyKey(key);
     try {
       await adminService.archiveContent(item.entityType, item.entityId);
       toast.success("Đã lưu trữ nội dung");
+      setArchiveTarget(null);
       await loadContent({ quiet: true });
     } catch (error) {
       toast.error(getErrorMessage(error, "Lưu trữ nội dung thất bại"));
@@ -245,6 +255,8 @@ export default function AdminContentReviewPage() {
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
               Đang tải nội dung chờ duyệt...
             </div>
+          ) : error ? (
+            <AdminErrorState description={error} onRetry={() => void loadContent()} />
           ) : (
             <TableShell>
               <table className="w-full min-w-[900px] text-left text-sm">
@@ -323,7 +335,7 @@ export default function AdminContentReviewPage() {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => void archive(item)}
+                                onClick={() => setArchiveTarget(item)}
                                 disabled={rowBusy}
                                 title="Lưu trữ"
                                 className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 text-slate-500 transition-colors hover:text-slate-950 disabled:opacity-50 dark:border-white/10 dark:text-slate-300 dark:hover:text-white"
@@ -423,6 +435,15 @@ export default function AdminContentReviewPage() {
             </div>
           </div>
         )}
+        <ConfirmDialog
+          open={Boolean(archiveTarget)}
+          title="Lưu trữ nội dung?"
+          description={`Nội dung "${archiveTarget?.title || ""}" sẽ không còn được xuất bản và được chuyển sang trạng thái lưu trữ.`}
+          confirmLabel="Lưu trữ"
+          busy={busyKey?.endsWith("-archive")}
+          onCancel={() => setArchiveTarget(null)}
+          onConfirm={() => void archive()}
+        />
       </AdminPage>
     </>
   );

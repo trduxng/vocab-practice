@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Topbar from "@/src/components/shared/Topbar";
-import { AdminPage, AdminPanel, KpiCard, StatusBadge, ToolbarButton } from "@/src/components/admin/AdminPrimitives";
+import { AdminErrorState, AdminPage, AdminPanel, KpiCard, StatusBadge, ToolbarButton } from "@/src/components/admin/AdminPrimitives";
 import { DataTable, type DataTableColumn } from "@/src/modules/admin/components/DataTable";
 import { adminService, type PaginationMeta } from "@/src/services/admin.service";
 import { adminLabel, formatAdminDate, formatAdminNumber } from "@/src/lib/admin-i18n";
@@ -48,6 +48,7 @@ export default function AdminAuditLogsPage() {
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [entityType, setEntityType] = useState("");
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const timeout = window.setTimeout(() => setDebouncedQuery(query), 350);
@@ -56,6 +57,7 @@ export default function AdminAuditLogsPage() {
 
   async function loadAuditLogs(page = pagination.page) {
     setLoading(true);
+    setError("");
     try {
       const data = await adminService.getAuditLogsPage<AuditLog>({
         page,
@@ -69,6 +71,7 @@ export default function AdminAuditLogsPage() {
       console.error("Không thể tải nhật ký hệ thống", error);
       setLogs([]);
       setPagination(defaultPagination);
+      setError("Không thể tải nhật ký hệ thống từ máy chủ.");
     } finally {
       setLoading(false);
     }
@@ -190,6 +193,9 @@ export default function AdminAuditLogsPage() {
             </select>
           </div>
 
+          {error ? (
+            <AdminErrorState description={error} onRetry={() => void loadAuditLogs(pagination.page)} />
+          ) : (
           <DataTable
             columns={columns}
             rows={logs}
@@ -200,6 +206,7 @@ export default function AdminAuditLogsPage() {
             pagination={pagination}
             onPageChange={(page) => void loadAuditLogs(page)}
           />
+          )}
         </AdminPanel>
 
         {selectedLog && (

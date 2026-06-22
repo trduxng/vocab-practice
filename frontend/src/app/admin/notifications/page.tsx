@@ -6,6 +6,8 @@ import { AdminPage, AdminPanel, KpiCard, StatusBadge, TableShell, ToolbarButton 
 import { adminService, type PaginationMeta } from "@/src/services/admin.service";
 import { adminLabel } from "@/src/lib/admin-i18n";
 import { BellRing, CalendarClock, MailCheck, Megaphone, Send, UsersRound } from "lucide-react";
+import { toast } from "sonner";
+import { AdminErrorState } from "@/src/components/admin/AdminPrimitives";
 
 type NotificationItem = {
   id: number | string;
@@ -31,10 +33,12 @@ export default function NotificationsPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [pagination, setPagination] = useState<PaginationMeta | null>(null);
+  const [error, setError] = useState("");
   const pageSize = 20;
 
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
+    setError("");
     try {
       const data = await adminService.getNotificationsPage<NotificationItem>({
         page,
@@ -45,6 +49,8 @@ export default function NotificationsPage() {
       setPagination(data.pagination);
     } catch (error) {
       console.error("Không thể tải thông báo", error);
+      setError("Không thể tải lịch sử thông báo.");
+      toast.error("Không thể tải lịch sử thông báo");
     } finally {
       setLoading(false);
     }
@@ -55,6 +61,18 @@ export default function NotificationsPage() {
   }, [fetchNotifications]);
 
   const sendAnnouncement = async () => {
+    if (subject.trim().length < 3) {
+      toast.error("Tiêu đề cần ít nhất 3 ký tự");
+      return;
+    }
+    if (message.trim().length < 5) {
+      toast.error("Nội dung cần ít nhất 5 ký tự");
+      return;
+    }
+    if (subject.length > 200 || message.length > 2000) {
+      toast.error("Tiêu đề hoặc nội dung vượt quá độ dài cho phép");
+      return;
+    }
     setSending(true);
     try {
       await adminService.sendAnnouncement({
@@ -64,10 +82,11 @@ export default function NotificationsPage() {
         deliveryChannel: channel,
         actionUrl: "/user/dashboard",
       });
+      toast.success("Gửi thông báo thành công");
       await fetchNotifications();
     } catch (error) {
       console.error("Không thể gửi thông báo", error);
-      alert("Gửi thông báo thất bại. Vui lòng kiểm tra quyền truy cập và trạng thái cập nhật cơ sở dữ liệu.");
+      toast.error("Gửi thông báo thất bại. Vui lòng kiểm tra quyền truy cập.");
     } finally {
       setSending(false);
     }
@@ -77,10 +96,11 @@ export default function NotificationsPage() {
     setSending(true);
     try {
       await adminService.createDailyReminders();
+      toast.success("Đã tạo lời nhắc học hằng ngày");
       await fetchNotifications();
     } catch (error) {
       console.error("Không thể tạo lời nhắc hằng ngày", error);
-      alert("Tạo lời nhắc thất bại. Vui lòng chạy migration_alignment_improvements.sql trước.");
+      toast.error("Tạo lời nhắc thất bại. Vui lòng kiểm tra cấu hình cơ sở dữ liệu.");
     } finally {
       setSending(false);
     }
@@ -138,19 +158,20 @@ export default function NotificationsPage() {
 
               <div>
                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Tiêu đề</label>
-                <input value={subject} onChange={(event) => setSubject(event.target.value)} className="mt-2 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none dark:border-white/10 dark:bg-slate-950 dark:text-slate-200" />
+                <input value={subject} maxLength={200} onChange={(event) => setSubject(event.target.value)} className="mt-2 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none dark:border-white/10 dark:bg-slate-950 dark:text-slate-200" />
               </div>
 
               <div>
                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Nội dung</label>
-                <textarea value={message} onChange={(event) => setMessage(event.target.value)} rows={5} className="mt-2 w-full resize-none rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none dark:border-white/10 dark:bg-slate-950 dark:text-slate-200" />
+                <textarea value={message} maxLength={2000} onChange={(event) => setMessage(event.target.value)} rows={5} className="mt-2 w-full resize-none rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none dark:border-white/10 dark:bg-slate-950 dark:text-slate-200" />
+                <p className="mt-1 text-right text-xs text-slate-400">{message.length}/2000</p>
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <ToolbarButton active onClick={sendAnnouncement}>
+                <ToolbarButton active onClick={() => void sendAnnouncement()}>
                   <Send className="h-4 w-4" />{sending ? "Đang gửi..." : "Gửi thông báo"}
                 </ToolbarButton>
-                <ToolbarButton onClick={createDailyReminders}>
+                <ToolbarButton onClick={() => void createDailyReminders()}>
                   <CalendarClock className="h-4 w-4" />Tạo lời nhắc
                 </ToolbarButton>
               </div>
@@ -171,6 +192,9 @@ export default function NotificationsPage() {
                 />
               </div>
             </AdminPanel>
+            {error ? (
+              <AdminErrorState description={error} onRetry={() => void fetchNotifications()} />
+            ) : (
             <TableShell>
               <table className="w-full min-w-[760px] text-left text-sm">
                 <thead className="border-b border-slate-200 bg-slate-100 text-xs uppercase tracking-wide text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
@@ -221,6 +245,7 @@ export default function NotificationsPage() {
                 </div>
               )}
             </TableShell>
+            )}
 
             <AdminPanel title="Quy tắc nhắc học" description="Mỗi học viên chỉ nhận một lời nhắc mỗi ngày khi có từ vựng đến hạn ôn." action={<UsersRound className="h-4 w-4 text-slate-400" />}>
               <div className="rounded-md border border-slate-200 p-3 text-sm text-slate-600 dark:border-white/10 dark:text-slate-300">

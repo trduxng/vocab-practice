@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import Topbar from "@/src/components/shared/Topbar";
 import ChartFrame from "@/src/components/admin/ChartFrame";
-import { AdminPage, AdminPanel, KpiCard, StatusBadge, TableShell, ToolbarButton, chartColors } from "@/src/components/admin/AdminPrimitives";
+import { AdminErrorState, AdminPage, AdminPanel, KpiCard, StatusBadge, TableShell, ToolbarButton, chartColors } from "@/src/components/admin/AdminPrimitives";
 import { adminService } from "@/src/services/admin.service";
 import { formatAdminNumber } from "@/src/lib/admin-i18n";
 import { BarChart3, Clock, Flame, Gauge, HelpCircle, Target, Trophy } from "lucide-react";
@@ -34,16 +34,21 @@ function difficultyClass(value: number) {
 export default function AdminAnalytics() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [refreshIndex, setRefreshIndex] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
 
     async function fetchAnalytics() {
+      setLoading(true);
+      setError("");
       try {
         const response = await adminService.getAnalytics();
         if (!cancelled) setData(response);
       } catch (error) {
         console.error("Không thể tải dữ liệu phân tích", error);
+        if (!cancelled) setError("Không thể tải dữ liệu phân tích học tập.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -53,7 +58,7 @@ export default function AdminAnalytics() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshIndex]);
 
   const popularQuizzes = useMemo(() => data?.popularQuizzes || [], [data]);
   const questionAccuracy = useMemo(() => data?.questionAccuracy || [], [data]);
@@ -78,6 +83,8 @@ export default function AdminAnalytics() {
           <AdminPanel>
             <div className="py-12 text-center text-sm text-slate-600 dark:text-slate-400">Đang tải dữ liệu phân tích...</div>
           </AdminPanel>
+        ) : error ? (
+          <AdminErrorState description={error} onRetry={() => setRefreshIndex((value) => value + 1)} />
         ) : (
           <>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
-import apiClient from "@/src/lib/api-client";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 import Topbar from "@/src/components/shared/Topbar";
+import { AdminErrorState, AdminPage, ConfirmDialog, StatusBadge, TableShell } from "@/src/components/admin/AdminPrimitives";
+import { adminService } from "@/src/services/admin.service";
 
 interface TopicCategory {
   id: number;
@@ -34,12 +35,18 @@ export default function AdminTopicCategoriesPage() {
   const [editing, setEditing] = useState<TopicCategory | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<TopicCategory | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
     try {
-      const response = await apiClient.get("/creator/topic-categories");
-      setItems(Array.isArray(response.data) ? response.data : []);
+      const data = await adminService.getTopicCategories<TopicCategory>();
+      setItems(Array.isArray(data) ? data : []);
     } catch {
+      setError("Không thể tải danh mục chủ đề từ máy chủ.");
       toast.error("Không thể tải danh mục chủ đề");
     } finally {
       setLoading(false);
@@ -78,19 +85,19 @@ export default function AdminTopicCategoriesPage() {
     setSaving(true);
     try {
       const payload = {
-        categoryName: form.name,
-        categoryCode: form.code,
+        name: form.name.trim(),
+        code: form.code.trim(),
         description: form.description,
         iconUrl: form.iconUrl,
-        displayOrder: form.displayOrder,
+        displayOrder: Math.max(1, form.displayOrder),
         isActive: form.isActive,
       };
 
       if (editing) {
-        await apiClient.put(`/admin/topic-categories/${editing.id}`, payload);
+        await adminService.updateTopicCategory(editing.id, payload);
         toast.success("Cập nhật danh mục thành công");
       } else {
-        await apiClient.post("/admin/topic-categories", payload);
+        await adminService.createTopicCategory(payload);
         toast.success("Tạo danh mục thành công");
       }
 
@@ -104,15 +111,18 @@ export default function AdminTopicCategoriesPage() {
     }
   }
 
-  async function handleDelete(id: number) {
-    if (!window.confirm("Xóa danh mục này?")) return;
-
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await apiClient.delete(`/admin/topic-categories/${id}`);
-      toast.success("Đã xóa danh mục");
+      await adminService.deleteTopicCategory(deleteTarget.id);
+      toast.success("Đã tắt danh mục chủ đề");
+      setDeleteTarget(null);
       await load();
     } catch {
       toast.error("Không thể xóa danh mục");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -127,7 +137,7 @@ export default function AdminTopicCategoriesPage() {
   return (
     <>
       <Topbar title="Danh mục chủ đề" subtitle="Quản lý các nhóm danh mục dùng để phân loại chủ đề học." role="admin" />
-      <main className="flex-1 space-y-6 p-6 md:p-8">
+      <AdminPage>
       <div className="flex items-center justify-end">
         <Button onClick={openCreate} className="gap-2 rounded-xl">
           <Plus className="h-4 w-4" /> Tạo mới
@@ -177,8 +187,10 @@ export default function AdminTopicCategoriesPage() {
         </div>
       )}
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-white/5">
-        <div className="overflow-x-auto">
+      {error ? (
+        <AdminErrorState description={error} onRetry={() => void load()} />
+      ) : (
+      <TableShell>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-100 dark:border-white/10 dark:bg-white/5">
@@ -198,16 +210,14 @@ export default function AdminTopicCategoriesPage() {
                   <td className="px-4 py-3 font-mono text-xs text-slate-500">{category.code}</td>
                   <td className="px-4 py-3 text-slate-500">{category.displayOrder}</td>
                   <td className="px-4 py-3">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${category.isActive ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300" : "bg-slate-200 text-slate-600"}`}>
-                      {category.isActive ? "Đang hoạt động" : "Đã tắt"}
-                    </span>
+                    <StatusBadge tone={category.isActive ? "emerald" : "slate"}>{category.isActive ? "Đang hoạt động" : "Đã tắt"}</StatusBadge>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
                       <button type="button" onClick={() => openEdit(category)} title="Sửa" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10">
                         <Pencil className="h-4 w-4" />
                       </button>
-                      <button type="button" onClick={() => handleDelete(category.id)} title="Xóa" className="rounded-lg p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20">
+                      <button type="button" onClick={() => setDeleteTarget(category)} title="Tắt danh mục" className="rounded-lg p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20">
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
@@ -216,9 +226,18 @@ export default function AdminTopicCategoriesPage() {
               ))}
             </tbody>
           </table>
-        </div>
-      </div>
-      </main>
+      </TableShell>
+      )}
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Tắt danh mục chủ đề?"
+        description={`Danh mục "${deleteTarget?.name || ""}" sẽ bị tắt và các chủ đề liên quan được bỏ liên kết danh mục.`}
+        confirmLabel="Tắt danh mục"
+        busy={deleting}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => void handleDelete()}
+      />
+      </AdminPage>
     </>
   );
 }

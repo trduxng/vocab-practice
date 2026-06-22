@@ -14,7 +14,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import Topbar from "@/src/components/shared/Topbar";
-import { AdminPage, AdminPanel, IconButton, KpiCard, StatusBadge, ToolbarButton } from "@/src/components/admin/AdminPrimitives";
+import { AdminErrorState, AdminPage, AdminPanel, IconButton, KpiCard, StatusBadge, ToolbarButton } from "@/src/components/admin/AdminPrimitives";
 import { adminService, type PaginationMeta } from "@/src/services/admin.service";
 import { Button } from "@/src/components/ui/button";
 import { adminLabel, formatAdminDate } from "@/src/lib/admin-i18n";
@@ -97,6 +97,7 @@ export default function AdminReportsPage() {
   const [entityType, setEntityType] = useState("");
   const [priority, setPriority] = useState("");
   const [selectedReport, setSelectedReport] = useState<ContentReport | null>(null);
+  const [error, setError] = useState("");
   const [form, setForm] = useState<{ status: ReportStatus; priority: ReportPriority; adminResponse: string }>({
     status: "InReview",
     priority: "Normal",
@@ -107,6 +108,7 @@ export default function AdminReportsPage() {
 
   const fetchReports = useCallback(async () => {
     setLoading(true);
+    setError("");
     try {
       const data = await adminService.getReportsPage<ContentReport>({
         page,
@@ -122,6 +124,7 @@ export default function AdminReportsPage() {
     } catch (error) {
       console.error("Không thể tải báo cáo", error);
       toast.error(getErrorMessage(error, "Không thể tải danh sách báo cáo"));
+      setError(getErrorMessage(error, "Không thể tải danh sách báo cáo"));
     } finally {
       setLoading(false);
     }
@@ -211,6 +214,9 @@ export default function AdminReportsPage() {
               <ToolbarButton onClick={resetFilters}>Đặt lại</ToolbarButton>
             </div>
 
+            {error ? (
+              <AdminErrorState description={error} onRetry={() => void fetchReports()} />
+            ) : (
             <div className="overflow-hidden rounded-lg border border-slate-200 dark:border-white/10">
               <table className="w-full min-w-[980px] text-left text-sm">
                 <thead className="border-b border-slate-200 bg-slate-100 text-xs uppercase tracking-wide text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
@@ -256,6 +262,7 @@ export default function AdminReportsPage() {
                 </tbody>
               </table>
             </div>
+            )}
 
             {pagination && (
               <div className="mt-4 flex flex-col gap-3 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between dark:text-slate-400">
@@ -313,10 +320,12 @@ export default function AdminReportsPage() {
                   <textarea
                     value={form.adminResponse}
                     onChange={(event) => setForm((current) => ({ ...current, adminResponse: event.target.value }))}
+                    maxLength={2000}
                     rows={6}
                     className="w-full resize-none rounded-md border border-slate-200 bg-white px-3 py-2 text-sm outline-none dark:border-white/10 dark:bg-slate-950"
                     placeholder="Mô tả nội dung đã sửa, lý do từ chối hoặc phần cần kiểm tra thêm."
                   />
+                  <p className="text-right text-xs text-slate-400">{form.adminResponse.length}/2000</p>
                 </Field>
 
                 <div className="flex flex-wrap gap-2 border-t border-slate-200 pt-4 dark:border-white/10">
