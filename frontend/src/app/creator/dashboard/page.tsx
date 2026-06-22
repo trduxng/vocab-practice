@@ -77,10 +77,25 @@ export default function CreatorDashboardPage() {
     Archived: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
   };
 
+  const statusLabels: Record<string, string> = {
+    Draft: 'Bản nháp',
+    PendingReview: 'Chờ duyệt',
+    Published: 'Đã xuất bản',
+    Rejected: 'Bị từ chối',
+    Archived: 'Đã lưu trữ',
+  };
+
+  const typeLabels: Record<string, string> = {
+    Topic: 'Chủ đề',
+    Word: 'Từ vựng',
+    Question: 'Câu hỏi',
+    MiniTest: 'Bài test',
+  };
+
   return (
     <div className="flex-1 p-6 md:p-8 space-y-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard Creator</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Bảng điều khiển Người tạo</h1>
         <p className="text-slate-500 text-sm mt-1">Tổng quan nội dung của bạn</p>
       </div>
 
@@ -107,12 +122,12 @@ export default function CreatorDashboardPage() {
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
           {Object.entries(grouped).map(([type, items]) => (
             <div key={type} className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 p-5 space-y-3">
-              <h3 className="font-semibold text-sm">{type}</h3>
+              <h3 className="font-semibold text-sm">{typeLabels[type] || type}</h3>
               <div className="space-y-2">
                 {items.map((item) => (
                   <div key={item.ContentStatus} className="flex items-center justify-between">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[item.ContentStatus] || ''}`}>
-                      {item.ContentStatus}
+                      {statusLabels[item.ContentStatus] || item.ContentStatus}
                     </span>
                     <span className="text-sm font-bold">{item.Total}</span>
                   </div>

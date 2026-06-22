@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 
 interface MiniTest { id: number; title: string; description: string; topicName: string; totalQuestions: number; isPublished: boolean; contentStatus: string; createdAt: string; }
 const statusBadge: Record<string,string> = { Draft:'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300', PendingReview:'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300', Published:'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300', Rejected:'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' };
+const statusLabels: Record<string, string> = { Draft: 'Bản nháp', PendingReview: 'Chờ duyệt', Published: 'Đã xuất bản', Rejected: 'Bị từ chối' };
 
 export default function CreatorMiniTestsPage() {
   const [items, setItems] = useState<MiniTest[]>([]);
@@ -84,7 +85,7 @@ export default function CreatorMiniTestsPage() {
                 <td className="px-4 py-3 font-medium">{t.title}</td>
                 <td className="px-4 py-3 text-slate-500">{t.topicName||'—'}</td>
                 <td className="px-4 py-3 text-slate-500">{t.totalQuestions}</td>
-                <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge[t.contentStatus]||''}`}>{t.contentStatus}</span></td>
+                <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge[t.contentStatus]||''}`}>{statusLabels[t.contentStatus] || t.contentStatus}</span></td>
                 <td className="px-4 py-3"><div className="flex items-center justify-end gap-1">
                   {(t.contentStatus==='Draft'||t.contentStatus==='Rejected')&&<button onClick={()=>handleSubmit(t.id)} title="Gửi duyệt" className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-500"><Send className="h-4 w-4"/></button>}
                   <button onClick={()=>openEdit(t)} title="Sửa" className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-500"><Pencil className="h-4 w-4"/></button>

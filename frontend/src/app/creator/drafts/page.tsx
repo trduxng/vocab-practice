@@ -10,6 +10,13 @@ export default function CreatorDraftsPage() {
   const [items, setItems] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const typeLabels: Record<string, string> = {
+    Topic: 'Chủ đề',
+    Word: 'Từ vựng',
+    Question: 'Câu hỏi',
+    MiniTest: 'Bài test',
+  };
+
   useEffect(() => {
     loadAll();
   }, []);
@@ -60,7 +67,7 @@ export default function CreatorDraftsPage() {
             {items.map((item) => (
               <div key={`${item.type}-${item.id}`} className="flex items-center justify-between px-5 py-4 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                 <div className="flex items-center gap-3 min-w-0">
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-slate-500 shrink-0">{item.type}</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-slate-500 shrink-0">{typeLabels[item.type] || item.type}</span>
                   <span className="truncate font-medium">{item.name || '—'}</span>
                 </div>
                 <button onClick={() => handleSubmit(item)} title="Gửi duyệt" className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 text-xs font-medium transition-colors">

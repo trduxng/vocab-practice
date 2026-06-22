@@ -25,6 +25,13 @@ const statusBadge: Record<string, string> = {
   Rejected: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
 };
 
+const statusLabels: Record<string, string> = {
+  Draft: 'Bản nháp',
+  PendingReview: 'Chờ duyệt',
+  Published: 'Đã xuất bản',
+  Rejected: 'Bị từ chối',
+};
+
 export default function CreatorWordsPage() {
   const [words, setWords] = useState<Word[]>([]);
   const [loading, setLoading] = useState(true);
@@ -205,7 +212,7 @@ export default function CreatorWordsPage() {
                   <td className="px-4 py-3 font-mono text-xs text-slate-500">{w.phonetic || '—'}</td>
                   <td className="px-4 py-3 text-slate-500">{w.partOfSpeechName || '—'}</td>
                   <td className="px-4 py-3">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge[w.contentStatus] || ''}`}>{w.contentStatus}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge[w.contentStatus] || ''}`}>{statusLabels[w.contentStatus] || w.contentStatus}</span>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">

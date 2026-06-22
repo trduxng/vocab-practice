@@ -27,6 +27,14 @@ const statusBadge: Record<string, string> = {
   Archived: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
 };
 
+const statusLabels: Record<string, string> = {
+  Draft: 'Bản nháp',
+  PendingReview: 'Chờ duyệt',
+  Published: 'Đã xuất bản',
+  Rejected: 'Bị từ chối',
+  Archived: 'Đã lưu trữ',
+};
+
 export default function CreatorTopicsPage() {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [categories, setCategories] = useState<TopicCategory[]>([]);
@@ -200,7 +208,7 @@ export default function CreatorTopicsPage() {
                   <td className="px-4 py-3 text-slate-500">{t.categoryName || '—'}</td>
                   <td className="px-4 py-3">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge[t.contentStatus] || ''}`}>
-                      {t.contentStatus}
+                      {statusLabels[t.contentStatus] || t.contentStatus}
                     </span>
                   </td>
                   <td className="px-4 py-3">

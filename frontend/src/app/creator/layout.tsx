@@ -21,7 +21,7 @@ const CreatorLayout = ({ children }: { children: React.ReactNode }) => {
   }, [loading, isAuthenticated, isCreator, isAdmin, router]);
 
   if (loading) {
-    return <div className="min-h-screen bg-[#080d1a] flex items-center justify-center text-white font-mono">CREATOR ACCESS AUTHORIZING...</div>;
+    return <div className="min-h-screen bg-[#080d1a] flex items-center justify-center text-white font-mono">ĐANG XÁC THỰC QUYỀN TRUY CẬP CREATOR...</div>;
   }
 
   if (!isAuthenticated || (!isCreator && !isAdmin)) return null;
