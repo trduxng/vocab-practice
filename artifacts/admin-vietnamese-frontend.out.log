@@ -1,0 +1,48 @@
+
+> vocab-next@0.1.0 dev
+> next dev
+
+▲ Next.js 16.2.4 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.191.1:3000
+✓ Ready in 833ms
+Creating turbopack project { dir: 'D:\\webvocal\\vocab-practice\\frontend', testMode: true }
+
+ GET / 200 in 2.3s (next.js: 305ms, proxy.ts: 688ms, application-code: 1267ms)
+ GET / 200 in 446ms (next.js: 13ms, proxy.ts: 10ms, application-code: 423ms)
+ GET /login 200 in 1164ms (next.js: 210ms, proxy.ts: 27ms, application-code: 927ms)
+ GET /register 200 in 290ms (next.js: 91ms, proxy.ts: 14ms, application-code: 185ms)
+ GET /login 200 in 194ms (next.js: 21ms, proxy.ts: 17ms, application-code: 157ms)
+ GET /user/dashboard 200 in 309ms (next.js: 65ms, proxy.ts: 17ms, application-code: 227ms)
+ GET /user/courses 200 in 297ms (next.js: 78ms, proxy.ts: 14ms, application-code: 205ms)
+ GET /user/learn 200 in 344ms (next.js: 94ms, proxy.ts: 17ms, application-code: 234ms)
+ GET /user/practice 200 in 545ms (next.js: 209ms, proxy.ts: 30ms, application-code: 306ms)
+ GET /user/minitests 200 in 309ms (next.js: 86ms, proxy.ts: 11ms, application-code: 212ms)
+ GET /user/notebook 200 in 577ms (next.js: 165ms, proxy.ts: 31ms, application-code: 381ms)
+ GET /user/achievements 200 in 261ms (next.js: 70ms, proxy.ts: 9ms, application-code: 182ms)
+ GET /user/progress 200 in 575ms (next.js: 100ms, proxy.ts: 10ms, application-code: 464ms)
+ GET /user/settings 200 in 457ms (next.js: 137ms, proxy.ts: 24ms, application-code: 297ms)
+ GET /login 200 in 197ms (next.js: 18ms, proxy.ts: 14ms, application-code: 165ms)
+ GET /creator/dashboard 200 in 400ms (next.js: 94ms, proxy.ts: 9ms, application-code: 297ms)
+ GET /creator/topics 200 in 333ms (next.js: 106ms, proxy.ts: 12ms, application-code: 215ms)
+ GET /creator/words 200 in 321ms (next.js: 139ms, proxy.ts: 15ms, application-code: 168ms)
+ GET /creator/questions 200 in 205ms (next.js: 83ms, proxy.ts: 11ms, application-code: 110ms)
+ GET /creator/mini-tests 200 in 307ms (next.js: 112ms, proxy.ts: 18ms, application-code: 178ms)
+ GET /creator/media 200 in 260ms (next.js: 92ms, proxy.ts: 10ms, application-code: 158ms)
+ GET /creator/drafts 200 in 295ms (next.js: 132ms, proxy.ts: 13ms, application-code: 150ms)
+ GET /creator/pending 200 in 233ms (next.js: 85ms, proxy.ts: 22ms, application-code: 126ms)
+ GET /creator/rejected 200 in 290ms (next.js: 121ms, proxy.ts: 15ms, application-code: 154ms)
+ GET /creator/analytics 200 in 278ms (next.js: 86ms, proxy.ts: 12ms, application-code: 180ms)
+ GET /login 200 in 199ms (next.js: 21ms, proxy.ts: 13ms, application-code: 165ms)
+ GET /admin/dashboard 200 in 955ms (next.js: 197ms, proxy.ts: 25ms, application-code: 734ms)
+ GET /admin/students 200 in 267ms (next.js: 90ms, proxy.ts: 13ms, application-code: 164ms)
+ GET /admin/courses 200 in 417ms (next.js: 137ms, proxy.ts: 20ms, application-code: 260ms)
+ GET /admin/content-review 200 in 351ms (next.js: 112ms, proxy.ts: 14ms, application-code: 225ms)
+ GET /admin/reports 200 in 371ms (next.js: 111ms, proxy.ts: 10ms, application-code: 251ms)
+ GET /admin/topic-categories 200 in 311ms (next.js: 70ms, proxy.ts: 8ms, application-code: 234ms)
+ GET /admin/analytics 200 in 454ms (next.js: 84ms, proxy.ts: 10ms, application-code: 360ms)
+ GET /admin/audit-logs 200 in 320ms (next.js: 94ms, proxy.ts: 14ms, application-code: 213ms)
+ GET /admin/notifications 200 in 327ms (next.js: 96ms, proxy.ts: 11ms, application-code: 220ms)
+ GET /admin/words 200 in 333ms (next.js: 78ms, proxy.ts: 11ms, application-code: 245ms)
+ GET /admin/questions 200 in 366ms (next.js: 118ms, proxy.ts: 11ms, application-code: 237ms)
+ GET /admin/minitests 200 in 370ms (next.js: 134ms, proxy.ts: 15ms, application-code: 221ms)

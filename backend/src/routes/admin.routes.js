@@ -45,21 +45,26 @@ router.get('/stats', checkPermission('VIEW_DASHBOARD'), AdminController.getStats
 
 // Students
 router.get('/students', checkPermission('MANAGE_USERS'), AdminController.getStudents);
-router.post('/students', checkPermission('MANAGE_USERS'), AdminController.createUser);
-router.put('/students/:id', checkPermission('MANAGE_USERS'), AdminController.updateUser);
+router.post('/students', checkPermission('MANAGE_USERS'), validate(schemas.createAdminUser), AdminController.createUser);
+router.put('/students/:id', checkPermission('MANAGE_USERS'), validate(schemas.updateAdminUser), AdminController.updateUser);
 router.delete('/students/:id', checkPermission('MANAGE_USERS'), AdminController.deleteUser);
 router.patch('/students/:id/toggle', checkPermission('MANAGE_USERS'), AdminController.toggleStudentStatus);
-router.patch('/students/:id/role', checkPermission('MANAGE_USERS'), AdminController.updateUserRole);
-router.get('/analytics', checkPermission('VIEW_DASHBOARD'), AdminController.getAnalytics);
-router.get('/content-management', checkPermission('VIEW_DASHBOARD'), AdminController.getContentManagement);
+router.patch('/students/:id/role', checkPermission('MANAGE_USERS'), validate(schemas.updateAdminUserRole), AdminController.updateUserRole);
+router.get('/analytics', checkAnyPermission(['VIEW_ANALYTICS', 'VIEW_DASHBOARD']), AdminController.getAnalytics);
+router.get('/content-management', checkAnyPermission(['VIEW_DASHBOARD', 'MANAGE_TOPICS', 'MANAGE_WORDS', 'MANAGE_QUESTIONS', 'MANAGE_TESTS']), AdminController.getContentManagement);
 router.patch('/content-status', checkAnyPermission(['MANAGE_SYSTEM_SETTINGS', 'MANAGE_TOPICS', 'MANAGE_WORDS', 'MANAGE_QUESTIONS', 'MANAGE_TESTS']), validate(schemas.contentStatus), AdminController.updateContentStatus);
+router.get('/content-review/pending', checkAnyPermission(['REVIEW_CONTENT', 'PUBLISH_CONTENT', 'MANAGE_SYSTEM_SETTINGS']), AdminController.getPendingContent);
+router.post('/content-review/:entityType/:entityId/approve', checkAnyPermission(['REVIEW_CONTENT', 'PUBLISH_CONTENT', 'MANAGE_SYSTEM_SETTINGS']), validate(schemas.contentReviewTarget), AdminController.approveContent);
+router.post('/content-review/:entityType/:entityId/reject', checkAnyPermission(['REVIEW_CONTENT', 'PUBLISH_CONTENT', 'MANAGE_SYSTEM_SETTINGS']), validate(schemas.contentReviewTarget), AdminController.rejectContent);
+router.post('/content-review/:entityType/:entityId/archive', checkAnyPermission(['REVIEW_CONTENT', 'PUBLISH_CONTENT', 'MANAGE_SYSTEM_SETTINGS']), validate(schemas.contentReviewTarget), AdminController.archiveContent);
+router.get('/content-review/:entityType/:entityId/logs', checkAnyPermission(['REVIEW_CONTENT', 'PUBLISH_CONTENT', 'MANAGE_SYSTEM_SETTINGS']), validate(schemas.contentReviewTarget), AdminController.getContentReviewLogs);
 router.get('/audit-logs', checkAnyPermission(['VIEW_AUDIT_LOGS', 'MANAGE_SYSTEM_SETTINGS', 'MANAGE_USERS']), AdminController.getAuditLogs);
 router.get('/reports', checkAnyPermission(['MANAGE_REPORTS', 'MANAGE_SYSTEM_SETTINGS']), AdminController.getReports);
 router.patch('/reports/:id', checkAnyPermission(['MANAGE_REPORTS', 'MANAGE_SYSTEM_SETTINGS']), validate(schemas.updateReport), AdminController.updateReport);
 
 // Notifications
 router.get('/notifications', checkPermission('MANAGE_NOTIFICATIONS'), AdminController.getNotifications);
-router.post('/notifications', checkPermission('MANAGE_NOTIFICATIONS'), AdminController.sendAnnouncement);
+router.post('/notifications', checkPermission('MANAGE_NOTIFICATIONS'), validate(schemas.announcement), AdminController.sendAnnouncement);
 router.post('/notifications/daily-reminders', checkPermission('MANAGE_NOTIFICATIONS'), AdminController.createDailyReminders);
 
 module.exports = router;
