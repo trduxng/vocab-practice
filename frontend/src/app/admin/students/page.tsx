@@ -5,9 +5,12 @@ import { toast } from "sonner";
 import Topbar from "@/src/components/shared/Topbar";
 import { adminService } from "@/src/services/admin.service";
 import type { PaginationMeta, UserMutationPayload } from "@/src/services/admin.service";
+import { adminLabel } from "@/src/lib/admin-i18n";
 import {
   AdminPage,
   AdminPanel,
+  AdminErrorState,
+  ConfirmDialog,
   IconButton,
   KpiCard,
   StatusBadge,
@@ -99,7 +102,7 @@ function getInitials(name: string) {
 }
 
 function formatDate(value: string | null) {
-  if (!value) return "Never";
+  if (!value) return "Chưa từng";
   return new Date(value).toLocaleDateString("vi-VN", {
     day: "2-digit",
     month: "2-digit",
@@ -109,7 +112,7 @@ function formatDate(value: string | null) {
 
 function mapUser(user: ApiUser): ManagedUser {
   const completionRate = user.totalWords > 0 ? Math.round((user.masteredWords / user.totalWords) * 100) : 0;
-  const fullName = user.fullName || "Unnamed user";
+  const fullName = user.fullName || "Người dùng chưa đặt tên";
 
   return {
     id: user.id,
@@ -152,12 +155,16 @@ export default function AdminStudents() {
   const [panelMode, setPanelMode] = useState<PanelMode>("view");
   const [form, setForm] = useState<UserFormState>(emptyForm);
   const [loading, setLoading] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState<ManagedUser | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [pagination, setPagination] = useState<PaginationMeta | null>(null);
   const pageSize = 10;
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
+    setError("");
     try {
       const data = await adminService.getStudentsPage<ApiUser>({
         page,
@@ -174,8 +181,9 @@ export default function AdminStudents() {
       });
       return mapped;
     } catch (error) {
-      console.error("Failed to fetch users", error);
-      toast.error("Khong the tai danh sach user");
+      console.error("Không thể tải người dùng", error);
+      setError("Không thể tải danh sách người dùng từ máy chủ.");
+      toast.error("Không thể tải danh sách người dùng");
       return [];
     } finally {
       setLoading(false);
@@ -213,17 +221,25 @@ export default function AdminStudents() {
 
   function validateForm() {
     if (!form.fullName.trim() || !form.email.trim()) {
-      toast.error("Vui long nhap ten va email");
+      toast.error("Vui lòng nhập họ tên và email");
+      return false;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      toast.error("Email không đúng định dạng");
+      return false;
+    }
+    if (form.fullName.trim().length < 2) {
+      toast.error("Họ tên cần ít nhất 2 ký tự");
       return false;
     }
 
     if (panelMode === "create" && form.password.length < 6) {
-      toast.error("Mat khau can toi thieu 6 ky tu");
+      toast.error("Mật khẩu cần tối thiểu 6 ký tự");
       return false;
     }
 
     if (panelMode === "edit" && form.password && form.password.length < 6) {
-      toast.error("Mat khau moi can toi thieu 6 ky tu");
+      toast.error("Mật khẩu mới cần tối thiểu 6 ký tự");
       return false;
     }
 
@@ -248,19 +264,19 @@ export default function AdminStudents() {
         const response = await adminService.createStudent({ ...payload, password: form.password });
         const mapped = await fetchUsers();
         setSelectedUser(mapped.find((user) => user.id === response.data?.id) || mapped[0] || null);
-        toast.success("Tao user thanh cong");
+        toast.success("Tạo người dùng thành công");
       } else if (panelMode === "edit" && selectedUser) {
         await adminService.updateStudent(selectedUser.id, payload);
         const mapped = await fetchUsers();
         setSelectedUser(mapped.find((user) => user.id === selectedUser.id) || null);
-        toast.success("Cap nhat user thanh cong");
+        toast.success("Cập nhật người dùng thành công");
       }
 
       setPanelMode("view");
       setForm(emptyForm);
     } catch (error: unknown) {
-      console.error("Failed to save user", error);
-      toast.error(getApiErrorMessage(error, "Luu user that bai"));
+      console.error("Không thể lưu người dùng", error);
+      toast.error(getApiErrorMessage(error, "Lưu người dùng thất bại"));
     } finally {
       setSaving(false);
     }
@@ -270,10 +286,10 @@ export default function AdminStudents() {
     try {
       await adminService.toggleStudentStatus(user.id);
       await fetchUsers();
-      toast.success("Cap nhat trang thai user thanh cong");
+      toast.success("Cập nhật trạng thái người dùng thành công");
     } catch (error) {
-      console.error("Failed to update user status", error);
-      toast.error("Cap nhat trang thai that bai");
+      console.error("Không thể cập nhật trạng thái người dùng", error);
+      toast.error("Cập nhật trạng thái thất bại");
     }
   }
 
@@ -281,38 +297,41 @@ export default function AdminStudents() {
     try {
       await adminService.updateStudentRole(id, role);
       await fetchUsers();
-      toast.success("Cap nhat vai tro user thanh cong");
+      toast.success("Cập nhật vai trò người dùng thành công");
     } catch (error) {
-      console.error("Failed to update user role", error);
-      toast.error("Cap nhat vai tro that bai");
+      console.error("Không thể cập nhật vai trò người dùng", error);
+      toast.error("Cập nhật vai trò thất bại");
     }
   }
 
-  async function deleteUser(user: ManagedUser) {
-    if (!window.confirm(`Xoa user ${user.email}?`)) return;
-
+  async function deleteUser() {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await adminService.deleteStudent(user.id);
+      await adminService.deleteStudent(deleteTarget.id);
       const mapped = await fetchUsers();
       setSelectedUser(mapped[0] || null);
       setPanelMode("view");
-      toast.success("Xoa user thanh cong");
+      setDeleteTarget(null);
+      toast.success("Xóa người dùng thành công");
     } catch (error: unknown) {
-      console.error("Failed to delete user", error);
-      toast.error(getApiErrorMessage(error, "Xoa user that bai"));
+      console.error("Không thể xóa người dùng", error);
+      toast.error(getApiErrorMessage(error, "Xóa người dùng thất bại"));
+    } finally {
+      setDeleting(false);
     }
   }
 
   return (
     <>
-      <Topbar title="User management" subtitle="Manage real accounts from ToeicVocabularyPlatform." role="admin" userName="Admin" />
+      <Topbar title="Quản lý người dùng" subtitle="Quản lý tài khoản thực tế trong hệ thống ToeicVocabularyPlatform." role="admin" />
 
       <AdminPage>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <KpiCard label="Total users" value={users.length.toString()} change="From database" icon={Users} tone="blue" />
-          <KpiCard label="Active users" value={activeUsers.toString()} change={`${bannedUsers} banned`} icon={UserCheck} tone="emerald" />
-          <KpiCard label="Learners" value={learners.toString()} change={`${creators} content creators`} icon={Users} tone="violet" />
-          <KpiCard label="Admins" value={admins.toString()} change="UserRole = Admin" icon={Shield} tone="amber" />
+          <KpiCard label="Tổng người dùng" value={String(pagination?.total ?? users.length)} change="Từ cơ sở dữ liệu" icon={Users} tone="blue" />
+          <KpiCard label="Đang hoạt động" value={activeUsers.toString()} change={`${bannedUsers} tài khoản đã khóa trên trang`} icon={UserCheck} tone="emerald" />
+          <KpiCard label="Học viên" value={learners.toString()} change={`${creators} biên tập viên trên trang`} icon={Users} tone="violet" />
+          <KpiCard label="Quản trị viên" value={admins.toString()} change="Vai trò quản trị trên trang" icon={Shield} tone="amber" />
         </div>
 
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
@@ -327,50 +346,53 @@ export default function AdminStudents() {
                       setQuery(event.target.value);
                       setPage(1);
                     }}
-                    placeholder="Search name, email, or role"
+                    placeholder="Tìm họ tên, email hoặc vai trò"
                     className="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-500 dark:text-slate-200"
                   />
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="inline-flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-                    <Filter className="h-4 w-4" />Status
+                    <Filter className="h-4 w-4" />Trạng thái
                   </span>
                   {(["all", "active", "banned"] as const).map((item) => (
                     <ToolbarButton key={item} active={status === item} onClick={() => { setStatus(item); setPage(1); }}>
-                      {item}
+                      {item === "all" ? "Tất cả" : adminLabel(item)}
                     </ToolbarButton>
                   ))}
                   <ToolbarButton onClick={openCreateForm}>
                     <Plus className="h-4 w-4" />
-                    Add user
+                    Thêm người dùng
                   </ToolbarButton>
                 </div>
               </div>
             </AdminPanel>
 
+            {error ? (
+              <AdminErrorState description={error} onRetry={() => void fetchUsers()} />
+            ) : (
             <TableShell>
               <table className="w-full min-w-[940px] text-left text-sm">
                 <thead className="border-b border-slate-200 bg-slate-100 text-xs uppercase tracking-wide text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
                   <tr>
-                    <th className="px-4 py-3 font-medium">User</th>
-                    <th className="px-4 py-3 font-medium">Role</th>
-                    <th className="px-4 py-3 font-medium">Activity</th>
-                    <th className="px-4 py-3 font-medium">Mastery</th>
-                    <th className="px-4 py-3 font-medium">Status</th>
-                    <th className="px-4 py-3 font-medium">Actions</th>
+                    <th className="px-4 py-3 font-medium">Người dùng</th>
+                    <th className="px-4 py-3 font-medium">Vai trò</th>
+                    <th className="px-4 py-3 font-medium">Hoạt động</th>
+                    <th className="px-4 py-3 font-medium">Mức thành thạo</th>
+                    <th className="px-4 py-3 font-medium">Trạng thái</th>
+                    <th className="px-4 py-3 font-medium">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-white/10">
                   {loading ? (
                     <tr>
                       <td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-500 dark:text-slate-400">
-                        Loading users from database...
+                        Đang tải người dùng từ cơ sở dữ liệu...
                       </td>
                     </tr>
                   ) : visibleUsers.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-500 dark:text-slate-400">
-                        No users found.
+                        Không tìm thấy người dùng.
                       </td>
                     </tr>
                   ) : visibleUsers.map((user) => (
@@ -385,32 +407,32 @@ export default function AdminStudents() {
                         </div>
                       </td>
                       <td className="px-4 py-4">
-                        <p className="font-medium text-slate-800 dark:text-slate-200">{user.role}</p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">Joined {user.joined}</p>
+                        <p className="font-medium text-slate-800 dark:text-slate-200">{adminLabel(user.role)}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Tham gia {user.joined}</p>
                       </td>
                       <td className="px-4 py-4 text-slate-600 dark:text-slate-300">
-                        <p>{user.quizzesTaken.toLocaleString()} attempts</p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">Last active: {user.lastActive}</p>
+                        <p>{user.quizzesTaken.toLocaleString("vi-VN")} lượt làm</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Hoạt động gần nhất: {user.lastActive}</p>
                       </td>
                       <td className="px-4 py-4">
                         <div className="h-2 w-28 rounded-full bg-slate-100 dark:bg-white/10">
                           <div className="h-2 rounded-full bg-emerald-500" style={{ width: `${user.completionRate}%` }} />
                         </div>
                         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                          {user.masteredWords}/{user.totalWords} words
+                          {user.masteredWords}/{user.totalWords} từ
                         </p>
                       </td>
-                      <td className="px-4 py-4"><StatusBadge tone={statusTone[user.status]}>{user.status}</StatusBadge></td>
+                      <td className="px-4 py-4"><StatusBadge tone={statusTone[user.status]}>{adminLabel(user.status)}</StatusBadge></td>
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-2">
-                          <IconButton label="View profile" onClick={() => openProfile(user)}><Eye className="h-4 w-4" /></IconButton>
-                          <IconButton label="Edit user" onClick={() => openEditForm(user)}><Edit className="h-4 w-4" /></IconButton>
+                          <IconButton label="Xem hồ sơ" onClick={() => openProfile(user)}><Eye className="h-4 w-4" /></IconButton>
+                          <IconButton label="Sửa người dùng" onClick={() => openEditForm(user)}><Edit className="h-4 w-4" /></IconButton>
                           {user.status === "banned" ? (
-                            <IconButton label="Unban user" tone="emerald" onClick={() => toggleStatus(user)}><Shield className="h-4 w-4" /></IconButton>
+                            <IconButton label="Mở khóa người dùng" tone="emerald" onClick={() => toggleStatus(user)}><Shield className="h-4 w-4" /></IconButton>
                           ) : (
-                            <IconButton label="Ban user" tone="rose" onClick={() => toggleStatus(user)}><Ban className="h-4 w-4" /></IconButton>
+                            <IconButton label="Khóa người dùng" tone="rose" onClick={() => toggleStatus(user)}><Ban className="h-4 w-4" /></IconButton>
                           )}
-                          <IconButton label="Delete user" tone="rose" onClick={() => deleteUser(user)}><Trash2 className="h-4 w-4" /></IconButton>
+                          <IconButton label="Xóa người dùng" tone="rose" onClick={() => setDeleteTarget(user)}><Trash2 className="h-4 w-4" /></IconButton>
                         </div>
                       </td>
                     </tr>
@@ -418,24 +440,25 @@ export default function AdminStudents() {
                 </tbody>
               </table>
               <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-white/10">
-                <p className="text-sm text-slate-500 dark:text-slate-400">Showing {visibleUsers.length} of {pagination?.total ?? visibleUsers.length} users</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Hiển thị {visibleUsers.length} / {pagination?.total ?? visibleUsers.length} người dùng</p>
                 <div className="flex items-center gap-2">
-                  <IconButton label="Previous page" onClick={() => setPage(Math.max(1, page - 1))}><ChevronLeft className="h-4 w-4" /></IconButton>
-                  <span className="text-sm text-slate-600 dark:text-slate-300">Page {page} of {totalPages}</span>
-                  <IconButton label="Next page" onClick={() => setPage(Math.min(totalPages, page + 1))}><ChevronRight className="h-4 w-4" /></IconButton>
+                  <IconButton label="Trang trước" onClick={() => setPage(Math.max(1, page - 1))}><ChevronLeft className="h-4 w-4" /></IconButton>
+                  <span className="text-sm text-slate-600 dark:text-slate-300">Trang {page} / {totalPages}</span>
+                  <IconButton label="Trang sau" onClick={() => setPage(Math.min(totalPages, page + 1))}><ChevronRight className="h-4 w-4" /></IconButton>
                 </div>
               </div>
             </TableShell>
+            )}
           </div>
 
           <AdminPanel
-            title={panelMode === "create" ? "Create user" : panelMode === "edit" ? "Edit user" : "User profile"}
-            description={panelMode === "view" ? "Account data loaded from the database." : "Full name, email, role, status, and password."}
+            title={panelMode === "create" ? "Tạo người dùng" : panelMode === "edit" ? "Sửa người dùng" : "Hồ sơ người dùng"}
+            description={panelMode === "view" ? "Dữ liệu tài khoản được tải từ cơ sở dữ liệu." : "Họ tên, email, vai trò, trạng thái và mật khẩu."}
           >
             {panelMode === "create" || panelMode === "edit" ? (
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Full name</label>
+                  <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Họ và tên</label>
                   <input
                     value={form.fullName}
                     onChange={(event) => setForm((current) => ({ ...current, fullName: event.target.value }))}
@@ -453,36 +476,36 @@ export default function AdminStudents() {
                 </div>
                 <div>
                   <label className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                    {panelMode === "create" ? "Password" : "New password"}
+                    {panelMode === "create" ? "Mật khẩu" : "Mật khẩu mới"}
                   </label>
                   <input
                     type="password"
                     value={form.password}
                     onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
-                    placeholder={panelMode === "edit" ? "Leave blank to keep current password" : ""}
+                    placeholder={panelMode === "edit" ? "Để trống nếu muốn giữ mật khẩu hiện tại" : ""}
                     className="mt-2 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:border-white/10 dark:bg-slate-950 dark:text-slate-200"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Role</label>
+                    <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Vai trò</label>
                     <select
                       value={form.role}
                       onChange={(event) => setForm((current) => ({ ...current, role: event.target.value as UserRole }))}
                       className="mt-2 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none dark:border-white/10 dark:bg-slate-950 dark:text-slate-200"
                     >
-                      {(["Learner", "ContentCreator", "Admin"] as const).map((role) => <option key={role} value={role}>{role}</option>)}
+                      {(["Learner", "ContentCreator", "Admin"] as const).map((role) => <option key={role} value={role}>{adminLabel(role)}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Status</label>
+                    <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Trạng thái</label>
                     <select
                       value={form.isActive ? "active" : "banned"}
                       onChange={(event) => setForm((current) => ({ ...current, isActive: event.target.value === "active" }))}
                       className="mt-2 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none dark:border-white/10 dark:bg-slate-950 dark:text-slate-200"
                     >
-                      <option value="active">active</option>
-                      <option value="banned">banned</option>
+                      <option value="active">Đang hoạt động</option>
+                      <option value="banned">Đã khóa</option>
                     </select>
                   </div>
                 </div>
@@ -493,7 +516,7 @@ export default function AdminStudents() {
                     className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-slate-950 bg-slate-950 px-3 text-sm font-medium text-white transition-colors disabled:opacity-60 dark:border-white dark:bg-white dark:text-slate-950"
                   >
                     <Save className="h-4 w-4" />
-                    {saving ? "Saving..." : "Save"}
+                    {saving ? "Đang lưu..." : "Lưu"}
                   </button>
                   <button
                     type="button"
@@ -504,7 +527,7 @@ export default function AdminStudents() {
                     className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 transition-colors hover:text-slate-950 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-300 dark:hover:text-white"
                   >
                     <X className="h-4 w-4" />
-                    Cancel
+                    Hủy
                   </button>
                 </div>
               </form>
@@ -516,57 +539,65 @@ export default function AdminStudents() {
                     <h2 className="text-base font-semibold text-slate-950 dark:text-white">{selectedUser.name}</h2>
                     <p className="flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400"><Mail className="h-3.5 w-3.5" />{selectedUser.email}</p>
                     <div className="mt-2 flex flex-wrap gap-2">
-                      <StatusBadge tone={statusTone[selectedUser.status]}>{selectedUser.status}</StatusBadge>
-                      <StatusBadge tone="blue">{selectedUser.role}</StatusBadge>
+                      <StatusBadge tone={statusTone[selectedUser.status]}>{adminLabel(selectedUser.status)}</StatusBadge>
+                      <StatusBadge tone="blue">{adminLabel(selectedUser.role)}</StatusBadge>
                     </div>
                   </div>
                 </div>
 
                 <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 border-y border-slate-200 py-4 dark:border-white/10">
                   <div>
-                    <dt className="text-xs text-slate-500 dark:text-slate-400">Attempts</dt>
+                    <dt className="text-xs text-slate-500 dark:text-slate-400">Lượt làm</dt>
                     <dd className="mt-1 text-lg font-semibold text-slate-950 dark:text-white">{selectedUser.quizzesTaken}</dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-slate-500 dark:text-slate-400">Mastery</dt>
+                    <dt className="text-xs text-slate-500 dark:text-slate-400">Mức thành thạo</dt>
                     <dd className="mt-1 text-lg font-semibold text-slate-950 dark:text-white">{selectedUser.completionRate}%</dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-slate-500 dark:text-slate-400">Joined</dt>
+                    <dt className="text-xs text-slate-500 dark:text-slate-400">Ngày tham gia</dt>
                     <dd className="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">{selectedUser.joined}</dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-slate-500 dark:text-slate-400">Last active</dt>
+                    <dt className="text-xs text-slate-500 dark:text-slate-400">Hoạt động gần nhất</dt>
                     <dd className="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">{selectedUser.lastActive}</dd>
                   </div>
                 </dl>
 
                 <div className="mt-5">
-                  <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Assign role</label>
+                  <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Gán vai trò</label>
                   <select
                     value={selectedUser.role}
                     onChange={(event) => updateRole(selectedUser.id, event.target.value as UserRole)}
                     className="mt-2 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none dark:border-white/10 dark:bg-slate-950 dark:text-slate-200"
                   >
-                    {(["Learner", "ContentCreator", "Admin"] as const).map((role) => <option key={role} value={role}>{role}</option>)}
+                    {(["Learner", "ContentCreator", "Admin"] as const).map((role) => <option key={role} value={role}>{adminLabel(role)}</option>)}
                   </select>
                 </div>
 
                 <div className="mt-5 flex flex-wrap gap-2">
-                  <ToolbarButton onClick={() => openEditForm(selectedUser)}><Edit className="h-4 w-4" />Edit</ToolbarButton>
+                  <ToolbarButton onClick={() => openEditForm(selectedUser)}><Edit className="h-4 w-4" />Sửa</ToolbarButton>
                   {selectedUser.status === "banned" ? (
-                    <ToolbarButton onClick={() => toggleStatus(selectedUser)}><Shield className="h-4 w-4" />Unban</ToolbarButton>
+                    <ToolbarButton onClick={() => toggleStatus(selectedUser)}><Shield className="h-4 w-4" />Mở khóa</ToolbarButton>
                   ) : (
-                    <ToolbarButton onClick={() => toggleStatus(selectedUser)}><ShieldOff className="h-4 w-4" />Ban</ToolbarButton>
+                    <ToolbarButton onClick={() => toggleStatus(selectedUser)}><ShieldOff className="h-4 w-4" />Khóa</ToolbarButton>
                   )}
-                  <ToolbarButton onClick={() => deleteUser(selectedUser)}><Trash2 className="h-4 w-4" />Delete</ToolbarButton>
+                  <ToolbarButton onClick={() => setDeleteTarget(selectedUser)}><Trash2 className="h-4 w-4" />Xóa</ToolbarButton>
                 </div>
               </>
             ) : (
-              <p className="text-sm text-slate-500 dark:text-slate-400">No user selected.</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Chưa chọn người dùng.</p>
             )}
           </AdminPanel>
         </div>
+        <ConfirmDialog
+          open={Boolean(deleteTarget)}
+          title="Xóa người dùng?"
+          description={`Tài khoản ${deleteTarget?.email || ""} sẽ bị xóa. Nếu tài khoản đã tạo nội dung, máy chủ sẽ từ chối và bạn nên khóa tài khoản thay thế.`}
+          busy={deleting}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={() => void deleteUser()}
+        />
       </AdminPage>
     </>
   );

@@ -43,18 +43,18 @@ type NavLink = {
 };
 
 const adminLinks: NavLink[] = [
-  { icon: LayoutDashboard, label: "Overview", href: "/admin/dashboard", anyOf: [PERMISSIONS.viewDashboard] },
-  { icon: Users, label: "Users", href: "/admin/students", anyOf: [PERMISSIONS.manageUsers] },
-  { icon: ClipboardList, label: "Content", href: "/admin/courses", anyOf: [PERMISSIONS.manageTopics, PERMISSIONS.manageWords] },
-  { icon: ShieldCheck, label: "Duyệt nội dung", href: "/admin/content-review", anyOf: [PERMISSIONS.reviewContent] },
-  { icon: Flag, label: "Reports", href: "/admin/reports", anyOf: [PERMISSIONS.manageReports, PERMISSIONS.manageSystemSettings] },
-  { icon: BookOpen, label: "Danh mục chủ đề", href: "/admin/topic-categories", anyOf: [PERMISSIONS.manageTopicCategories, PERMISSIONS.manageTopics, PERMISSIONS.manageWords] },
-  { icon: BarChart3, label: "Analytics", href: "/admin/analytics", anyOf: [PERMISSIONS.viewAnalytics, PERMISSIONS.viewDashboard] },
-  { icon: History, label: "Audit logs", href: "/admin/audit-logs", anyOf: [PERMISSIONS.viewAuditLogs, PERMISSIONS.manageSystemSettings, PERMISSIONS.manageUsers] },
-  { icon: Bell, label: "Notifications", href: "/admin/notifications", anyOf: [PERMISSIONS.manageNotifications] },
-  { icon: BookOpen, label: "Vocabulary", href: "/admin/words", anyOf: [PERMISSIONS.manageWords] },
-  { icon: FileQuestion, label: "Questions", href: "/admin/questions", anyOf: [PERMISSIONS.manageQuestions] },
-  { icon: ListChecks, label: "Mini tests", href: "/admin/minitests", anyOf: [PERMISSIONS.manageTests] },
+  { icon: LayoutDashboard, label: "Tổng quan", href: "/admin/dashboard", anyOf: [PERMISSIONS.viewDashboard] },
+  { icon: Users, label: "Người dùng", href: "/admin/students", anyOf: [PERMISSIONS.manageUsers] },
+  { icon: ClipboardList, label: "Nội dung", href: "/admin/courses", anyOf: [PERMISSIONS.manageTopics, PERMISSIONS.manageWords] },
+  { icon: ShieldCheck, label: "Duyệt nội dung", href: "/admin/content-review", anyOf: [PERMISSIONS.reviewContent, PERMISSIONS.publishContent, PERMISSIONS.manageSystemSettings] },
+  { icon: Flag, label: "Báo cáo", href: "/admin/reports", anyOf: [PERMISSIONS.manageReports, PERMISSIONS.manageSystemSettings] },
+  { icon: BookOpen, label: "Danh mục chủ đề", href: "/admin/topic-categories", anyOf: [PERMISSIONS.manageTopicCategories, PERMISSIONS.manageTopics] },
+  { icon: BarChart3, label: "Phân tích", href: "/admin/analytics", anyOf: [PERMISSIONS.viewAnalytics, PERMISSIONS.viewDashboard] },
+  { icon: History, label: "Nhật ký hệ thống", href: "/admin/audit-logs", anyOf: [PERMISSIONS.viewAuditLogs, PERMISSIONS.manageSystemSettings, PERMISSIONS.manageUsers] },
+  { icon: Bell, label: "Thông báo", href: "/admin/notifications", anyOf: [PERMISSIONS.manageNotifications] },
+  { icon: BookOpen, label: "Từ vựng", href: "/admin/words", anyOf: [PERMISSIONS.manageWords] },
+  { icon: FileQuestion, label: "Câu hỏi", href: "/admin/questions", anyOf: [PERMISSIONS.manageQuestions] },
+  { icon: ListChecks, label: "Bài kiểm tra", href: "/admin/minitests", anyOf: [PERMISSIONS.manageTests] },
 ];
 
 const creatorLinks: NavLink[] = [
@@ -149,7 +149,7 @@ export default function Sidebar({ role }: { role: "admin" | "creator" | "student
             <p className="text-xs font-medium text-slate-800 dark:text-slate-200">
               {role === "admin" ? "Khu vực quản trị" : role === "creator" ? "Khu vực tạo nội dung" : "Khu vực học tập"}
             </p>
-            <p className="text-[11px] text-slate-600 dark:text-slate-400">Permission based access</p>
+            <p className="text-[11px] text-slate-600 dark:text-slate-400">Truy cập theo quyền hạn</p>
           </div>
         </div>
       )}

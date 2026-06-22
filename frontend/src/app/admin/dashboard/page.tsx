@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import Topbar from "@/src/components/shared/Topbar";
 import ChartFrame from "@/src/components/admin/ChartFrame";
-import { AdminPage, AdminPanel, KpiCard, StatusBadge, chartColors } from "@/src/components/admin/AdminPrimitives";
+import { AdminErrorState, AdminLoadingState, AdminPage, AdminPanel, KpiCard, StatusBadge, chartColors } from "@/src/components/admin/AdminPrimitives";
 import { adminService } from "@/src/services/admin.service";
-import { Activity, CheckCircle2, ClipboardList, Clock3, PieChart as PieChartIcon, Sparkles, Users } from "lucide-react";
+import { adminLabel, formatAdminNumber, translateAdminText } from "@/src/lib/admin-i18n";
+import { Activity, BookOpen, CheckCircle2, ClipboardList, Clock3, FileQuestion, PieChart as PieChartIcon, Sparkles, Users } from "lucide-react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 type Tone = "slate" | "blue" | "emerald" | "amber" | "rose" | "violet";
@@ -47,41 +48,42 @@ const tooltipStyle = {
 
 const roleColors = [chartColors.blue, chartColors.emerald, chartColors.amber, chartColors.violet, chartColors.rose];
 
-function compactNumber(value?: number | null) {
-  return Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(Number(value || 0));
-}
-
 function formatRelative(value?: string) {
-  if (!value) return "No activity";
+  if (!value) return "Chưa có hoạt động";
   const diffMs = Date.now() - new Date(value).getTime();
   const minutes = Math.max(1, Math.round(diffMs / 60000));
-  if (minutes < 60) return `${minutes} min ago`;
+  if (minutes < 60) return `${minutes} phút trước`;
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours} hr ago`;
-  return `${Math.round(hours / 24)} days ago`;
+  if (hours < 24) return `${hours} giờ trước`;
+  return `${Math.round(hours / 24)} ngày trước`;
 }
 
 function formatUptime(seconds?: number) {
   const total = Number(seconds || 0);
   const hours = Math.floor(total / 3600);
   const minutes = Math.floor((total % 3600) / 60);
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  return `${minutes}m`;
+  if (hours > 0) return `${hours} giờ ${minutes} phút`;
+  return `${minutes} phút`;
 }
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [refreshIndex, setRefreshIndex] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
 
     async function fetchStats() {
+      setLoading(true);
+      setError("");
       try {
         const data = await adminService.getStats();
         if (!cancelled) setStats(data);
       } catch (error) {
-        console.error("Failed to fetch dashboard stats", error);
+        console.error("Không thể tải số liệu tổng quan", error);
+        if (!cancelled) setError("API thống kê quản trị chưa phản hồi. Vui lòng thử lại.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -91,13 +93,13 @@ export default function AdminDashboard() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshIndex]);
 
   const userGrowth = useMemo(() => {
-    return (stats?.userGrowth || []).reduce<Array<{ date: string; users: number }>>((items, item) => {
-      const previous = items.at(-1)?.users || 0;
-      return [...items, { date: item.date?.slice(5) || "", users: previous + Number(item.users || 0) }];
-    }, []);
+    return (stats?.userGrowth || []).map((item) => ({
+      date: item.date?.slice(5) || "",
+      users: Number(item.users || 0),
+    }));
   }, [stats]);
 
   const userTypes = useMemo(() => {
@@ -114,29 +116,32 @@ export default function AdminDashboard() {
 
   return (
     <>
-      <Topbar title="Overview" subtitle="Live data from ToeicVocabularyPlatform." role="admin" userName="Admin" />
+      <Topbar title="Tổng quan" subtitle="Dữ liệu trực tiếp từ hệ thống ToeicVocabularyPlatform." role="admin" />
 
       <AdminPage>
         {loading ? (
-          <AdminPanel>
-            <div className="py-12 text-center text-sm text-slate-500 dark:text-slate-400">Loading admin data...</div>
-          </AdminPanel>
+          <AdminLoadingState label="Đang tải dữ liệu quản trị..." />
+        ) : error ? (
+          <AdminErrorState description={error} onRetry={() => setRefreshIndex((value) => value + 1)} />
         ) : (
           <>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-              <KpiCard label="Total users" value={compactNumber(stats?.totalUsers)} change={`${compactNumber(stats?.totalCreators)} creators`} icon={Users} tone="blue" />
-              <KpiCard label="Active today" value={compactNumber(stats?.activeUsersToday)} change="Unique learners in 24h" icon={Activity} tone="emerald" />
-              <KpiCard label="Pending reviews" value={compactNumber(stats?.pendingReviews)} change="Creator submissions" trend="down" icon={Clock3} tone="amber" />
-              <KpiCard label="Published topics" value={compactNumber(stats?.publishedTopics)} change={`${compactNumber(stats?.totalWords)} words`} icon={ClipboardList} tone="violet" />
-              <KpiCard label="Total quizzes" value={compactNumber(stats?.totalMiniTests)} change={`${compactNumber(stats?.totalQuestions)} questions`} icon={CheckCircle2} tone="rose" />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <KpiCard label="Tổng người dùng" value={formatAdminNumber(stats?.totalUsers)} change={`${formatAdminNumber(stats?.totalCreators)} biên tập viên`} icon={Users} tone="blue" />
+              <KpiCard label="Tổng từ vựng" value={formatAdminNumber(stats?.totalWords)} change="Kho từ vựng hiện có" icon={BookOpen} tone="emerald" />
+              <KpiCard label="Tổng chủ đề" value={formatAdminNumber(stats?.totalTopics)} change={`${formatAdminNumber(stats?.publishedTopics)} đã xuất bản`} icon={ClipboardList} tone="violet" />
+              <KpiCard label="Tổng câu hỏi" value={formatAdminNumber(stats?.totalQuestions)} change="Ngân hàng câu hỏi" icon={FileQuestion} tone="amber" />
+              <KpiCard label="Tổng mini test" value={formatAdminNumber(stats?.totalMiniTests)} change="Bài kiểm tra trong hệ thống" icon={CheckCircle2} tone="rose" />
+              <KpiCard label="Người dùng mới" value={formatAdminNumber(stats?.newUsersThisWeek)} change="Trong 7 ngày gần nhất" icon={Sparkles} tone="blue" />
+              <KpiCard label="Đang hoạt động" value={formatAdminNumber(stats?.activeUsersToday)} change="Học viên duy nhất trong 24 giờ" icon={Activity} tone="emerald" />
+              <KpiCard label="Nội dung chờ duyệt" value={formatAdminNumber(stats?.pendingReviews)} change="Cần quản trị viên xử lý" trend="down" icon={Clock3} tone="amber" />
             </div>
 
             <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
               <AdminPanel
-                title="User growth"
-                description="New accounts by date from the Users table."
+                title="Tăng trưởng người dùng"
+                description="Số tài khoản mới theo ngày từ dữ liệu người dùng."
                 className="xl:col-span-2"
-                action={<StatusBadge tone="blue"><Sparkles className="mr-1 h-3 w-3" />Live database</StatusBadge>}
+                action={<StatusBadge tone="blue"><Sparkles className="mr-1 h-3 w-3" />Dữ liệu trực tiếp</StatusBadge>}
               >
                 <ChartFrame className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
@@ -151,13 +156,13 @@ export default function AdminDashboard() {
                       <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
                       <YAxis tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} width={48} />
                       <Tooltip contentStyle={tooltipStyle} />
-                      <Area type="monotone" dataKey="users" stroke={chartColors.blue} strokeWidth={2} fill="url(#users)" name="New users" />
+                      <Area type="monotone" dataKey="users" stroke={chartColors.blue} strokeWidth={2} fill="url(#users)" name="Người dùng mới" />
                     </AreaChart>
                   </ResponsiveContainer>
                 </ChartFrame>
               </AdminPanel>
 
-              <AdminPanel title="User roles" description="Current account mix by role." action={<PieChartIcon className="h-4 w-4 text-slate-400" />}>
+              <AdminPanel title="Vai trò người dùng" description="Tỷ lệ tài khoản hiện tại theo vai trò." action={<PieChartIcon className="h-4 w-4 text-slate-400" />}>
                 <ChartFrame className="h-56">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -173,7 +178,7 @@ export default function AdminDashboard() {
                     <div key={item.name} className="flex items-center justify-between text-sm">
                       <span className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
                         <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                        {item.name}
+                        {adminLabel(item.name)}
                       </span>
                       <span className="font-medium text-slate-950 dark:text-white">{item.percent}%</span>
                     </div>
@@ -183,7 +188,7 @@ export default function AdminDashboard() {
             </div>
 
             <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
-              <AdminPanel title="Study activity" description="Exercise attempts and correct answers by day." className="xl:col-span-2">
+              <AdminPanel title="Hoạt động học tập" description="Số lượt làm bài và trả lời đúng theo ngày." className="xl:col-span-2">
                 <ChartFrame className="h-72">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={weeklyActivity}>
@@ -191,17 +196,17 @@ export default function AdminDashboard() {
                       <XAxis dataKey="day" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
                       <YAxis tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} width={48} />
                       <Tooltip contentStyle={tooltipStyle} />
-                      <Bar dataKey="attempts" fill={chartColors.blue} radius={[6, 6, 0, 0]} name="Attempts" />
-                      <Bar dataKey="correct" fill={chartColors.emerald} radius={[6, 6, 0, 0]} name="Correct" />
+                      <Bar dataKey="attempts" fill={chartColors.blue} radius={[6, 6, 0, 0]} name="Lượt làm" />
+                      <Bar dataKey="correct" fill={chartColors.emerald} radius={[6, 6, 0, 0]} name="Trả lời đúng" />
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartFrame>
               </AdminPanel>
 
-              <AdminPanel title="Recent activity" description="Latest exercise attempts.">
+              <AdminPanel title="Hoạt động gần đây" description="Các lượt làm bài mới nhất.">
                 <div className="space-y-4">
                   {recentActivity.length === 0 ? (
-                    <p className="text-sm text-slate-500 dark:text-slate-400">No recent exercise activity.</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Chưa có hoạt động làm bài gần đây.</p>
                   ) : recentActivity.map((item) => (
                     <div key={`${item.title}-${item.createdAt}`} className="flex gap-3">
                       <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-100 dark:border-white/10 dark:bg-white/5">
@@ -209,10 +214,10 @@ export default function AdminDashboard() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-3">
-                          <p className="text-sm font-medium text-slate-950 dark:text-white">{item.title}</p>
+                          <p className="text-sm font-medium text-slate-950 dark:text-white">{translateAdminText(item.title)}</p>
                           <StatusBadge tone={item.tone || "slate"}>{formatRelative(item.createdAt)}</StatusBadge>
                         </div>
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{item.detail}</p>
+                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{translateAdminText(item.detail)}</p>
                       </div>
                     </div>
                   ))}
@@ -220,22 +225,22 @@ export default function AdminDashboard() {
               </AdminPanel>
             </div>
 
-            <AdminPanel title="System health" description="Runtime status reported by the admin API.">
+            <AdminPanel title="Tình trạng hệ thống" description="Trạng thái vận hành do API quản trị báo cáo.">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <div className="rounded-md border border-slate-200 p-4 dark:border-white/10">
-                  <p className="text-xs text-slate-500 dark:text-slate-400">API status</p>
-                  <p className="mt-2 text-sm font-semibold text-emerald-600 dark:text-emerald-300">{stats?.systemHealth?.apiStatus || "Unknown"}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Trạng thái API</p>
+                  <p className="mt-2 text-sm font-semibold text-emerald-600 dark:text-emerald-300">{adminLabel(stats?.systemHealth?.apiStatus)}</p>
                 </div>
                 <div className="rounded-md border border-slate-200 p-4 dark:border-white/10">
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Database</p>
-                  <p className="mt-2 text-sm font-semibold text-emerald-600 dark:text-emerald-300">{stats?.systemHealth?.databaseStatus || "Unknown"}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Cơ sở dữ liệu</p>
+                  <p className="mt-2 text-sm font-semibold text-emerald-600 dark:text-emerald-300">{adminLabel(stats?.systemHealth?.databaseStatus)}</p>
                 </div>
                 <div className="rounded-md border border-slate-200 p-4 dark:border-white/10">
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Environment</p>
-                  <p className="mt-2 text-sm font-semibold text-slate-950 dark:text-white">{stats?.systemHealth?.environment || "development"}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Môi trường</p>
+                  <p className="mt-2 text-sm font-semibold text-slate-950 dark:text-white">{adminLabel(stats?.systemHealth?.environment || "development")}</p>
                 </div>
                 <div className="rounded-md border border-slate-200 p-4 dark:border-white/10">
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Uptime</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Thời gian hoạt động</p>
                   <p className="mt-2 text-sm font-semibold text-slate-950 dark:text-white">{formatUptime(stats?.systemHealth?.uptimeSeconds)}</p>
                 </div>
               </div>
