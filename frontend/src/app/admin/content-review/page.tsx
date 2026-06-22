@@ -94,13 +94,19 @@ export default function AdminContentReviewPage() {
   const [logsLoading, setLogsLoading] = useState(false);
   const [archiveTarget, setArchiveTarget] = useState<PendingItem | null>(null);
   const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const pageSize = 50;
 
   async function loadContent(options: { quiet?: boolean } = {}) {
     if (options.quiet) setRefreshing(true);
     setError("");
     try {
-      const data = await adminService.getPendingContent();
-      setItems(data as PendingItem[]);
+      const data = await adminService.getPendingContent<PendingItem>(page, pageSize);
+      setItems(data.items);
+      setTotalPages(data.pagination.totalPages);
+      setTotal(data.pagination.total);
     } catch (error) {
       const message = getErrorMessage(error, "Không thể tải danh sách chờ duyệt");
       setError(message);
@@ -114,7 +120,8 @@ export default function AdminContentReviewPage() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadContent();
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
 
   const counts = useMemo(() => {
     return items.reduce(
@@ -213,10 +220,10 @@ export default function AdminContentReviewPage() {
       <Topbar title="Duyệt nội dung" subtitle="Phê duyệt, từ chối hoặc lưu trữ nội dung do biên tập viên gửi lên." role="admin" />
       <AdminPage>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <KpiCard label="Đang chờ" value={String(counts.All)} change="Nội dung cần xử lý" icon={Clock3} tone="amber" />
-          <KpiCard label="Từ vựng" value={String(counts.Word)} change="Từ vựng chờ duyệt" icon={FileText} tone="emerald" />
-          <KpiCard label="Câu hỏi" value={String(counts.Question)} change="Câu hỏi chờ duyệt" icon={FileQuestion} tone="blue" />
-          <KpiCard label="Chủ đề / bài kiểm tra" value={String(counts.Topic + counts.MiniTest)} change="Chủ đề và bài kiểm tra chờ duyệt" icon={Layers3} tone="violet" />
+          <KpiCard label="Tổng đang chờ" value={String(total)} change="Toàn bộ nội dung cần xử lý" icon={Clock3} tone="amber" />
+          <KpiCard label="Trang này" value={String(items.length)} change="Nội dung trên trang hiện tại" icon={FileText} tone="emerald" />
+          <KpiCard label="Từ vựng" value={String(counts.Word)} change="Từ vựng chờ duyệt (trang này)" icon={FileQuestion} tone="blue" />
+          <KpiCard label="Chủ đề / bài test" value={String(counts.Topic + counts.MiniTest)} change="Chủ đề và bài kiểm tra (trang này)" icon={Layers3} tone="violet" />
         </div>
 
         <AdminPanel
@@ -232,7 +239,7 @@ export default function AdminContentReviewPage() {
           <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-wrap gap-2">
               {filterTypes.map((type) => (
-                <ToolbarButton key={type} active={typeFilter === type} onClick={() => setTypeFilter(type)}>
+                <ToolbarButton key={type} active={typeFilter === type} onClick={() => { setPage(1); setTypeFilter(type); }}>
                   {typeLabel[type]}
                   <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600 dark:bg-white/10 dark:text-slate-300">{counts[type]}</span>
                 </ToolbarButton>
@@ -359,6 +366,27 @@ export default function AdminContentReviewPage() {
                 </tbody>
               </table>
             </TableShell>
+          )}
+          {!loading && !error && totalPages > 1 && (
+            <div className="mt-4 flex items-center justify-between border-t border-slate-200 pt-4 dark:border-white/10">
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                Trang {page} / {totalPages} · {total} nội dung
+              </span>
+              <div className="flex items-center gap-2">
+                <ToolbarButton
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  Trước
+                </ToolbarButton>
+                <ToolbarButton
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Sau
+                </ToolbarButton>
+              </div>
+            </div>
           )}
         </AdminPanel>
 

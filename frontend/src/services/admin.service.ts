@@ -382,9 +382,11 @@ export const adminService = {
   },
 
   // ── Content Review ──
-  async getPendingContent() {
-    const response = await apiClient.get('/admin/content-review/pending');
-    return response.data;
+  async getPendingContent<T = unknown>(page = 1, limit = 50) {
+    const response = await apiClient.get('/admin/content-review/pending', {
+      params: { page, limit }
+    });
+    return response.data as PagedResponse<T>;
   },
 
   async approveContent(entityType: string, entityId: number) {

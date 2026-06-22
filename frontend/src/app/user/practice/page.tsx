@@ -287,44 +287,44 @@ export default function UserPractice() {
             </div>
           </div>
           <div className="animate-in slide-in-from-bottom-4 duration-500">
-            <h2 className="text-3xl font-black mb-3 tracking-tight">Chọn chế độ luyện tập</h2>
-            <p className="text-slate-600 dark:text-slate-400 text-sm max-w-sm mx-auto leading-relaxed">
-              Chọn cách bạn muốn ôn tập từ vựng hôm nay. Mỗi chế độ có cách tiếp cận khác nhau để giúp bạn ghi nhớ từ hiệu quả.
+            <h2 className="text-2xl sm:text-3xl font-black mb-3 tracking-tight">Chọn chế độ luyện tập</h2>
+            <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm max-w-sm mx-auto leading-relaxed">
+              Chọn chế độ phù hợp với bạn nhất. Cả hai đều giúp bạn nhớ từ lâu hơn.
             </p>
           </div>
 
-          <div className="grid gap-4 mt-8">
+          <div className="grid gap-3 sm:gap-4 mt-8">
             <button
               onClick={() => handleModeSelect("normal")}
-              className="group relative overflow-hidden p-7 rounded-[28px] border-2 border-slate-200 bg-white text-left transition-all duration-300 hover:-translate-y-1 hover:border-blue-400/50 hover:shadow-xl hover:shadow-blue-900/5 dark:border-white/10 dark:bg-white/[0.04] dark:hover:border-blue-500/30"
+              className="group relative overflow-hidden p-5 sm:p-7 rounded-[28px] border-2 border-slate-200 bg-white text-left transition-all duration-300 hover:-translate-y-1 hover:border-blue-400/50 hover:shadow-xl hover:shadow-blue-900/5 dark:border-white/10 dark:bg-white/[0.04] dark:hover:border-blue-500/30"
             >
               <div className="absolute inset-0 -translate-x-full bg-linear-to-r from-transparent via-blue-500/5 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-              <div className="relative flex items-center gap-5">
-                <div className="w-14 h-14 rounded-2xl bg-linear-to-br from-blue-500/15 to-blue-600/10 border border-blue-500/20 flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
-                  <RefreshCw size={26} className="text-blue-500" />
+              <div className="relative flex items-center gap-3 sm:gap-5">
+                <div className="h-12 w-12 shrink-0 sm:h-14 sm:w-14 rounded-2xl bg-linear-to-br from-blue-500/15 to-blue-600/10 border border-blue-500/20 flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
+                  <RefreshCw size={22} className="sm:size-[26px] text-blue-500" />
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-black text-lg text-slate-900 dark:text-white mb-1.5">Luyện tập thường</h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">Câu hỏi ngẫu nhiên từ các chủ đề bạn đang học</p>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-black text-base sm:text-lg text-slate-900 dark:text-white mb-1">Luyện tập thường</h3>
+                  <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">Câu hỏi ngẫu nhiên từ các chủ đề bạn đang học</p>
                 </div>
-                <ArrowRight className="h-6 w-6 shrink-0 text-slate-300 transition-transform duration-300 group-hover:translate-x-1 group-hover:text-blue-500" />
+                <ArrowRight className="h-5 w-5 sm:h-6 sm:w-6 shrink-0 text-slate-300 transition-transform duration-300 group-hover:translate-x-1 group-hover:text-blue-500" />
               </div>
             </button>
 
             <button
               onClick={() => handleModeSelect("smart")}
-              className="group relative overflow-hidden p-7 rounded-[28px] border-2 border-slate-200 bg-white text-left transition-all duration-300 hover:-translate-y-1 hover:border-emerald-400/50 hover:shadow-xl hover:shadow-emerald-900/5 dark:border-white/10 dark:bg-white/[0.04] dark:hover:border-emerald-500/30"
+              className="group relative overflow-hidden p-5 sm:p-7 rounded-[28px] border-2 border-slate-200 bg-white text-left transition-all duration-300 hover:-translate-y-1 hover:border-emerald-400/50 hover:shadow-xl hover:shadow-emerald-900/5 dark:border-white/10 dark:bg-white/[0.04] dark:hover:border-emerald-500/30"
             >
               <div className="absolute inset-0 -translate-x-full bg-linear-to-r from-transparent via-emerald-500/5 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-              <div className="relative flex items-center gap-5">
-                <div className="w-14 h-14 rounded-2xl bg-linear-to-br from-emerald-500/15 to-emerald-600/10 border border-emerald-500/20 flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3">
-                  <Brain size={26} className="text-emerald-500" />
+              <div className="relative flex items-center gap-3 sm:gap-5">
+                <div className="h-12 w-12 shrink-0 sm:h-14 sm:w-14 rounded-2xl bg-linear-to-br from-emerald-500/15 to-emerald-600/10 border border-emerald-500/20 flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3">
+                  <Brain size={22} className="sm:size-[26px] text-emerald-500" />
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-black text-lg text-slate-900 dark:text-white mb-1.5">Ôn tập thông minh</h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">Ưu tiên từ sắp quên, hay sai nhiều nhất theo SRS</p>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-black text-base sm:text-lg text-slate-900 dark:text-white mb-1">Ôn tập thông minh</h3>
+                  <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">Tập trung vào những từ bạn hay quên hoặc thường sai nhất</p>
                 </div>
-                <ArrowRight className="h-6 w-6 shrink-0 text-slate-300 transition-transform duration-300 group-hover:translate-x-1 group-hover:text-emerald-500" />
+                <ArrowRight className="h-5 w-5 sm:h-6 sm:w-6 shrink-0 text-slate-300 transition-transform duration-300 group-hover:translate-x-1 group-hover:text-emerald-500" />
               </div>
             </button>
           </div>
@@ -351,7 +351,7 @@ export default function UserPractice() {
         <h2 className="text-2xl font-bold mb-2">Không có câu hỏi</h2>
         <p className="text-slate-500 dark:text-slate-400 mb-8">
           {practiceMode === "smart"
-            ? "Hiện chưa có từ đã học nào cần ôn tập. Hãy học thêm từ mới hoặc chọn luyện tập thường."
+            ? "Chưa có từ nào cần ôn lại. Học thêm từ mới hoặc chọn luyện tập thường nhé!"
             : "Chủ đề này chưa có câu hỏi phù hợp. Hãy thử ôn tập thông minh hoặc chọn chủ đề khác."}
         </p>
         <div className="flex flex-col gap-3 sm:flex-row">
@@ -380,12 +380,12 @@ export default function UserPractice() {
     const weakWords = summary?.weakWords ?? [];
 
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white px-4 py-10">
+      <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white px-4 py-6 sm:py-10">
         <GamificationCelebration reward={practiceReward} />
         <div className="w-full max-w-lg animate-in zoom-in-95 duration-500">
-          <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-[40px] p-10 shadow-sm text-center">
+          <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-[28px] sm:rounded-[40px] p-6 sm:p-8 md:p-10 shadow-sm text-center">
             {/* Circular accuracy display */}
-            <div className="relative mx-auto mb-6 h-24 w-24">
+            <div className="relative mx-auto mb-5 sm:mb-6 h-20 w-20 sm:h-24 sm:w-24">
               <svg className="h-full w-full -rotate-90" viewBox="0 0 36 36">
                 <circle cx="18" cy="18" r="15.5" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-100 dark:text-white/5" />
                 <circle
@@ -396,25 +396,25 @@ export default function UserPractice() {
                 />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className={`text-3xl font-black ${accuracy >= 80 ? 'text-green-500' : accuracy >= 50 ? 'text-amber-500' : 'text-red-500'}`}>{accuracy}%</span>
+                <span className={`text-2xl sm:text-3xl font-black ${accuracy >= 80 ? 'text-green-500' : accuracy >= 50 ? 'text-amber-500' : 'text-red-500'}`}>{accuracy}%</span>
               </div>
             </div>
-            <h1 className="text-3xl font-black mb-2 text-slate-900 dark:text-white">Hoàn thành</h1>
-            <p className="text-slate-500 dark:text-slate-400 text-sm mb-8">Bạn đã hoàn thành phiên luyện tập với độ chính xác {accuracy}%.</p>
+            <h1 className="text-2xl sm:text-3xl font-black mb-2 text-slate-900 dark:text-white">Hoàn thành</h1>
+            <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mb-6 sm:mb-8 max-w-xs mx-auto">Bạn đã hoàn thành phiên luyện tập với độ chính xác {accuracy}%.</p>
 
             {/* Stats grid */}
-            <div className="grid grid-cols-2 gap-3 mb-8">
-              <div className="bg-slate-50 dark:bg-white/[0.03] rounded-2xl p-4 border border-slate-200 dark:border-white/5">
-                <p className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-black tracking-widest mb-1">Đúng / Sai</p>
-                <p className="text-2xl font-black text-slate-900 dark:text-white">
+            <div className="grid grid-cols-2 gap-3 mb-6 sm:mb-8">
+              <div className="bg-slate-50 dark:bg-white/[0.03] rounded-2xl p-3 sm:p-4 border border-slate-200 dark:border-white/5">
+                <p className="text-slate-500 dark:text-slate-400 text-[9px] sm:text-[10px] uppercase font-black tracking-widest mb-1">Đúng / Sai</p>
+                <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
                   <span className="text-green-500">{sessionResults.correctCount}</span>
                   <span className="text-slate-400 mx-1">/</span>
                   <span className="text-red-500">{sessionResults.wrongCount}</span>
                 </p>
               </div>
-              <div className="bg-amber-50/50 dark:bg-amber-500/[0.04] rounded-2xl p-4 border border-amber-200 dark:border-amber-500/15">
-                <p className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-black tracking-widest mb-1">XP nhận được</p>
-                <p className="text-2xl font-black text-amber-500">+{xpEarned}</p>
+              <div className="bg-amber-50/50 dark:bg-amber-500/[0.04] rounded-2xl p-3 sm:p-4 border border-amber-200 dark:border-amber-500/15">
+                <p className="text-slate-500 dark:text-slate-400 text-[9px] sm:text-[10px] uppercase font-black tracking-widest mb-1">XP nhận được</p>
+                <p className="text-xl sm:text-2xl font-black text-amber-500">+{xpEarned}</p>
               </div>
             </div>
 
@@ -430,9 +430,9 @@ export default function UserPractice() {
 
             {/* Weak words */}
             {weakWords.length > 0 && (
-              <div className="bg-red-50/50 dark:bg-red-500/[0.04] rounded-2xl p-5 border border-red-200 dark:border-red-500/15 mb-6 text-left">
+              <div className="bg-red-50/50 dark:bg-red-500/[0.04] rounded-2xl p-4 sm:p-5 border border-red-200 dark:border-red-500/15 mb-6 text-left">
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-black tracking-widest">
+                  <p className="text-slate-500 dark:text-slate-400 text-[9px] sm:text-[10px] uppercase font-black tracking-widest">
                     Từ cần ôn lại ({weakWords.length})
                   </p>
                   <button
@@ -442,16 +442,16 @@ export default function UserPractice() {
                       params.set("mode", "smart");
                       router.push(`/user/practice?${params.toString()}`);
                     }}
-                    className="text-[10px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-500 transition-colors"
+                    className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-500 transition-colors"
                   >
                     Ôn ngay →
                   </button>
                 </div>
                 <div className="space-y-2">
                   {weakWords.slice(0, 5).map((w) => (
-                    <div key={w.wordId} className="flex items-center justify-between py-1.5">
-                      <span className="text-sm font-bold text-slate-900 dark:text-white">{w.term}</span>
-                      <span className="text-xs text-slate-500 dark:text-slate-400">{w.meaning}</span>
+                    <div key={w.wordId} className="flex items-center justify-between py-1.5 gap-2">
+                      <span className="text-sm font-bold text-slate-900 dark:text-white truncate">{w.term}</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400 shrink-0">{w.meaning}</span>
                     </div>
                   ))}
                 </div>
@@ -459,8 +459,17 @@ export default function UserPractice() {
             )}
 
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => window.location.reload()} className="flex-1 border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 h-12 rounded-xl font-bold uppercase text-[10px] tracking-widest hover:bg-slate-100 dark:hover:bg-white/5">Làm lại</Button>
-              <Button onClick={() => router.push("/user/dashboard")} className="flex-1 bg-blue-600 hover:bg-blue-500 h-12 rounded-xl font-bold uppercase text-[10px] tracking-widest shadow-lg shadow-blue-900/20">Hoàn tất</Button>
+              <Button variant="outline" onClick={() => {
+                setIndex(0);
+                setScore(0);
+                setSessionResults({ correctCount: 0, wrongCount: 0, totalAttempts: 0 });
+                setPracticeMode(null);
+                setSessionSummary(null);
+                setPracticeReward(null);
+                setFinalizeAttempted(false);
+                practiceSessionKey.current = '';
+              }} className="flex-1 border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 h-10 sm:h-12 rounded-xl font-bold uppercase text-[9px] sm:text-[10px] tracking-widest hover:bg-slate-100 dark:hover:bg-white/5">Làm lại</Button>
+              <Button onClick={() => router.push("/user/dashboard")} className="flex-1 bg-blue-600 hover:bg-blue-500 h-10 sm:h-12 rounded-xl font-bold uppercase text-[9px] sm:text-[10px] tracking-widest shadow-lg shadow-blue-900/20">Hoàn tất</Button>
             </div>
           </div>
         </div>
@@ -478,31 +487,33 @@ export default function UserPractice() {
         : "Điền từ vào chỗ trống";
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 px-4 py-10 relative">
-      <button onClick={() => router.push("/user/dashboard")} className="absolute top-8 left-8 text-slate-500 dark:text-slate-400 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors flex items-center gap-2 text-xs font-bold uppercase tracking-widest">
-        <ArrowLeft size={16} /> Thoát
+    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950 px-3 py-6 sm:px-4 sm:py-10 relative">
+      <button onClick={() => router.push("/user/dashboard")} className="absolute top-4 left-3 sm:top-8 sm:left-8 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs font-bold uppercase tracking-widest z-10">
+        <ArrowLeft size={14} className="sm:size-4" /> Thoát
       </button>
 
       <div className="w-full max-w-2xl">
-        <div className="flex justify-between items-center mb-8">
-          <div className="flex-1 mr-6">
-            <div className="flex justify-between text-[10px] text-slate-500 font-black uppercase tracking-widest mb-2">
+        {/* Progress + Timer bar */}
+        <div className="flex items-center gap-3 sm:gap-4 mb-5 sm:mb-8">
+          <div className="flex-1 min-w-0">
+            <div className="flex justify-between text-[9px] sm:text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1.5">
               <span>Tiến trình</span>
               <span>{index + 1} / {questions.length}</span>
             </div>
-            <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
+            <div className="w-full h-1 sm:h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
               <div className="h-full bg-linear-to-r from-blue-600 to-cyan-400 transition-all duration-500 shadow-glow" style={{ width: `${progress}%` }} />
             </div>
           </div>
-          <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border-2 transition-all ${timeLeft < 5 ? "bg-red-500/10 border-red-500/30 text-red-500 animate-pulse" : "bg-white/5 border-white/5 text-slate-400"}`}>
-            <Clock size={16} />
-            <span className="font-mono font-black text-lg">{timeLeft}s</span>
+          <div className={`flex shrink-0 items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl border-2 transition-all ${timeLeft < 5 ? "bg-red-500/10 border-red-500/30 text-red-500 animate-pulse" : "bg-white/5 border-white/5 text-slate-400"}`}>
+            <Clock size={13} className="sm:size-4" />
+            <span className="font-mono font-black text-base sm:text-lg tabular-nums">{timeLeft}s</span>
           </div>
         </div>
 
-        <Card className="bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 p-12 mb-8 relative overflow-hidden rounded-[32px] shadow-sm">
-          <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-600 shadow-glow" />
-          <div className="absolute right-5 top-5">
+        {/* Question card */}
+        <Card className="bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 p-6 sm:p-8 md:p-12 mb-6 sm:mb-8 relative overflow-hidden rounded-[24px] sm:rounded-[32px] shadow-sm">
+          <div className="absolute top-0 left-0 w-1 sm:w-1.5 h-full bg-blue-600 shadow-glow" />
+          <div className="absolute right-3 top-3 sm:right-5 sm:top-5">
             <ReportDialog
               wordId={current.wordId}
               questionId={current.questionId}
@@ -512,32 +523,33 @@ export default function UserPractice() {
               context={current.term || current.meaning || current.questionText}
             />
           </div>
-          <p className="text-blue-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4">{questionLabel}</p>
-          <h1 className="text-4xl sm:text-5xl text-slate-900 dark:text-white font-black mb-4 tracking-tight">
+          <p className="text-blue-500 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] mb-3 sm:mb-4">{questionLabel}</p>
+          <h1 className="text-2xl sm:text-3xl md:text-5xl text-slate-900 dark:text-white font-black mb-3 sm:mb-4 tracking-tight leading-tight">
             {current.questionType === "MCQ" ? current.term : current.questionType === "Dictation" ? "Nghe và nhập từ" : current.meaning}
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 text-slate-500 text-sm font-medium italic">{current.questionText}</p>
+          <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium italic leading-relaxed">{current.questionText}</p>
         </Card>
 
+        {/* Answer area */}
         {current.questionType === "MCQ" ? (
-          <div className="grid gap-3">
+          <div className="grid gap-2 sm:gap-3">
             {mcqOptions.map((option: string, optionIndex: number) => {
               const isSelected = selected === option;
               const isAnswer = option === expectedAnswer;
               return (
-                <button key={`${option}-${optionIndex}`} disabled={checked} onClick={() => setSelected(option)} className={`group relative p-6 rounded-3xl border-2 text-left transition-all ${checked ? (isAnswer ? "bg-green-500/10 border-green-500/40 text-white" : (isSelected ? "bg-red-500/10 border-red-500/40 text-white" : "dark:bg-white/2 bg-slate-100 border-slate-200 dark:border-white/5 text-slate-500 dark:text-slate-700")) : (isSelected ? "bg-blue-600 border-blue-500 text-white scale-[1.02] shadow-2xl shadow-blue-900/40" : "dark:bg-white/3 bg-white border-slate-200 dark:border-white/5 text-slate-500 dark:text-slate-400 hover:dark:bg-white/5 hover:bg-slate-100 hover:border-slate-300 dark:hover:border-white/10")}`}>
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-lg">{option}</span>
-                    {checked && isAnswer && <CheckCircle2 size={24} className="text-green-400" />}
-                    {checked && isSelected && !isAnswer && <XCircle size={24} className="text-red-400" />}
+                <button key={`${option}-${optionIndex}`} disabled={checked} onClick={() => setSelected(option)} className={`group relative p-4 sm:p-6 rounded-2xl sm:rounded-3xl border-2 text-left transition-all ${checked ? (isAnswer ? "bg-green-500/10 border-green-500/40 text-white" : (isSelected ? "bg-red-500/10 border-red-500/40 text-white" : "dark:bg-white/2 bg-slate-100 border-slate-200 dark:border-white/5 text-slate-500 dark:text-slate-700")) : (isSelected ? "bg-blue-600 border-blue-500 text-white scale-[1.02] shadow-2xl shadow-blue-900/40" : "dark:bg-white/3 bg-white border-slate-200 dark:border-white/5 text-slate-500 dark:text-slate-400 hover:dark:bg-white/5 hover:bg-slate-100 hover:border-slate-300 dark:hover:border-white/10")}`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-bold text-base sm:text-lg leading-snug">{option}</span>
+                    {checked && isAnswer && <CheckCircle2 size={20} className="sm:size-6 shrink-0 text-green-400" />}
+                    {checked && isSelected && !isAnswer && <XCircle size={20} className="sm:size-6 shrink-0 text-red-400" />}
                   </div>
                 </button>
               );
             })}
           </div>
         ) : current.questionType === "DragDrop" ? (
-          <div className="space-y-4">
-            <div className="grid gap-3">
+          <div className="space-y-3 sm:space-y-4">
+            <div className="grid gap-2 sm:gap-3">
               {orderedItems.map((item, itemIndex) => (
                 <button
                   key={`${item}-${itemIndex}`}
@@ -550,25 +562,25 @@ export default function UserPractice() {
                     moveDraggedItem(itemIndex);
                   }}
                   onDrop={() => setDraggedIndex(null)}
-                  className={`flex items-center gap-4 rounded-3xl border-2 p-5 text-left transition-all ${checked ? (isCorrect ? "border-green-500/40 bg-green-500/10 text-white" : "border-red-500/40 bg-red-500/10 text-white") : "border-slate-200 dark:border-white/5 dark:bg-white/3 bg-white text-slate-700 dark:text-slate-200 hover:border-blue-500/40 hover:dark:bg-white/5 hover:bg-slate-100"}`}
+                  className={`flex items-center gap-3 sm:gap-4 rounded-2xl sm:rounded-3xl border-2 p-4 sm:p-5 text-left transition-all ${checked ? (isCorrect ? "border-green-500/40 bg-green-500/10 text-white" : "border-red-500/40 bg-red-500/10 text-white") : "border-slate-200 dark:border-white/5 dark:bg-white/3 bg-white text-slate-700 dark:text-slate-200 hover:border-blue-500/40 hover:dark:bg-white/5 hover:bg-slate-100"}`}
                 >
-                  <GripVertical size={18} className="shrink-0 text-slate-500" />
-                  <span className="text-lg font-black">{item}</span>
+                  <GripVertical size={16} className="sm:size-[18px] shrink-0 text-slate-500" />
+                  <span className="text-base sm:text-lg font-black">{item}</span>
                 </button>
               ))}
             </div>
             {checked && !isCorrect && (
-              <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl text-center">
-                <p className="text-slate-500 dark:text-slate-400 text-slate-500 text-[10px] uppercase font-bold mb-1">Thứ tự đúng</p>
-                <p className="text-red-400 text-xl font-black">{expectedAnswer}</p>
+              <div className="bg-red-500/10 border border-red-500/20 p-3 sm:p-4 rounded-xl sm:rounded-2xl text-center">
+                <p className="text-slate-500 dark:text-slate-400 text-[9px] sm:text-[10px] uppercase font-bold mb-1">Thứ tự đúng</p>
+                <p className="text-red-400 text-lg sm:text-xl font-black">{expectedAnswer}</p>
               </div>
             )}
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {current.questionType === "Dictation" && (
-              <button type="button" onClick={() => speak(expectedAnswer)} className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-300 hover:bg-blue-500/20" aria-label="Phát âm thanh chính tả">
-                <Volume2 size={28} />
+              <button type="button" onClick={() => speak(expectedAnswer)} className="mx-auto flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl border border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-300 hover:bg-blue-500/20" aria-label="Phát âm thanh chính tả">
+                <Volume2 size={24} className="sm:size-7" />
               </button>
             )}
             <Input
@@ -577,24 +589,25 @@ export default function UserPractice() {
               autoFocus
               onChange={(event) => setSelected(event.target.value)}
               placeholder="Nhập câu trả lời..."
-              className={`h-24 text-4xl font-black text-center rounded-[32px] dark:bg-white/3 bg-white border-4 transition-all ${checked ? (isCorrect ? "border-green-500 text-green-400 shadow-glow-green" : "border-red-500 text-red-400 shadow-glow-red") : "border-slate-200 dark:border-white/5 focus:border-blue-600 focus:dark:bg-white/5 focus:bg-slate-50 text-slate-900 dark:text-white"}`}
+              className={`h-14 sm:h-20 md:h-24 text-2xl sm:text-3xl md:text-4xl font-black text-center rounded-[20px] sm:rounded-[32px] dark:bg-white/3 bg-white border-2 sm:border-4 transition-all ${checked ? (isCorrect ? "border-green-500 text-green-400 shadow-glow-green" : "border-red-500 text-red-400 shadow-glow-red") : "border-slate-200 dark:border-white/5 focus:border-blue-600 focus:dark:bg-white/5 focus:bg-slate-50 text-slate-900 dark:text-white"}`}
             />
             {checked && !isCorrect && (
-              <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl text-center">
-                <p className="text-slate-500 dark:text-slate-400 text-slate-500 text-[10px] uppercase font-bold mb-1">Đáp án đúng</p>
-                <p className="text-red-400 text-2xl font-black">{expectedAnswer}</p>
+              <div className="bg-red-500/10 border border-red-500/20 p-3 sm:p-4 rounded-xl sm:rounded-2xl text-center">
+                <p className="text-slate-500 dark:text-slate-400 text-[9px] sm:text-[10px] uppercase font-bold mb-1">Đáp án đúng</p>
+                <p className="text-red-400 text-lg sm:text-xl md:text-2xl font-black">{expectedAnswer}</p>
               </div>
             )}
           </div>
         )}
 
-        <div className="mt-12">
+        {/* Action button */}
+        <div className="mt-8 sm:mt-10 md:mt-12">
           {!checked ? (
-            <Button disabled={current.questionType !== "DragDrop" && !selected} onClick={() => handleCheck()} className="w-full py-8 bg-blue-600 hover:bg-blue-500 text-white rounded-3xl text-xl font-black uppercase tracking-widest shadow-2xl shadow-blue-900/40 transition-all disabled:opacity-20">
+            <Button disabled={current.questionType !== "DragDrop" && !selected} onClick={() => handleCheck()} className="w-full py-5 sm:py-7 md:py-8 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl sm:rounded-3xl text-base sm:text-lg md:text-xl font-black uppercase tracking-widest shadow-2xl shadow-blue-900/40 transition-all disabled:opacity-20">
               Kiểm tra
             </Button>
           ) : (
-            <Button onClick={next} className="w-full py-8 bg-white text-slate-900 hover:bg-slate-200 rounded-3xl text-xl font-black uppercase tracking-widest shadow-2xl transition-all animate-in zoom-in-95">
+            <Button onClick={next} className="w-full py-5 sm:py-7 md:py-8 bg-white text-slate-900 hover:bg-slate-200 rounded-2xl sm:rounded-3xl text-base sm:text-lg md:text-xl font-black uppercase tracking-widest shadow-2xl transition-all animate-in zoom-in-95">
               {index < questions.length - 1 ? "Tiếp tục" : "Kết quả"}
             </Button>
           )}

@@ -6,6 +6,7 @@ type FlashcardStudyCardProps = {
   card: Flashcard;
   flipped: boolean;
   memoryTip: string;
+  flipLocked?: boolean;
   onFlip: () => void;
   onPlayAudio: () => void;
   onSwipe: (direction: "left" | "right") => void;
@@ -15,6 +16,7 @@ export default function FlashcardStudyCard({
   card,
   flipped,
   memoryTip,
+  flipLocked = false,
   onFlip,
   onPlayAudio,
   onSwipe,
@@ -45,7 +47,7 @@ export default function FlashcardStudyCard({
           }, 0);
         }}
         onClick={() => {
-          if (!suppressClick.current) onFlip();
+          if (!suppressClick.current && !flipLocked) onFlip();
         }}
         className="relative block h-[440px] w-full cursor-pointer touch-pan-y text-left sm:h-[470px]"
         aria-label={flipped ? "Ẩn đáp án" : "Hiện đáp án"}

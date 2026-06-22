@@ -1,6 +1,20 @@
 const { sql, poolPromise } = require("../config/db");
 const GamificationService = require("./gamification.service");
 
+// XP theo mức độ nhớ — phân tầng 4 mức review rating
+const XP_BY_RATING = Object.freeze({
+  Again: 1,  // 1: tượng trưng cho tinh thần học tập
+  Hard: 3,
+  Good: 5,
+  Easy: 10,
+});
+
+function getXpAmountForRating(reviewRating) {
+  return reviewRating && XP_BY_RATING[reviewRating] !== undefined
+    ? XP_BY_RATING[reviewRating]
+    : 5;
+}
+
 class UserService {
   static async getFlashcards(userId) {
     const pool = await poolPromise;
@@ -232,6 +246,7 @@ class UserService {
     const gamification = activityType === "LearnWord"
       ? await GamificationService.awardXP(userId, {
           eventType: "LearnWord",
+          amount: getXpAmountForRating(reviewRating),
           sourceKey: `learn-word:${canonicalWordId}:${GamificationService.getDateKey()}`,
           metadata: { wordId: canonicalWordId, reviewRating: reviewRating || null },
         })
@@ -341,6 +356,7 @@ class UserService {
     const gamification = activityType === "LearnWord"
       ? await GamificationService.awardXP(userId, {
           eventType: "LearnWord",
+          amount: getXpAmountForRating(reviewRating),
           sourceKey: `learn-word:${wordId}:${GamificationService.getDateKey()}`,
           metadata: { wordId, reviewRating: reviewRating || null },
         })

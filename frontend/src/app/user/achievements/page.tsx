@@ -55,7 +55,7 @@ export default function UserAchievements() {
               </div>
               <h1 className="mt-4 text-3xl font-black tracking-tight text-slate-950 dark:text-white">Bảng thành tích</h1>
               <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500 dark:text-slate-400">
-                Học từ mới, hoàn thành phiên luyện tập và chinh phục mini test để nhận XP và mở khóa huy hiệu.
+                Học từ mới, luyện tập mỗi ngày và làm bài kiểm tra để nhận XP, mở khóa huy hiệu.
               </p>
             </div>
             <LevelProgressBar {...profile} />

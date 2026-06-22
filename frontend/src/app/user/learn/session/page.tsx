@@ -172,7 +172,10 @@ export default function StudentFlashcard() {
           setIndex((value) => value + 1);
           setFlipped(false);
           setFeedback(null);
-          setSubmitting(false);
+          // Defer unlock sang macrotask tiếp theo để card mới render với flipLock vẫn còn
+          window.setTimeout(() => {
+            setSubmitting(false);
+          }, 0);
         } else {
           setSubmitting(false);
           finishSession();
@@ -259,7 +262,23 @@ export default function StudentFlashcard() {
           currentLevelXP={latestReward?.currentLevelXP || 0}
           xpForNextLevel={latestReward?.xpForNextLevel || 100}
           levelProgress={latestReward?.levelProgress || 0}
-          onRestart={() => window.location.reload()}
+          onRestart={() => {
+            if (advanceTimer.current) window.clearTimeout(advanceTimer.current);
+            audio.current?.pause();
+            window.speechSynthesis?.cancel();
+            setSessionFinished(false);
+            setIndex(0);
+            setFlipped(false);
+            setFeedback(null);
+            setSubmitting(false);
+            setLatestReward(null);
+            setSessionResults(initialResults);
+            setSessionXP(0);
+            setSessionSummary(null);
+            setSavedWordIds(new Set());
+            setSavingWordId(undefined);
+            void fetchFlashcards();
+          }}
           onFinish={() => router.push(sessionRoute.topicId ? `/user/learn/${sessionRoute.topicId}` : "/user/learn")}
         />
       </main>
@@ -315,6 +334,7 @@ export default function StudentFlashcard() {
               card={currentCard}
               flipped={flipped}
               memoryTip={memoryTip}
+              flipLocked={submitting}
               onFlip={() => {
                 if (!submitting) setFlipped((value) => !value);
               }}

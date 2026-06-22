@@ -75,8 +75,7 @@ const MiniTestsPage = () => {
               Thử thách trình độ của bạn
             </h2>
             <p className="text-blue-100/80 text-sm max-w-md leading-relaxed">
-              Các bài kiểm tra ngắn giúp bạn tổng hợp kiến thức và đo lường sự
-              tiến bộ thực tế sau mỗi chủ đề.
+              Làm bài kiểm tra ngắn sau mỗi chủ đề để xem bạn đã nhớ được bao nhiêu.
             </p>
           </div>
           <FileText
@@ -121,7 +120,7 @@ const MiniTestsPage = () => {
                   </h3>
                   <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed line-clamp-2 mb-6 h-8">
                     {test.description ||
-                      "Bài kiểm tra đánh giá năng lực từ vựng tổng hợp."}
+                      "Ôn tập kiến thức đã học qua các câu hỏi trắc nghiệm và điền từ."}
                   </p>
 
                   <div className="flex items-center gap-4 text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest mb-6">

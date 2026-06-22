@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { AlertCircle, BarChart4, LayoutDashboard, Loader2, RefreshCw, Settings } from "lucide-react";
 import Topbar from "@/src/components/shared/Topbar";
 import AchievementPreview, { type Achievement } from "@/src/components/user/dashboard/AchievementPreview";
 import DashboardLearningPath from "@/src/components/user/dashboard/DashboardLearningPath";
@@ -10,9 +10,15 @@ import DashboardSkeleton from "@/src/components/user/dashboard/DashboardSkeleton
 import LearningHeroCard from "@/src/components/user/dashboard/LearningHeroCard";
 import TodaysLearning, { learningActionIcons, type LearningAction } from "@/src/components/user/dashboard/TodaysLearning";
 import WeeklyActivity, { type WeeklyActivityDay } from "@/src/components/user/dashboard/WeeklyActivity";
+import XPTrendChart from "@/src/components/user/progress/XPTrendChart";
+import VocabularyGrowthChart from "@/src/components/user/progress/VocabularyGrowthChart";
+import TopicMastery from "@/src/components/user/progress/TopicMastery";
+import RetentionStats from "@/src/components/user/progress/RetentionStats";
+import UserSettings from "@/src/components/user/UserSettings";
+import UserProfileTabs from "@/src/components/user/UserProfileTabs";
 import { useAuth } from "@/src/app/context/AuthContext";
 import { userService } from "@/src/services/user.service";
-import type { LearningPathRoadmap } from "@/src/modules/user/types";
+import type { LearningPathRoadmap, ProgressAnalytics } from "@/src/modules/user/types";
 
 type FlashcardPreview = {
   term: string;
@@ -68,7 +74,22 @@ export default function StudentDashboard() {
   const [data, setData] = useState<DashboardData>(initialData);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [analytics, setAnalytics] = useState<ProgressAnalytics | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
   const router = useRouter();
+
+  const fetchAnalytics = useCallback(async () => {
+    setAnalyticsLoading(true);
+    try {
+      const data = await userService.getProgressAnalytics();
+      setAnalytics(data);
+    } catch {
+      // Analytics is non-critical, silently fail
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  }, []);
 
   const fetchDashboard = useCallback(async () => {
     setLoading(true);
@@ -107,6 +128,12 @@ export default function StudentDashboard() {
   }, []);
 
   useEffect(() => {
+    if (activeTab === "analytics" && !analytics) {
+      void fetchAnalytics();
+    }
+  }, [activeTab, analytics, fetchAnalytics]);
+
+  useEffect(() => {
     if (!user) return;
 
     const timeout = window.setTimeout(() => {
@@ -130,10 +157,10 @@ export default function StudentDashboard() {
       : "/user/minitests";
 
   const nextActionLabel = hasCards
-    ? `${data.flashcards.length} từ mới đã sẵn sàng. Chọn chủ đề để xem trước danh sách và bắt đầu flashcard.`
+    ? `${data.flashcards.length} từ mới đang chờ bạn. Chọn chủ đề và bắt đầu học ngay.`
     : hasPractice
-      ? "Bạn đã hoàn thành thẻ từ hôm nay. Tiếp tục với một phiên luyện tập ngắn."
-      : "Kế hoạch hôm nay đã hoàn tất. Thử một bài kiểm tra ngắn để củng cố kiến thức.";
+      ? "Hết thẻ từ hôm nay rồi! Làm một phiên luyện tập nho nhỏ nhé."
+      : "Xong hết việc hôm nay rồi! Làm thử một bài kiểm tra ngắn xem sao.";
 
   const actions: LearningAction[] = [
     {
@@ -182,7 +209,7 @@ export default function StudentDashboard() {
     <>
       <Topbar
         title="Trang học tập"
-        subtitle="Tiếp tục lộ trình và giữ nhịp học mỗi ngày."
+        subtitle="Giữ đều nhịp học mỗi ngày bạn nhé."
         role="student"
         userName={user?.fullName || "Người dùng"}
       />
@@ -231,6 +258,86 @@ export default function StudentDashboard() {
                   onViewAll={() => router.push("/user/achievements")}
                 />
               </div>
+
+              {/* ── Tabbed Profile View ── */}
+              <UserProfileTabs
+                tabs={[
+                  { id: "overview", label: "Tổng quan", icon: LayoutDashboard },
+                  { id: "analytics", label: "Phân tích", icon: BarChart4 },
+                  { id: "settings", label: "Cài đặt", icon: Settings },
+                ]}
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+              >
+                {activeTab === "overview" && (
+                  <div className="space-y-6">
+                    <LearningHeroCard
+                      streak={data.stats.streak || 0}
+                      todayCount={data.todayCount}
+                      dailyGoal={data.dailyGoal}
+                      todayXP={data.todayXP}
+                      currentLevel={data.stats.currentLevel || 1}
+                      totalXP={data.stats.totalXP || 0}
+                      currentLevelXP={data.stats.currentLevelXP || 0}
+                      xpForNextLevel={data.stats.xpForNextLevel || 100}
+                      levelProgress={data.stats.levelProgress || 0}
+                      nextActionLabel={nextActionLabel}
+                      onContinue={() => router.push(continueRoute)}
+                    />
+
+                    <TodaysLearning actions={actions} />
+
+                    {data.learningPath && (
+                      <DashboardLearningPath
+                        roadmap={data.learningPath}
+                        onContinue={() => router.push(data.learningPath?.currentPosition?.activityRoute || "/user/courses")}
+                        onViewRoadmap={() => router.push("/user/courses")}
+                      />
+                    )}
+
+                    <div className="grid gap-6 xl:grid-cols-[1.45fr_0.85fr]">
+                      <WeeklyActivity days={weeklyDays} dailyGoal={data.dailyGoal} />
+                      <AchievementPreview
+                        achievements={data.stats.achievements || []}
+                        totalLearned={data.stats.totalLearned || 0}
+                        correct={data.stats.correct || 0}
+                        accuracy={data.stats.accuracy || 0}
+                        streak={data.stats.streak || 0}
+                        currentLevel={data.stats.currentLevel || 1}
+                        onViewAll={() => router.push("/user/achievements")}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === "analytics" && (
+                  <div>
+                    {analyticsLoading && !analytics ? (
+                      <div className="flex items-center justify-center py-20 text-sm text-slate-500">
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Đang tải dữ liệu phân tích...
+                      </div>
+                    ) : analytics ? (
+                      <div className="space-y-6">
+                        <div className="grid gap-6 xl:grid-cols-2">
+                          <XPTrendChart activity={analytics.activity} />
+                          <VocabularyGrowthChart points={analytics.vocabularyGrowth} />
+                        </div>
+                        <TopicMastery topics={analytics.topicMastery} />
+                        <RetentionStats stats={analytics.retention} />
+                      </div>
+                    ) : (
+                      <p className="text-center text-sm text-slate-500 dark:text-slate-400">
+                        Không thể tải dữ liệu phân tích.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === "settings" && (
+                  <UserSettings compact />
+                )}
+              </UserProfileTabs>
             </div>
           )}
         </div>

@@ -125,15 +125,18 @@ export function IconButton({
 export function ToolbarButton({
   children,
   active,
+  disabled,
   onClick,
 }: {
   children: ReactNode;
   active?: boolean;
+  disabled?: boolean;
   onClick?: () => void;
 }) {
   return (
     <button
       onClick={onClick}
+      disabled={disabled}
       className={`inline-flex h-9 items-center justify-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors ${
         active
           ? "border-slate-950 bg-slate-950 text-white dark:border-white dark:bg-white dark:text-slate-950"

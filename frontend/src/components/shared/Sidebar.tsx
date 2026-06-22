@@ -29,7 +29,6 @@ import {
   LayoutDashboard,
   ListChecks,
   LogOut,
-  Settings,
   ShieldCheck,
   Target,
   Trophy,
@@ -80,8 +79,6 @@ const studentLinks: NavLink[] = [
   { icon: FileText, label: "Bài kiểm tra", href: "/user/minitests" },
   { icon: Heart, label: "Sổ tay", href: "/user/notebook" },
   { icon: Trophy, label: "Thành tích", href: "/user/achievements" },
-  { icon: BarChart3, label: "Tiến độ", href: "/user/progress" },
-  { icon: Settings, label: "Cài đặt", href: "/user/settings" },
 ];
 
 function NavLinks({ links, collapsed, onLinkClick }: { links: NavLink[]; collapsed: boolean; onLinkClick?: () => void }) {

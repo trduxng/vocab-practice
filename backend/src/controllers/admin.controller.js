@@ -546,7 +546,9 @@ class AdminController {
 
   static async getPendingContent(req, res, next) {
     try {
-      const data = await AdminService.getPendingContent();
+      const page = parseInt(req.query.page, 10) || 1;
+      const limit = parseInt(req.query.limit, 10) || 50;
+      const data = await AdminService.getPendingContent(page, limit);
       res.status(200).json(data);
     } catch (error) {
       next(error);

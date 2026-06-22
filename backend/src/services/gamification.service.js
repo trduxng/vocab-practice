@@ -166,10 +166,11 @@ class GamificationService {
     }
   }
 
-  static async awardXP(userId, { eventType, sourceKey = null, metadata = null } = {}) {
+  static async awardXP(userId, { eventType, amount, sourceKey = null, metadata = null } = {}) {
     await this.ensureSchema();
-    const amount = XP_REWARDS[eventType];
-    if (!amount) throw new Error(`Unsupported XP event type: ${eventType}`);
+    const baseAmount = XP_REWARDS[eventType];
+    if (!baseAmount && amount == null) throw new Error(`Unsupported XP event type: ${eventType}`);
+    const finalAmount = amount ?? baseAmount;
 
     const pool = await poolPromise;
     const transaction = new sql.Transaction(pool);
@@ -180,7 +181,7 @@ class GamificationService {
       const result = await request
         .input("UserID", sql.BigInt, userId)
         .input("EventType", sql.NVarChar(50), eventType)
-        .input("XPAmount", sql.Int, amount)
+        .input("XPAmount", sql.Int, finalAmount)
         .input("SourceKey", sql.NVarChar(200), sourceKey)
         .input("MetadataJson", sql.NVarChar(sql.MAX), metadata ? JSON.stringify(metadata) : null)
         .query(`

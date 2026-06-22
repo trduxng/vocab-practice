@@ -2024,69 +2024,86 @@ class AdminService {
     return result.rowsAffected[0] > 0;
   }
 
-  static async getPendingContent() {
+  static async getPendingContent(page = 1, limit = 50) {
     const pool = await poolPromise;
-    const result = await pool.request().query(`
-      SELECT *
-      FROM (
-        SELECT
-          N'Topic' AS entityType,
-          t.TopicID AS entityId,
-          t.TopicName AS title,
-          t.ContentStatus AS status,
-          t.CreatedByUserID AS creatorId,
-          COALESCE(u.FullName, u.Email, N'Người dùng #' + CAST(t.CreatedByUserID AS nvarchar(30))) AS creatorName,
-          t.CreatedAt AS createdAt
-        FROM Topics t
-        LEFT JOIN Users u ON t.CreatedByUserID = u.UserID
-        WHERE t.ContentStatus = N'PendingReview'
+    const paging = this.normalizePagination(page, limit, 200);
 
-        UNION ALL
+    const result = await pool.request()
+      .input('Offset', sql.Int, paging.offset)
+      .input('Limit', sql.Int, paging.limit)
+      .query(`
+        SELECT COUNT_BIG(1) AS total
+        FROM (
+          SELECT t.TopicID AS entityId FROM Topics t WHERE t.ContentStatus = N'PendingReview'
+          UNION ALL
+          SELECT w.WordID FROM Words w WHERE w.ContentStatus = N'PendingReview'
+          UNION ALL
+          SELECT q.QuestionID FROM Questions q WHERE q.ContentStatus = N'PendingReview'
+          UNION ALL
+          SELECT mt.MiniTestID FROM MiniTests mt WHERE mt.ContentStatus = N'PendingReview'
+        ) pending;
 
-        SELECT
-          N'Word',
-          w.WordID,
-          w.Term,
-          w.ContentStatus,
-          w.CreatedByUserID,
-          COALESCE(u.FullName, u.Email, N'Người dùng #' + CAST(w.CreatedByUserID AS nvarchar(30))),
-          w.CreatedAt
-        FROM Words w
-        LEFT JOIN Users u ON w.CreatedByUserID = u.UserID
-        WHERE w.ContentStatus = N'PendingReview'
+        SELECT *
+        FROM (
+          SELECT
+            N'Topic' AS entityType,
+            t.TopicID AS entityId,
+            t.TopicName AS title,
+            t.ContentStatus AS status,
+            t.CreatedByUserID AS creatorId,
+            COALESCE(u.FullName, u.Email, N'Người dùng #' + CAST(t.CreatedByUserID AS nvarchar(30))) AS creatorName,
+            t.CreatedAt AS createdAt
+          FROM Topics t
+          LEFT JOIN Users u ON t.CreatedByUserID = u.UserID
+          WHERE t.ContentStatus = N'PendingReview'
 
-        UNION ALL
+          UNION ALL
 
-        SELECT
-          N'Question',
-          q.QuestionID,
-          q.QuestionText,
-          q.ContentStatus,
-          q.CreatedByUserID,
-          COALESCE(u.FullName, u.Email, N'Người dùng #' + CAST(q.CreatedByUserID AS nvarchar(30))),
-          q.CreatedAt
-        FROM Questions q
-        LEFT JOIN Users u ON q.CreatedByUserID = u.UserID
-        WHERE q.ContentStatus = N'PendingReview'
+          SELECT
+            N'Word',
+            w.WordID,
+            w.Term,
+            w.ContentStatus,
+            w.CreatedByUserID,
+            COALESCE(u.FullName, u.Email, N'Người dùng #' + CAST(w.CreatedByUserID AS nvarchar(30))),
+            w.CreatedAt
+          FROM Words w
+          LEFT JOIN Users u ON w.CreatedByUserID = u.UserID
+          WHERE w.ContentStatus = N'PendingReview'
 
-        UNION ALL
+          UNION ALL
 
-        SELECT
-          N'MiniTest',
-          mt.MiniTestID,
-          mt.TestTitle,
-          mt.ContentStatus,
-          mt.CreatedByUserID,
-          COALESCE(u.FullName, u.Email, N'Người dùng #' + CAST(mt.CreatedByUserID AS nvarchar(30))),
-          mt.CreatedAt
-        FROM MiniTests mt
-        LEFT JOIN Users u ON mt.CreatedByUserID = u.UserID
-        WHERE mt.ContentStatus = N'PendingReview'
-      ) pending
-      ORDER BY createdAt ASC, entityType, entityId;
-    `);
+          SELECT
+            N'Question',
+            q.QuestionID,
+            q.QuestionText,
+            q.ContentStatus,
+            q.CreatedByUserID,
+            COALESCE(u.FullName, u.Email, N'Người dùng #' + CAST(q.CreatedByUserID AS nvarchar(30))),
+            q.CreatedAt
+          FROM Questions q
+          LEFT JOIN Users u ON q.CreatedByUserID = u.UserID
+          WHERE q.ContentStatus = N'PendingReview'
 
-    return result.recordset;
+          UNION ALL
+
+          SELECT
+            N'MiniTest',
+            mt.MiniTestID,
+            mt.TestTitle,
+            mt.ContentStatus,
+            mt.CreatedByUserID,
+            COALESCE(u.FullName, u.Email, N'Người dùng #' + CAST(mt.CreatedByUserID AS nvarchar(30))),
+            mt.CreatedAt
+          FROM MiniTests mt
+          LEFT JOIN Users u ON mt.CreatedByUserID = u.UserID
+          WHERE mt.ContentStatus = N'PendingReview'
+        ) pending
+        ORDER BY createdAt ASC, entityType, entityId
+        OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY;
+      `);
+
+    return this.paginate(result.recordsets[1] || [], result.recordsets[0][0]?.total || 0, paging.page, paging.limit);
   }
 
   static async getContentReviewLogs(entityType, entityId) {

@@ -35,7 +35,7 @@ export default function SessionComplete({
       </div>
       <h1 className="mt-5 text-3xl font-black tracking-tight text-slate-950 dark:text-white">Hoàn thành phiên học</h1>
       <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
-        Bạn đã xử lý {totalCards} thẻ. Những từ khó sẽ quay lại sớm hơn trong lịch ôn tập.
+        Bạn đã học {totalCards} thẻ. Những từ chưa nhớ sẽ được ôn lại vào hôm khác.
       </p>
 
       <div className="mt-6 grid grid-cols-3 gap-2">
