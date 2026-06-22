@@ -3,8 +3,9 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import Topbar from "@/src/components/shared/Topbar";
 import ChartFrame from "@/src/components/admin/ChartFrame";
-import { AdminPage, AdminPanel, KpiCard, StatusBadge, TableShell, ToolbarButton, chartColors } from "@/src/components/admin/AdminPrimitives";
+import { AdminErrorState, AdminPage, AdminPanel, KpiCard, StatusBadge, TableShell, ToolbarButton, chartColors } from "@/src/components/admin/AdminPrimitives";
 import { adminService } from "@/src/services/admin.service";
+import { formatAdminNumber } from "@/src/lib/admin-i18n";
 import { BarChart3, Clock, Flame, Gauge, HelpCircle, Target, Trophy } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
@@ -23,10 +24,6 @@ type AnalyticsData = {
 
 const tooltipStyle = { background: "rgb(15 23 42)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, color: "white" };
 
-function compactNumber(value?: number | null) {
-  return Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(Number(value || 0));
-}
-
 function difficultyClass(value: number) {
   if (value < 50) return "bg-rose-500/80 text-white";
   if (value < 65) return "bg-amber-500/75 text-white";
@@ -37,16 +34,21 @@ function difficultyClass(value: number) {
 export default function AdminAnalytics() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [refreshIndex, setRefreshIndex] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
 
     async function fetchAnalytics() {
+      setLoading(true);
+      setError("");
       try {
         const response = await adminService.getAnalytics();
         if (!cancelled) setData(response);
       } catch (error) {
-        console.error("Failed to fetch analytics", error);
+        console.error("Không thể tải dữ liệu phân tích", error);
+        if (!cancelled) setError("Không thể tải dữ liệu phân tích học tập.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -56,42 +58,44 @@ export default function AdminAnalytics() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshIndex]);
 
   const popularQuizzes = useMemo(() => data?.popularQuizzes || [], [data]);
   const questionAccuracy = useMemo(() => data?.questionAccuracy || [], [data]);
   const studyActivity = useMemo(() => data?.studyActivity || [], [data]);
   const difficultTopics = useMemo(() => {
-    const source = data?.difficultTopics?.length ? data.difficultTopics : [{ label: "No attempts yet", accuracy: 0 }];
+    const source = data?.difficultTopics?.length ? data.difficultTopics : [{ label: "Chưa có lượt làm", accuracy: 0 }];
     return source.map((item) => ({
       label: item.label,
       values: studyActivity.length ? studyActivity.map((day) => Math.round(Number(day.accuracy || item.accuracy || 0))) : [Math.round(Number(item.accuracy || 0))],
     }));
   }, [data, studyActivity]);
 
-  const dayLabels = studyActivity.length ? studyActivity.map((item) => item.day) : ["Current"];
+  const dayLabels = studyActivity.length ? studyActivity.map((item) => item.day) : ["Hiện tại"];
   const avgAccuracy = Math.round(Number(data?.summary?.averageAccuracy || 0));
   const wrongAttempts = Number(data?.summary?.wrongAttempts || 0);
 
   return (
     <>
-      <Topbar title="Learning analytics" subtitle="Real learning metrics from attempts, questions, topics, and progress." role="admin" userName="Admin" />
+      <Topbar title="Phân tích học tập" subtitle="Số liệu thực tế từ lượt làm bài, câu hỏi, chủ đề và tiến độ học." role="admin" />
       <AdminPage>
         {loading ? (
           <AdminPanel>
-            <div className="py-12 text-center text-sm text-slate-600 dark:text-slate-400">Loading analytics...</div>
+            <div className="py-12 text-center text-sm text-slate-600 dark:text-slate-400">Đang tải dữ liệu phân tích...</div>
           </AdminPanel>
+        ) : error ? (
+          <AdminErrorState description={error} onRetry={() => setRefreshIndex((value) => value + 1)} />
         ) : (
           <>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <KpiCard label="Attempts" value={compactNumber(data?.summary?.totalAttempts)} change={`${compactNumber(data?.summary?.activeLearners)} active learners`} icon={Clock} tone="blue" />
-              <KpiCard label="Average accuracy" value={`${avgAccuracy}%`} change="All exercise attempts" icon={Target} tone="emerald" />
-              <KpiCard label="Wrong attempts" value={compactNumber(wrongAttempts)} change="Review candidates" trend="down" icon={HelpCircle} tone="amber" />
-              <KpiCard label="Topics tracked" value={compactNumber(popularQuizzes.length)} change="With attempt history" icon={Flame} tone="rose" />
+              <KpiCard label="Lượt làm bài" value={formatAdminNumber(data?.summary?.totalAttempts)} change={`${formatAdminNumber(data?.summary?.activeLearners)} học viên hoạt động`} icon={Clock} tone="blue" />
+              <KpiCard label="Độ chính xác trung bình" value={`${avgAccuracy}%`} change="Tất cả lượt làm bài" icon={Target} tone="emerald" />
+              <KpiCard label="Lượt trả lời sai" value={formatAdminNumber(wrongAttempts)} change="Cần xem lại" trend="down" icon={HelpCircle} tone="amber" />
+              <KpiCard label="Chủ đề được theo dõi" value={formatAdminNumber(popularQuizzes.length)} change="Có lịch sử làm bài" icon={Flame} tone="rose" />
             </div>
 
             <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-              <AdminPanel title="Most practiced topics" description="Topic demand based on exercise attempts." action={<ToolbarButton active>Live</ToolbarButton>}>
+              <AdminPanel title="Chủ đề được luyện tập nhiều nhất" description="Mức độ quan tâm dựa trên số lượt làm bài." action={<ToolbarButton active>Trực tiếp</ToolbarButton>}>
                 <ChartFrame className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={popularQuizzes} layout="vertical" margin={{ left: 32 }}>
@@ -99,13 +103,13 @@ export default function AdminAnalytics() {
                       <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
                       <YAxis dataKey="name" type="category" width={145} tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
                       <Tooltip contentStyle={tooltipStyle} />
-                      <Bar dataKey="attempts" fill={chartColors.blue} radius={[0, 6, 6, 0]} name="Attempts" />
+                      <Bar dataKey="attempts" fill={chartColors.blue} radius={[0, 6, 6, 0]} name="Lượt làm" />
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartFrame>
               </AdminPanel>
 
-              <AdminPanel title="Accuracy per question" description="Questions with lowest accuracy appear first." action={<StatusBadge tone="amber">Below 60% needs review</StatusBadge>}>
+              <AdminPanel title="Độ chính xác theo câu hỏi" description="Câu hỏi có độ chính xác thấp nhất được hiển thị trước." action={<StatusBadge tone="amber">Dưới 60% cần xem lại</StatusBadge>}>
                 <ChartFrame className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={questionAccuracy}>
@@ -113,7 +117,7 @@ export default function AdminAnalytics() {
                       <XAxis dataKey="question" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
                       <YAxis tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
                       <Tooltip contentStyle={tooltipStyle} />
-                      <Bar dataKey="accuracy" radius={[6, 6, 0, 0]} name="Accuracy">
+                      <Bar dataKey="accuracy" radius={[6, 6, 0, 0]} name="Độ chính xác">
                         {questionAccuracy.map((item) => {
                           const accuracy = Number(item.accuracy || 0);
                           return <Cell key={item.question} fill={accuracy < 60 ? chartColors.rose : accuracy < 75 ? chartColors.amber : chartColors.emerald} />;
@@ -126,7 +130,7 @@ export default function AdminAnalytics() {
             </div>
 
             <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
-              <AdminPanel title="Difficult topic heatmap" description="Cell values are accuracy percentages from real attempts." action={<Gauge className="h-4 w-4 text-slate-500" />}>
+              <AdminPanel title="Bản đồ nhiệt chủ đề khó" description="Giá trị trong ô là tỷ lệ chính xác từ các lượt làm thực tế." action={<Gauge className="h-4 w-4 text-slate-500" />}>
                 <div className="overflow-x-auto">
                   <div className="min-w-[620px]">
                     <div className="grid gap-2" style={{ gridTemplateColumns: `110px repeat(${dayLabels.length}, minmax(58px, 1fr))` }}>
@@ -143,7 +147,7 @@ export default function AdminAnalytics() {
                 </div>
               </AdminPanel>
 
-              <AdminPanel title="Study activity" description="Attempts by active day." action={<BarChart3 className="h-4 w-4 text-slate-500" />}>
+              <AdminPanel title="Hoạt động học tập" description="Số lượt làm bài theo ngày hoạt động." action={<BarChart3 className="h-4 w-4 text-slate-500" />}>
                 <ChartFrame className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={studyActivity}>
@@ -151,7 +155,7 @@ export default function AdminAnalytics() {
                       <XAxis dataKey="day" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
                       <YAxis tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
                       <Tooltip contentStyle={tooltipStyle} />
-                      <Line type="monotone" dataKey="attempts" stroke={chartColors.emerald} strokeWidth={2} dot={{ r: 4 }} name="Attempts" />
+                      <Line type="monotone" dataKey="attempts" stroke={chartColors.emerald} strokeWidth={2} dot={{ r: 4 }} name="Lượt làm" />
                     </LineChart>
                   </ResponsiveContainer>
                 </ChartFrame>
@@ -161,7 +165,7 @@ export default function AdminAnalytics() {
             <TableShell>
               <table className="w-full min-w-[760px] text-left text-sm">
                 <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
-                  <tr><th className="px-4 py-3 font-medium">Topic</th><th className="px-4 py-3 font-medium">Attempts</th><th className="px-4 py-3 font-medium">Accuracy</th><th className="px-4 py-3 font-medium">Signal</th></tr>
+                  <tr><th className="px-4 py-3 font-medium">Chủ đề</th><th className="px-4 py-3 font-medium">Lượt làm</th><th className="px-4 py-3 font-medium">Độ chính xác</th><th className="px-4 py-3 font-medium">Đánh giá</th></tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-white/10">
                   {popularQuizzes.map((quiz, index) => (
@@ -169,7 +173,7 @@ export default function AdminAnalytics() {
                       <td className="px-4 py-4"><div className="flex items-center gap-3"><Trophy className="h-4 w-4 text-amber-500" /><span className="font-medium text-slate-950 dark:text-white">{quiz.name}</span></div></td>
                       <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{Number(quiz.attempts || 0).toLocaleString()}</td>
                       <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{Math.round(Number(quiz.completion || 0))}%</td>
-                      <td className="px-4 py-4"><StatusBadge tone={index < 2 ? "emerald" : "blue"}>{index < 2 ? "Top demand" : "Stable"}</StatusBadge></td>
+                      <td className="px-4 py-4"><StatusBadge tone={index < 2 ? "emerald" : "blue"}>{index < 2 ? "Quan tâm cao" : "Ổn định"}</StatusBadge></td>
                     </tr>
                   ))}
                 </tbody>

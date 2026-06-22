@@ -22,10 +22,10 @@ export function DataTable<T>({
   rows,
   getRowId,
   loading = false,
-  emptyTitle = "No records found",
+  emptyTitle = "Không tìm thấy dữ liệu",
   emptyDescription,
   searchValue,
-  searchPlaceholder = "Search",
+  searchPlaceholder = "Tìm kiếm",
   onSearchChange,
   sort,
   onSortChange,
@@ -101,7 +101,7 @@ export function DataTable<T>({
           )}
           {selectedIds.length > 0 && bulkActions && (
             <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-              <span>{selectedIds.length} selected</span>
+              <span>Đã chọn {selectedIds.length} mục</span>
               {bulkActions}
             </div>
           )}
@@ -137,7 +137,7 @@ export function DataTable<T>({
                 <tr>
                   <td colSpan={columns.length + (canSelect ? 1 : 0)} className="px-4 py-12 text-center text-sm text-slate-500 dark:text-slate-400">
                     <Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin" />
-                    Loading records...
+                    Đang tải dữ liệu...
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
@@ -174,7 +174,7 @@ export function DataTable<T>({
       {pagination && onPageChange && (
         <div className="flex items-center justify-between gap-3 text-sm text-slate-600 dark:text-slate-300">
           <span>
-            Page {pagination.page} of {pagination.totalPages} · {pagination.total} records
+            Trang {pagination.page} / {pagination.totalPages} · {pagination.total} bản ghi
           </span>
           <div className="flex items-center gap-2">
             <button
@@ -184,7 +184,7 @@ export function DataTable<T>({
               className="inline-flex h-9 items-center gap-1 rounded-md border border-slate-200 px-3 font-medium disabled:opacity-50 dark:border-white/10"
             >
               <ChevronLeft className="h-4 w-4" />
-              Previous
+              Trước
             </button>
             <button
               type="button"
@@ -192,7 +192,7 @@ export function DataTable<T>({
               disabled={pagination.page >= pagination.totalPages}
               className="inline-flex h-9 items-center gap-1 rounded-md border border-slate-200 px-3 font-medium disabled:opacity-50 dark:border-white/10"
             >
-              Next
+              Sau
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
