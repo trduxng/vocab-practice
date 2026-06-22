@@ -154,7 +154,7 @@ class LearningPathService {
         OUTER APPLY (
           SELECT COUNT(DISTINCT wt.WordID) AS totalWords,
                  COUNT(DISTINCT CASE WHEN uwp.RepetitionCount > 0 THEN wt.WordID END) AS learnedWords,
-                 COUNT(DISTINCT CASE WHEN uwp.MasteryLevel >= 8 THEN wt.WordID END) AS masteredWords
+                 COUNT(DISTINCT CASE WHEN uwp.MasteryLevel >= 7 THEN wt.WordID END) AS masteredWords
           FROM dbo.WordTopics wt
           LEFT JOIN dbo.UserWordProgress uwp
             ON uwp.WordID = wt.WordID

@@ -50,6 +50,7 @@ router.put('/students/:id', checkPermission('MANAGE_USERS'), AdminController.upd
 router.delete('/students/:id', checkPermission('MANAGE_USERS'), AdminController.deleteUser);
 router.patch('/students/:id/toggle', checkPermission('MANAGE_USERS'), AdminController.toggleStudentStatus);
 router.patch('/students/:id/role', checkPermission('MANAGE_USERS'), AdminController.updateUserRole);
+router.get('/students/:id/progress', checkPermission('MANAGE_USERS'), AdminController.getStudentDetail);
 router.get('/analytics', checkPermission('VIEW_DASHBOARD'), AdminController.getAnalytics);
 router.get('/content-management', checkPermission('VIEW_DASHBOARD'), AdminController.getContentManagement);
 router.patch('/content-status', checkAnyPermission(['MANAGE_SYSTEM_SETTINGS', 'MANAGE_TOPICS', 'MANAGE_WORDS', 'MANAGE_QUESTIONS', 'MANAGE_TESTS']), validate(schemas.contentStatus), AdminController.updateContentStatus);

@@ -92,6 +92,47 @@ class ReviewService {
           VALUES (@EntityType, @EntityID, @AdminID, 'PendingReview', 'Published', 'Approved by admin', SYSDATETIMEOFFSET())
         `);
 
+      // Gửi notification cho Creator
+      const req3 = new sql.Request(transaction);
+      const creatorResult = await req3
+        .input('EntityID', sql.BigInt, entityId)
+        .query(`
+          DECLARE @CreatorID BIGINT;
+          DECLARE @Title NVARCHAR(200);
+          DECLARE @EntityName NVARCHAR(200);
+
+          IF '${e.type}' = 'Topic'
+          BEGIN
+            SELECT @CreatorID = CreatedByUserID, @EntityName = TopicName
+            FROM Topics WHERE ${e.idCol} = @EntityID;
+            SET @Title = N'Topic "' + @EntityName + N'" đã được duyệt';
+          END
+          ELSE IF '${e.type}' = 'Word'
+          BEGIN
+            SELECT @CreatorID = CreatedByUserID, @EntityName = Term
+            FROM Words WHERE ${e.idCol} = @EntityID;
+            SET @Title = N'Từ "' + @EntityName + N'" đã được duyệt';
+          END
+          ELSE IF '${e.type}' = 'Question'
+          BEGIN
+            SELECT @CreatorID = CreatedByUserID, @EntityName = QuestionText
+            FROM Questions WHERE ${e.idCol} = @EntityID;
+            SET @Title = N'Câu hỏi "' + LEFT(@EntityName, 50) + N'" đã được duyệt';
+          END
+          ELSE IF '${e.type}' = 'MiniTest'
+          BEGIN
+            SELECT @CreatorID = CreatedByUserID, @EntityName = TestTitle
+            FROM MiniTests WHERE ${e.idCol} = @EntityID;
+            SET @Title = N'Bài test "' + @EntityName + N'" đã được duyệt';
+          END
+
+          IF @CreatorID IS NOT NULL
+          BEGIN
+            INSERT INTO Notifications (UserID, Title, Message, Type, DeliveryChannel)
+            VALUES (@CreatorID, @Title, N'Nội dung của bạn đã được admin phê duyệt và xuất bản.', 'Announcement', 'InApp');
+          END
+        `);
+
       await transaction.commit();
       return true;
     } catch (err) {
@@ -138,6 +179,53 @@ class ReviewService {
         .query(`
           INSERT INTO ContentReviewLogs (EntityType, EntityID, ActionByUserID, OldStatus, NewStatus, Comment, CreatedAt)
           VALUES (@EntityType, @EntityID, @AdminID, 'PendingReview', 'Rejected', @Comment, SYSDATETIMEOFFSET())
+        `);
+
+      // Gửi notification cho Creator
+      const req3 = new sql.Request(transaction);
+      await req3
+        .input('EntityID', sql.BigInt, entityId)
+        .input('RejectReason', sql.NVarChar(2000), reason || null)
+        .query(`
+          DECLARE @CreatorID BIGINT;
+          DECLARE @Title NVARCHAR(200);
+          DECLARE @EntityName NVARCHAR(200);
+          DECLARE @Msg NVARCHAR(500);
+
+          IF '${e.type}' = 'Topic'
+          BEGIN
+            SELECT @CreatorID = CreatedByUserID, @EntityName = TopicName
+            FROM Topics WHERE ${e.idCol} = @EntityID;
+            SET @Title = N'Topic "' + @EntityName + N'" bị từ chối';
+          END
+          ELSE IF '${e.type}' = 'Word'
+          BEGIN
+            SELECT @CreatorID = CreatedByUserID, @EntityName = Term
+            FROM Words WHERE ${e.idCol} = @EntityID;
+            SET @Title = N'Từ "' + @EntityName + N'" bị từ chối';
+          END
+          ELSE IF '${e.type}' = 'Question'
+          BEGIN
+            SELECT @CreatorID = CreatedByUserID, @EntityName = QuestionText
+            FROM Questions WHERE ${e.idCol} = @EntityID;
+            SET @Title = N'Câu hỏi bị từ chối';
+          END
+          ELSE IF '${e.type}' = 'MiniTest'
+          BEGIN
+            SELECT @CreatorID = CreatedByUserID, @EntityName = TestTitle
+            FROM MiniTests WHERE ${e.idCol} = @EntityID;
+            SET @Title = N'Bài test "' + @EntityName + N'" bị từ chối';
+          END
+
+          SET @Msg = N'Nội dung của bạn đã bị từ chối.';
+          IF @RejectReason IS NOT NULL
+            SET @Msg = @Msg + N' Lý do: ' + @RejectReason;
+
+          IF @CreatorID IS NOT NULL
+          BEGIN
+            INSERT INTO Notifications (UserID, Title, Message, Type, DeliveryChannel)
+            VALUES (@CreatorID, @Title, @Msg, 'Announcement', 'InApp');
+          END
         `);
 
       await transaction.commit();

@@ -73,7 +73,7 @@ class CreatorController {
 
   static async submitTopicForReview(req, res, next) {
     try {
-      const ok = await CreatorService.submitForReview('Topics', 'TopicID', req.params.id, req.user.id);
+      const ok = await CreatorService.submitForReview('topic', req.params.id, req.user.id);
       if (!ok) return res.status(400).json({ message: 'Không thể gửi duyệt (sai trạng thái hoặc không có quyền)' });
       res.json({ message: 'Đã gửi duyệt' });
     } catch (err) { next(err); }
@@ -112,7 +112,7 @@ class CreatorController {
 
   static async submitWordForReview(req, res, next) {
     try {
-      const ok = await CreatorService.submitForReview('Words', 'WordID', req.params.id, req.user.id);
+      const ok = await CreatorService.submitForReview('word', req.params.id, req.user.id);
       if (!ok) return res.status(400).json({ message: 'Không thể gửi duyệt' });
       res.json({ message: 'Đã gửi duyệt' });
     } catch (err) { next(err); }
@@ -151,7 +151,7 @@ class CreatorController {
 
   static async submitQuestionForReview(req, res, next) {
     try {
-      const ok = await CreatorService.submitForReview('Questions', 'QuestionID', req.params.id, req.user.id);
+      const ok = await CreatorService.submitForReview('question', req.params.id, req.user.id);
       if (!ok) return res.status(400).json({ message: 'Không thể gửi duyệt' });
       res.json({ message: 'Đã gửi duyệt' });
     } catch (err) { next(err); }

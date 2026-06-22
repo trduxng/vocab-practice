@@ -37,12 +37,7 @@ class UserController {
         ...feedback
       });
     } catch (error) {
-      console.error('[UserController.submitAnswer] Full Error:', error);
-      return res.status(500).json({ 
-        message: 'Lỗi server khi nộp bài',
-        error: error.message,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-      });
+      next(error);
     }
   }
 

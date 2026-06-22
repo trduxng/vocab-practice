@@ -169,7 +169,16 @@ class CreatorService {
     return result.rowsAffected[0] > 0;
   }
 
-  static async submitForReview(tableName, idColumn, id, userId) {
+  static async submitForReview(entityType, id, userId) {
+    const entityMap = {
+      topic: { table: 'Topics', idCol: 'TopicID', type: 'Topic' },
+      word: { table: 'Words', idCol: 'WordID', type: 'Word' },
+      question: { table: 'Questions', idCol: 'QuestionID', type: 'Question' },
+      minitest: { table: 'MiniTests', idCol: 'MiniTestID', type: 'MiniTest' },
+    };
+    const e = entityMap[String(entityType || '').toLowerCase()];
+    if (!e) throw new Error('EntityType không hợp lệ');
+
     const pool = await poolPromise;
     const transaction = new sql.Transaction(pool);
     try {
@@ -179,9 +188,9 @@ class CreatorService {
         .input('ID', sql.BigInt, id)
         .input('UserID', sql.BigInt, userId)
         .query(`
-          UPDATE ${tableName}
+          UPDATE ${e.table}
           SET ContentStatus = 'PendingReview', UpdatedAt = SYSDATETIMEOFFSET()
-          WHERE ${idColumn} = @ID AND CreatedByUserID = @UserID
+          WHERE ${e.idCol} = @ID AND CreatedByUserID = @UserID
             AND ContentStatus IN ('Draft', 'Rejected')
         `);
       if (upd.rowsAffected[0] === 0) {
@@ -190,7 +199,7 @@ class CreatorService {
       }
       const req2 = new sql.Request(transaction);
       await req2
-        .input('EntityType', sql.NVarChar(30), tableName === 'Topics' ? 'Topic' : tableName === 'Words' ? 'Word' : tableName === 'Questions' ? 'Question' : 'MiniTest')
+        .input('EntityType', sql.NVarChar(30), e.type)
         .input('EntityID', sql.BigInt, id)
         .input('ActionByUserID', sql.BigInt, userId)
         .query(`
@@ -590,7 +599,7 @@ class CreatorService {
     if (check.recordset[0].unpublished > 0) {
       throw new Error('Tất cả câu hỏi trong bài test phải được Published trước khi gửi duyệt');
     }
-    return this.submitForReview('MiniTests', 'MiniTestID', id, userId);
+    return this.submitForReview('minitest', id, userId);
   }
 }
 
