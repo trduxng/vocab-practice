@@ -1,100 +1,188 @@
-'use client';
-import React, { useEffect, useState, useCallback } from 'react';
-import { creatorService, MiniTestPayload } from '@/src/services/creator.service';
-import { Plus, Pencil, Trash2, Send, Loader2, X } from 'lucide-react';
-import { Button } from '@/src/components/ui/button';
-import { Input } from '@/src/components/ui/input';
-import { toast } from 'sonner';
+"use client";
 
-interface MiniTest { id: number; title: string; description: string; topicName: string; totalQuestions: number; isPublished: boolean; contentStatus: string; createdAt: string; }
-const statusBadge: Record<string,string> = { Draft:'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300', PendingReview:'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300', Published:'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300', Rejected:'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' };
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Check, Edit3, Plus, Search, Send, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/src/components/ui/button";
+import { Input } from "@/src/components/ui/input";
+import {
+  creatorService,
+  type CreatorMiniTest,
+  type CreatorPage as CreatorPageData,
+  type CreatorQuestion,
+  type CreatorTopic,
+  type MiniTestPayload,
+} from "@/src/services/creator.service";
+import {
+  ConfirmDialog,
+  CreatorErrorState,
+  CreatorHeader,
+  CreatorLoadingState,
+  CreatorModal,
+  CreatorPage,
+  CreatorPagination,
+  CreatorPanel,
+  CreatorStatusBadge,
+} from "@/src/components/creator/CreatorPrimitives";
+import { formatCreatorDate, getCreatorErrorMessage } from "@/src/lib/creator-utils";
+import { adminLabel } from "@/src/lib/admin-i18n";
+
+type FormState = { title: string; description: string; topicId: string; questionIds: number[] };
+const emptyForm: FormState = { title: "", description: "", topicId: "", questionIds: [] };
+const emptyPage: CreatorPageData<CreatorMiniTest> = { data: [], total: 0, page: 1, pageSize: 12, totalPages: 1 };
 
 export default function CreatorMiniTestsPage() {
-  const [items, setItems] = useState<MiniTest[]>([]);
+  const [result, setResult] = useState(emptyPage);
+  const [topics, setTopics] = useState<CreatorTopic[]>([]);
+  const [questions, setQuestions] = useState<CreatorQuestion[]>([]);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("");
+  const [questionSearch, setQuestionSearch] = useState("");
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState<MiniTest|null>(null);
-  const [form, setForm] = useState<MiniTestPayload>({ title:'', description:'', topicId:0, questionIds:[] });
-  const [qidsInput, setQidsInput] = useState('');
+  const [error, setError] = useState("");
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<CreatorMiniTest | null>(null);
+  const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [busyId, setBusyId] = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CreatorMiniTest | null>(null);
 
   const load = useCallback(async () => {
-    try { setItems(await creatorService.getMiniTests()); } catch { toast.error('Không thể tải'); } finally { setLoading(false); }
-  }, []);
-  useEffect(() => { load(); }, [load]);
+    setLoading(true);
+    setError("");
+    try {
+      const [tests, topicItems, questionItems] = await Promise.all([
+        creatorService.getMiniTestsPage({ page, pageSize: 12, search: search.trim(), status }),
+        creatorService.getTopics({ pageSize: 100 }),
+        creatorService.getQuestions({ pageSize: 100, status: "Published" }),
+      ]);
+      setResult(tests);
+      setTopics(topicItems.filter((topic) => topic.contentStatus !== "Archived"));
+      setQuestions(questionItems);
+    } catch (loadError) {
+      setError(getCreatorErrorMessage(loadError, "Không thể tải mini test"));
+    } finally {
+      setLoading(false);
+    }
+  }, [page, search, status]);
 
-  const openCreate = () => { setEditing(null); setForm({ title:'', description:'', topicId:0, questionIds:[] }); setQidsInput(''); setShowForm(true); };
-  const openEdit = (t: MiniTest) => { setEditing(t); setForm({ title:t.title, description:t.description||'', topicId:0 }); setShowForm(true); };
+  useEffect(() => {
+    void Promise.resolve().then(load);
+  }, [load]);
 
-  const handleSave = async () => {
-    if (!form.title.trim()) { toast.error('Tiêu đề bắt buộc'); return; }
+  const filteredQuestions = useMemo(() => {
+    const query = questionSearch.trim().toLowerCase();
+    if (!query) return questions;
+    return questions.filter((question) => `${question.questionText} ${question.wordTerm} ${question.questionType}`.toLowerCase().includes(query));
+  }, [questionSearch, questions]);
+
+  function openCreate() {
+    setEditing(null);
+    setForm(emptyForm);
+    setQuestionSearch("");
+    setFormOpen(true);
+  }
+
+  function openEdit(test: CreatorMiniTest) {
+    setEditing(test);
+    setForm({ title: test.title, description: test.description || "", topicId: test.topicId ? String(test.topicId) : "", questionIds: test.questionIds || [] });
+    setQuestionSearch("");
+    setFormOpen(true);
+  }
+
+  function toggleQuestion(id: number) {
+    setForm((current) => ({ ...current, questionIds: current.questionIds.includes(id) ? current.questionIds.filter((item) => item !== id) : [...current.questionIds, id] }));
+  }
+
+  async function saveTest(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (form.title.trim().length < 3) {
+      toast.error("Tiêu đề cần ít nhất 3 ký tự");
+      return;
+    }
+    if (!form.questionIds.length) {
+      toast.error("Mini test cần ít nhất một câu hỏi đã xuất bản");
+      return;
+    }
     setSaving(true);
     try {
-      const payload = { ...form };
-      if (!editing && qidsInput.trim()) { payload.questionIds = qidsInput.split(',').map(s => Number(s.trim())).filter(n => n > 0); }
-      if (editing) { await creatorService.updateMiniTest(editing.id, payload); toast.success('Cập nhật OK'); }
-      else { await creatorService.createMiniTest(payload); toast.success('Tạo OK'); }
-      setShowForm(false); await load();
-    } catch (e:any) { toast.error(e.response?.data?.message||'Lỗi'); } finally { setSaving(false); }
-  };
-  const handleDelete = async (id:number) => { if (!confirm('Xóa bài test?')) return; try { await creatorService.deleteMiniTest(id); toast.success('Đã xóa'); await load(); } catch { toast.error('Lỗi'); } };
-  const handleSubmit = async (id:number) => { try { await creatorService.submitMiniTestForReview(id); toast.success('Đã gửi duyệt'); await load(); } catch (e:any) { toast.error(e.response?.data?.message||'Lỗi'); } };
+      const payload: MiniTestPayload = { title: form.title.trim(), description: form.description.trim(), topicId: form.topicId ? Number(form.topicId) : null, questionIds: form.questionIds };
+      if (editing) {
+        await creatorService.updateMiniTest(editing.id, payload);
+        toast.success("Cập nhật mini test thành công");
+      } else {
+        await creatorService.createMiniTest(payload);
+        toast.success("Tạo mini test thành công");
+      }
+      setFormOpen(false);
+      await load();
+    } catch (saveError) {
+      toast.error(getCreatorErrorMessage(saveError, "Không thể lưu mini test"));
+    } finally {
+      setSaving(false);
+    }
+  }
 
-  if (loading) return <div className="flex-1 flex items-center justify-center p-8"><Loader2 className="animate-spin h-8 w-8 text-blue-500" /></div>;
+  async function deleteTest() {
+    if (!deleteTarget) return;
+    setBusyId(deleteTarget.id);
+    try {
+      await creatorService.deleteMiniTest(deleteTarget.id);
+      toast.success("Đã xóa bản nháp mini test");
+      setDeleteTarget(null);
+      await load();
+    } catch (deleteError) {
+      toast.error(getCreatorErrorMessage(deleteError, "Không thể xóa mini test"));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function submitReview(test: CreatorMiniTest) {
+    setBusyId(test.id);
+    try {
+      await creatorService.submitMiniTestForReview(test.id);
+      toast.success("Đã gửi mini test để duyệt");
+      await load();
+    } catch (submitError) {
+      toast.error(getCreatorErrorMessage(submitError, "Không thể gửi duyệt"));
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   return (
-    <div className="flex-1 p-6 md:p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold tracking-tight">Quản lý Bài test</h1><p className="text-slate-600 text-sm mt-1">Tạo và quản lý mini tests</p></div>
-        <Button onClick={openCreate} className="gap-2 rounded-xl"><Plus className="h-4 w-4" /> Tạo mới</Button>
-      </div>
+    <CreatorPage>
+      <CreatorHeader title="Quản lý mini test" description="Tạo bài kiểm tra từ các câu hỏi đã được Admin xuất bản." action={<Button onClick={openCreate} className="gap-2"><Plus className="h-4 w-4" />Tạo mini test</Button>} />
+      <CreatorPanel><div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(240px,1fr)_200px]"><div className="flex h-10 items-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-3 dark:border-white/10 dark:bg-white/5"><Search className="h-4 w-4 text-slate-500" /><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Tìm tiêu đề hoặc mô tả" className="w-full bg-transparent text-sm outline-none" /></div><select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }} className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-950"><option value="">Tất cả trạng thái</option>{["Draft", "PendingReview", "Published", "Rejected", "Archived"].map((item) => <option key={item} value={item}>{item}</option>)}</select></div></CreatorPanel>
 
-      {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={()=>setShowForm(false)}>
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-lg space-y-4 shadow-2xl border border-slate-200 dark:border-white/10" onClick={e=>e.stopPropagation()}>
-            <div className="flex items-center justify-between"><h2 className="text-lg font-bold">{editing?'Sửa':'Tạo'} bài test</h2><button onClick={()=>setShowForm(false)}><X className="h-5 w-5 text-slate-500"/></button></div>
-            <div className="space-y-3">
-              <div><label className="text-xs font-semibold text-slate-500 uppercase">Tiêu đề *</label><Input value={form.title} onChange={e=>setForm({...form,title:e.target.value})} className="mt-1"/></div>
-              <div><label className="text-xs font-semibold text-slate-500 uppercase">Topic ID *</label><Input type="number" value={form.topicId} onChange={e=>setForm({...form,topicId:Number(e.target.value)})} className="mt-1"/></div>
-              <div><label className="text-xs font-semibold text-slate-500 uppercase">Mô tả</label><textarea value={form.description} onChange={e=>setForm({...form,description:e.target.value})} rows={2} className="mt-1 w-full rounded-md border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 px-3 py-2 text-sm resize-none"/></div>
-              {!editing && <div><label className="text-xs font-semibold text-slate-500 uppercase">Question IDs (phân cách dấu phẩy)</label><Input value={qidsInput} onChange={e=>setQidsInput(e.target.value)} placeholder="1,2,3" className="mt-1"/></div>}
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={()=>setShowForm(false)} className="rounded-xl">Hủy</Button>
-              <Button onClick={handleSave} disabled={saving} className="rounded-xl gap-2">{saving&&<Loader2 className="animate-spin h-4 w-4"/>}{editing?'Cập nhật':'Tạo'}</Button>
-            </div>
+      {error ? <CreatorErrorState description={error} onRetry={() => void load()} /> : loading && !result.data.length ? <CreatorLoadingState label="Đang tải mini test..." /> : (
+        <>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {result.data.map((test) => {
+              const editable = test.contentStatus === "Draft" || test.contentStatus === "Rejected";
+              return <CreatorPanel key={test.id}><div className="flex items-start justify-between gap-3"><div><h2 className="font-semibold text-slate-950 dark:text-white">{test.title}</h2><p className="mt-1 text-xs text-slate-500">{test.topicName || "Tổng hợp"} · {test.totalQuestions} câu hỏi</p></div><CreatorStatusBadge status={test.contentStatus} /></div><p className="mt-4 line-clamp-2 min-h-10 text-sm text-slate-600 dark:text-slate-400">{test.description || "Chưa có mô tả."}</p>{test.rejectionReason && <p className="mt-3 text-xs text-rose-500">Lý do: {test.rejectionReason}</p>}<p className="mt-4 text-xs text-slate-400">{formatCreatorDate(test.updatedAt || test.createdAt)}</p><div className="mt-4 flex justify-end gap-1 border-t border-slate-200 pt-3 dark:border-white/10">{editable && <button type="button" disabled={busyId === test.id} onClick={() => void submitReview(test)} title="Gửi duyệt" className="rounded-md p-2 text-blue-600 hover:bg-blue-50 disabled:opacity-50 dark:hover:bg-blue-500/10"><Send className="h-4 w-4" /></button>}{editable && <button type="button" onClick={() => openEdit(test)} title="Chỉnh sửa" className="rounded-md p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10"><Edit3 className="h-4 w-4" /></button>}{test.contentStatus === "Draft" && <button type="button" onClick={() => setDeleteTarget(test)} title="Xóa" className="rounded-md p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10"><Trash2 className="h-4 w-4" /></button>}</div></CreatorPanel>;
+            })}
+            {!result.data.length && <CreatorPanel><p className="py-12 text-center text-slate-500">Chưa có mini test phù hợp.</p></CreatorPanel>}
           </div>
-        </div>
+          <CreatorPanel><CreatorPagination pagination={result} loading={loading} onPageChange={setPage} /></CreatorPanel>
+        </>
       )}
 
-      <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead><tr className="border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5">
-              <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Tiêu đề</th>
-              <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Chủ đề</th>
-              <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Số câu</th>
-              <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Trạng thái</th>
-              <th className="text-right px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Thao tác</th>
-            </tr></thead>
-            <tbody>{items.length===0?(
-              <tr><td colSpan={5} className="text-center py-12 text-slate-500">Chưa có bài test nào</td></tr>
-            ):items.map(t=>(
-              <tr key={t.id} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
-                <td className="px-4 py-3 font-medium">{t.title}</td>
-                <td className="px-4 py-3 text-slate-500">{t.topicName||'—'}</td>
-                <td className="px-4 py-3 text-slate-500">{t.totalQuestions}</td>
-                <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge[t.contentStatus]||''}`}>{t.contentStatus}</span></td>
-                <td className="px-4 py-3"><div className="flex items-center justify-end gap-1">
-                  {(t.contentStatus==='Draft'||t.contentStatus==='Rejected')&&<button onClick={()=>handleSubmit(t.id)} title="Gửi duyệt" className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-500"><Send className="h-4 w-4"/></button>}
-                  <button onClick={()=>openEdit(t)} title="Sửa" className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-500"><Pencil className="h-4 w-4"/></button>
-                  {t.contentStatus==='Draft'&&<button onClick={()=>handleDelete(t.id)} title="Xóa" className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500"><Trash2 className="h-4 w-4"/></button>}
-                </div></td>
-              </tr>
-            ))}</tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+      <CreatorModal open={formOpen} title={editing ? "Chỉnh sửa mini test" : "Tạo mini test"} description="Chỉ các câu hỏi đã xuất bản mới có thể đưa vào bài test." onClose={() => setFormOpen(false)} maxWidth="max-w-4xl">
+        <form onSubmit={saveTest} className="space-y-5 p-5">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><Field label="Tiêu đề *"><Input value={form.title} maxLength={255} onChange={(event) => setForm({ ...form, title: event.target.value })} /></Field><Field label="Chủ đề"><select value={form.topicId} onChange={(event) => setForm({ ...form, topicId: event.target.value })} className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-950"><option value="">Không gắn chủ đề</option>{topics.map((topic) => <option key={topic.id} value={topic.id}>{topic.name}</option>)}</select></Field></div>
+          <Field label="Mô tả"><textarea value={form.description} maxLength={1000} rows={3} onChange={(event) => setForm({ ...form, description: event.target.value })} className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-slate-950" /></Field>
+          <Field label={`Câu hỏi đã chọn: ${form.questionIds.length}`}><div className="mb-3 flex h-10 items-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-3 dark:border-white/10 dark:bg-white/5"><Search className="h-4 w-4 text-slate-500" /><input value={questionSearch} onChange={(event) => setQuestionSearch(event.target.value)} placeholder="Lọc câu hỏi" className="w-full bg-transparent text-sm outline-none" /></div><div className="grid max-h-80 grid-cols-1 gap-2 overflow-y-auto rounded-md border border-slate-200 p-3 md:grid-cols-2 dark:border-white/10">{filteredQuestions.map((question) => { const selected = form.questionIds.includes(question.id); return <button type="button" key={question.id} onClick={() => toggleQuestion(question.id)} className={`flex items-start gap-3 rounded-md border p-3 text-left ${selected ? "border-blue-300 bg-blue-50 dark:border-blue-500/40 dark:bg-blue-500/10" : "border-slate-200 dark:border-white/10"}`}><span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border ${selected ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300"}`}>{selected && <Check className="h-3 w-3" />}</span><span><span className="line-clamp-2 text-sm font-medium">{question.questionText}</span><span className="mt-1 block text-xs text-slate-500">{question.wordTerm} · {adminLabel(question.questionType)}</span></span></button>; })}{!filteredQuestions.length && <p className="col-span-full py-10 text-center text-sm text-slate-500">Chưa có câu hỏi đã xuất bản.</p>}</div></Field>
+          <div className="flex justify-end gap-2 border-t border-slate-200 pt-4 dark:border-white/10"><Button type="button" variant="outline" onClick={() => setFormOpen(false)}>Hủy</Button><Button type="submit" disabled={saving}>{saving ? "Đang lưu..." : editing ? "Lưu thay đổi" : "Tạo mini test"}</Button></div>
+        </form>
+      </CreatorModal>
+      <ConfirmDialog open={Boolean(deleteTarget)} title="Xóa bản nháp mini test?" description={`Mini test "${deleteTarget?.title || ""}" sẽ bị xóa vĩnh viễn.`} busy={busyId === deleteTarget?.id} onCancel={() => setDeleteTarget(null)} onConfirm={() => void deleteTest()} />
+    </CreatorPage>
   );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return <div className="space-y-2"><label className="text-xs font-semibold uppercase text-slate-500">{label}</label>{children}</div>;
 }

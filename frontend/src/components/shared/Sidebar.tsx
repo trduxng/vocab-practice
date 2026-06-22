@@ -63,11 +63,11 @@ const creatorLinks: NavLink[] = [
   { icon: FileText, label: "Từ vựng", href: "/creator/words", anyOf: [PERMISSIONS.manageWords] },
   { icon: FileQuestion, label: "Câu hỏi", href: "/creator/questions", anyOf: [PERMISSIONS.manageQuestions] },
   { icon: ListChecks, label: "Bài test", href: "/creator/mini-tests", anyOf: [PERMISSIONS.manageTests] },
-  { icon: Image, label: "Media", href: "/creator/media" },
-  { icon: Edit3, label: "Bản nháp", href: "/creator/drafts" },
-  { icon: Clock, label: "Chờ duyệt", href: "/creator/pending" },
-  { icon: XCircle, label: "Bị từ chối", href: "/creator/rejected" },
-  { icon: BarChart3, label: "Phân tích", href: "/creator/analytics", anyOf: [PERMISSIONS.viewAnalytics, PERMISSIONS.viewDashboard] },
+  { icon: Image, label: "Media", href: "/creator/media", anyOf: [PERMISSIONS.manageWords, PERMISSIONS.manageQuestions] },
+  { icon: Edit3, label: "Bản nháp", href: "/creator/drafts", anyOf: [PERMISSIONS.submitContentReview] },
+  { icon: Clock, label: "Chờ duyệt", href: "/creator/pending", anyOf: [PERMISSIONS.submitContentReview] },
+  { icon: XCircle, label: "Bị từ chối", href: "/creator/rejected", anyOf: [PERMISSIONS.submitContentReview] },
+  { icon: BarChart3, label: "Phân tích", href: "/creator/analytics", anyOf: [PERMISSIONS.viewContentAnalytics] },
 ];
 
 const studentLinks: NavLink[] = [

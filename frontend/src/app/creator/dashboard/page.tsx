@@ -1,127 +1,91 @@
-'use client';
+"use client";
 
-import React, { useEffect, useState } from 'react';
-import { creatorService } from '@/src/services/creator.service';
-import { BarChart3, BookOpen, FileQuestion, FileText, ListChecks, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { BarChart3, BookOpen, Clock3, FileQuestion, FileText, ListChecks, RefreshCw, XCircle } from "lucide-react";
+import { creatorService } from "@/src/services/creator.service";
+import {
+  CreatorErrorState,
+  CreatorHeader,
+  CreatorLoadingState,
+  CreatorPage,
+  CreatorPanel,
+  CreatorStatusBadge,
+  ToolbarButton,
+} from "@/src/components/creator/CreatorPrimitives";
+import { getCreatorErrorMessage } from "@/src/lib/creator-utils";
 
-interface DashboardStats {
+type DashboardStats = {
   TotalTopics?: number;
   TotalWords?: number;
   TotalQuestions?: number;
   TotalMiniTests?: number;
-  PublishedTopics?: number;
-  PublishedWords?: number;
-  DraftTopics?: number;
-  PendingReviewTopics?: number;
-  [key: string]: any;
-}
+  TotalDrafts?: number;
+  TotalPendingReview?: number;
+  TotalRejected?: number;
+};
 
-interface ContentSummaryItem {
-  EntityType: string;
-  ContentStatus: string;
+type SummaryItem = {
+  EntityType: "Topic" | "Word" | "Question" | "MiniTest";
+  ContentStatus: "Draft" | "PendingReview" | "Published" | "Rejected" | "Archived";
   Total: number;
-}
+};
 
 export default function CreatorDashboardPage() {
   const [stats, setStats] = useState<DashboardStats>({});
-  const [summary, setSummary] = useState<ContentSummaryItem[]>([]);
+  const [summary, setSummary] = useState<SummaryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
     try {
-      const [s, c] = await Promise.all([
-        creatorService.getDashboard(),
-        creatorService.getContentSummary(),
-      ]);
-      setStats(s);
-      setSummary(c);
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Không thể tải dữ liệu dashboard');
+      const [dashboard, contentSummary] = await Promise.all([creatorService.getDashboard(), creatorService.getContentSummary()]);
+      setStats(dashboard);
+      setSummary(contentSummary);
+    } catch (loadError) {
+      setError(getCreatorErrorMessage(loadError, "Không thể tải dashboard Creator"));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  if (loading) {
-    return (
-      <div className="flex-1 flex items-center justify-center p-8">
-        <Loader2 className="animate-spin h-8 w-8 text-blue-500" />
-      </div>
-    );
-  }
+  useEffect(() => {
+    void Promise.resolve().then(load);
+  }, [load]);
+
+  const grouped = useMemo(() => {
+    return summary.reduce<Record<string, SummaryItem[]>>((result, item) => {
+      result[item.EntityType] = [...(result[item.EntityType] || []), item];
+      return result;
+    }, {});
+  }, [summary]);
 
   const cards = [
-    { label: 'Chủ đề', value: stats.TotalTopics ?? 0, icon: BookOpen, color: 'bg-blue-500/10 text-blue-500' },
-    { label: 'Từ vựng', value: stats.TotalWords ?? 0, icon: FileText, color: 'bg-emerald-500/10 text-emerald-500' },
-    { label: 'Câu hỏi', value: stats.TotalQuestions ?? 0, icon: FileQuestion, color: 'bg-amber-500/10 text-amber-500' },
-    { label: 'Bài test', value: stats.TotalMiniTests ?? 0, icon: ListChecks, color: 'bg-purple-500/10 text-purple-500' },
-  ];
-
-  // Group summary by EntityType
-  const grouped: Record<string, ContentSummaryItem[]> = {};
-  summary.forEach((item) => {
-    if (!grouped[item.EntityType]) grouped[item.EntityType] = [];
-    grouped[item.EntityType].push(item);
-  });
-
-  const statusColors: Record<string, string> = {
-    Draft: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
-    PendingReview: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
-    Published: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
-    Rejected: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-    Archived: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
-  };
+    { label: "Chủ đề", value: stats.TotalTopics || 0, icon: BookOpen, tone: "blue" },
+    { label: "Từ vựng", value: stats.TotalWords || 0, icon: FileText, tone: "emerald" },
+    { label: "Câu hỏi", value: stats.TotalQuestions || 0, icon: FileQuestion, tone: "amber" },
+    { label: "Mini test", value: stats.TotalMiniTests || 0, icon: ListChecks, tone: "violet" },
+  ] as const;
 
   return (
-    <div className="flex-1 p-6 md:p-8 space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard Creator</h1>
-        <p className="text-slate-500 text-sm mt-1">Tổng quan nội dung của bạn</p>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {cards.map((card) => (
-          <div key={card.label} className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 p-5 flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${card.color}`}>
-              <card.icon className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{card.value}</p>
-              <p className="text-xs text-slate-500">{card.label}</p>
-            </div>
+    <CreatorPage>
+      <CreatorHeader title="Dashboard Creator" description="Tổng quan nội dung do bạn tạo và trạng thái kiểm duyệt." action={<ToolbarButton onClick={() => void load()}><RefreshCw className="h-4 w-4" />Làm mới</ToolbarButton>} />
+      {loading ? <CreatorLoadingState label="Đang tải dashboard Creator..." /> : error ? <CreatorErrorState description={error} onRetry={() => void load()} /> : (
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {cards.map((card) => <div key={card.label} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.04]"><div className="flex items-center justify-between"><p className="text-sm text-slate-500">{card.label}</p><card.icon className="h-5 w-5 text-slate-400" /></div><p className="mt-4 text-3xl font-semibold">{card.value.toLocaleString("vi-VN")}</p></div>)}
           </div>
-        ))}
-      </div>
-
-      {/* Content Summary */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <BarChart3 className="h-5 w-5 text-slate-400" /> Chi tiết theo trạng thái
-        </h2>
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {Object.entries(grouped).map(([type, items]) => (
-            <div key={type} className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 p-5 space-y-3">
-              <h3 className="font-semibold text-sm">{type}</h3>
-              <div className="space-y-2">
-                {items.map((item) => (
-                  <div key={item.ContentStatus} className="flex items-center justify-between">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[item.ContentStatus] || ''}`}>
-                      {item.ContentStatus}
-                    </span>
-                    <span className="text-sm font-bold">{item.Total}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <CreatorPanel><div className="flex items-center justify-between"><div><p className="text-sm text-slate-500">Bản nháp</p><p className="mt-2 text-2xl font-semibold">{stats.TotalDrafts || 0}</p></div><FileText className="h-6 w-6 text-slate-400" /></div></CreatorPanel>
+            <CreatorPanel><div className="flex items-center justify-between"><div><p className="text-sm text-slate-500">Chờ duyệt</p><p className="mt-2 text-2xl font-semibold">{stats.TotalPendingReview || 0}</p></div><Clock3 className="h-6 w-6 text-amber-500" /></div></CreatorPanel>
+            <CreatorPanel><div className="flex items-center justify-between"><div><p className="text-sm text-slate-500">Bị từ chối</p><p className="mt-2 text-2xl font-semibold">{stats.TotalRejected || 0}</p></div><XCircle className="h-6 w-6 text-rose-500" /></div></CreatorPanel>
+          </div>
+          <CreatorPanel title="Chi tiết theo trạng thái" description="Số lượng từng loại nội dung trong quy trình kiểm duyệt." action={<BarChart3 className="h-4 w-4 text-slate-400" />}>
+            {Object.keys(grouped).length === 0 ? <p className="py-10 text-center text-sm text-slate-500">Bạn chưa tạo nội dung nào.</p> : <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">{Object.entries(grouped).map(([type, items]) => <div key={type} className="rounded-md border border-slate-200 p-4 dark:border-white/10"><h3 className="font-medium">{type}</h3><div className="mt-4 space-y-3">{items.map((item) => <div key={item.ContentStatus} className="flex items-center justify-between gap-3"><CreatorStatusBadge status={item.ContentStatus} /><span className="font-semibold">{item.Total}</span></div>)}</div></div>)}</div>}
+          </CreatorPanel>
+        </>
+      )}
+    </CreatorPage>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Bell, CheckCheck, Moon, Search, Sun } from "lucide-react";
 import {
   Sheet,
@@ -14,7 +14,7 @@ import { useAuth } from "@/src/app/context/AuthContext";
 interface TopbarProps {
   title: string;
   subtitle?: string;
-  role: "admin" | "student";
+  role: "admin" | "creator" | "student";
   userName?: string;
 }
 
@@ -61,8 +61,12 @@ function NotificationSheet({ open, onOpenChange }: { open: boolean; onOpenChange
 
   useEffect(() => {
     if (open) {
-      setLoading(true);
-      fetchNotifications().finally(() => setLoading(false));
+      void Promise.resolve()
+        .then(() => {
+          setLoading(true);
+          return fetchNotifications();
+        })
+        .finally(() => setLoading(false));
     }
   }, [open, fetchNotifications]);
 
@@ -196,7 +200,8 @@ export default function Topbar({
   userName,
 }: TopbarProps) {
   const { user } = useAuth();
-  const displayName = userName || user?.fullName || (role === "admin" ? "Quản trị viên" : "Người học");
+  const roleLabel = role === "admin" ? "Quản trị viên" : role === "creator" ? "Biên tập viên" : "Người học";
+  const displayName = userName || user?.fullName || roleLabel;
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("theme");
@@ -210,6 +215,7 @@ export default function Topbar({
 
   const [unreadCount, setUnreadCount] = useState(0);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const wasSheetOpen = useRef(false);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", darkMode);
@@ -217,27 +223,29 @@ export default function Topbar({
   }, [darkMode]);
 
   const fetchUnreadCount = useCallback(async () => {
+    if (role === "admin") return;
     try {
       const data = await userService.getNotifications(1);
       setUnreadCount(data.unreadCount);
     } catch {
       // Table may not exist yet
     }
-  }, []);
+  }, [role]);
 
   // Initial fetch + poll every 60s
   useEffect(() => {
-    if (role !== "student") return;
-    fetchUnreadCount();
+    if (role === "admin") return;
+    void Promise.resolve().then(fetchUnreadCount);
     const interval = setInterval(fetchUnreadCount, 60000);
     return () => clearInterval(interval);
   }, [role, fetchUnreadCount]);
 
   // Refresh count after sheet closes
   useEffect(() => {
-    if (!sheetOpen) {
-      fetchUnreadCount();
+    if (wasSheetOpen.current && !sheetOpen) {
+      void Promise.resolve().then(fetchUnreadCount);
     }
+    wasSheetOpen.current = sheetOpen;
   }, [sheetOpen, fetchUnreadCount]);
 
   return (
@@ -264,7 +272,7 @@ export default function Topbar({
           {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
 
-        {role === "student" && (
+        {role !== "admin" && (
           <>
             <button
               onClick={() => setSheetOpen(true)}
@@ -288,7 +296,7 @@ export default function Topbar({
           </div>
           <div className="hidden md:block">
             <p className="text-sm font-medium leading-tight text-slate-950 dark:text-white">{displayName}</p>
-            <p className="text-xs text-slate-600 dark:text-slate-400">{role === "admin" ? "Quản trị viên" : "Người học"}</p>
+            <p className="text-xs text-slate-600 dark:text-slate-400">{roleLabel}</p>
           </div>
         </div>
       </div>

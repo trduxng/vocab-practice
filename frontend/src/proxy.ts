@@ -7,9 +7,10 @@ const publicRoutes = ["/", "/login", "/register"];
 
 // Các route chỉ dành cho admin
 const adminRoutes = ["/admin"];
+const creatorRoutes = ["/creator"];
 
 // Các route cần login (cả user và admin)
-const protectedRoutes = ["/user", "/admin"];
+const protectedRoutes = ["/user", "/admin", "/creator"];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -53,9 +54,19 @@ export function proxy(request: NextRequest) {
     }
   }
 
+  if (creatorRoutes.some((route) => pathname.startsWith(route))) {
+    if (user?.role !== "ContentCreator" && user?.role !== "Admin") {
+      return NextResponse.redirect(new URL("/user/dashboard", request.url));
+    }
+  }
+
   // Nếu là admin mà vào user route thì redirect về admin dashboard
   if (pathname.startsWith("/user") && user?.role === "Admin") {
     return NextResponse.redirect(new URL("/admin/dashboard", request.url));
+  }
+
+  if (pathname.startsWith("/user") && user?.role === "ContentCreator") {
+    return NextResponse.redirect(new URL("/creator/dashboard", request.url));
   }
 
   return NextResponse.next();
