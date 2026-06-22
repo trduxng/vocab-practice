@@ -24,13 +24,22 @@ const AdminLayout = ({ children }: { children: React.ReactNode }) => {
   }, [loading, isAuthenticated, canAccessAdmin, router]);
 
   if (loading) {
-    return <div className="min-h-screen bg-[#080d1a] flex items-center justify-center text-white font-mono">ADMIN ACCESS AUTHORIZING...</div>;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-100 font-mono text-slate-950 dark:bg-slate-950 dark:text-white">
+        <div className="text-center">
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-slate-950 dark:border-white/20 dark:border-t-white" />
+          <p className="mt-4 text-sm font-bold">ADMIN ACCESS AUTHORIZING...</p>
+        </div>
+      </div>
+    );
   }
 
-  if (!isAuthenticated || !canAccessAdmin) return null;
+  if (!isAuthenticated || !canAccessAdmin) {
+    return null;
+  }
 
   return (
-    <div className="flex min-h-screen bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-slate-100">
+    <div suppressHydrationWarning className="flex min-h-screen bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-slate-100">
       <Sidebar role="admin" />
       <div className="flex-1 flex flex-col min-w-0">{children}</div>
     </div>

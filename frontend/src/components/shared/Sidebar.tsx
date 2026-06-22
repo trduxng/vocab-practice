@@ -1,9 +1,9 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useState, useCallback } from "react";
 import type { ElementType } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/src/app/context/AuthContext";
 import { usePermissions } from "@/src/modules/auth/hooks/usePermissions";
 import { PERMISSIONS, type PermissionCode } from "@/src/modules/auth/types/permissions";
@@ -112,7 +112,11 @@ function NavLinks({ links, collapsed }: { links: NavLink[]; collapsed: boolean }
 export default function Sidebar({ role }: { role: "admin" | "creator" | "student" }) {
   const [collapsed, setCollapsed] = useState(false);
   const { logout } = useAuth();
+  const router = useRouter();
   const { hasAnyPermission } = usePermissions();
+  const goHome = useCallback(() => {
+    router.push('/');
+  }, [router]);
   const baseLinks = role === "admin" ? adminLinks : role === "creator" ? creatorLinks : studentLinks;
   const links = baseLinks.filter((link) => !link.anyOf?.length || hasAnyPermission(link.anyOf));
 
@@ -164,20 +168,23 @@ export default function Sidebar({ role }: { role: "admin" | "creator" | "student
         </Suspense>
       </nav>
 
-      <div className="border-t border-slate-200 p-2 dark:border-white/10">
-        <Link
-          href="/"
-          className="flex h-10 items-center justify-center gap-3 rounded-md px-3 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950 md:justify-start dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
+      <div className="border-t border-slate-200 p-2 dark:border-white/10 space-y-1">
+        <button
+          type="button"
+          onClick={goHome}
+          className="flex h-10 w-full items-center justify-center gap-3 rounded-md px-3 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950 md:justify-start dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
+          title="Về trang chủ"
         >
-          <Home className="h-4 w-4" />
+          <Home className="h-4 w-4 shrink-0" />
           {!collapsed && <span className="hidden md:inline">Về trang chủ</span>}
-        </Link>
+        </button>
         <button
           type="button"
           onClick={logout}
-          className="flex h-10 w-full items-center justify-center gap-3 rounded-md px-3 text-sm font-medium text-slate-600 hover:bg-rose-50 hover:text-rose-600 md:justify-start dark:text-slate-400 dark:hover:bg-rose-500/10 dark:hover:text-rose-300"
+          className="flex h-10 w-full items-center justify-center gap-3 rounded-md px-3 text-sm font-medium text-slate-600 transition-colors hover:bg-rose-50 hover:text-rose-600 md:justify-start dark:text-slate-400 dark:hover:bg-rose-500/10 dark:hover:text-rose-300"
+          title="Đăng xuất"
         >
-          <LogOut className="h-4 w-4" />
+          <LogOut className="h-4 w-4 shrink-0" />
           {!collapsed && <span className="hidden md:inline">Đăng xuất</span>}
         </button>
       </div>

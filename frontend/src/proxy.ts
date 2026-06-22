@@ -1,4 +1,4 @@
-// vocab-practice/frontend/src/proxy.ts
+// vocab-practice/frontend/src/proxy.ts (Next.js middleware - proxy convention)
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 

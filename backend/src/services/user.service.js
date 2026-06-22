@@ -157,6 +157,17 @@ class UserService {
 
   static async submitAnswer({ userId, questionId, wordId, submittedAnswer, isCorrect, reviewRating, activityType }) {
     const pool = await poolPromise;
+
+    // Kiểm tra question tồn tại trước khi gọi SP
+    const questionCheck = await pool
+      .request()
+      .input("QuestionID", sql.BigInt, questionId)
+      .query(`SELECT WordID FROM Questions WHERE QuestionID = @QuestionID AND ContentStatus = N'Published'`);
+
+    if (questionCheck.recordset.length === 0) {
+      throw new Error("Câu hỏi không tồn tại hoặc chưa được xuất bản");
+    }
+
     const result = await pool
       .request()
       .input("UserID", sql.BigInt, userId)
@@ -164,9 +175,9 @@ class UserService {
       .input("SubmittedAnswer", sql.NVarChar(1000), submittedAnswer || "")
       .execute("usp_SubmitQuestionAttempt");
 
-    const canonicalWordId = Number(result.recordset[0]?.WordID || 0);
+    let canonicalWordId = Number(result.recordset[0]?.WordID || 0);
     if (!canonicalWordId) {
-      throw new Error("Question does not resolve to a vocabulary word");
+      canonicalWordId = Number(questionCheck.recordset[0].WordID || 0);
     }
 
     let reviewFeedback = {};
@@ -542,7 +553,7 @@ class UserService {
 
     const countResult = await pool.request().input("UserID", sql.BigInt, userId)
       .query(`
-        SELECT COUNT(DISTINCT CAST(ea.AttemptedAt AS DATE) + CAST(mt.MiniTestID AS NVARCHAR)) AS total
+        SELECT COUNT(DISTINCT CONCAT(CAST(ea.AttemptedAt AS DATE), '_', mt.MiniTestID)) AS total
         FROM ExerciseAttempts ea
         JOIN Questions q ON ea.QuestionID = q.QuestionID
         JOIN MiniTestItems mti ON q.QuestionID = mti.QuestionID
@@ -687,7 +698,7 @@ class UserService {
         .query(`
           WITH MonthOffsets AS (
             SELECT offsetValue
-            FROM (VALUES (11), (10), (9), (8), (7), (6), (5), (4), (3), (2), (1), (0)) offsets(offsetValue)
+            FROM (VALUES (11), (10), (9), (8), (7), (6), (5), (4), (3), (2), (1), (0)) month_offsets_tbl(offsetValue)
           ),
           MonthSeries AS (
             SELECT DATEADD(
