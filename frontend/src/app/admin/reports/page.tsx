@@ -86,10 +86,13 @@ function contentLink(report: ContentReport) {
 }
 
 export default function AdminReportsPage() {
+  const [mounted, setMounted] = useState(false);
   const [reports, setReports] = useState<ContentReport[]>([]);
   const [pagination, setPagination] = useState<PaginationMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
@@ -186,10 +189,10 @@ export default function AdminReportsPage() {
       <Topbar title="Báo cáo và phản hồi" subtitle="Xử lý báo cáo của học viên về từ vựng, âm thanh và đáp án." role="admin" />
       <AdminPage>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <KpiCard label="Báo cáo đã tải" value={compactNumber(counts.total)} change={`${pagination?.total ?? counts.total} tổng cộng`} icon={Flag} tone="blue" />
-          <KpiCard label="Mới" value={compactNumber(counts.open)} change="Cần phân loại" icon={ShieldAlert} tone="amber" />
-          <KpiCard label="Đang xem xét" value={compactNumber(counts.inReview)} change="Đang được xử lý" icon={MessageSquareReply} tone="violet" />
-          <KpiCard label="Ưu tiên cao" value={compactNumber(counts.highPriority)} change="Mức cao hoặc khẩn cấp" icon={AlertTriangle} tone="rose" />
+          <KpiCard label="Báo cáo đã tải" value={mounted ? compactNumber(counts.total) : String(counts.total)} change={`${pagination?.total ?? counts.total} tổng cộng`} icon={Flag} tone="blue" />
+          <KpiCard label="Mới" value={mounted ? compactNumber(counts.open) : String(counts.open)} change="Cần phân loại" icon={ShieldAlert} tone="amber" />
+          <KpiCard label="Đang xem xét" value={mounted ? compactNumber(counts.inReview) : String(counts.inReview)} change="Đang được xử lý" icon={MessageSquareReply} tone="violet" />
+          <KpiCard label="Ưu tiên cao" value={mounted ? compactNumber(counts.highPriority) : String(counts.highPriority)} change="Mức cao hoặc khẩn cấp" icon={AlertTriangle} tone="rose" />
         </div>
 
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
@@ -239,7 +242,7 @@ export default function AdminReportsPage() {
                       <td className="px-4 py-4">
                         <p className="font-medium text-slate-950 dark:text-white">{report.title}</p>
                         <p className="mt-1 line-clamp-2 text-xs text-slate-500 dark:text-slate-400">{report.description}</p>
-                        <p className="mt-1 text-xs text-slate-400">{adminLabel(report.reportType)} - {formatDate(report.createdAt)}</p>
+                        <p className="mt-1 text-xs text-slate-400">{adminLabel(report.reportType)}{mounted ? ` - ${formatDate(report.createdAt)}` : ''}</p>
                       </td>
                       <td className="px-4 py-4 text-slate-700 dark:text-slate-300">
                         <p>{report.wordTerm || report.questionText || adminLabel(report.entityType)}</p>
@@ -266,7 +269,7 @@ export default function AdminReportsPage() {
 
             {pagination && (
               <div className="mt-4 flex flex-col gap-3 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between dark:text-slate-400">
-                <span>Trang {pagination.page} / {pagination.totalPages} - {pagination.total} báo cáo</span>
+                <span>Trang {pagination.page} / {pagination.totalPages} - {mounted ? compactNumber(pagination.total) : pagination.total} báo cáo</span>
                 <div className="flex items-center gap-2">
                   <ToolbarButton onClick={() => setPage((current) => Math.max(1, current - 1))}>Trước</ToolbarButton>
                   <ToolbarButton onClick={() => setPage((current) => Math.min(pagination.totalPages, current + 1))}>Sau</ToolbarButton>
@@ -339,7 +342,7 @@ export default function AdminReportsPage() {
 
                 {selectedReport.resolvedByName && (
                   <p className="text-xs text-slate-500">
-                    Lần xử lý gần nhất bởi {selectedReport.resolvedByName} lúc {formatDate(selectedReport.resolvedAt)}
+                    Lần xử lý gần nhất bởi {selectedReport.resolvedByName}{mounted ? ` lúc ${formatDate(selectedReport.resolvedAt)}` : ''}
                   </p>
                 )}
               </div>
