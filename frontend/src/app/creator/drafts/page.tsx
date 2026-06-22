@@ -10,9 +10,12 @@ export default function CreatorDraftsPage() {
   const [items, setItems] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadAll();
-  }, []);
+  const typeLabels: Record<string, string> = {
+    Topic: 'Chủ đề',
+    Word: 'Từ vựng',
+    Question: 'Câu hỏi',
+    MiniTest: 'Bài test',
+  };
 
   const loadAll = async () => {
     try {
@@ -23,15 +26,24 @@ export default function CreatorDraftsPage() {
         creatorService.getMiniTests({ status: 'Draft' }),
       ]);
       const all: ContentItem[] = [
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ...topics.map((t: any) => ({ ...t, name: t.name, type: 'Topic' })),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ...words.map((w: any) => ({ ...w, name: w.term, type: 'Word' })),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ...questions.map((q: any) => ({ ...q, name: q.questionText?.substring(0, 60), type: 'Question' })),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ...tests.map((m: any) => ({ ...m, name: m.title, type: 'MiniTest' })),
       ];
       all.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setItems(all);
     } catch { toast.error('Không thể tải dữ liệu'); } finally { setLoading(false); }
   };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadAll();
+  }, []);
 
   const handleSubmit = async (item: ContentItem) => {
     try {
@@ -41,6 +53,7 @@ export default function CreatorDraftsPage() {
       else if (item.type === 'MiniTest') await creatorService.submitMiniTestForReview(item.id);
       toast.success('Đã gửi duyệt');
       await loadAll();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) { toast.error(e.response?.data?.message || 'Lỗi'); }
   };
 
@@ -60,7 +73,7 @@ export default function CreatorDraftsPage() {
             {items.map((item) => (
               <div key={`${item.type}-${item.id}`} className="flex items-center justify-between px-5 py-4 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                 <div className="flex items-center gap-3 min-w-0">
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-slate-500 shrink-0">{item.type}</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-slate-500 shrink-0">{typeLabels[item.type] || item.type}</span>
                   <span className="truncate font-medium">{item.name || '—'}</span>
                 </div>
                 <button onClick={() => handleSubmit(item)} title="Gửi duyệt" className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 text-xs font-medium transition-colors">

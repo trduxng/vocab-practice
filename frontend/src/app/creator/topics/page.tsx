@@ -1,23 +1,11 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { creatorService, TopicCategory, TopicPayload } from '@/src/services/creator.service';
+import { creatorService, TopicCategory, TopicPayload, Topic } from '@/src/services/creator.service';
 import { Plus, Pencil, Trash2, Send, Loader2, X } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import { toast } from 'sonner';
-
-interface Topic {
-  id: number;
-  name: string;
-  code: string;
-  description: string;
-  contentStatus: string;
-  categoryName: string;
-  categoryId: number;
-  displayOrder: number;
-  createdAt: string;
-}
 
 const statusBadge: Record<string, string> = {
   Draft: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
@@ -25,6 +13,14 @@ const statusBadge: Record<string, string> = {
   Published: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
   Rejected: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
   Archived: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+};
+
+const statusLabels: Record<string, string> = {
+  Draft: 'Bản nháp',
+  PendingReview: 'Chờ duyệt',
+  Published: 'Đã xuất bản',
+  Rejected: 'Bị từ chối',
+  Archived: 'Đã lưu trữ',
 };
 
 export default function CreatorTopicsPage() {
@@ -41,6 +37,7 @@ export default function CreatorTopicsPage() {
       const [t, c] = await Promise.all([creatorService.getTopics(), creatorService.getTopicCategories()]);
       setTopics(t);
       setCategories(c);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error('Không thể tải dữ liệu');
     } finally {
@@ -48,6 +45,7 @@ export default function CreatorTopicsPage() {
     }
   }, []);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadData(); }, [loadData]);
 
   const openCreate = () => {
@@ -78,6 +76,7 @@ export default function CreatorTopicsPage() {
       }
       setShowForm(false);
       await loadData();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Lỗi khi lưu');
     } finally {
@@ -91,6 +90,7 @@ export default function CreatorTopicsPage() {
       await creatorService.deleteTopic(id);
       toast.success('Đã xóa');
       await loadData();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Không thể xóa');
     }
@@ -101,6 +101,7 @@ export default function CreatorTopicsPage() {
       await creatorService.submitTopicForReview(id);
       toast.success('Đã gửi duyệt');
       await loadData();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Không thể gửi duyệt');
     }
@@ -200,7 +201,7 @@ export default function CreatorTopicsPage() {
                   <td className="px-4 py-3 text-slate-500">{t.categoryName || '—'}</td>
                   <td className="px-4 py-3">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge[t.contentStatus] || ''}`}>
-                      {t.contentStatus}
+                      {statusLabels[t.contentStatus] || t.contentStatus}
                     </span>
                   </td>
                   <td className="px-4 py-3">

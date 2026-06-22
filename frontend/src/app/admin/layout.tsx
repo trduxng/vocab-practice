@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Sidebar from "@/src/components/shared/Sidebar";
 import { useAuth } from "../context/AuthContext";
 import { usePathname, useRouter } from "next/navigation";
@@ -32,8 +32,14 @@ const AdminLayout = ({ children }: { children: React.ReactNode }) => {
   const canAccessRoute = !currentRoute || hasAnyPermission(currentRoute.anyOf);
   const fallbackAdminRoute = routePermissions.find((route) => hasAnyPermission(route.anyOf))?.prefix || "/user/dashboard";
 
+  const [mounted, setMounted] = useState(false);
+
   useEffect(() => {
-    if (!loading) {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!loading && mounted) {
       if (!isAuthenticated) {
         router.replace(`/login?callbackUrl=${encodeURIComponent(pathname)}`);
       } else if (!isAdmin || !canAccessAdmin) {
@@ -42,7 +48,9 @@ const AdminLayout = ({ children }: { children: React.ReactNode }) => {
         router.replace(fallbackAdminRoute);
       }
     }
-  }, [loading, isAuthenticated, isAdmin, canAccessAdmin, canAccessRoute, fallbackAdminRoute, pathname, router]);
+  }, [loading, isAuthenticated, isAdmin, canAccessAdmin, canAccessRoute, fallbackAdminRoute, pathname, router, mounted]);
+
+  if (!mounted) return null;
 
   if (loading) {
     return <div className="min-h-screen bg-[#080d1a] flex items-center justify-center text-white font-mono">ĐANG XÁC THỰC QUYỀN QUẢN TRỊ...</div>;

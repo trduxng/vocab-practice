@@ -5,12 +5,12 @@ class ProgressService {
   static async getProgress(userId) {
     const pool = await poolPromise;
 
-    // Tổng số từ đã học (có progress)
+    // Tổng số từ đã học (MasteryLevel >= 3 - đồng bộ với user.service.js)
     const totalResult = await pool.request().input("UserID", sql.BigInt, userId)
       .query(`
         SELECT COUNT(*) AS totalLearned
         FROM UserWordProgress
-        WHERE UserID = @UserID
+        WHERE UserID = @UserID AND MasteryLevel >= 3
       `);
 
     // Số câu đúng/sai
@@ -38,7 +38,7 @@ class ProgressService {
         ORDER BY wrongCount DESC
       `);
 
-    // Streak (số ngày liên tiếp có học)
+    // Streak (số ngày liên tiếp - đồng bộ với gamification.service.js)
     const streakResult = await pool
       .request()
       .input("UserID", sql.BigInt, userId).query(`
@@ -47,15 +47,16 @@ class ProgressService {
           FROM ExerciseAttempts
           WHERE UserID = @UserID
         ),
-        RankedDates AS (
-          SELECT
-            StudyDate,
-            DATEDIFF(DAY, ROW_NUMBER() OVER (ORDER BY StudyDate DESC), StudyDate) AS grp
+        RankedActivity AS (
+          SELECT StudyDate,
+                 MAX(StudyDate) OVER () AS LatestDate,
+                 ROW_NUMBER() OVER (ORDER BY StudyDate DESC) AS rowNumber
           FROM DailyActivity
         )
         SELECT COUNT(*) AS streak
-        FROM RankedDates
-        WHERE grp = (SELECT MAX(grp) FROM RankedDates)
+        FROM RankedActivity
+        WHERE LatestDate >= DATEADD(day, -1, CAST(SYSDATETIMEOFFSET() AS DATE))
+          AND DATEDIFF(day, StudyDate, LatestDate) = rowNumber - 1
       `);
 
     const totalLearned = totalResult.recordset[0].totalLearned || 0;

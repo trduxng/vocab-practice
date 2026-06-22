@@ -27,6 +27,21 @@ export default function CreatorAnalyticsPage() {
     Draft: 'bg-slate-400', PendingReview: 'bg-amber-400', Published: 'bg-emerald-400', Rejected: 'bg-red-400', Archived: 'bg-gray-400',
   };
 
+  const statusLabels: Record<string, string> = {
+    Draft: 'Bản nháp',
+    PendingReview: 'Chờ duyệt',
+    Published: 'Đã xuất bản',
+    Rejected: 'Bị từ chối',
+    Archived: 'Đã lưu trữ',
+  };
+
+  const typeLabels: Record<string, string> = {
+    Topic: 'Chủ đề',
+    Word: 'Từ vựng',
+    Question: 'Câu hỏi',
+    MiniTest: 'Bài test',
+  };
+
   return (
     <div className="flex-1 p-6 md:p-8 space-y-6">
       <div>
@@ -40,7 +55,7 @@ export default function CreatorAnalyticsPage() {
           return (
             <div key={type} className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 p-5 space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold">{type}</h3>
+                <h3 className="font-semibold">{typeLabels[type] || type}</h3>
                 <span className="text-2xl font-bold">{total}</span>
               </div>
               {/* Simple bar chart */}
@@ -50,7 +65,7 @@ export default function CreatorAnalyticsPage() {
                   return (
                     <div key={item.ContentStatus} className="space-y-1">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-slate-500">{item.ContentStatus}</span>
+                        <span className="text-slate-500">{statusLabels[item.ContentStatus] || item.ContentStatus}</span>
                         <span className="font-medium">{item.Total} ({pct}%)</span>
                       </div>
                       <div className="h-2 rounded-full bg-slate-100 dark:bg-white/10 overflow-hidden">

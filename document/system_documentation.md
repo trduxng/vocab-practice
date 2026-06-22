@@ -7,8 +7,8 @@
 ```
 Frontend (Next.js + TypeScript)     Backend (Express.js)          Database (SQL Server)
 ┌─────────────────────────┐    ┌──────────────────────────┐    ┌────────────────────┐
-│ Pages (App Router)      │    │ Routes                   │    │ 14 Tables          │
-│   ↓                     │    │   ↓                      │    │ 1 Stored Procedure │
+│ Pages (App Router)      │    │ Routes                   │    │ 24 Tables          │
+│   ↓                     │    │   ↓                      │    │ 4 Views + 1 SP     │
 │ Services (API calls)    │───>│ Middlewares (Auth+Valid)  │    │                    │
 │   ↓                     │HTTP│   ↓                      │    │                    │
 │ API Client (Axios)      │───>│ Controllers              │    │                    │
@@ -102,34 +102,108 @@ GET /api/categories/part-of-speeches → CategoriesController.getPartOfSpeeches
 GET /api/categories/topics           → CategoriesController.getTopics
 ```
 
-#### `admin.routes.js` (tất cả cần verifyToken + checkPermission)
+#### `admin.routes.js` (tất cả cần verifyToken + checkPermission/checkAnyPermission)
 
 ```
-GET    /api/admin/words              [MANAGE_WORDS]     → getWords
-POST   /api/admin/words              [MANAGE_WORDS]     → createWord
-PUT    /api/admin/words/:id          [MANAGE_WORDS]     → updateWord
-DELETE /api/admin/words/:id          [MANAGE_WORDS]     → deleteWord
-GET    /api/admin/questions/:wordId  [MANAGE_QUESTIONS] → getQuestionsByWord
-POST   /api/admin/questions          [MANAGE_QUESTIONS] → createQuestion
-GET    /api/admin/minitests          [MANAGE_TESTS]     → getMiniTests
-POST   /api/admin/minitests          [MANAGE_TESTS]     → createMiniTest
-GET    /api/admin/stats              [VIEW_DASHBOARD]   → getStats
-GET    /api/admin/students           [MANAGE_USERS]     → getStudents
-PATCH  /api/admin/students/:id/toggle[MANAGE_USERS]     → toggleStudentStatus
-GET    /api/admin/analytics          [VIEW_DASHBOARD]   → getAnalytics
+// Topics & Categories
+GET    /api/admin/topics              [MANAGE_TOPICS, MANAGE_WORDS]            → getTopics
+POST   /api/admin/topics              [MANAGE_TOPICS, MANAGE_WORDS] + validate → createTopic
+PUT    /api/admin/topics/:id          [MANAGE_TOPICS, MANAGE_WORDS] + validate → updateTopic
+DELETE /api/admin/topics/:id          [MANAGE_TOPICS, MANAGE_WORDS]            → deleteTopic
+GET    /api/admin/topic-categories    [MANAGE_TOPIC_CATEGORIES...]             → getTopicCategories
+POST   /api/admin/topic-categories    [MANAGE_TOPIC_CATEGORIES...] + validate  → createTopicCategory
+PUT    /api/admin/topic-categories/:id [MANAGE_TOPIC_CATEGORIES...] + validate  → updateTopicCategory
+DELETE /api/admin/topic-categories/:id [MANAGE_TOPIC_CATEGORIES...]            → deleteTopicCategory
+
+// Words
+GET    /api/admin/words              [MANAGE_WORDS]                            → getWords
+POST   /api/admin/words              [MANAGE_WORDS] + validate                 → createWord
+GET    /api/admin/words/:id          [MANAGE_WORDS]                            → getWordDetail
+PUT    /api/admin/words/:id          [MANAGE_WORDS] + validate                 → updateWord
+DELETE /api/admin/words/:id          [MANAGE_WORDS]                            → deleteWord (soft archive)
+DELETE /api/admin/words/:id/hard     [MANAGE_SYSTEM_SETTINGS]                  → hardDeleteWord
+POST   /api/admin/words/import-preview [MANAGE_WORDS]                          → previewWordImport
+POST   /api/admin/words/bulk-import  [MANAGE_WORDS]                            → bulkImportWords
+
+// Questions
+GET    /api/admin/questions/:wordId  [MANAGE_QUESTIONS]                        → getQuestionsByWord
+POST   /api/admin/questions          [MANAGE_QUESTIONS] + validate             → createQuestion
+PUT    /api/admin/questions/:id      [MANAGE_QUESTIONS] + validate             → updateQuestion
+DELETE /api/admin/questions/:id      [MANAGE_QUESTIONS]                        → deleteQuestion
+POST   /api/admin/questions/bulk-import [MANAGE_QUESTIONS]                     → bulkImportQuestions
+
+// Mini Tests
+GET    /api/admin/minitests          [MANAGE_TESTS]                            → getMiniTests
+POST   /api/admin/minitests          [MANAGE_TESTS] + validate                 → createMiniTest
+PUT    /api/admin/minitests/:id      [MANAGE_TESTS] + validate                 → updateMiniTest
+DELETE /api/admin/minitests/:id      [MANAGE_TESTS]                            → deleteMiniTest
+PATCH  /api/admin/minitests/:id/publish [MANAGE_TESTS]                         → publishMiniTest
+PATCH  /api/admin/minitests/:id/archive [MANAGE_TESTS]                         → archiveMiniTest
+
+// Users & Students Management
+GET    /api/admin/students           [MANAGE_USERS]                            → getStudents
+POST   /api/admin/students           [MANAGE_USERS]                            → createUser
+PUT    /api/admin/students/:id       [MANAGE_USERS]                            → updateUser
+DELETE /api/admin/students/:id       [MANAGE_USERS]                            → deleteUser
+PATCH  /api/admin/students/:id/toggle [MANAGE_USERS]                           → toggleStudentStatus
+PATCH  /api/admin/students/:id/role   [MANAGE_USERS]                           → updateUserRole
+
+// Analytics, Content & Logs
+GET    /api/admin/stats              [VIEW_DASHBOARD]                          → getStats
+GET    /api/admin/analytics          [VIEW_DASHBOARD]                          → getAnalytics
+GET    /api/admin/content-management [VIEW_DASHBOARD]                          → getContentManagement
+PATCH  /api/admin/content-status     [MANAGE_SYSTEM_SETTINGS, MANAGE_TOPICS...]→ updateContentStatus
+GET    /api/admin/audit-logs         [VIEW_AUDIT_LOGS, MANAGE_SYSTEM...]       → getAuditLogs
+GET    /api/admin/reports            [MANAGE_REPORTS, MANAGE_SYSTEM...]        → getReports
+PATCH  /api/admin/reports/:id        [MANAGE_REPORTS, MANAGE_SYSTEM...]        → updateReport
+
+// Notifications
+GET    /api/admin/notifications      [MANAGE_NOTIFICATIONS]                    → getNotifications
+POST   /api/admin/notifications      [MANAGE_NOTIFICATIONS]                    → sendAnnouncement
+POST   /api/admin/notifications/daily-reminders [MANAGE_NOTIFICATIONS]          → createDailyReminders
 ```
 
 #### `user.routes.js` (tất cả cần verifyToken)
 
 ```
-POST /api/user/submit-answer              → submitAnswer
+// Learning & Review
+POST /api/user/submit-answer              → submitAnswer (Stored Procedure)
 GET  /api/user/flashcards                 → getFlashcards
 GET  /api/user/stats                      → getStats
+GET  /api/user/dashboard/mastery-timeline  → getMasteryTimeline
+GET  /api/user/topics/:topicId/words       → getTopicWords
+GET  /api/user/review/smart-queue         → getSmartReviewQueue (SRS Queue)
+GET  /api/user/review/session-summary     → getSessionSummary
+GET  /api/user/review/mistakes            → getMistakeReviewQueue
+
+// Mini Tests
 GET  /api/user/minitests                  → getMiniTests
 GET  /api/user/minitests/history          → getTestHistory
 GET  /api/user/minitests/session-details  → getTestSessionDetails
 GET  /api/user/minitests/:id              → getMiniTestDetails
-PUT  /api/user/profile                    → updateProfile
+POST /api/user/minitests/:id/submit       → submitMiniTest
+
+// User Goals & SRS Config
+GET  /api/user/activity/heatmap           → getActivityHeatmap
+GET  /api/user/goals/daily-progress       → getDailyProgress
+GET  /api/user/goals/daily-goal           → getDailyGoal
+PUT  /api/user/goals/daily-goal           → updateDailyGoal
+PUT  /api/user/goals/srs-config           → updateSRSConfig
+
+// Notifications
+GET  /api/user/notifications              → getNotifications
+PUT  /api/user/notifications/:id/read     → markNotificationRead
+PUT  /api/user/notifications/read-all     → markAllNotificationsRead
+
+// Sổ tay từ vựng (Vocabulary Notebook)
+GET    /api/user/notebook                 → getNotebook
+GET    /api/user/notebook/check           → checkNotebookEntry
+POST   /api/user/notebook                 → addNotebookEntry
+PUT    /api/user/notebook/:id             → updateNotebookEntry
+DELETE /api/user/notebook/:id             → deleteNotebookEntry
+
+// Reports
+POST /api/user/reports                    → createReport + validate
 ```
 
 ---
@@ -431,22 +505,66 @@ User trả lời
 
 ### Luồng 3: Admin tạo từ vựng
 
+**Route:** `POST /api/admin/words`
+**Permission:** `MANAGE_WORDS`
+**Default ContentStatus:** `Published` (Admin bypass review)
+
 ```
-Admin điền form (term, meaning, phonetic, topics, examples)
-  → admin.service.ts createWord(data)
-  → POST /api/admin/words
-  → auth.js verifyToken
-  → auth.js checkPermission('MANAGE_WORDS')
-  → validate.js schemas.createWord
-  → admin.controller.js createWord()
-  → admin.service.js createWord(data, adminId)
-    → BEGIN TRANSACTION
-    → INSERT Words → get wordId
-    → loop INSERT WordTopics
-    → loop INSERT ExampleSentences
-    → COMMIT
-  → Response {id, term, meaning}
+1. Frontend: Admin điền form
+   ├─ term (bắt buộc, min 1 ký tự)
+   ├─ meaning (bắt buộc, min 1 ký tự)
+   ├─ phonetic (tùy chọn)
+   ├─ partOfSpeechId (bắt buộc, int > 0)
+   ├─ topicIds[] (tùy chọn, mảng int > 0)
+   ├─ status (tùy chọn, enum: Draft|PendingReview|Published|Rejected|Archived)
+   └─ examples[] (tùy chọn, mảng {sentence, meaning?})
+
+2. admin.service.ts → createWord(data)
+   → POST /api/admin/words (Axios + JWT Bearer token)
+
+3. Backend Middleware Chain:
+   → auth.js verifyToken (decode JWT, gán req.user)
+   → auth.js checkPermission('MANAGE_WORDS')
+       └─ Query RolePermissions + Permissions WHERE RoleID = user.roleId
+   → validate.js schemas.createWord (Zod parse body/query/params)
+
+4. admin.controller.js createWord(req, res, next)
+   → adminId = req.user.id
+   → AdminService.createWord(req.body, adminId)
+
+5. admin.service.js createWord(wordData, adminId)
+   ├─ assertContentStatus(status) – validate enum
+   ├─ Normalize topicIds: deduplicate, filter NaN
+   ├─ Filter valid examples (sentence không rỗng)
+   │
+   ├─ BEGIN TRANSACTION
+   │   ├─ INSERT Words (Term, Meaning, Phonetic, PartOfSpeechID,
+   │   │                ContentStatus, CreatedByUserID)
+   │   │   → OUTPUT inserted.WordID AS id
+   │   │
+   │   ├─ LOOP INSERT WordTopics (WordID, TopicID, AssignedAt)
+   │   │   → Mỗi topicId = 1 request riêng trong transaction
+   │   │
+   │   └─ LOOP INSERT ExampleSentences (WordID, SentenceText,
+   │       SentenceTranslation, CreatedAt, UpdatedAt)
+   │
+   ├─ COMMIT TRANSACTION
+   ├─ logAdminAction(adminId, 'CREATE_WORD', 'Word', wordId, {term, topicIds})
+   │   → INSERT AdminAuditLogs
+   └─ Return {id, term, meaning}
+
+6. Response: 201 {message: "Tạo từ vựng thành công", data: {id, term, meaning}}
+   Error: 400 (validation) | 401 (unauthorized) | 403 (forbidden) | 500 (server)
 ```
+
+**So sánh Admin vs ContentCreator:**
+
+| Khía cạnh        | Admin (`/api/admin/words`)       | Creator (`/api/creator/words`)         |
+| ---------------- | -------------------------------- | -------------------------------------- |
+| Default Status   | `Published` (bypass review)      | `Draft` (phải submit review)           |
+| Ownership Filter | Xem/sửa tất cả words            | Chỉ xem/sửa words do mình tạo         |
+| Audit Log        | `AdminAuditLogs`                 | Không ghi audit log riêng              |
+| Delete           | Soft delete (Archive) + Hard delete | Chỉ xóa Draft của mình             |
 
 ### Luồng 4: Xem thống kê User
 
@@ -462,26 +580,211 @@ User vào /user/dashboard
 
 ---
 
-## V. DATABASE – 14 TABLES
+## V. DATABASE – 24 TABLES + 4 VIEWS + 1 STORED PROCEDURE
 
-| #   | Table              | Mục đích                                   | FK chính                             |
-| --- | ------------------ | ------------------------------------------ | ------------------------------------ |
-| 1   | `Users`            | Người dùng                                 | → Roles.RoleID                       |
-| 2   | `Roles`            | Vai trò (Admin, Learner, ContentCreator)   | –                                    |
-| 3   | `Permissions`      | Mã quyền (MANAGE_WORDS, VIEW_DASHBOARD...) | –                                    |
-| 4   | `RolePermissions`  | Mapping Role ↔ Permission                  | → Roles, → Permissions               |
-| 5   | `Words`            | Từ vựng (term, meaning, phonetic)          | → PartOfSpeeches, → Users(CreatedBy) |
-| 6   | `PartOfSpeeches`   | Loại từ (Noun, Verb, Adj...)               | –                                    |
-| 7   | `Topics`           | Chủ đề (Business, Travel...)               | –                                    |
-| 8   | `WordTopics`       | Mapping Word ↔ Topic                       | → Words, → Topics                    |
-| 9   | `ExampleSentences` | Câu ví dụ cho từ                           | → Words (CASCADE)                    |
-| 10  | `Questions`        | Câu hỏi (MCQ, FillBlank, Dictation)        | → Words, → Users(CreatedBy)          |
-| 11  | `MiniTests`        | Bộ đề kiểm tra                             | → Topics, → Users(CreatedBy)         |
-| 12  | `MiniTestItems`    | Câu hỏi trong test + thứ tự                | → MiniTests, → Questions             |
-| 13  | `ExerciseAttempts` | Lịch sử làm bài                            | → Users, → Questions, → Words        |
-| 14  | `UserWordProgress` | Tiến độ học từng từ                        | → Users, → Words                     |
+### 5.1. Nhóm RBAC (Role-Based Access Control) – 4 bảng
 
-**Stored Procedure:** `usp_SubmitQuestionAttempt` – Xử lý nộp bài + cập nhật tiến độ tự động.
+| #   | Table             | Mục đích                                                 | FK chính               |
+| --- | ----------------- | -------------------------------------------------------- | ---------------------- |
+| 1   | `Users`           | Người dùng (+ DailyGoal, SRSReviewLimit, TotalXP, Level) | → Roles.RoleID         |
+| 2   | `Roles`           | 3 vai trò: Admin, Learner, ContentCreator                | –                      |
+| 3   | `Permissions`     | 19 mã quyền (xem bảng chi tiết bên dưới)                 | –                      |
+| 4   | `RolePermissions` | Mapping Role ↔ Permission (many-to-many)                 | → Roles, → Permissions |
+
+**Chi tiết cột mở rộng `Users`:**
+
+| Cột              | Kiểu           | Mô tả                               | Default |
+| ---------------- | -------------- | ----------------------------------- | ------- |
+| `DailyGoal`      | `int`          | Mục tiêu từ vựng/ngày               | 20      |
+| `SRSReviewLimit` | `int`          | Giới hạn flashcard ôn tập/phiên     | 15      |
+| `TotalXP`        | `int`          | Điểm kinh nghiệm tích lũy           | 0       |
+| `CurrentLevel`   | `int`          | Cấp độ người dùng                   | 1       |
+| `UserRole`       | `nvarchar(30)` | CHECK: Admin/Learner/ContentCreator | –       |
+
+**19 Permission Codes:**
+
+| ID  | Code                    | Mô tả                                    | Admin | Learner | Creator |
+| --- | ----------------------- | ---------------------------------------- | :---: | :-----: | :-----: |
+| 1   | VIEW_DASHBOARD          | Xem dashboard                            |  ✅   |   ✅    |   ✅    |
+| 2   | MANAGE_WORDS            | Quản lý từ vựng                          |  ✅   |         |   ✅    |
+| 3   | MANAGE_QUESTIONS        | Quản lý câu hỏi                          |  ✅   |         |   ✅    |
+| 4   | MANAGE_TESTS            | Quản lý bài thi                          |  ✅   |         |   ✅    |
+| 5   | MANAGE_USERS            | Quản lý người dùng                       |  ✅   |         |         |
+| 6   | LEARN_VOCAB             | Học từ vựng                              |  ✅   |   ✅    |   ✅    |
+| 7   | MANAGE_TOPIC_CATEGORIES | Quản lý danh mục chủ đề                  |  ✅   |         |         |
+| 8   | ENROLL_TOPICS           | Đăng ký bộ từ vựng                       |  ✅   |   ✅    |         |
+| 9   | MANAGE_NOTEBOOK         | Quản lý sổ tay từ vựng cá nhân           |  ✅   |   ✅    |         |
+| 10  | MANAGE_TOPICS           | Quản lý bộ từ vựng / chủ đề              |  ✅   |         |   ✅    |
+| 11  | MANAGE_MEDIA            | Quản lý tệp âm thanh và hình ảnh         |  ✅   |         |   ✅    |
+| 12  | SUBMIT_CONTENT_REVIEW   | Gửi nội dung để duyệt                    |  ✅   |         |   ✅    |
+| 13  | REVIEW_CONTENT          | Duyệt / từ chối / lưu trữ nội dung       |  ✅   |         |         |
+| 14  | PUBLISH_OWN_CONTENT     | Xuất bản nội dung do mình tạo            |  ✅   |         |         |
+| 15  | VIEW_CONTENT_ANALYTICS  | Xem phân tích hiệu quả nội dung mình tạo |  ✅   |         |   ✅    |
+| 16  | VIEW_GLOBAL_ANALYTICS   | Xem phân tích toàn cục                   |  ✅   |         |         |
+| 17  | MANAGE_SYSTEM_SETTINGS  | Quản lý cấu hình hệ thống                |  ✅   |         |         |
+| 18  | MANAGE_NOTIFICATIONS    | Quản lý thông báo                        |  ✅   |         |         |
+| 19  | MANAGE_REPORTS          | Quản lý báo cáo phản hồi từ người học    |  ✅   |         |         |
+
+---
+
+### 5.2. Nhóm Nội dung học tập (Content) – 8 bảng
+
+| #   | Table              | Mục đích                                                  | FK chính                                            |
+| --- | ------------------ | --------------------------------------------------------- | --------------------------------------------------- |
+| 5   | `TopicCategories`  | Danh mục chủ đề (TOEIC Business, Daily Life...)           | → Users(CreatedBy)                                  |
+| 6   | `Topics`           | Chủ đề/bộ từ vựng (+ ContentStatus, ReviewedBy)           | → TopicCategories, → Users(CreatedBy, ReviewedBy)   |
+| 7   | `Words`            | Từ vựng (+ AudioUrl, ImageUrl, DifficultyLevel)           | → PartOfSpeeches, → Users(CreatedBy, ReviewedBy)    |
+| 8   | `PartOfSpeeches`   | Loại từ (n, v, adj, adv, prep)                            | –                                                   |
+| 9   | `WordTopics`       | Mapping Word ↔ Topic (composite PK)                       | → Words (CASCADE), → Topics (CASCADE)               |
+| 10  | `ExampleSentences` | Câu ví dụ (+ SentenceTranslation, AudioUrl)               | → Words (CASCADE)                                   |
+| 11  | `Questions`        | Câu hỏi (MCQ/FillBlank/Dictation/DragDrop/FlashcardCheck) | → Words (CASCADE), → Users(CreatedBy, ReviewedBy)   |
+| 12  | `MiniTests`        | Bộ đề kiểm tra (+ ContentStatus, ReviewedBy)              | → Topics (SET NULL), → Users(CreatedBy, ReviewedBy) |
+
+**Content Workflow Lifecycle** (áp dụng cho Words, Questions, Topics, MiniTests):
+
+```
+Draft → PendingReview → Published
+                      → Rejected → Draft (sửa lại)
+Published → Archived
+```
+
+CHECK constraint: `ContentStatus IN ('Draft', 'PendingReview', 'Published', 'Rejected', 'Archived')`
+
+**Chi tiết cột mở rộng trên `Words`:**
+
+| Cột                | Kiểu             | Mô tả                |
+| ------------------ | ---------------- | -------------------- |
+| `AudioUrlUK`       | `nvarchar(1000)` | URL phát âm British  |
+| `AudioUrlUS`       | `nvarchar(1000)` | URL phát âm American |
+| `ImageUrl`         | `nvarchar(1000)` | URL hình minh họa    |
+| `DifficultyLevel`  | `tinyint`        | 1-5 (mặc định 1)     |
+| `ContentStatus`    | `nvarchar(30)`   | Trạng thái nội dung  |
+| `ReviewedByUserID` | `bigint`         | Người duyệt          |
+| `ReviewedAt`       | `datetimeoffset` | Thời điểm duyệt      |
+| `PublishedAt`      | `datetimeoffset` | Thời điểm xuất bản   |
+
+---
+
+### 5.3. Nhóm Kiểm tra & Luyện tập – 3 bảng
+
+| #   | Table              | Mục đích                         | FK chính                                 |
+| --- | ------------------ | -------------------------------- | ---------------------------------------- |
+| 13  | `MiniTestItems`    | Câu hỏi trong test + thứ tự      | → MiniTests (CASCADE), → Questions       |
+| 14  | `MiniTestAttempts` | Phiên làm bài test (score, time) | → MiniTests (CASCADE), → Users (CASCADE) |
+| 15  | `ExerciseAttempts` | Lịch sử trả lời từng câu hỏi     | → Users (CASCADE), → Questions, → Words  |
+
+**Cột mở rộng `ExerciseAttempts`:**
+
+| Cột                    | Kiểu            | Mô tả                         |
+| ---------------------- | --------------- | ----------------------------- |
+| `ClientTimeZoneOffset` | `nvarchar(10)`  | Timezone offset từ client     |
+| `AttemptMetadataJson`  | `nvarchar(max)` | JSON metadata (CHECK: ISJSON) |
+| `ScoreAwarded`         | `decimal(5,2)`  | Điểm (CHECK: 0-100)           |
+
+**Cột `MiniTestAttempts`:**
+
+| Cột              | Kiểu             | Mô tả                               |
+| ---------------- | ---------------- | ----------------------------------- |
+| `StartedAt`      | `datetimeoffset` | Thời điểm bắt đầu                   |
+| `SubmittedAt`    | `datetimeoffset` | Thời điểm nộp bài (NULL = chưa nộp) |
+| `TotalQuestions` | `int`            | Tổng số câu hỏi                     |
+| `CorrectCount`   | `int`            | Số câu đúng                         |
+| `Score`          | `decimal(5,2)`   | Điểm % (CHECK: 0-100)               |
+
+---
+
+### 5.4. Nhóm Tiến độ học tập & Cá nhân hóa – 3 bảng
+
+| #   | Table                    | Mục đích                                 | FK chính                              |
+| --- | ------------------------ | ---------------------------------------- | ------------------------------------- |
+| 16  | `UserWordProgress`       | Tiến độ SRS từng từ (SM-2 variant)       | → Users (CASCADE), → Words (CASCADE)  |
+| 17  | `UserTopicEnrollments`   | Đăng ký bộ từ vựng                       | → Users (CASCADE), → Topics (CASCADE) |
+| 18  | `UserVocabularyNotebook` | Sổ tay từ vựng cá nhân (note, yêu thích) | → Users (CASCADE), → Words (CASCADE)  |
+
+**Chi tiết `UserWordProgress` (Spaced Repetition):**
+
+| Cột                  | Kiểu             | CHECK / Default                        | Mô tả                              |
+| -------------------- | ---------------- | -------------------------------------- | ---------------------------------- |
+| `MasteryLevel`       | `tinyint`        | 0-10, default 0                        | Mức độ thành thạo                  |
+| `EaseFactor`         | `decimal(4,2)`   | 1.30-3.50, default 2.50                | Hệ số dễ (SM-2)                    |
+| `RepetitionCount`    | `int`            | ≥0, default 0                          | Số lần ôn tập thành công liên tiếp |
+| `ConsecutiveCorrect` | `int`            | ≥0, default 0                          | Chuỗi đúng liên tiếp               |
+| `ConsecutiveWrong`   | `int`            | ≥0, default 0                          | Chuỗi sai liên tiếp                |
+| `MemoryStatus`       | `nvarchar(30)`   | New/Learning/Reviewing/Mastered/Lapsed | Trạng thái ghi nhớ                 |
+| `NextReviewDate`     | `datetimeoffset` | –                                      | Ngày ôn tập tiếp theo              |
+
+---
+
+### 5.5. Nhóm Media & Content Management – 2 bảng
+
+| #   | Table               | Mục đích                                       | FK chính                |
+| --- | ------------------- | ---------------------------------------------- | ----------------------- |
+| 19  | `MediaAssets`       | Kho tệp media (audio, image) do creator upload | → Users(UploadedBy)     |
+| 20  | `ContentMediaLinks` | Gắn media vào entity (Word/Question/Topic...)  | → MediaAssets (CASCADE) |
+
+**MediaType CHECK:** `AudioUK`, `AudioUS`, `Image`, `ExampleAudio`, `QuestionAudio`, `QuestionImage`
+
+---
+
+### 5.6. Nhóm Audit, Review & Notifications – 4 bảng
+
+| #   | Table               | Mục đích                                         | FK chính                                            |
+| --- | ------------------- | ------------------------------------------------ | --------------------------------------------------- |
+| 21  | `ContentReviewLogs` | Lịch sử duyệt nội dung (status change + comment) | → Users(ActionBy)                                   |
+| 22  | `ContentReports`    | Báo cáo lỗi nội dung từ người học                | → Users(Reporter, ResolvedBy), → Words, → Questions |
+| 23  | `AdminAuditLogs`    | Log hành động admin (DELETE, UPDATE_STATUS...)   | → Users(ActionBy)                                   |
+| 24  | `Notifications`     | Thông báo cho người dùng                         | → Users                                             |
+
+**ContentReports Status Flow:** `Open → InReview → Resolved / Rejected`
+
+**ReportType CHECK:** `WordIncorrect`, `AudioIssue`, `AnswerIncorrect`, `Typo`, `Other`
+
+**Priority CHECK:** `Low`, `Normal`, `High`, `Urgent`
+
+---
+
+### 5.7. Database Views – 4 Views Analytics
+
+| View                              | Mục đích                                                                                             |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `vw_TopicLearningAnalytics`       | Phân tích học tập theo Topic: enrolled learners, avg mastery, mastered/lapsed records                |
+| `vw_MiniTestAnalytics`            | Phân tích MiniTest: total attempts, avg/min/max score, submitted vs unfinished                       |
+| `vw_TopicCategorySummary`         | Tổng hợp TopicCategory: total/published/draft/pending topics                                         |
+| `vw_ContentCreatorContentSummary` | Tổng hợp nội dung theo ContentCreator: topics/words/questions/minitests + published/pending/rejected |
+
+---
+
+### 5.8. Stored Procedure
+
+**`usp_SubmitQuestionAttempt`** – ACID-compliant question submission
+
+**Input Parameters:**
+
+| Tham số                 | Kiểu             | Mô tả                      |
+| ----------------------- | ---------------- | -------------------------- |
+| `@UserID`               | `BIGINT`         | ID người dùng              |
+| `@QuestionID`           | `BIGINT`         | ID câu hỏi                 |
+| `@SubmittedAnswer`      | `NVARCHAR(1000)` | Đáp án nộp                 |
+| `@ClientTimeZoneOffset` | `NVARCHAR(10)`   | Timezone offset (optional) |
+| `@AttemptMetadataJson`  | `NVARCHAR(MAX)`  | Metadata JSON (optional)   |
+
+**Logic xử lý:**
+
+1. Validate JSON input (nếu có)
+2. Lấy thông tin Question (WordID, CorrectAnswer, QuestionType)
+3. Kiểm tra User tồn tại và IsActive
+4. So sánh đáp án (case-insensitive, trim)
+5. UPSERT `UserWordProgress` (UPDLOCK + HOLDLOCK tránh race condition)
+6. INSERT `ExerciseAttempts` (log lịch sử)
+7. Tính toán SRS metrics:
+   - **Đúng:** MasteryLevel+1 (max 10), EaseFactor+0.10 (max 3.50), reset ConsecutiveWrong
+   - **Sai:** MasteryLevel-1 (min 0), EaseFactor-0.20 (min 1.30), reset RepetitionCount
+8. Tính `NextReviewDate`:
+   - Sai: +30 phút → MemoryStatus = 'Lapsed'
+   - Đúng: interval tăng dần (1→3→7→14→30 ngày, sau đó `rep × ease × 10`)
+   - MemoryStatus: ≥8 = Mastered, ≥5 = Reviewing, else = Learning
+9. UPDATE `UserWordProgress`
+10. RETURN result set cho application layer
 
 ---
 
@@ -489,22 +792,22 @@ User vào /user/dashboard
 
 ### GĐ 1: Nền tảng ✅
 
-- Database Schema (14 tables + SP)
+- Database Schema (24 tables + 4 views + 1 SP)
 - Kết nối DB (mssql connection pool)
-- JWT Authentication + RBAC
+- JWT Authentication + RBAC (3 roles, 19 permissions)
 - Zod Validation + Error handling
 - API Client + AuthContext
 
 ### GĐ 2: Core Features ✅
 
 - CRUD Words (kèm Topics + Examples, transaction)
-- CRUD Questions (4 loại câu hỏi)
-- Flashcard với Spaced Repetition
-- Submit & chấm bài tự động (SP)
+- CRUD Questions (5 loại câu hỏi: MCQ, FillBlank, Dictation, DragDrop, FlashcardCheck)
+- Flashcard với Spaced Repetition (SM-2 variant)
+- Submit & chấm bài tự động (Stored Procedure ACID-compliant)
 
 ### GĐ 3: Testing & Quản lý ✅
 
-- Mini Test (tạo, làm bài, lịch sử)
+- Mini Test (tạo, làm bài, lịch sử, MiniTestAttempts)
 - Quản lý học viên (list, toggle status)
 - Dashboard Admin + User
 
@@ -514,12 +817,29 @@ User vào /user/dashboard
 - Admin Analytics (daily activity, word distribution)
 - Achievement system (8 huy hiệu)
 - Landing page (7 sections)
+- TopicCategories (nhóm chủ đề)
+- UserTopicEnrollments (đăng ký bộ từ)
 
-### GĐ 5: Tối ưu & Mở rộng 🔲
+### GĐ 5: Content Creator & Review Workflow ✅
+
+- Role ContentCreator (biên tập viên / giáo viên)
+- Content Lifecycle: Draft → PendingReview → Published/Rejected → Archived
+- ContentReviewLogs (lịch sử duyệt nội dung)
+- AdminAuditLogs (log hành động admin)
+- ContentReports (báo cáo lỗi nội dung từ learner)
+
+### GĐ 6: Media & Cá nhân hóa ✅
+
+- MediaAssets + ContentMediaLinks (quản lý audio/image)
+- UserVocabularyNotebook (sổ tay từ vựng cá nhân)
+- Notifications system
+- 4 Database Views (analytics tổng hợp)
+- XP & Level system (TotalXP, CurrentLevel)
+
+### GĐ 7: Tối ưu & Mở rộng 🔲
 
 - Batch query thay N+1 trong getWords()
 - Redis caching
-- Image/Audio upload cho từ vựng
 - WebSocket real-time notifications
 - Unit tests + CI/CD
 - Docker deployment

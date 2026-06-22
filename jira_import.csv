@@ -1,0 +1,41 @@
+Issue Type,Summary,Description,Assignee,Priority,Status,Created,Labels,Epic Name,Epic Link,Story point estimate
+Epic,Setup & Foundation,Khởi tạo Next.js + TypeScript + Tailwind + shadcn/ui + Landing page + Flashcard UI,PhucNguyen45,High,Done,2026-03-06,phase1,Setup & Foundation,
+Epic,Frontend Pages,Hoàn thiện toàn bộ giao diện frontend + Admin Dashboard UI,PhucNguyen45,High,Done,2026-04-16,phase2,Frontend Pages,
+Epic,Backend API,Tạo backend Express + API Auth/Categories/Admin/User + Database connection + Frontend integration,trduxng,High,Done,2026-04-20,phase3,Backend API,
+Epic,Core Features,AuthContext + Login/Register + CRUD vocabulary/questions + SRS Flashcards + Practice + Mini Test + Gamification + Permissions + Seed data,trduxng,High,Done,2026-05-02,phase4,Core Features,
+Epic,Creator Portal,Database mapping + Content Creator Portal full CRUD + Admin pagination + Vietnamese display,trduxng,High,Done,2026-05-18,phase5,Creator Portal,
+Epic,Fixes & Hoàn thiện,Admin Reports/Settings + User Report + Learner updates + UI fixes + Documents,trduxng,Medium,Done,2026-05-20,phase6,Fixes & Hoàn thiện,
+Epic,Công việc còn lại,Progress Analytics + Dark mode/Settings + Docker Deploy + Báo cáo môn học,Unassigned,Medium,"",2026-06-20,phase7,Công việc còn lại,
+Story,SCRUM-1: Khởi tạo Next.js + TypeScript,"Tạo Next.js app với TypeScript, cấu hình project cơ bản",PhucNguyen45,High,Done,2026-03-06,phase1,,Setup & Foundation,3
+Story,SCRUM-2: Cấu hình Tailwind CSS + shadcn/ui,"Cài đặt Tailwind CSS, PostCSS, shadcn/ui components (button, card, dialog, input, tabs,...)",PhucNguyen45,High,Done,2026-04-06,phase1,,Setup & Foundation,5
+Story,SCRUM-3: Thiết kế Landing page,"Thiết kế landing page: Hero, Features, Courses, Navbar, Footer, Testimonials, Pricing",PhucNguyen45,High,Done,2026-04-08,phase1,,Setup & Foundation,8
+Story,SCRUM-4: Flashcard UI + Exam page,"Xây dựng giao diện flashcard và trang thi cơ bản",PhucNguyen45,High,Done,2026-04-14,phase1,,Setup & Foundation,5
+Story,SCRUM-5: Hoàn thiện toàn bộ giao diện frontend,"Xây dựng user dashboard, learn page, practice page, progress page, achievements page, minitests page, notebook page, settings page, courses page",PhucNguyen45,High,Done,2026-04-16,phase2,,Frontend Pages,13
+Story,SCRUM-6: Admin Dashboard UI,"Thiết kế admin dashboard, words management, questions management, students management",PhucNguyen45,High,Done,2026-04-20,phase2,,Frontend Pages,8
+Story,SCRUM-7: Tạo cấu trúc backend Express,"Tạo Express server, cấu trúc thư mục: config/controllers/services/routes/middlewares, kết nối database",trduxng,High,Done,2026-04-20,phase3,,Backend API,5
+Story,SCRUM-8: API Auth + Categories + Admin + User,"Xây dựng các API: register/login, categories (part-of-speech, topics), admin CRUD, user endpoints",trduxng,High,Done,2026-04-30,phase3,,Backend API,8
+Story,SCRUM-9: Kết nối Database + Postman collection,"Tạo database schema, seed data, Postman collection cho toàn bộ API",trduxng,High,Done,2026-05-01,phase3,,Backend API,5
+Story,SCRUM-10: Tích hợp frontend với backend API,"Kết nối frontend với backend API qua Axios, xử lý CORS, auth flow",trduxng,High,Done,2026-05-01,phase3,,Backend API,8
+Story,SCRUM-11: Đồng bộ tên cột DB-Backend-Frontend,"Refactor kiểu dữ liệu camelCase/snake_case đồng bộ giữa database, backend và frontend",trduxng,High,Done,2026-05-01,phase3,,Backend API,5
+Story,SCRUM-12: AuthContext + Login/Register,"Xây dựng AuthContext, login/register page, JWT token management, protected routes",trduxng,High,Done,2026-05-02,phase4,,Core Features,8
+Story,SCRUM-13: Admin CRUD từ vựng,"Admin quản lý từ vựng: thêm/sửa/xóa/tìm kiếm từ vựng kèm phonetic, examples, part-of-speech",trduxng,High,Done,2026-05-02,phase4,,Core Features,8
+Story,SCRUM-14: Admin CRUD câu hỏi,"Admin quản lý câu hỏi: thêm/sửa/xóa các dạng MCQ, FillBlank, Dictation, FlashcardCheck",trduxng,High,Done,2026-05-02,phase4,,Core Features,8
+Story,SCRUM-15: User Flashcard SRS + Practice,"Flashcard học từ vựng với Spaced Repetition System (Remember/Forgot), practice session",trduxng,High,Done,2026-05-02,phase4,,Core Features,13
+Story,SCRUM-16: Mini Test + chấm điểm + lịch sử,"Xây dựng mini test, timer, auto-grading, lịch sử thi, review mode",trduxng,High,Done,2026-05-03,phase4,,Core Features,13
+Story,SCRUM-17: Gamification XP/Level/Streak/Badge,"Hệ thống XP, level, daily streak, achievements/huy hiệu, animation celebration",trduxng,High,Done,2026-05-03,phase4,,Core Features,8
+Story,SCRUM-18: Dynamic Permissions + fix lỗi 500,"Implement RBAC với dynamic permissions, fix lỗi submit answer 500",trduxng,High,Done,2026-05-04,phase4,,Core Features,5
+Story,SCRUM-19: Seed dữ liệu + fix DB,"Seed 720+ từ vựng mẫu, fix các vấn đề database",trduxng,High,Done,2026-05-04,phase4,,Core Features,5
+Story,SCRUM-20: Admin sửa giao diện + CRUD user,"Sửa giao diện admin dashboard, topbar, CRUD user management, fix đường dẫn button",Arise1357,High,Done,2026-05-05,phase4,,Core Features,8
+Story,SCRUM-21: Database mapping + tài liệu,"Ánh xạ database sang tiếng Việt, thêm tài liệu hệ thống",trduxng,Medium,Done,2026-05-18,phase5,,Creator Portal,3
+Story,SCRUM-22: Admin phân trang + tiếng Việt,"Thêm phân trang cho admin pages, chuyển hiển thị sang tiếng Việt",Arise1357,Medium,Done,2026-05-18,phase5,,Creator Portal,5
+Story,SCRUM-23: Content Creator Portal full CRUD,"Xây dựng Creator Portal: CRUD words/questions/topics/minitests, submit for review, drafts/pending/rejected pages",trduxng,High,Done,2026-05-19,phase5,,Creator Portal,13
+Story,SCRUM-24: Merge Creator + fix conflict,"Merge nhánh Creator vào main, resolve conflict auth middleware, checkPermission + checkOwnership",trduxng,High,Done,2026-05-20,phase5,,Creator Portal,5
+Story,SCRUM-25: Admin Reports + Settings,"Thêm trang reports, settings cho admin",Arise1357,Medium,Done,2026-05-20,phase6,,Fixes & Hoàn thiện,5
+Story,SCRUM-26: User Report lỗi,"Tính năng user report lỗi (sai định nghĩa, sai đáp án, lỗi audio)",Arise1357,Medium,Done,2026-05-25,phase6,,Fixes & Hoàn thiện,5
+Story,SCRUM-27: Learner updates & fixes,"Sửa lỗi hardcode, cập nhật giao diện learner, các bản vá",PhucNguyen45,Medium,Done,2026-05-25,phase6,,Fixes & Hoàn thiện,8
+Story,SCRUM-28: Cập nhật giao diện người dùng,Cập nhật và cải thiện UI/UX toàn bộ ứng dụng,Arise1357,Medium,Done,2026-06-02,phase6,,Fixes & Hoàn thiện,5
+Story,SCRUM-29: Thêm tài liệu báo cáo,Thêm tài liệu báo cáo môn học và system documentation,trduxng,Medium,Done,2026-06-11,phase6,,Fixes & Hoàn thiện,3
+Story,SCRUM-30: Progress & Analytics,"Xây dựng biểu đồ Recharts: ActivityHeatmap, VocabularyGrowthChart, XPTrendChart, Admin analytics",Unassigned,High,Open,2026-06-20,phase7,,Công việc còn lại,13
+Story,SCRUM-31: Dark mode + User Settings,"Thêm dark/light mode, user settings (profile, daily goal, SRS config)",Unassigned,Medium,Open,2026-06-20,phase7,,Công việc còn lại,8
+Story,SCRUM-32: Docker Compose + Deploy Guide,"Docker Compose cho SQL Server + Backend + Frontend, deployment guide (Vercel/Render)",Unassigned,Medium,Open,2026-06-20,phase7,,Công việc còn lại,8
+Story,SCRUM-33: Báo cáo môn học,"Viết báo cáo môn học CNPM, slides presentation, demo video",Unassigned,High,Open,2026-06-20,phase7,,Công việc còn lại,13

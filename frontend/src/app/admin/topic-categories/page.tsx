@@ -53,6 +53,7 @@ export default function AdminTopicCategoriesPage() {
     }
   }, []);
 
+
   useEffect(() => {
     void Promise.resolve().then(load);
   }, [load]);
