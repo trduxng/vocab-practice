@@ -1998,7 +1998,7 @@ class AdminService {
     const oldStatus = oldStatusResult.recordset[0].ContentStatus;
 
     const publishFragment = target.publishColumn
-      ? ', IsPublished = CASE WHEN @ContentStatus = N\'Published\' THEN 1 ELSE 0 END'
+      ? ", IsPublished = CASE WHEN @ContentStatus = N'Published' THEN 1 ELSE 0 END"
       : '';
 
     const result = await pool.request()

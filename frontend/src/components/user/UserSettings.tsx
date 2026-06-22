@@ -1,7 +1,18 @@
+// vocab-practice/frontend/src/components/user/UserSettings.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Bell, Brain, LogOut, Mail, RefreshCw, Save, Shield, Target, User } from "lucide-react";
+import {
+  Bell,
+  Brain,
+  LogOut,
+  Mail,
+  RefreshCw,
+  Save,
+  Shield,
+  Target,
+  User,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/src/app/context/AuthContext";
 import { userService } from "@/src/services/user.service";
@@ -15,7 +26,11 @@ import {
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 
-export default function UserSettings({ compact = false }: { compact?: boolean }) {
+export default function UserSettings({
+  compact = false,
+}: {
+  compact?: boolean;
+}) {
   const { user, logout } = useAuth();
   const [fullName, setFullName] = useState(user?.fullName || "");
   const [loading, setLoading] = useState(false);
@@ -29,13 +44,17 @@ export default function UserSettings({ compact = false }: { compact?: boolean })
   useEffect(() => {
     if (!user) return;
     setGoalLoading(true);
-    userService.getDailyGoalSetting()
+    userService
+      .getDailyGoalSetting()
       .then((data) => {
         if (data.dailyGoal) setDailyWordGoal(data.dailyGoal);
         if (data.srsReviewLimit) setSrsReviewLimit(data.srsReviewLimit);
       })
       .catch(() => {
-        const saved = typeof window !== "undefined" ? localStorage.getItem("dailyWordGoal") : null;
+        const saved =
+          typeof window !== "undefined"
+            ? localStorage.getItem("dailyWordGoal")
+            : null;
         if (saved) setDailyWordGoal(parseInt(saved, 10));
       })
       .finally(() => setGoalLoading(false));
@@ -87,17 +106,19 @@ export default function UserSettings({ compact = false }: { compact?: boolean })
   };
 
   const cardClass = compact
-    ? "border-0 shadow-none bg-transparent"
-    : "bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-[32px] overflow-hidden shadow-sm";
+    ? "!border-0 !shadow-none !bg-transparent"
+    : "bg-white dark:bg-white/5 border-slate-200 rounded-[32px] overflow-hidden shadow-sm";
 
   const cardHeaderClass = compact
     ? "p-0 pb-4"
-    : "p-8 border-b border-slate-200 dark:border-white/5 dark:bg-white/[0.02] bg-slate-50";
+    : "p-8 border-b border-slate-200 dark:bg-white/[0.02] bg-slate-50";
 
   const cardContentClass = compact ? "p-0 pb-6" : "p-8";
 
   return (
-    <div className={compact ? "space-y-6" : "space-y-6 max-w-2xl mx-auto w-full"}>
+    <div
+      className={compact ? "space-y-6" : "space-y-6 max-w-2xl mx-auto w-full"}
+    >
       {/* Profile info */}
       <Card className={cardClass}>
         <CardHeader className={cardHeaderClass}>
@@ -153,7 +174,9 @@ export default function UserSettings({ compact = false }: { compact?: boolean })
                   size={16}
                 />
                 <Input
-                  value={user?.role === "Learner" ? "Người học" : user?.role || ""}
+                  value={
+                    user?.role === "Learner" ? "Người học" : user?.role || ""
+                  }
                   disabled
                   className="dark:bg-white/5 bg-slate-100 border-slate-200 dark:border-white/10 h-12 pl-10 rounded-xl text-slate-500"
                 />
@@ -177,7 +200,10 @@ export default function UserSettings({ compact = false }: { compact?: boolean })
       <Card className={cardClass}>
         <CardHeader className={cardHeaderClass}>
           <CardTitle className="text-slate-900 dark:text-white text-lg font-black uppercase tracking-widest flex items-center gap-3">
-            <Target size={20} className="text-emerald-600 dark:text-emerald-400" />{" "}
+            <Target
+              size={20}
+              className="text-emerald-600 dark:text-emerald-400"
+            />{" "}
             Mục tiêu học tập
           </CardTitle>
         </CardHeader>
@@ -194,7 +220,9 @@ export default function UserSettings({ compact = false }: { compact?: boolean })
                   max={100}
                   step={5}
                   value={dailyWordGoal}
-                  onChange={(e) => handleGoalChange(parseInt(e.target.value, 10))}
+                  onChange={(e) =>
+                    handleGoalChange(parseInt(e.target.value, 10))
+                  }
                   className="flex-1 h-2 rounded-full appearance-none bg-slate-200 dark:bg-white/10 accent-emerald-500 cursor-pointer"
                 />
                 <span className="text-slate-900 dark:text-white font-black text-2xl min-w-[3rem] text-center">
@@ -208,7 +236,10 @@ export default function UserSettings({ compact = false }: { compact?: boolean })
             </div>
             <div className="flex items-center gap-2 mt-2">
               {goalLoading ? (
-                <span className="text-[10px] text-slate-500"><RefreshCw size={12} className="inline animate-spin mr-1" />Đang tải...</span>
+                <span className="text-[10px] text-slate-500">
+                  <RefreshCw size={12} className="inline animate-spin mr-1" />
+                  Đang tải...
+                </span>
               ) : (
                 <span className="text-[10px] text-emerald-500 font-medium">
                   <Save size={10} className="inline mr-1" />
@@ -241,7 +272,9 @@ export default function UserSettings({ compact = false }: { compact?: boolean })
                   max={50}
                   step={5}
                   value={srsReviewLimit}
-                  onChange={(e) => handleSRSChange(parseInt(e.target.value, 10))}
+                  onChange={(e) =>
+                    handleSRSChange(parseInt(e.target.value, 10))
+                  }
                   className="flex-1 h-2 rounded-full appearance-none bg-slate-200 dark:bg-white/10 accent-purple-500 cursor-pointer"
                 />
                 <span className="text-slate-900 dark:text-white font-black text-2xl min-w-[3rem] text-center">
@@ -254,16 +287,21 @@ export default function UserSettings({ compact = false }: { compact?: boolean })
               </div>
               <div className="flex items-center gap-2 mt-2">
                 {savingSrs ? (
-                  <span className="text-[10px] text-purple-500 font-medium"><RefreshCw size={12} className="inline animate-spin mr-1" />Đang lưu...</span>
+                  <span className="text-[10px] text-purple-500 font-medium">
+                    <RefreshCw size={12} className="inline animate-spin mr-1" />
+                    Đang lưu...
+                  </span>
                 ) : (
                   <span className="text-[10px] text-emerald-500 font-medium">
-                    <Save size={10} className="inline mr-1" />Đã đồng bộ
+                    <Save size={10} className="inline mr-1" />
+                    Đã đồng bộ
                   </span>
                 )}
               </div>
             </div>
             <p className="text-xs text-slate-600 dark:text-slate-400 italic">
-              Hệ thống SRS sẽ ưu tiên những từ bạn sắp quên. Số thẻ càng cao, bạn càng ôn được nhiều từ mỗi ngày.
+              Hệ thống SRS sẽ ưu tiên những từ bạn sắp quên. Số thẻ càng cao,
+              bạn càng ôn được nhiều từ mỗi ngày.
             </p>
           </div>
         </CardContent>

@@ -5,11 +5,10 @@ const { verifyToken } = require("../middlewares/auth");
 
 const router = express.Router();
 
-// Public routes - không yêu cầu đăng nhập
+// Public routes
 router.get("/part-of-speeches", CategoriesController.getPartOfSpeeches);
-router.get("/topics", CategoriesController.getTopics);
 
-// Authenticated routes - yêu cầu token
-router.get("/topics/enrolled", verifyToken, CategoriesController.getTopics);
+// Authenticated route - yêu cầu token để lấy topics với user progress
+router.get("/topics", verifyToken, CategoriesController.getTopics);
 
 module.exports = router;

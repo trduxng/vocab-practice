@@ -11,7 +11,7 @@ export const PERMISSIONS = {
   publishContent: "PUBLISH_CONTENT",
   manageReports: "MANAGE_REPORTS",
   manageNotifications: "MANAGE_NOTIFICATIONS",
-  viewAnalytics: "VIEW_ANALYTICS",
+  viewAnalytics: "VIEW_GLOBAL_ANALYTICS",
   manageSystemSettings: "MANAGE_SYSTEM_SETTINGS",
   viewAuditLogs: "VIEW_AUDIT_LOGS",
 } as const;

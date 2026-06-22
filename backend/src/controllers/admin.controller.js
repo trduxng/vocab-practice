@@ -3,7 +3,6 @@ const AdminService = require("../services/admin.service");
 const ReportService = require("../services/report.service");
 
 class AdminController {
-  // Topics
   static async getTopics(req, res, next) {
     try {
       const page = parseInt(req.query.page, 10) || 1;
@@ -210,7 +209,7 @@ class AdminController {
   static async deleteWord(req, res, next) {
     try {
       const { id } = req.params;
-      const success = await AdminService.archiveWord(id, req.user.id);
+      const success = await AdminService.deleteWord(id, req.user.id);
       if (!success) {
         return res.status(404).json({ message: "Không tìm thấy từ vựng" });
       }
@@ -279,51 +278,6 @@ class AdminController {
         return res.status(404).json({ message: 'Không tìm thấy câu hỏi' });
       }
       res.status(200).json({ message: 'Xóa câu hỏi thành công' });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  static async getOverviewStats(req, res, next) {
-    try {
-      const stats = await AdminService.getOverviewStats();
-      res.status(200).json(stats);
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  static async getWeeklyActivity(req, res, next) {
-    try {
-      const activity = await AdminService.getWeeklyActivity();
-      res.status(200).json(activity);
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  static async getTodayActivity(req, res, next) {
-    try {
-      const activity = await AdminService.getTodayActivity();
-      res.status(200).json(activity);
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  static async getRecentUsers(req, res, next) {
-    try {
-      const users = await AdminService.getRecentUsers();
-      res.status(200).json(users);
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  static async getTopCourses(req, res, next) {
-    try {
-      const courses = await AdminService.getTopCourses();
-      res.status(200).json(courses);
     } catch (error) {
       next(error);
     }

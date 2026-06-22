@@ -10,7 +10,11 @@ import LearningPathSkeleton from "@/src/components/user/learning-path/LearningPa
 import LevelRoadmap from "@/src/components/user/learning-path/LevelRoadmap";
 import TopicRoadmap from "@/src/components/user/learning-path/TopicRoadmap";
 import VocabularyPreviewDialog from "@/src/components/user/notebook/VocabularyPreviewDialog";
-import type { LearningPathActivity, LearningPathRoadmap, LearningPathTopic } from "@/src/modules/user/types";
+import type {
+  LearningPathActivity,
+  LearningPathRoadmap,
+  LearningPathTopic,
+} from "@/src/modules/user/types";
 import { userService } from "@/src/services/user.service";
 
 export default function UserCoursesPage() {
@@ -22,6 +26,7 @@ export default function UserCoursesPage() {
   const [previewTopic, setPreviewTopic] = useState<LearningPathTopic>();
   const router = useRouter();
 
+  // Lấy dữ liệu lộ trình học
   const fetchRoadmap = useCallback(async () => {
     setLoading(true);
     setError(false);
@@ -29,9 +34,14 @@ export default function UserCoursesPage() {
     try {
       const data = await userService.getLearningPath();
       setRoadmap(data);
-      setSelectedLevelId((current) => current || data.levels.find((level) => level.status === "available")?.id || data.levels[0]?.id);
+      setSelectedLevelId(
+        (current) =>
+          current ||
+          data.levels.find((level) => level.status === "available")?.id ||
+          data.levels[0]?.id,
+      );
     } catch (roadmapError) {
-      console.error("Failed to fetch learning path", roadmapError);
+      console.error("Lỗi tải lộ trình học:", roadmapError);
       setError(true);
     } finally {
       setLoading(false);
@@ -48,11 +58,19 @@ export default function UserCoursesPage() {
     return () => window.clearTimeout(timeout);
   }, [fetchRoadmap, user]);
 
+  // Cấp độ hiện được chọn
   const selectedLevel = useMemo(
-    () => roadmap?.levels.find((level) => level.id === selectedLevelId) || roadmap?.levels[0],
+    () =>
+      roadmap?.levels.find((level) => level.id === selectedLevelId) ||
+      roadmap?.levels[0],
     [roadmap, selectedLevelId],
   );
-  const previewTopics = useMemo(() => previewTopic ? [previewTopic] : [], [previewTopic]);
+
+  // Danh sách chủ đề để xem trước
+  const previewTopics = useMemo(
+    () => (previewTopic ? [previewTopic] : []),
+    [previewTopic],
+  );
 
   if (authLoading) {
     return <div className="min-h-screen bg-slate-100 dark:bg-slate-950" />;
@@ -61,10 +79,10 @@ export default function UserCoursesPage() {
   return (
     <>
       <Topbar
-        title="TOEIC learning path"
-        subtitle="Move through lessons, practice sessions, and mini tests in a clear sequence."
+        title="Lộ trình học TOEIC"
+        subtitle="Lần lượt học qua các bài học, buổi thực hành và bài kiểm tra ngắn theo trình tự rõ ràng."
         role="student"
-        userName={user?.fullName || "Learner"}
+        userName={user?.fullName || "Học viên"}
       />
 
       <main className="flex-1 overflow-auto bg-slate-100 p-4 dark:bg-slate-950 sm:p-6">
@@ -77,12 +95,22 @@ export default function UserCoursesPage() {
             <div className="space-y-6">
               <LearningPathHero
                 roadmap={roadmap}
-                onContinue={() => router.push(roadmap.currentPosition?.activityRoute || "/user/courses")}
+                onContinue={() =>
+                  router.push(
+                    roadmap.currentPosition?.activityRoute || "/user/courses",
+                  )
+                }
               />
-              <LevelRoadmap levels={roadmap.levels} selectedLevelId={selectedLevel?.id} onSelect={setSelectedLevelId} />
+              <LevelRoadmap
+                levels={roadmap.levels}
+                selectedLevelId={selectedLevel?.id}
+                onSelect={setSelectedLevelId}
+              />
               <TopicRoadmap
                 level={selectedLevel}
-                onOpenActivity={(activity: LearningPathActivity) => router.push(activity.route)}
+                onOpenActivity={(activity: LearningPathActivity) =>
+                  router.push(activity.route)
+                }
                 onPreviewTopic={setPreviewTopic}
               />
             </div>
@@ -103,15 +131,18 @@ export default function UserCoursesPage() {
   );
 }
 
+// Component thông báo khi không tải được lộ trình
 function LearningPathError({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="flex min-h-[420px] flex-col items-center justify-center rounded-[28px] border border-dashed border-rose-200 bg-white p-8 text-center dark:border-rose-500/20 dark:bg-white/[0.04]">
       <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-100 text-rose-600 dark:bg-rose-500/15 dark:text-rose-300">
         <AlertCircle className="h-6 w-6" />
       </div>
-      <h2 className="mt-4 text-lg font-black text-slate-900 dark:text-white">Unable to load the learning path</h2>
+      <h2 className="mt-4 text-lg font-black text-slate-900 dark:text-white">
+        Không thể tải lộ trình học
+      </h2>
       <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500 dark:text-slate-400">
-        The roadmap is not available yet. Try loading the page again.
+        Lộ trình hiện chưa sẵn sàng. Hãy thử tải lại trang.
       </p>
       <button
         type="button"
@@ -119,7 +150,7 @@ function LearningPathError({ onRetry }: { onRetry: () => void }) {
         className="mt-6 inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-black uppercase tracking-wide text-white transition-colors hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
       >
         <RefreshCw className="h-4 w-4" />
-        Retry
+        Tải lại
       </button>
     </div>
   );

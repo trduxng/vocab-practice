@@ -37,12 +37,7 @@ class UserController {
         ...feedback
       });
     } catch (error) {
-      console.error('[UserController.submitAnswer] Full Error:', error);
-      return res.status(500).json({ 
-        message: 'Lỗi server khi nộp bài',
-        error: error.message,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-      });
+      next(error);
     }
   }
 
@@ -210,11 +205,7 @@ class UserController {
       const result = await UserService.submitMiniTestBatch(userId, id, answers);
       res.status(200).json(result);
     } catch (error) {
-      console.error('[UserController.submitMiniTest] Error:', error);
-      return res.status(500).json({
-        message: 'Lỗi server khi nộp bài kiểm tra',
-        error: error.message,
-      });
+      next(error);
     }
   }
 

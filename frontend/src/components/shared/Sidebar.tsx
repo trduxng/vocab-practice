@@ -8,7 +8,10 @@ import { useIsDesktop, useIsMobile } from "@/src/hooks/useMediaQuery";
 import { X } from "lucide-react";
 import { useAuth } from "@/src/app/context/AuthContext";
 import { usePermissions } from "@/src/modules/auth/hooks/usePermissions";
-import { PERMISSIONS, type PermissionCode } from "@/src/modules/auth/types/permissions";
+import {
+  PERMISSIONS,
+  type PermissionCode,
+} from "@/src/modules/auth/types/permissions";
 import {
   BarChart3,
   Bell,
@@ -44,31 +47,129 @@ type NavLink = {
 };
 
 const adminLinks: NavLink[] = [
-  { icon: LayoutDashboard, label: "Tổng quan", href: "/admin/dashboard", anyOf: [PERMISSIONS.viewDashboard] },
-  { icon: Users, label: "Người dùng", href: "/admin/students", anyOf: [PERMISSIONS.manageUsers] },
-  { icon: ClipboardList, label: "Nội dung", href: "/admin/courses", anyOf: [PERMISSIONS.manageTopics, PERMISSIONS.manageWords] },
-  { icon: ShieldCheck, label: "Duyệt nội dung", href: "/admin/content-review", anyOf: [PERMISSIONS.reviewContent, PERMISSIONS.publishContent, PERMISSIONS.manageSystemSettings] },
-  { icon: Flag, label: "Báo cáo", href: "/admin/reports", anyOf: [PERMISSIONS.manageReports, PERMISSIONS.manageSystemSettings] },
-  { icon: BookOpen, label: "Danh mục chủ đề", href: "/admin/topic-categories", anyOf: [PERMISSIONS.manageTopicCategories, PERMISSIONS.manageTopics] },
-  { icon: BarChart3, label: "Phân tích", href: "/admin/analytics", anyOf: [PERMISSIONS.viewAnalytics, PERMISSIONS.viewDashboard] },
-  { icon: History, label: "Nhật ký hệ thống", href: "/admin/audit-logs", anyOf: [PERMISSIONS.viewAuditLogs, PERMISSIONS.manageSystemSettings, PERMISSIONS.manageUsers] },
-  { icon: Bell, label: "Thông báo", href: "/admin/notifications", anyOf: [PERMISSIONS.manageNotifications] },
-  { icon: BookOpen, label: "Từ vựng", href: "/admin/words", anyOf: [PERMISSIONS.manageWords] },
-  { icon: FileQuestion, label: "Câu hỏi", href: "/admin/questions", anyOf: [PERMISSIONS.manageQuestions] },
-  { icon: ListChecks, label: "Bài kiểm tra", href: "/admin/minitests", anyOf: [PERMISSIONS.manageTests] },
+  {
+    icon: LayoutDashboard,
+    label: "Tổng quan",
+    href: "/admin/dashboard",
+    anyOf: [PERMISSIONS.viewDashboard],
+  },
+  {
+    icon: Users,
+    label: "Người dùng",
+    href: "/admin/students",
+    anyOf: [PERMISSIONS.manageUsers],
+  },
+  {
+    icon: ClipboardList,
+    label: "Nội dung",
+    href: "/admin/courses",
+    anyOf: [PERMISSIONS.manageTopics, PERMISSIONS.manageWords],
+  },
+  {
+    icon: ShieldCheck,
+    label: "Duyệt nội dung",
+    href: "/admin/content-review",
+    anyOf: [
+      PERMISSIONS.reviewContent,
+      PERMISSIONS.publishContent,
+      PERMISSIONS.manageSystemSettings,
+    ],
+  },
+  {
+    icon: Flag,
+    label: "Báo cáo",
+    href: "/admin/reports",
+    anyOf: [PERMISSIONS.manageReports, PERMISSIONS.manageSystemSettings],
+  },
+  {
+    icon: BookOpen,
+    label: "Danh mục chủ đề",
+    href: "/admin/topic-categories",
+    anyOf: [PERMISSIONS.manageTopicCategories, PERMISSIONS.manageTopics],
+  },
+  {
+    icon: BarChart3,
+    label: "Phân tích",
+    href: "/admin/analytics",
+    anyOf: [PERMISSIONS.viewAnalytics, PERMISSIONS.viewDashboard],
+  },
+  {
+    icon: History,
+    label: "Nhật ký hệ thống",
+    href: "/admin/audit-logs",
+    anyOf: [
+      PERMISSIONS.viewAuditLogs,
+      PERMISSIONS.manageSystemSettings,
+      PERMISSIONS.manageUsers,
+    ],
+  },
+  {
+    icon: Bell,
+    label: "Thông báo",
+    href: "/admin/notifications",
+    anyOf: [PERMISSIONS.manageNotifications],
+  },
+  {
+    icon: BookOpen,
+    label: "Từ vựng",
+    href: "/admin/words",
+    anyOf: [PERMISSIONS.manageWords],
+  },
+  {
+    icon: FileQuestion,
+    label: "Câu hỏi",
+    href: "/admin/questions",
+    anyOf: [PERMISSIONS.manageQuestions],
+  },
+  {
+    icon: ListChecks,
+    label: "Bài kiểm tra",
+    href: "/admin/minitests",
+    anyOf: [PERMISSIONS.manageTests],
+  },
 ];
 
 const creatorLinks: NavLink[] = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/creator/dashboard", anyOf: [PERMISSIONS.viewDashboard] },
-  { icon: BookOpen, label: "Chủ đề", href: "/creator/topics", anyOf: [PERMISSIONS.manageTopics] },
-  { icon: FileText, label: "Từ vựng", href: "/creator/words", anyOf: [PERMISSIONS.manageWords] },
-  { icon: FileQuestion, label: "Câu hỏi", href: "/creator/questions", anyOf: [PERMISSIONS.manageQuestions] },
-  { icon: ListChecks, label: "Bài test", href: "/creator/mini-tests", anyOf: [PERMISSIONS.manageTests] },
+  {
+    icon: LayoutDashboard,
+    label: "Dashboard",
+    href: "/creator/dashboard",
+    anyOf: [PERMISSIONS.viewDashboard],
+  },
+  {
+    icon: BookOpen,
+    label: "Chủ đề",
+    href: "/creator/topics",
+    anyOf: [PERMISSIONS.manageTopics],
+  },
+  {
+    icon: FileText,
+    label: "Từ vựng",
+    href: "/creator/words",
+    anyOf: [PERMISSIONS.manageWords],
+  },
+  {
+    icon: FileQuestion,
+    label: "Câu hỏi",
+    href: "/creator/questions",
+    anyOf: [PERMISSIONS.manageQuestions],
+  },
+  {
+    icon: ListChecks,
+    label: "Bài test",
+    href: "/creator/mini-tests",
+    anyOf: [PERMISSIONS.manageTests],
+  },
   { icon: Image, label: "Media", href: "/creator/media" },
   { icon: Edit3, label: "Bản nháp", href: "/creator/drafts" },
   { icon: Clock, label: "Chờ duyệt", href: "/creator/pending" },
   { icon: XCircle, label: "Bị từ chối", href: "/creator/rejected" },
-  { icon: BarChart3, label: "Phân tích", href: "/creator/analytics", anyOf: [PERMISSIONS.viewAnalytics, PERMISSIONS.viewDashboard] },
+  {
+    icon: BarChart3,
+    label: "Phân tích",
+    href: "/creator/analytics",
+    anyOf: [PERMISSIONS.viewAnalytics, PERMISSIONS.viewDashboard],
+  },
 ];
 
 const studentLinks: NavLink[] = [
@@ -78,10 +179,17 @@ const studentLinks: NavLink[] = [
   { icon: Target, label: "Luyện tập", href: "/user/practice" },
   { icon: FileText, label: "Bài kiểm tra", href: "/user/minitests" },
   { icon: Heart, label: "Sổ tay", href: "/user/notebook" },
-  { icon: Trophy, label: "Thành tích", href: "/user/achievements" },
 ];
 
-function NavLinks({ links, collapsed, onLinkClick }: { links: NavLink[]; collapsed: boolean; onLinkClick?: () => void }) {
+function NavLinks({
+  links,
+  collapsed,
+  onLinkClick,
+}: {
+  links: NavLink[];
+  collapsed: boolean;
+  onLinkClick?: () => void;
+}) {
   const pathname = usePathname();
 
   return (
@@ -101,7 +209,9 @@ function NavLinks({ links, collapsed, onLinkClick }: { links: NavLink[]; collaps
             title={collapsed ? link.label : undefined}
           >
             <link.icon className="h-4 w-4 shrink-0" />
-            <span className={`${collapsed ? "hidden" : "hidden md:inline"}`}>{link.label}</span>
+            <span className={`${collapsed ? "hidden" : "hidden md:inline"}`}>
+              {link.label}
+            </span>
           </Link>
         );
       })}
@@ -109,7 +219,11 @@ function NavLinks({ links, collapsed, onLinkClick }: { links: NavLink[]; collaps
   );
 }
 
-export default function Sidebar({ role }: { role: "admin" | "creator" | "student" }) {
+export default function Sidebar({
+  role,
+}: {
+  role: "admin" | "creator" | "student";
+}) {
   const isDesktop = useIsDesktop();
   const isMobile = useIsMobile();
   const [collapsed, setCollapsed] = useState(false);
@@ -130,10 +244,17 @@ export default function Sidebar({ role }: { role: "admin" | "creator" | "student
   const router = useRouter();
   const { hasAnyPermission } = usePermissions();
   const goHome = useCallback(() => {
-    router.push('/');
+    router.push("/");
   }, [router]);
-  const baseLinks = role === "admin" ? adminLinks : role === "creator" ? creatorLinks : studentLinks;
-  const links = baseLinks.filter((link) => !link.anyOf?.length || hasAnyPermission(link.anyOf));
+  const baseLinks =
+    role === "admin"
+      ? adminLinks
+      : role === "creator"
+        ? creatorLinks
+        : studentLinks;
+  const links = baseLinks.filter(
+    (link) => !link.anyOf?.length || hasAnyPermission(link.anyOf),
+  );
 
   const sidebarContent = (
     <>
@@ -147,8 +268,12 @@ export default function Sidebar({ role }: { role: "admin" | "creator" | "student
         </div>
         {!collapsed && (
           <div className="hidden md:block">
-            <p className="text-sm font-semibold tracking-tight text-slate-950 dark:text-white">VocaBoost</p>
-            <p className="text-xs text-slate-600 dark:text-slate-400">Học từ vựng TOEIC</p>
+            <p className="text-sm font-semibold tracking-tight text-slate-950 dark:text-white">
+              VocaBoost
+            </p>
+            <p className="text-xs text-slate-600 dark:text-slate-400">
+              Học từ vựng TOEIC
+            </p>
           </div>
         )}
       </div>
@@ -158,9 +283,15 @@ export default function Sidebar({ role }: { role: "admin" | "creator" | "student
           <ShieldCheck className="h-4 w-4 text-emerald-500" />
           <div>
             <p className="text-xs font-medium text-slate-800 dark:text-slate-200">
-              {role === "admin" ? "Khu vực quản trị" : role === "creator" ? "Khu vực tạo nội dung" : "Khu vực học tập"}
+              {role === "admin"
+                ? "Khu vực quản trị"
+                : role === "creator"
+                  ? "Khu vực tạo nội dung"
+                  : "Khu vực học tập"}
             </p>
-            <p className="text-[11px] text-slate-600 dark:text-slate-400">Truy cập theo quyền hạn</p>
+            <p className="text-[11px] text-slate-600 dark:text-slate-400">
+              Truy cập theo quyền hạn
+            </p>
           </div>
         </div>
       )}
@@ -170,7 +301,10 @@ export default function Sidebar({ role }: { role: "admin" | "creator" | "student
           fallback={
             <div className="space-y-2">
               {links.map((link) => (
-                <div key={link.href} className="h-10 rounded-md bg-slate-100 dark:bg-white/5" />
+                <div
+                  key={link.href}
+                  className="h-10 rounded-md bg-slate-100 dark:bg-white/5"
+                />
               ))}
             </div>
           }
@@ -235,8 +369,12 @@ export default function Sidebar({ role }: { role: "admin" | "creator" | "student
                 <BookOpen className="h-4 w-4" />
               </div>
               <div>
-                <p className="text-sm font-semibold tracking-tight text-slate-950 dark:text-white">VocaBoost</p>
-                <p className="text-xs text-slate-600 dark:text-slate-400">Học từ vựng TOEIC</p>
+                <p className="text-sm font-semibold tracking-tight text-slate-950 dark:text-white">
+                  VocaBoost
+                </p>
+                <p className="text-xs text-slate-600 dark:text-slate-400">
+                  Học từ vựng TOEIC
+                </p>
               </div>
             </div>
             <button
@@ -251,9 +389,15 @@ export default function Sidebar({ role }: { role: "admin" | "creator" | "student
             <ShieldCheck className="h-4 w-4 text-emerald-500" />
             <div>
               <p className="text-xs font-medium text-slate-800 dark:text-slate-200">
-                {role === "admin" ? "Khu vực quản trị" : role === "creator" ? "Khu vực tạo nội dung" : "Khu vực học tập"}
+                {role === "admin"
+                  ? "Khu vực quản trị"
+                  : role === "creator"
+                    ? "Khu vực tạo nội dung"
+                    : "Khu vực học tập"}
               </p>
-              <p className="text-[11px] text-slate-600 dark:text-slate-400">Truy cập theo quyền hạn</p>
+              <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                Truy cập theo quyền hạn
+              </p>
             </div>
           </div>
 
@@ -262,19 +406,29 @@ export default function Sidebar({ role }: { role: "admin" | "creator" | "student
               fallback={
                 <div className="space-y-2">
                   {links.map((link) => (
-                    <div key={link.href} className="h-10 rounded-md bg-slate-100 dark:bg-white/5" />
+                    <div
+                      key={link.href}
+                      className="h-10 rounded-md bg-slate-100 dark:bg-white/5"
+                    />
                   ))}
                 </div>
               }
             >
-              <NavLinks links={links} collapsed={false} onLinkClick={() => setMobileOpen(false)} />
+              <NavLinks
+                links={links}
+                collapsed={false}
+                onLinkClick={() => setMobileOpen(false)}
+              />
             </Suspense>
           </nav>
 
           <div className="border-t border-slate-200 p-2 dark:border-white/10 space-y-1">
             <button
               type="button"
-              onClick={() => { goHome(); setMobileOpen(false); }}
+              onClick={() => {
+                goHome();
+                setMobileOpen(false);
+              }}
               className="flex h-10 w-full items-center gap-3 rounded-md px-3 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
             >
               <Home className="h-4 w-4 shrink-0" />
@@ -282,7 +436,10 @@ export default function Sidebar({ role }: { role: "admin" | "creator" | "student
             </button>
             <button
               type="button"
-              onClick={() => { logout(); setMobileOpen(false); }}
+              onClick={() => {
+                logout();
+                setMobileOpen(false);
+              }}
               className="flex h-10 w-full items-center gap-3 rounded-md px-3 text-sm font-medium text-slate-600 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:text-slate-400 dark:hover:bg-rose-500/10 dark:hover:text-rose-300"
             >
               <LogOut className="h-4 w-4 shrink-0" />
@@ -309,7 +466,11 @@ export default function Sidebar({ role }: { role: "admin" | "creator" | "student
         className="absolute -right-3 top-20 hidden h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors hover:text-slate-950 md:flex dark:border-white/10 dark:bg-slate-950 dark:text-slate-400 dark:hover:text-white"
         aria-label={collapsed ? "Mở rộng thanh menu" : "Thu gọn thanh menu"}
       >
-        {collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
+        {collapsed ? (
+          <ChevronRight className="h-3 w-3" />
+        ) : (
+          <ChevronLeft className="h-3 w-3" />
+        )}
       </button>
     </aside>
   );

@@ -7,8 +7,5 @@ export const categoriesService = {
     return response.data;
   },
 
-  async getTopics() {
-    const response = await apiClient.get("/categories/topics");
-    return response.data;
-  },
+
 };
