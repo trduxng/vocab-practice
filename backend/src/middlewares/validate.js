@@ -32,6 +32,7 @@ const schemas = {
       fullName: z.string().min(2, 'Họ tên quá ngắn'),
       email: z.string().email('Email không hợp lệ'),
       password: z.string().min(6, 'Mật khẩu phải ít nhất 6 ký tự'),
+      role: z.enum(['Learner', 'Teacher', 'ContentCreator']).optional(),
     })
   }),
   

@@ -13,6 +13,10 @@ const ALLOWED_TYPES = {
   'audio/wav': 'Audio',
   'audio/ogg': 'Audio',
   'audio/mp3': 'Audio',
+  'video/mp4': 'Video',
+  'video/webm': 'Video',
+  'video/ogg': 'Video',
+  'application/pdf': 'Document',
   'text/csv': 'Document',
   'text/plain': 'Document',
   'application/json': 'Document',
@@ -35,7 +39,7 @@ const fileFilter = (_req, file, cb) => {
   if (ALLOWED_TYPES[file.mimetype]) {
     cb(null, true);
   } else {
-    cb(new Error('Loại file không hỗ trợ. Chỉ chấp nhận Image, Audio, CSV, TXT, JSON, Excel.'));
+    cb(new Error('Loại file không hỗ trợ. Chỉ chấp nhận Image, Audio, Video, PDF, CSV, TXT, JSON, Excel.'));
   }
 };
 

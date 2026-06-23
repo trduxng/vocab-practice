@@ -1,0 +1,81 @@
+,,,
+cascading,adj,"x?p, x?p t?ng",Cascading Style Sheets (CSS).
+cascade,n,"s? x?p t?ng, liên ti?p",The CSS cascade determines which styles are applied.
+variations,n,bi?n th?,You can create variations of a component.
+consists,v,bao g?m,A CSS rule consists of a selector and a declaration block.
+selector,n,b? ch?n,The selector points to the HTML element you want to style.
+declaration,n,khai báo,A declaration includes a property and a value.
+property,n,"??c tính, thu?c tính (CSS)",color is a CSS property.
+attribute,n,thu?c tính (HTML),You can select elements by their href attribute.
+points,v,"tr?, ch? t?i",The selector points to the element.
+element,n,ph?n t?,Style this HTML element.
+separated,adj,"tách ra, ???c phân tách",Multiple values are separated by spaces.
+colon,n,d?u hai ch?m :,Property and value are separated by a colon.
+semicolons,n,d?u ch?m ph?y ;,Declarations end with semicolons.
+comma,n,"d?u ph?y ,",Group selectors using a comma.
+asterisk,n,d?u hoa th? *,The asterisk is the universal selector.
+brackets,n,d?u ngo?c (ch? chung),Put the value in brackets.
+braces,n,d?u ngo?c nh?n { },CSS rules are enclosed in curly braces.
+parentheses,n,d?u ngo?c tròn ( ),Functions like calc() use parentheses.
+square brackets,n,d?u ngo?c vuông [ ],Attribute selectors use square brackets.
+angle brackets,n,d?u l?n h?n/nh? h?n < >,HTML tags use angle brackets.
+aligned,adj,c?n ch?nh,The text is right-aligned.
+category,n,"phân lo?i, danh m?c",Selectors fall into several categories.
+combinator,n,t? h?p,A combinator explains the relationship between selectors.
+pseudo,adj,gi? (k?t h?p: pseudo-class/element),:hover is a pseudo-class.
+state,n,tr?ng thái,Style the button's active state.
+base,n,"c? s?, n?n t?ng",Define the base styles first.
+unique,adj,"duy nh?t, ??c nh?t",An ID must be unique within the page.
+hash character,n,d?u #,ID selectors start with a hash character.
+period character,n,d?u .,Class selectors start with a period character.
+apply,v,"??t, áp d?ng",Let's apply some styles to the body.
+applied,adj,???c áp d?ng,These rules are applied to all images.
+specify,v,ch? ??nh,Specify the width in pixels.
+specific,adj,c? th?,Target a specific element.
+affected,adj,b? tác ??ng/?nh h??ng,Child elements are affected by parent styles.
+refer to,v,"tham chi?u, nh?c ??n",The class name should refer to its function.
+universal,adj,"ph? quát, toàn c?c",The * is a universal selector.
+group,n / v,nhóm / gom nhóm,You can group multiple selectors.
+definitions,n,??nh ngh?a,Write your variable definitions in :root.
+format,n / v,??nh d?ng,Use CSS to format the document.
+look of,n,"di?n m?o, v? ngoài c?a",Change the look of the website.
+entire,adj,toàn b?,It affects the entire page.
+reference,n / v,"tham kh?o, tài li?u tham kh?o",Keep a CSS reference open.
+external,adj,bên ngoài,Link an external stylesheet.
+internal,adj,n?i b?,Use <style> tags for internal CSS.
+relevant,adj,"có liên quan, thích h?p",Show the relevant content.
+sheet,n,"b?ng, trang (stylesheet)",A style sheet contains CSS rules.
+assume,v,"cho r?ng, gi? ??nh",The browser will assume a default size.
+order,n,th? t?,The order of your CSS rules matters.
+virtual,adj,?o,Pseudo-elements create virtual elements.
+comments,n,"bình lu?n, ghi chú",Use /* */ to write CSS comments.
+section,n,"ph?n, ?o?n, khu v?c",Style this specific section of the layout.
+ignore,v,"b? qua, ph?t l?",The browser will ignore invalid properties.
+combination,n,s? k?t h?p,A combination of selectors.
+lead,v,"d?n ??n, d?n d?t",Bad CSS can lead to layout bugs.
+valid,adj,h?p l? (L?u ý: B?n b? nh?m ? t? này),Ensure your HTML is valid.
+invalid,adj,không h?p l?,The value 10px solid is invalid for color.
+validate,v,"xác th?c, ki?m tra tính h?p l?",Always validate your CSS code.
+transparent,adj,trong su?t,Set the background to transparent.
+digit,n,ch? s?,Hex codes can have 3 or 6 digits.
+spot,n,"?i?m, v? trí",Position it in the right spot.
+margin,n,l? (kho?ng cách bên ngoài),Margin clears space outside the border.
+border,n,???ng vi?n,Add a solid red border.
+padding,n,kho?ng ??m (kho?ng cách bên trong),Padding clears space inside the border.
+dimensions,n,"kích th??c (chi?u, kh?)",Set the box dimensions.
+desired,adj,mong mu?n,Achieve the desired layout.
+vertical,adj,chi?u d?c,Center the text vertically.
+horizontal,adj,chi?u ngang,The menu is a horizontal list.
+width,n,chi?u r?ng,Set the width to 100%.
+height,n,chi?u cao,The height is fixed.
+overflow,n / v,"s? tràn, tràn ra ngoài",Hide the overflow text.
+inline,adj,"n?i tuy?n, cùng dòng",<span> is an inline element.
+visibility,n,"tính h?u hình, tr?ng thái hi?n th?",visibility: hidden; hides the element.
+disregard,v,"không ?? ý, l? ?i",You can disregard this rule for mobile.
+sizing,n,quá trình ??nh c?,box-sizing: border-box; is very useful.
+shrunk,adj / v3,b? thu nh?,The image has shrunk to fit the container.
+relative,adj,t??ng ??i,Use position: relative;.
+normally,adv,thông th??ng,Divs normally stack vertically.
+fixed,adj,c? ??nh,A fixed header stays at the top.
+absolute,adj,tuy?t ??i,position: absolute; removes it from flow.
+ancestor,n,ph?n t? t? tiên (g?c),position: absolute is relative to its nearest positioned ancestor.

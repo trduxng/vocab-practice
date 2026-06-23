@@ -7,6 +7,7 @@ type RegisterRequest = {
   fullName: string;
   email: string;
   password: string;
+  role?: "Learner" | "Teacher";
 };
 
 type LoginRequest = {
