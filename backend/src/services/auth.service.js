@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const GamificationService = require('./gamification.service');
 
 class AuthService {
-  static async register(fullName, email, password) {
+  static async register(fullName, email, password, role) {
     const pool = await poolPromise;
     
     // Check if user exists
@@ -20,21 +20,49 @@ class AuthService {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Map role
+    let targetRoleName = 'Learner';
+    let targetUserRole = 'Learner';
+    if (role === 'Teacher' || role === 'ContentCreator') {
+      targetRoleName = 'ContentCreator';
+      targetUserRole = 'ContentCreator';
+    }
+
     const result = await pool.request()
       .input('FullName', sql.NVarChar(200), fullName)
       .input('Email', sql.NVarChar(255), email)
       .input('PasswordHash', sql.NVarChar(500), hashedPassword)
+      .input('RoleName', sql.NVarChar(50), targetRoleName)
+      .input('UserRole', sql.NVarChar(50), targetUserRole)
       .query(`
-        DECLARE @DefaultRoleID INT;
-        SELECT @DefaultRoleID = RoleID FROM Roles WHERE RoleName = 'Learner';
+        DECLARE @TargetRoleID INT;
+        SELECT @TargetRoleID = RoleID FROM Roles WHERE RoleName = @RoleName;
+
+        IF @TargetRoleID IS NULL
+        BEGIN
+          SELECT @TargetRoleID = RoleID FROM Roles WHERE RoleName = 'Learner';
+        END
 
         INSERT INTO Users (FullName, Email, PasswordHash, UserRole, RoleID, IsActive, CreatedAt, UpdatedAt)
         OUTPUT inserted.UserID AS id, inserted.FullName AS fullName, inserted.Email AS email
-        VALUES (@FullName, @Email, @PasswordHash, 'Learner', @DefaultRoleID, 1, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
+        VALUES (@FullName, @Email, @PasswordHash, ISNULL(@UserRole, 'Learner'), @TargetRoleID, 1, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
       `);
 
     const user = result.recordset[0];
-    return { ...user, role: 'Learner', permissions: ['VIEW_DASHBOARD', 'LEARN_VOCAB'] };
+
+    // Fetch Permissions dynamically
+    const permResult = await pool.request()
+      .input('UserID', sql.BigInt, user.id)
+      .query(`
+        SELECT p.PermissionCode
+        FROM RolePermissions rp
+        JOIN Permissions p ON rp.PermissionID = p.PermissionID
+        JOIN Users u ON rp.RoleID = u.RoleID
+        WHERE u.UserID = @UserID
+      `);
+    
+    const permissions = permResult.recordset.map(r => r.PermissionCode);
+    return { ...user, role: targetRoleName, permissions };
   }
 
   static async login(email, password) {

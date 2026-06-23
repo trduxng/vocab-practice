@@ -176,7 +176,7 @@ export const creatorService = {
     return res.data;
   },
 
-  async bulkCreateWords(data: { words: WordPayload[] }) {
+  async bulkCreateWords(data: { words: WordPayload[], conflictStrategy?: string }) {
     const res = await apiClient.post('/creator/words/bulk', data);
     return res.data;
   },
