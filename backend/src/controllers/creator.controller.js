@@ -96,11 +96,11 @@ class CreatorController {
 
   static async bulkCreateWords(req, res, next) {
     try {
-      const { words } = req.body;
+      const { words, conflictStrategy } = req.body;
       if (!Array.isArray(words) || words.length === 0) {
         return res.status(400).json({ message: 'Danh sách từ vựng không hợp lệ' });
       }
-      const result = await CreatorService.bulkCreateWords(words, req.user.id);
+      const result = await CreatorService.bulkCreateWords(words, req.user.id, conflictStrategy);
       res.status(201).json({ message: `Đã import thành công ${result.count} từ vựng`, data: result });
     } catch (err) { next(err); }
   }

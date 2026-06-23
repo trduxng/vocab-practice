@@ -4,7 +4,7 @@ import BulkImportTab from './BulkImportTab';
 import { creatorService, MediaItem } from '@/src/services/creator.service';
 import {
   Upload, Trash2, Loader2, Music, Search, File,
-  Copy, Check, Clipboard,
+  Copy, Check, Clipboard, FileText, Video as VideoIcon,
 } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
@@ -20,6 +20,8 @@ const mediaTypeBadge: Record<string, string> = {
   ExampleAudio: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
   QuestionAudio: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
   QuestionImage: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+  Video: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
+  Document: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
 };
 
 const mediaTypeLabels: Record<string, string> = {
@@ -30,6 +32,8 @@ const mediaTypeLabels: Record<string, string> = {
   ExampleAudio: 'Audio ví dụ',
   QuestionAudio: 'Audio câu hỏi',
   QuestionImage: 'Hình câu hỏi',
+  Video: 'Video',
+  Document: 'Tài liệu',
 };
 
 function formatBytes(bytes: number): string {
@@ -45,6 +49,14 @@ function isImage(mimeType: string): boolean {
 
 function isAudio(mimeType: string): boolean {
   return mimeType?.startsWith('audio/');
+}
+
+function isVideo(mimeType: string): boolean {
+  return mimeType?.startsWith('video/');
+}
+
+function isPdf(mimeType: string): boolean {
+  return mimeType === 'application/pdf';
 }
 
 interface UploadingFile {
@@ -357,6 +369,8 @@ export default function CreatorMediaPage() {
           <option value="">Tất cả</option>
           <option value="Image">Hình ảnh</option>
           <option value="Audio">Âm thanh</option>
+          <option value="Video">Video</option>
+          <option value="Document">Tài liệu</option>
         </select>
         <select
           value={sortBy}
@@ -431,6 +445,25 @@ export default function CreatorMediaPage() {
                       <audio controls className="w-full max-w-[140px] h-8" preload="none">
                         <source src={`${API_BASE}${item.fileUrl}`} type={item.mimeType} />
                       </audio>
+                    </div>
+                  ) : isVideo(item.mimeType) ? (
+                    <div className="flex flex-col items-center gap-2 p-2 w-full h-full justify-center">
+                      <VideoIcon className="h-8 w-8 text-orange-400 mb-1" />
+                      <video controls className="w-full max-h-[80px]" preload="none">
+                        <source src={`${API_BASE}${item.fileUrl}`} type={item.mimeType} />
+                      </video>
+                    </div>
+                  ) : isPdf(item.mimeType) ? (
+                    <div className="flex flex-col items-center gap-2 p-4 w-full text-center">
+                      <FileText className="h-10 w-10 text-emerald-500" />
+                      <a
+                        href={`${API_BASE}${item.fileUrl}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-500 hover:text-blue-600 underline truncate w-full"
+                      >
+                        Mở PDF
+                      </a>
                     </div>
                   ) : (
                     <File className="h-10 w-10 text-slate-400" />

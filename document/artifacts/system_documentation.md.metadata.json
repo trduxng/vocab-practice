@@ -1,6 +1,0 @@
-{
-  "artifactType":  "ARTIFACT_TYPE_WALKTHROUGH",
-  "summary":  "Tài liệu mô tả toàn bộ hệ thống VocaBoost bao gồm:\n- Kiến trúc 3 tầng (Frontend Next.js → Backend Express → SQL Server)\n- Chi tiết từng file backend: index.js, db.js, 3 middlewares, 4 routes, 4 controllers, 4 services\n- Chi tiết frontend: api-client, validations, AuthContext, 4 services, layouts, cấu trúc pages\n- Bảng mô tả từng hàm với chức năng và tables liên quan\n- Sequence diagrams cho luồng đăng nhập, học flashcard, tạo từ vựng\n- Sơ đồ quan hệ giữa các file\n- Kế hoạch phát triển 5 giai đoạn\n- Mô tả 14 database tables chính",
-  "updatedAt":  "2026-05-04T08:40:49.112822800Z",
-  "requestFeedback":  true
-}
