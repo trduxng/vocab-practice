@@ -48,6 +48,7 @@ export default function LoginPage() {
       } else {
         router.push("/user/dashboard");
       }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       toast.error(
         error.response?.data?.message || "Email hoặc mật khẩu không chính xác",

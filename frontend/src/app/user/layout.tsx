@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Sidebar from "@/src/components/shared/Sidebar";
 import { useAuth } from "../context/AuthContext";
 import { useRouter } from "next/navigation";
@@ -10,11 +10,19 @@ const StudentLayout = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, loading } = useAuth();
   const router = useRouter();
 
+  const [mounted, setMounted] = useState(false);
+
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!loading && mounted && !isAuthenticated) {
       router.push('/login');
     }
-  }, [loading, isAuthenticated, router]);
+  }, [loading, isAuthenticated, router, mounted]);
+
+  if (!mounted) return null;
 
   if (loading) {
     return <div className="min-h-screen bg-[#080d1a] flex items-center justify-center text-white font-mono">SECURE BOOT...</div>;

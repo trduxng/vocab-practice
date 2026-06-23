@@ -60,3 +60,4 @@ mcp.json
 .history/
 #backend
 ./backend/yarn.lock
+.vibecode-backup*/

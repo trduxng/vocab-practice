@@ -2,22 +2,6 @@ const { sql, poolPromise } = require("../config/db");
 const GamificationService = require("./gamification.service");
 
 class UserService {
-  static async getFlashcards(userId) {
-    const pool = await poolPromise;
-    const result = await pool.request().input("UserID", sql.BigInt, userId)
-      .query(`
-        SELECT TOP 10 q.QuestionID AS questionId, q.QuestionText AS questionText,
-               q.CorrectAnswer AS term, w.Phonetic AS phonetic, w.Meaning AS meaning,
-               w.WordID AS wordId
-        FROM Questions q
-        JOIN Words w ON q.WordID = w.WordID
-        LEFT JOIN UserWordProgress uwp ON w.WordID = uwp.WordID AND uwp.UserID = @UserID
-        WHERE uwp.NextReviewDate IS NULL OR uwp.NextReviewDate <= SYSDATETIMEOFFSET()
-        ORDER BY NEWID()
-      `);
-    return result.recordset;
-  }
-
   static async getDueFlashcards(userId, { topicId = null, mode = null } = {}) {
     const pool = await poolPromise;
     const result = await pool
@@ -138,8 +122,9 @@ class UserService {
           CASE WHEN notebook.NotebookID IS NULL THEN 0 ELSE 1 END AS isInNotebook,
           ex.SentenceText AS exampleSentence,
           ex.SentenceTranslation AS exampleMeaning
-        FROM WordTopics wt
-        JOIN Words w ON wt.WordID = w.WordID
+        FROM Topics t
+        JOIN WordTopics wt ON wt.TopicID = t.TopicID
+        JOIN Words w ON wt.WordID = w.WordID AND w.ContentStatus = N'Published'
         LEFT JOIN PartOfSpeeches p ON w.PartOfSpeechID = p.PartOfSpeechID
         LEFT JOIN UserWordProgress uwp ON w.WordID = uwp.WordID AND uwp.UserID = @UserID
         LEFT JOIN UserVocabularyNotebook notebook ON notebook.WordID = w.WordID AND notebook.UserID = @UserID
@@ -149,7 +134,7 @@ class UserService {
           WHERE WordID = w.WordID
           ORDER BY ExampleSentenceID
         ) ex
-        WHERE wt.TopicID = @TopicID
+        WHERE t.TopicID = @TopicID AND t.ContentStatus = N'Published'
         ORDER BY w.Term ASC
       `);
     return result.recordset;
@@ -457,8 +442,8 @@ class UserService {
       .query(`
         SELECT
           COUNT(*) AS totalWords,
-          SUM(CASE WHEN MasteryLevel >= 8 THEN 1 ELSE 0 END) AS masteredWords,
-          CAST(SUM(CASE WHEN MasteryLevel >= 8 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0) AS DECIMAL(5,2)) AS completionPercentage
+          SUM(CASE WHEN MasteryLevel >= 7 THEN 1 ELSE 0 END) AS masteredWords,
+          CAST(SUM(CASE WHEN MasteryLevel >= 7 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0) AS DECIMAL(5,2)) AS completionPercentage
         FROM UserWordProgress
         WHERE UserID = @UserID
       `);
@@ -513,10 +498,11 @@ class UserService {
         SELECT q.QuestionID AS questionId, q.QuestionType AS questionType,
                q.QuestionText AS questionText, q.OptionsJson AS optionsJson,
                q.CorrectAnswer AS correctAnswer, w.Term AS term
-        FROM MiniTestItems mti
-        JOIN Questions q ON mti.QuestionID = q.QuestionID
-        JOIN Words w ON q.WordID = w.WordID
-        WHERE mti.MiniTestID = @MiniTestID
+        FROM MiniTests mt
+        JOIN MiniTestItems mti ON mti.MiniTestID = mt.MiniTestID
+        JOIN Questions q ON mti.QuestionID = q.QuestionID AND q.ContentStatus = N'Published'
+        JOIN Words w ON q.WordID = w.WordID AND w.ContentStatus = N'Published'
+        WHERE mt.MiniTestID = @MiniTestID AND mt.IsPublished = 1
         ORDER BY mti.DisplayOrder
       `);
     return result.recordset;
@@ -699,11 +685,11 @@ class UserService {
           )
           SELECT CONVERT(CHAR(10), m.periodStart, 23) AS date,
                  SUM(CASE WHEN uwp.CreatedAt < DATEADD(month, 1, m.periodStart) THEN 1 ELSE 0 END) AS learnedWords,
-                 SUM(CASE
-                   WHEN uwp.MasteryLevel >= 8
-                    AND uwp.UpdatedAt < DATEADD(month, 1, m.periodStart)
-                   THEN 1 ELSE 0
-                 END) AS masteredWords
+                   SUM(CASE
+                     WHEN uwp.MasteryLevel >= 7
+                      AND uwp.UpdatedAt < DATEADD(month, 1, m.periodStart)
+                    THEN 1 ELSE 0
+                  END) AS masteredWords
           FROM MonthSeries m
           LEFT JOIN dbo.UserWordProgress uwp ON uwp.UserID = @UserID
           GROUP BY m.periodStart
@@ -716,7 +702,7 @@ class UserService {
                  t.TopicName AS topicName,
                  COUNT(DISTINCT wt.WordID) AS totalWords,
                  COUNT(DISTINCT CASE WHEN uwp.RepetitionCount > 0 THEN wt.WordID END) AS learnedWords,
-                 COUNT(DISTINCT CASE WHEN uwp.MasteryLevel >= 8 THEN wt.WordID END) AS masteredWords,
+                 COUNT(DISTINCT CASE WHEN uwp.MasteryLevel >= 7 THEN wt.WordID END) AS masteredWords,
                  ISNULL(AVG(CAST(ISNULL(uwp.MasteryLevel, 0) AS DECIMAL(10, 2))), 0) AS averageMastery
           FROM dbo.Topics t
           JOIN dbo.WordTopics wt ON wt.TopicID = t.TopicID
@@ -741,7 +727,7 @@ class UserService {
                 AND RepetitionCount > 0
                 AND (NextReviewDate IS NULL OR NextReviewDate > SYSDATETIMEOFFSET())
             ), 0) AS upToDateWords,
-            ISNULL((SELECT COUNT(*) FROM dbo.UserWordProgress WHERE UserID = @UserID AND MasteryLevel >= 8), 0) AS masteredWords;
+            ISNULL((SELECT COUNT(*) FROM dbo.UserWordProgress WHERE UserID = @UserID AND MasteryLevel >= 7), 0) AS masteredWords;
         `),
       GamificationService.getMetrics(userId),
     ]);
@@ -862,12 +848,34 @@ class UserService {
     try {
       await transaction.begin();
 
+      // Kiểm tra MiniTest đã Published chưa
+      const mtCheck = await new sql.Request(transaction)
+        .input("MiniTestID", sql.BigInt, testId)
+        .query(`
+          SELECT IsPublished, ContentStatus FROM dbo.MiniTests WHERE MiniTestID = @MiniTestID
+        `);
+      if (!mtCheck.recordset[0] || mtCheck.recordset[0].IsPublished !== true) {
+        throw new Error(`Mini test ${testId} chưa được xuất bản hoặc không tồn tại`);
+      }
+
+      // Kiểm tra duplicate attempt cho user này
+      const dupeCheck = await new sql.Request(transaction)
+        .input("MiniTestID", sql.BigInt, testId)
+        .input("UserID", sql.BigInt, userId)
+        .query(`
+          SELECT COUNT(*) AS cnt FROM dbo.MiniTestAttempts
+          WHERE MiniTestID = @MiniTestID AND UserID = @UserID AND SubmittedAt IS NOT NULL
+        `);
+      if (dupeCheck.recordset[0].cnt > 0) {
+        throw new Error(`Bạn đã hoàn thành bài test ${testId} rồi`);
+      }
+
       const testQuestionsResult = await new sql.Request(transaction)
         .input("MiniTestID", sql.BigInt, testId)
         .query(`
           SELECT q.QuestionID, q.WordID, q.CorrectAnswer
           FROM dbo.MiniTestItems mti
-          JOIN dbo.Questions q ON q.QuestionID = mti.QuestionID
+          JOIN dbo.Questions q ON q.QuestionID = mti.QuestionID AND q.ContentStatus = N'Published'
           WHERE mti.MiniTestID = @MiniTestID;
         `);
       const testQuestions = new Map(
@@ -898,8 +906,8 @@ class UserService {
         submittedQuestionIds.add(numericQuestionId);
 
         const wordId = Number(question.WordID);
-        const isCorrect = submittedAnswer.trim().toLocaleLowerCase()
-          === String(question.CorrectAnswer || "").trim().toLocaleLowerCase();
+        const isCorrect = submittedAnswer.trim().toLowerCase()
+          === String(question.CorrectAnswer || "").trim().toLowerCase();
         const scoreAwarded = isCorrect ? 100 : 0;
 
         // Insert exercise attempt
@@ -1053,14 +1061,6 @@ class UserService {
     const pool = await poolPromise;
     limit = Math.min(50, Math.max(1, limit));
 
-    // Check if table exists
-    const tableCheck = await pool.request().query(`
-      SELECT OBJECT_ID(N'dbo.Notifications', N'U') AS tableId
-    `);
-    if (!tableCheck.recordset[0].tableId) {
-      return { notifications: [], unreadCount: 0 };
-    }
-
     const result = await pool
       .request()
       .input('UserID', sql.BigInt, userId)
@@ -1096,10 +1096,6 @@ class UserService {
 
   static async markNotificationRead(userId, notificationId) {
     const pool = await poolPromise;
-    const tableCheck = await pool.request().query(`
-      SELECT OBJECT_ID(N'dbo.Notifications', N'U') AS tableId
-    `);
-    if (!tableCheck.recordset[0].tableId) return { success: false };
 
     await pool.request()
       .input('UserID', sql.BigInt, userId)
@@ -1113,10 +1109,6 @@ class UserService {
 
   static async markAllNotificationsRead(userId) {
     const pool = await poolPromise;
-    const tableCheck = await pool.request().query(`
-      SELECT OBJECT_ID(N'dbo.Notifications', N'U') AS tableId
-    `);
-    if (!tableCheck.recordset[0].tableId) return { success: false, count: 0 };
 
     const result = await pool.request()
       .input('UserID', sql.BigInt, userId).query(`

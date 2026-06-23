@@ -29,6 +29,7 @@ export default function UserSettingsPage() {
   // Load daily goal and SRS config from backend
   useEffect(() => {
     if (!user) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setGoalLoading(true);
     userService.getDailyGoalSetting()
       .then((data) => {

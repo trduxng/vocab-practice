@@ -2,11 +2,9 @@
 "use client";
 import {
   Brain,
-  Zap,
   BarChart3,
   Repeat,
   Mic,
-  Globe,
   BookOpen,
   Target,
 } from "lucide-react";

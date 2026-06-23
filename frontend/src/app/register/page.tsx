@@ -40,6 +40,7 @@ export default function RegisterPage() {
       await authService.register(data);
       toast.success("Đăng ký thành công! Hãy đăng nhập để bắt đầu.");
       router.push("/login?registered=true");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       toast.error(
         error.response?.data?.message ||

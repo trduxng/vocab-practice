@@ -7,7 +7,7 @@ const getUserPermissions = (req) => (req.user?.permissions || []).map(normalizeP
 const verifyToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ message: 'Missing or invalid token' });
+    return res.status(401).json({ message: 'Thiếu token xác thực' });
   }
 
   const token = authHeader.split(' ')[1];
@@ -15,7 +15,10 @@ const verifyToken = (req, res, next) => {
     req.user = jwt.verify(token, process.env.JWT_SECRET);
     next();
   } catch (error) {
-    return res.status(401).json({ message: 'Token is invalid or expired' });
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: 'Token đã hết hạn, vui lòng đăng nhập lại' });
+    }
+    return res.status(401).json({ message: 'Token không hợp lệ' });
   }
 };
 
@@ -23,7 +26,7 @@ const checkPermission = (permissionCode) => {
   return (req, res, next) => {
     const userPermissions = getUserPermissions(req);
     if (!userPermissions.includes(normalizePermission(permissionCode))) {
-      return res.status(403).json({ message: `Missing permission: ${permissionCode}` });
+      return res.status(403).json({ message: `Không có quyền: ${permissionCode}` });
     }
     next();
   };
@@ -33,7 +36,7 @@ const checkAnyPermission = (permissionCodes) => {
   return (req, res, next) => {
     const userPermissions = getUserPermissions(req);
     if (!permissionCodes.some((permissionCode) => userPermissions.includes(normalizePermission(permissionCode)))) {
-      return res.status(403).json({ message: `Missing one of permissions: ${permissionCodes.join(' / ')}` });
+      return res.status(403).json({ message: `Không có quyền: ${permissionCodes.join(' / ')}` });
     }
     next();
   };
@@ -57,7 +60,7 @@ const checkOwnership = (tableName, idColumn, paramName = 'id', ownerColumn = 'Cr
         .query(`SELECT 1 FROM ${tableName} WHERE ${idColumn} = @RecordID AND ${ownerColumn} = @UserID`);
 
       if (result.recordset.length === 0) {
-        return res.status(403).json({ message: 'You do not have permission to modify this content' });
+        return res.status(403).json({ message: 'Bạn không có quyền sửa nội dung này' });
       }
 
       next();
