@@ -1,5 +1,5 @@
 // vocab-practice/frontend/src/components/Footer.tsx
-import { ArrowRight, BookOpen, Mail, Phone } from "lucide-react";
+import { ArrowRight, BookOpen, Mail } from "lucide-react";
 
 // Custom social media icons
 const InstagramIcon = () => (

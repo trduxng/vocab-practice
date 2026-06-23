@@ -7,7 +7,7 @@ import { AdminErrorState, AdminLoadingState, AdminPage, AdminPanel, KpiCard, Sta
 import { adminService } from "@/src/services/admin.service";
 import { adminLabel, formatAdminNumber, translateAdminText } from "@/src/lib/admin-i18n";
 import { Activity, BookOpen, CheckCircle2, ClipboardList, Clock3, FileQuestion, PieChart as PieChartIcon, Sparkles, Users } from "lucide-react";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 type Tone = "slate" | "blue" | "emerald" | "amber" | "rose" | "violet";
 
@@ -30,6 +30,7 @@ type DashboardStats = {
   userGrowth?: Array<{ date: string; users: number }>;
   weeklyActivity?: Array<{ day: string; attempts: number; correct: number }>;
   userTypes?: Array<{ name: string; value: number }>;
+  wordDistribution?: Array<{ name: string; value: number }>;
   recentActivity?: Array<{ title: string; detail: string; createdAt: string; tone: Tone }>;
   systemHealth?: {
     apiStatus?: string;
@@ -113,6 +114,36 @@ export default function AdminDashboard() {
 
   const weeklyActivity = stats?.weeklyActivity || [];
   const recentActivity = stats?.recentActivity || [];
+
+  const contentTotals = useMemo(() => {
+    return [
+      { name: "Từ vựng", total: stats?.totalWords || 0, fill: chartColors.emerald },
+      { name: "Chủ đề", total: stats?.totalTopics || 0, fill: chartColors.violet },
+      { name: "Câu hỏi", total: stats?.totalQuestions || 0, fill: chartColors.amber },
+      { name: "Mini Test", total: stats?.totalMiniTests || 0, fill: chartColors.rose },
+    ];
+  }, [stats]);
+
+  const accuracyTrend = useMemo(() => {
+    return (stats?.weeklyActivity || []).map((item) => {
+      const attempts = Number(item.attempts || 0);
+      const correct = Number(item.correct || 0);
+      return {
+        day: item.day,
+        accuracy: attempts > 0 ? Math.round((correct / attempts) * 100) : 0,
+      };
+    });
+  }, [stats]);
+
+  const wordDistribution = useMemo(() => {
+    const total = (stats?.wordDistribution || []).reduce((sum, item) => sum + Number(item.value || 0), 0);
+    const colors = [chartColors.blue, chartColors.emerald, chartColors.amber, chartColors.violet, chartColors.rose, chartColors.slate];
+    return (stats?.wordDistribution || []).map((item, index) => ({
+      ...item,
+      color: colors[index % colors.length],
+      percent: total ? Math.round((Number(item.value || 0) / total) * 100) : 0,
+    }));
+  }, [stats]);
 
   return (
     <>
@@ -222,6 +253,70 @@ export default function AdminDashboard() {
                     </div>
                   ))}
                 </div>
+              </AdminPanel>
+            </div>
+
+            <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+              <AdminPanel title="Tỷ lệ trả lời đúng (%)" description="Xu hướng làm bài chính xác của học viên." className="xl:col-span-2">
+                <ChartFrame className="h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={accuracyTrend}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,.18)" />
+                      <XAxis dataKey="day" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                      <YAxis tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} domain={[0, 100]} width={48} />
+                      <Tooltip contentStyle={tooltipStyle} />
+                      <Line type="monotone" dataKey="accuracy" stroke={chartColors.amber} strokeWidth={3} name="Tỷ lệ chính xác (%)" activeDot={{ r: 6 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </ChartFrame>
+              </AdminPanel>
+
+              <AdminPanel title="Cơ cấu từ vựng" description="Phân bổ từ vựng theo từ loại." action={<PieChartIcon className="h-4 w-4 text-slate-400" />}>
+                <ChartFrame className="h-56">
+                  {wordDistribution.length === 0 ? (
+                    <div className="h-full flex items-center justify-center text-slate-400 text-sm">Chưa có dữ liệu từ vựng</div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={wordDistribution} dataKey="value" innerRadius={52} outerRadius={88} paddingAngle={4}>
+                          {wordDistribution.map((item, index) => <Cell key={item.name} fill={item.color} />)}
+                        </Pie>
+                        <Tooltip contentStyle={tooltipStyle} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  )}
+                </ChartFrame>
+                <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                  {wordDistribution.map((item) => (
+                    <div key={item.name} className="flex items-center justify-between text-xs">
+                      <span className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />
+                        {adminLabel(item.name)}
+                      </span>
+                      <span className="font-medium text-slate-950 dark:text-white">{item.value} từ ({item.percent}%)</span>
+                    </div>
+                  ))}
+                </div>
+              </AdminPanel>
+            </div>
+
+            <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+              <AdminPanel title="Cơ cấu kho nội dung" description="Tổng lượng nội dung hiện có trên hệ thống." className="xl:col-span-3">
+                <ChartFrame className="h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={contentTotals} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(148,163,184,.18)" />
+                      <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                      <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} width={80} />
+                      <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(148,163,184,.05)" }} />
+                      <Bar dataKey="total" name="Tổng số lượng" radius={[0, 4, 4, 0]}>
+                        {contentTotals.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ChartFrame>
               </AdminPanel>
             </div>
 

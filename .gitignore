@@ -76,6 +76,10 @@ CLAUDE.md
 conductor/
 .cgcignore
 mcp.json
+.agents/
+.claude/
+.codex/
+.vibecode-backup*/
 
 # ==========================================
 # PROJECT-SPECIFIC
@@ -83,14 +87,24 @@ mcp.json
 .history/
 backend/plan.md
 backend/yarn.lock
-
-# Auto-generated
-next-env.d.ts
-
-# Binary exports
-*.mv2
+./backend/yarn.lock
 
 # ==========================================
 # DEPLOY / CI
 # ==========================================
 .vercel
+
+# ==========================================
+# AUTO-GENERATED
+# ==========================================
+next-env.d.ts
+
+# ==========================================
+# BINARY EXPORTS
+# ==========================================
+*.mv2
+
+# ==========================================
+# PROCESS/PLANNING ARTIFACTS (local only)
+# ==========================================
+process/

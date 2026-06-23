@@ -468,6 +468,18 @@ class AdminController {
     }
   }
 
+  static async getStudentDetail(req, res, next) {
+    try {
+      const studentId = parseInt(req.params.id, 10);
+      if (!studentId) return res.status(400).json({ message: 'ID không hợp lệ' });
+      const data = await AdminService.getStudentDetail(studentId);
+      if (!data) return res.status(404).json({ message: 'Không tìm thấy người dùng' });
+      res.status(200).json(data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async getAnalytics(req, res, next) {
     try {
       const data = await AdminService.getAnalyticsData();

@@ -10,6 +10,13 @@ export default function CreatorPendingPage() {
   const [items, setItems] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const typeLabels: Record<string, string> = {
+    Topic: 'Chủ đề',
+    Word: 'Từ vựng',
+    Question: 'Câu hỏi',
+    MiniTest: 'Bài test',
+  };
+
   useEffect(() => {
     (async () => {
       try {
@@ -20,9 +27,13 @@ export default function CreatorPendingPage() {
           creatorService.getMiniTests({ status: 'PendingReview' }),
         ]);
         const all: ContentItem[] = [
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ...topics.map((t: any) => ({ id: t.id, name: t.name, type: 'Topic', createdAt: t.createdAt })),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ...words.map((w: any) => ({ id: w.id, name: w.term, type: 'Word', createdAt: w.createdAt })),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ...questions.map((q: any) => ({ id: q.id, name: q.questionText?.substring(0, 60), type: 'Question', createdAt: q.createdAt })),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ...tests.map((m: any) => ({ id: m.id, name: m.title, type: 'MiniTest', createdAt: m.createdAt })),
         ];
         all.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -47,7 +58,7 @@ export default function CreatorPendingPage() {
             {items.map((item) => (
               <div key={`${item.type}-${item.id}`} className="flex items-center justify-between px-5 py-4 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                 <div className="flex items-center gap-3 min-w-0">
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 shrink-0">{item.type}</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 shrink-0">{typeLabels[item.type] || item.type}</span>
                   <span className="truncate font-medium">{item.name || '—'}</span>
                 </div>
                 <span className="text-xs text-slate-500 shrink-0">{new Date(item.createdAt).toLocaleDateString('vi-VN')}</span>

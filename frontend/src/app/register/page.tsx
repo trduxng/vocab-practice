@@ -21,6 +21,7 @@ import { toast } from "sonner";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const [selectedRole, setSelectedRole] = React.useState<"Learner" | "Teacher">("Learner");
 
   const {
     register,
@@ -37,9 +38,10 @@ export default function RegisterPage() {
 
   const onSubmit = async (data: RegisterFormValues) => {
     try {
-      await authService.register(data);
+      await authService.register({ ...data, role: selectedRole });
       toast.success("Đăng ký thành công! Hãy đăng nhập để bắt đầu.");
       router.push("/login?registered=true");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       toast.error(
         error.response?.data?.message ||
@@ -134,6 +136,41 @@ export default function RegisterPage() {
                   {errors.password?.message}
                 </p>
               )}
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
+                Bạn muốn đăng ký vai trò nào?
+              </label>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setSelectedRole("Learner")}
+                  className={`flex flex-col items-center justify-center p-4 rounded-2xl border transition-all duration-200 ${
+                    selectedRole === "Learner"
+                      ? "bg-blue-600/20 border-blue-500 text-white shadow-lg shadow-blue-500/10"
+                      : "bg-white/5 border-white/10 text-slate-400 hover:bg-white/[0.08]"
+                  }`}
+                >
+                  <User size={20} className={selectedRole === "Learner" ? "text-blue-400" : ""} />
+                  <span className="text-xs font-bold mt-2 uppercase tracking-wide">Học viên</span>
+                  <span className="text-[9px] text-slate-500 text-center mt-1">Luyện tập từ vựng & test</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedRole("Teacher")}
+                  className={`flex flex-col items-center justify-center p-4 rounded-2xl border transition-all duration-200 ${
+                    selectedRole === "Teacher"
+                      ? "bg-blue-600/20 border-blue-500 text-white shadow-lg shadow-blue-500/10"
+                      : "bg-white/5 border-white/10 text-slate-400 hover:bg-white/[0.08]"
+                  }`}
+                >
+                  <UserPlus size={20} className={selectedRole === "Teacher" ? "text-blue-400" : ""} />
+                  <span className="text-xs font-bold mt-2 uppercase tracking-wide">Giáo viên</span>
+                  <span className="text-[9px] text-slate-500 text-center mt-1">Soạn nội dung & media</span>
+                </button>
+              </div>
             </div>
 
             <Button

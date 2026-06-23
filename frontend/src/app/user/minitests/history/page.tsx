@@ -45,6 +45,7 @@ const MiniTestHistoryPage = () => {
     if (!user) return;
 
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
 
     userService.getTestHistory(page, pageSize)

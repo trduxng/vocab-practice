@@ -10,6 +10,13 @@ export default function CreatorRejectedPage() {
   const [items, setItems] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const typeLabels: Record<string, string> = {
+    Topic: 'Chủ đề',
+    Word: 'Từ vựng',
+    Question: 'Câu hỏi',
+    MiniTest: 'Bài test',
+  };
+
   const loadAll = async () => {
     try {
       const [topics, words, questions, tests] = await Promise.all([
@@ -19,9 +26,13 @@ export default function CreatorRejectedPage() {
         creatorService.getMiniTests({ status: 'Rejected' }),
       ]);
       const all: ContentItem[] = [
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ...topics.map((t: any) => ({ id: t.id, name: t.name, type: 'Topic', createdAt: t.createdAt })),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ...words.map((w: any) => ({ id: w.id, name: w.term, type: 'Word', createdAt: w.createdAt })),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ...questions.map((q: any) => ({ id: q.id, name: q.questionText?.substring(0, 60), type: 'Question', createdAt: q.createdAt })),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ...tests.map((m: any) => ({ id: m.id, name: m.title, type: 'MiniTest', createdAt: m.createdAt })),
       ];
       all.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -29,6 +40,7 @@ export default function CreatorRejectedPage() {
     } catch { toast.error('Không thể tải'); } finally { setLoading(false); }
   };
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadAll(); }, []);
 
   const handleResubmit = async (item: ContentItem) => {
@@ -39,6 +51,7 @@ export default function CreatorRejectedPage() {
       else if (item.type === 'MiniTest') await creatorService.submitMiniTestForReview(item.id);
       toast.success('Đã gửi lại duyệt');
       await loadAll();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) { toast.error(e.response?.data?.message || 'Lỗi'); }
   };
 
@@ -58,7 +71,7 @@ export default function CreatorRejectedPage() {
             {items.map((item) => (
               <div key={`${item.type}-${item.id}`} className="flex items-center justify-between px-5 py-4 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                 <div className="flex items-center gap-3 min-w-0">
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 shrink-0">{item.type}</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 shrink-0">{typeLabels[item.type] || item.type}</span>
                   <span className="truncate font-medium">{item.name || '—'}</span>
                 </div>
                 <button onClick={() => handleResubmit(item)} className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 text-xs font-medium transition-colors">

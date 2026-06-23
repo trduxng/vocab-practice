@@ -1703,6 +1703,12 @@ class AdminService {
       JOIN Users u ON ea.UserID = u.UserID
       JOIN Words w ON ea.WordID = w.WordID
       ORDER BY ea.AttemptedAt DESC;
+
+      SELECT p.PartOfSpeechName AS name, COUNT(w.WordID) AS value
+      FROM PartOfSpeeches p
+      LEFT JOIN Words w ON p.PartOfSpeechID = w.PartOfSpeechID
+      GROUP BY p.PartOfSpeechName
+      ORDER BY p.PartOfSpeechName;
     `);
 
     return {
@@ -1716,7 +1722,8 @@ class AdminService {
       userGrowth: result.recordsets[1],
       weeklyActivity: result.recordsets[2],
       userTypes: result.recordsets[3],
-      recentActivity: result.recordsets[4]
+      recentActivity: result.recordsets[4],
+      wordDistribution: result.recordsets[5]
     };
   }
 
@@ -1755,7 +1762,7 @@ class AdminService {
 
       SELECT u.UserID AS id, u.FullName AS fullName, u.Email AS email, u.UserRole AS role,
              r.RoleName AS roleName, u.IsActive AS isActive, u.CreatedAt AS joinedAt,
-             (SELECT COUNT(*) FROM UserWordProgress WHERE UserID = u.UserID AND MasteryLevel >= 8) AS masteredWords,
+             (SELECT COUNT(*) FROM UserWordProgress WHERE UserID = u.UserID AND MasteryLevel >= 7) AS masteredWords,
              (SELECT COUNT(*) FROM UserWordProgress WHERE UserID = u.UserID) AS totalWords,
              (SELECT COUNT(*) FROM ExerciseAttempts WHERE UserID = u.UserID) AS totalAttempts,
              (SELECT MAX(AttemptedAt) FROM ExerciseAttempts WHERE UserID = u.UserID) AS lastActiveAt
@@ -2546,6 +2553,58 @@ class AdminService {
     `);
 
     return { inserted: result.recordset[0].inserted };
+  }
+
+  static async getStudentDetail(studentId) {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('UserID', sql.BigInt, studentId)
+      .query(`
+        SELECT u.UserID AS id, u.FullName AS fullName, u.Email AS email, u.UserRole AS role,
+               u.IsActive AS isActive, u.CreatedAt AS joinedAt,
+               u.DailyGoal AS dailyGoal, u.TotalXP AS totalXP, u.CurrentLevel AS currentLevel
+        FROM Users u WHERE u.UserID = @UserID;
+
+        SELECT COUNT(*) AS totalLearned FROM UserWordProgress WHERE UserID = @UserID AND MasteryLevel >= 3;
+        SELECT COUNT(*) AS masteredWords FROM UserWordProgress WHERE UserID = @UserID AND MasteryLevel >= 7;
+        SELECT COUNT(*) AS totalAttempts FROM ExerciseAttempts WHERE UserID = @UserID;
+        SELECT
+          CAST(SUM(CASE WHEN IsCorrect = 1 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0) AS DECIMAL(5,2)) AS accuracy
+        FROM ExerciseAttempts WHERE UserID = @UserID;
+
+        SELECT t.TopicID AS topicId, t.TopicName AS topicName,
+               COUNT(DISTINCT wt.WordID) AS totalWords,
+               COUNT(DISTINCT CASE WHEN uwp.RepetitionCount > 0 THEN wt.WordID END) AS learnedWords,
+               COUNT(DISTINCT CASE WHEN uwp.MasteryLevel >= 7 THEN wt.WordID END) AS masteredWords,
+               ISNULL(AVG(CAST(ISNULL(uwp.MasteryLevel, 0) AS DECIMAL(10,2))), 0) AS averageMastery
+        FROM Topics t
+        JOIN WordTopics wt ON wt.TopicID = t.TopicID
+        LEFT JOIN UserWordProgress uwp ON uwp.WordID = wt.WordID AND uwp.UserID = @UserID
+        WHERE t.ContentStatus = N'Published'
+        GROUP BY t.TopicID, t.TopicName
+        ORDER BY averageMastery DESC;
+
+        SELECT TOP 10
+          ea.SubmittedAnswer AS answer, ea.IsCorrect AS isCorrect, ea.AttemptedAt AS date,
+          w.Term AS term, w.Meaning AS meaning
+        FROM ExerciseAttempts ea
+        JOIN Words w ON ea.WordID = w.WordID
+        WHERE ea.UserID = @UserID
+        ORDER BY ea.AttemptedAt DESC;
+      `);
+
+    const user = result.recordsets[0][0];
+    if (!user) return null;
+
+    return {
+      ...user,
+      totalLearned: result.recordsets[1][0].totalLearned || 0,
+      masteredWords: result.recordsets[2][0].masteredWords || 0,
+      totalAttempts: result.recordsets[3][0].totalAttempts || 0,
+      accuracy: result.recordsets[4][0]?.accuracy || 0,
+      topicBreakdown: result.recordsets[5],
+      recentActivity: result.recordsets[6],
+    };
   }
 
 }

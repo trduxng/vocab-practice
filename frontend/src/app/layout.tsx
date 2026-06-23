@@ -2,8 +2,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "./context/AuthContext";
-import { Toaster } from "sonner";
-
+import ToastProvider from "@/src/components/providers/ToastProvider";
 
 export const metadata: Metadata = {
   title: "VocaBoost – Học từ vựng tiếng Anh thông minh",
@@ -25,7 +24,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <AuthProvider>
           {children}
-          <Toaster position="top-right" richColors closeButton />
+          <ToastProvider />
         </AuthProvider>
       </body>
     </html>

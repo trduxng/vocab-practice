@@ -44,6 +44,72 @@ export interface MiniTestPayload {
   questionIds?: number[];
 }
 
+export interface Topic {
+  id: number;
+  name: string;
+  code: string;
+  description: string;
+  contentStatus: string;
+  categoryName: string;
+  categoryId: number;
+  displayOrder: number;
+  createdAt: string;
+}
+
+export interface Word {
+  id: number;
+  term: string;
+  meaning: string;
+  phonetic: string;
+  partOfSpeechId: number;
+  partOfSpeechName: string;
+  contentStatus: string;
+  createdAt: string;
+}
+
+export interface Question {
+  id: number;
+  wordId: number;
+  wordTerm: string;
+  questionType: string;
+  questionText: string;
+  optionsJson: string;
+  correctAnswer: string;
+  explanation: string;
+  contentStatus: string;
+  createdAt: string;
+}
+
+export interface MiniTest {
+  id: number;
+  title: string;
+  description: string;
+  topicName: string;
+  totalQuestions: number;
+  isPublished: boolean;
+  contentStatus: string;
+  createdAt: string;
+}
+
+export interface MediaItem {
+  id: number;
+  fileName: string;
+  fileUrl: string;
+  mediaType: string;
+  mimeType: string;
+  fileSizeBytes: number;
+  altText: string | null;
+  transcript: string | null;
+  createdAt: string;
+}
+
+// ── Helpers ──
+function unwrapItems<T>(data: unknown): T[] {
+  if (Array.isArray(data)) return data as T[];
+  if (data && typeof data === 'object' && 'data' in data) return (data as { data: T[] }).data;
+  return [];
+}
+
 // ── Creator API Service ──
 export const creatorService = {
   // Dashboard & Analytics
@@ -74,9 +140,9 @@ export const creatorService = {
   },
 
   // Topics
-  async getTopics(filters?: { status?: string; page?: number; pageSize?: number }) {
+  async getTopics(filters?: { status?: string; page?: number; pageSize?: number }): Promise<Topic[]> {
     const res = await apiClient.get('/creator/topics', { params: filters });
-    return res.data;
+    return unwrapItems<Topic>(res.data);
   },
 
   async createTopic(data: TopicPayload) {
@@ -100,13 +166,18 @@ export const creatorService = {
   },
 
   // Words
-  async getWords(filters?: { status?: string; page?: number; pageSize?: number }) {
+  async getWords(filters?: { status?: string; page?: number; pageSize?: number }): Promise<Word[]> {
     const res = await apiClient.get('/creator/words', { params: filters });
-    return res.data;
+    return unwrapItems<Word>(res.data);
   },
 
   async createWord(data: WordPayload) {
     const res = await apiClient.post('/creator/words', data);
+    return res.data;
+  },
+
+  async bulkCreateWords(data: { words: WordPayload[], conflictStrategy?: string }) {
+    const res = await apiClient.post('/creator/words/bulk', data);
     return res.data;
   },
 
@@ -126,9 +197,9 @@ export const creatorService = {
   },
 
   // Questions
-  async getQuestions(filters?: { status?: string; page?: number; pageSize?: number }) {
+  async getQuestions(filters?: { status?: string; page?: number; pageSize?: number }): Promise<Question[]> {
     const res = await apiClient.get('/creator/questions', { params: filters });
-    return res.data;
+    return unwrapItems<Question>(res.data);
   },
 
   async createQuestion(data: QuestionPayload) {
@@ -152,9 +223,9 @@ export const creatorService = {
   },
 
   // MiniTests
-  async getMiniTests(filters?: { status?: string; page?: number; pageSize?: number }) {
+  async getMiniTests(filters?: { status?: string; page?: number; pageSize?: number }): Promise<MiniTest[]> {
     const res = await apiClient.get('/creator/mini-tests', { params: filters });
-    return res.data;
+    return unwrapItems<MiniTest>(res.data);
   },
 
   async createMiniTest(data: MiniTestPayload) {
@@ -184,6 +255,29 @@ export const creatorService = {
 
   async submitMiniTestForReview(id: number) {
     const res = await apiClient.post(`/creator/mini-tests/${id}/submit-review`);
+    return res.data;
+  },
+
+  // Media
+  async getMedia(filters?: { mediaType?: string; search?: string; page?: number; pageSize?: number }): Promise<{ data: MediaItem[], total: number, totalPages: number }> {
+    const res = await apiClient.get('/creator/media', { params: filters });
+    return {
+      data: unwrapItems<MediaItem>(res.data),
+      total: res.data.total || 0,
+      totalPages: res.data.totalPages || 1
+    };
+  },
+
+  async uploadMedia(formData: FormData) {
+    const res = await apiClient.post('/creator/media', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000,
+    });
+    return res.data;
+  },
+
+  async deleteMedia(id: number) {
+    const res = await apiClient.delete(`/creator/media/${id}`);
     return res.data;
   },
 };
