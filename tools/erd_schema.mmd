@@ -1,0 +1,153 @@
+erDiagram
+    Users ||--o{ ExerciseAttempts : "has"
+    Users ||--o{ UserWordProgress : "has"
+    Users ||--o{ MiniTests : "creates"
+    Users ||--o{ Questions : "creates"
+    Users ||--o{ Words : "creates"
+    Users ||--o{ Topics : "creates"
+
+    Words ||--o{ ExampleSentences : "has"
+    Words ||--o{ WordTopics : "belongs to"
+    Words ||--o{ Questions : "has"
+    Words ||--o{ UserWordProgress : "tracked by"
+    Words ||--o{ ExerciseAttempts : "tested in"
+    Words }o--|| PartOfSpeeches : "classified as"
+
+    Topics ||--o{ WordTopics : "contains"
+    Topics ||--o{ MiniTests : "has"
+
+    MiniTests ||--o{ MiniTestItems : "contains"
+    Questions ||--o{ MiniTestItems : "included in"
+
+    Users {
+        bigint UserID PK
+        nvarchar FullName
+        nvarchar Email UK
+        nvarchar PasswordHash
+        nvarchar UserRole "Learner|ContentCreator|Admin"
+        int RoleID FK
+        bit IsActive
+        int TotalXP
+        int CurrentLevel
+        int DailyGoal
+        datetimeoffset CreatedAt
+        datetimeoffset UpdatedAt
+    }
+
+    Roles {
+        int RoleID PK
+        nvarchar RoleName
+    }
+
+    Permissions {
+        int PermissionID PK
+        nvarchar PermissionCode UK
+        nvarchar Description
+    }
+
+    RolePermissions {
+        int RolePermissionID PK
+        int RoleID FK
+        int PermissionID FK
+    }
+
+    PartOfSpeeches {
+        int PartOfSpeechID PK
+        nvarchar PartOfSpeechName
+        nvarchar Description
+    }
+
+    Topics {
+        bigint TopicID PK
+        nvarchar TopicName UK
+        nvarchar TopicCode UK
+        nvarchar Description
+        bigint CreatedByUserID FK
+        nvarchar ContentStatus
+        datetimeoffset CreatedAt
+    }
+
+    Words {
+        bigint WordID PK
+        nvarchar Term
+        int PartOfSpeechID FK
+        nvarchar Meaning
+        nvarchar Phonetic
+        nvarchar AudioUrlUK
+        nvarchar AudioUrlUS
+        nvarchar ImageUrl
+        tinyint DifficultyLevel
+        nvarchar ContentStatus
+        bigint CreatedByUserID FK
+        datetimeoffset CreatedAt
+        datetimeoffset UpdatedAt
+        datetimeoffset DeletedAt
+    }
+
+    WordTopics {
+        bigint WordID FK
+        bigint TopicID FK
+    }
+
+    ExampleSentences {
+        bigint ExampleSentenceID PK
+        bigint WordID FK
+        nvarchar SentenceText
+        nvarchar SentenceTranslation
+    }
+
+    Questions {
+        bigint QuestionID PK
+        bigint WordID FK
+        nvarchar QuestionType "MCQ|FillBlank|DragDrop|Dictation"
+        nvarchar QuestionText
+        nvarchar OptionsJson
+        nvarchar CorrectAnswer
+        nvarchar Explanation
+        tinyint DifficultyLevel
+        nvarchar ContentStatus
+        bigint CreatedByUserID FK
+        datetimeoffset CreatedAt
+    }
+
+    UserWordProgress {
+        bigint UserWordProgressID PK
+        bigint UserID FK
+        bigint WordID FK
+        tinyint MasteryLevel "0-10"
+        decimal EaseFactor "1.30-3.50"
+        int RepetitionCount
+        int ConsecutiveCorrect
+        int ConsecutiveWrong
+        datetimeoffset LastReviewedAt
+        datetimeoffset NextReviewDate
+        nvarchar MemoryStatus "New|Learning|Reviewing|Mastered|Lapsed"
+        datetimeoffset CreatedAt
+    }
+
+    ExerciseAttempts {
+        bigint ExerciseAttemptID PK
+        bigint UserID FK
+        bigint QuestionID FK
+        bigint WordID FK
+        nvarchar SubmittedAnswer
+        bit IsCorrect
+        datetimeoffset AttemptedAt
+    }
+
+    MiniTests {
+        bigint MiniTestID PK
+        bigint TopicID FK
+        nvarchar TestTitle
+        nvarchar Description
+        bit IsPublished
+        int TotalQuestions
+        bigint CreatedByUserID FK
+        datetimeoffset CreatedAt
+    }
+
+    MiniTestItems {
+        bigint MiniTestID FK
+        bigint QuestionID FK
+        int DisplayOrder
+    }
