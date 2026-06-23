@@ -225,7 +225,7 @@ export default function UserSettings({
                   }
                   className="flex-1 h-2 rounded-full appearance-none bg-slate-200 dark:bg-white/10 accent-emerald-500 cursor-pointer"
                 />
-                <span className="text-slate-900 dark:text-white font-black text-2xl min-w-[3rem] text-center">
+                <span className="text-slate-900 dark:text-white font-black text-2xl min-w-12 text-center">
                   {dailyWordGoal}
                 </span>
               </div>
@@ -277,7 +277,7 @@ export default function UserSettings({
                   }
                   className="flex-1 h-2 rounded-full appearance-none bg-slate-200 dark:bg-white/10 accent-purple-500 cursor-pointer"
                 />
-                <span className="text-slate-900 dark:text-white font-black text-2xl min-w-[3rem] text-center">
+                <span className="text-slate-900 dark:text-white font-black text-2xl min-w-12 text-center">
                   {srsReviewLimit}
                 </span>
               </div>

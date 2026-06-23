@@ -153,9 +153,9 @@ export const userService = {
   },
 
   // =============== VOCABULARY NOTEBOOK ===============
-  async getNotebook(page = 1, pageSize = 20) {
+  async getNotebook(page = 1, pageSize = 20, search?: string, sortBy?: string) {
     const response = await apiClient.get('/user/notebook', {
-      params: { page, pageSize }
+      params: { page, pageSize, search: search?.trim() || undefined, sortBy: sortBy || undefined }
     });
     return response.data;
   },

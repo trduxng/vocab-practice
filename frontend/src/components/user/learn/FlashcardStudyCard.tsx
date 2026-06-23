@@ -113,7 +113,7 @@ export default function FlashcardStudyCard({
               </div>
 
               <p className="mt-auto pt-5 text-center text-[10px] font-bold uppercase tracking-[0.16em] text-sky-200/60">
-                Vuốt trái: Again · Vuốt phải: Good
+                Vuốt trái: Lại · Vuốt phải: Tốt
               </p>
             </div>
           </CardFace>

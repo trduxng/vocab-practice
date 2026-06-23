@@ -259,7 +259,9 @@ class UserController {
       const userId = req.user.id;
       const page = parseInt(req.query.page) || 1;
       const pageSize = parseInt(req.query.pageSize) || 20;
-      const notebook = await UserService.getNotebook(userId, page, pageSize);
+      const search = req.query.search && String(req.query.search).trim();
+      const sortBy = req.query.sortBy && String(req.query.sortBy).trim();
+      const notebook = await UserService.getNotebook(userId, page, pageSize, search, sortBy);
       res.status(200).json(notebook);
     } catch (error) {
       next(error);

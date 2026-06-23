@@ -2,11 +2,12 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, Brain, Calendar, ChevronRight, FileText } from "lucide-react";
+import { AlertCircle, Brain, Calendar, ChevronLeft, ChevronRight, FileText } from "lucide-react";
 import { userService } from "@/src/services/user.service";
 import { useAuth } from "@/src/app/context/AuthContext";
 import Topbar from "@/src/components/shared/Topbar";
 import { Card, CardContent } from "@/src/components/ui/card";
+import { generatePageNumbers } from "@/src/lib/pagination";
 import { Button } from "@/src/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/src/components/ui/dialog";
 
@@ -143,26 +144,46 @@ const MiniTestHistoryPage = () => {
         </div>
         {/* Pagination */}
         {!loading && totalPages > 1 && (
-          <div className="flex justify-center items-center gap-4 mt-8">
-            <Button
-              variant="outline"
-              disabled={page <= 1}
+          <div className="flex items-center justify-center gap-3 pt-4">
+            <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 rounded-xl text-xs h-10 px-6"
+              disabled={page <= 1}
+              className="inline-flex min-h-9 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600 shadow-sm transition-all hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-300 dark:hover:text-white"
             >
-              ← Trước
-            </Button>
-            <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">
-              Trang {page} / {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              disabled={page >= totalPages}
+              <ChevronLeft className="h-4 w-4" />
+              Trước
+            </button>
+
+            <div className="flex items-center gap-1">
+              {generatePageNumbers(page, totalPages).map((item, index) =>
+                item === "..." ? (
+                  <span key={`ellipsis-${index}`} className="px-2 text-xs text-slate-400">
+                    ...
+                  </span>
+                ) : (
+                  <button
+                    key={item}
+                    onClick={() => setPage(Number(item))}
+                    className={`flex h-9 min-w-9 items-center justify-center rounded-xl text-xs font-bold transition-all ${
+                      page === item
+                        ? "bg-blue-600 text-white shadow-sm"
+                        : "border border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-300"
+                    }`}
+                  >
+                    {item}
+                  </button>
+                ),
+              )}
+            </div>
+
+            <button
               onClick={() => setPage((p) => p + 1)}
-              className="border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 rounded-xl text-xs h-10 px-6"
+              disabled={page >= totalPages}
+              className="inline-flex min-h-9 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600 shadow-sm transition-all hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-300 dark:hover:text-white"
             >
-              Sau →
-            </Button>
+              Sau
+              <ChevronRight className="h-4 w-4" />
+            </button>
           </div>
         )}
       </main>

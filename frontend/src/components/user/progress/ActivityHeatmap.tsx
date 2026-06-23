@@ -5,7 +5,7 @@ type ActivityHeatmapProps = {
   days: ProgressActivityDay[];
 };
 
-const weekdayLabels = ["Sun", "", "Tue", "", "Thu", "", "Sat"];
+const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function parseDate(date: string) {
   return new Date(`${date}T00:00:00Z`);
@@ -45,43 +45,58 @@ export default function ActivityHeatmap({ days }: ActivityHeatmapProps) {
   const activeDays = days.filter((day) => day.activityCount > 0).length;
 
   return (
-    <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.04] sm:p-6">
+    <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/4 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
-            Learning heatmap
+            Bản đồ nhiệt học tập
           </p>
           <h2 className="mt-1 text-xl font-black tracking-tight text-slate-950 dark:text-white">
-            Hoat dong trong 365 ngay qua
+            Hoạt động trong 365 ngày qua
           </h2>
           <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-            Moi o dai dien cho mot ngay co hoat dong hoc tap.
+            Mỗi ô đại diện cho một ngày có hoạt động học tập.
           </p>
         </div>
         <div className="flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
           <CalendarDays className="h-4 w-4" />
-          {activeDays} ngay hoat dong
+          {activeDays} ngày hoạt động
         </div>
       </div>
 
       {totalActivity === 0 ? (
-        <div className="mt-6 flex min-h-40 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-6 text-center dark:border-white/10 dark:bg-white/[0.02]">
+        <div className="mt-6 flex min-h-40 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-6 text-center dark:border-white/10 dark:bg-white/2">
           <CalendarDays className="h-8 w-8 text-slate-300 dark:text-slate-600" />
-          <p className="mt-3 text-sm font-bold text-slate-700 dark:text-slate-200">Chua co hoat dong hoc tap</p>
+          <p className="mt-3 text-sm font-bold text-slate-700 dark:text-slate-200">
+            Chưa có hoạt động học tập
+          </p>
           <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-            Hoan thanh mot bai hoc de bat dau xay dung chuoi hoat dong.
+            Hoàn thành một bài học để bắt đầu xây dựng chuỗi hoạt động.
           </p>
         </div>
       ) : (
         <div className="mt-6 overflow-x-auto pb-2">
-          <div className="min-w-[760px]">
-            <div className="ml-9 grid gap-1" style={{ gridTemplateColumns: `repeat(${weeks.length}, minmax(0, 1fr))` }}>
+          <div className="min-w-190">
+            <div
+              className="ml-9 grid gap-1"
+              style={{
+                gridTemplateColumns: `repeat(${weeks.length}, minmax(0, 1fr))`,
+              }}
+            >
               {weeks.map((week, index) => {
-                const labelDay = week.find((day) => day && parseDate(day.date).getUTCDate() <= 7);
+                const labelDay = week.find(
+                  (day) => day && parseDate(day.date).getUTCDate() <= 7,
+                );
                 return (
-                  <span key={index} className="h-4 text-[10px] font-bold text-slate-400">
+                  <span
+                    key={index}
+                    className="h-4 text-[10px] font-bold text-slate-400"
+                  >
                     {labelDay
-                      ? parseDate(labelDay.date).toLocaleDateString("en-US", { month: "short", timeZone: "UTC" })
+                      ? parseDate(labelDay.date).toLocaleDateString("vi-VN", {
+                          month: "short",
+                          timeZone: "UTC",
+                        })
                       : ""}
                   </span>
                 );
@@ -91,25 +106,36 @@ export default function ActivityHeatmap({ days }: ActivityHeatmapProps) {
             <div className="mt-1 flex gap-2">
               <div className="grid w-7 shrink-0 grid-rows-7 gap-1">
                 {weekdayLabels.map((label, index) => (
-                  <span key={`${label}-${index}`} className="flex items-center text-[9px] font-bold text-slate-400">
+                  <span
+                    key={`${label}-${index}`}
+                    className="flex items-center text-[9px] font-bold text-slate-400"
+                  >
                     {label}
                   </span>
                 ))}
               </div>
-              <div className="grid flex-1 gap-1" style={{ gridTemplateColumns: `repeat(${weeks.length}, minmax(0, 1fr))` }}>
+              <div
+                className="grid flex-1 gap-1"
+                style={{
+                  gridTemplateColumns: `repeat(${weeks.length}, minmax(0, 1fr))`,
+                }}
+              >
                 {weeks.map((week, weekIndex) => (
                   <div key={weekIndex} className="grid grid-rows-7 gap-1">
-                    {week.map((day, dayIndex) => (
+                    {week.map((day, dayIndex) =>
                       day ? (
                         <div
                           key={day.date}
                           className={`aspect-square rounded-[3px] ${cellTones[getIntensity(day.activityCount, maxActivity)]}`}
-                          title={`${day.date}: ${day.activityCount} hoat dong, ${day.xpEarned} XP`}
+                          title={`${day.date}: ${day.activityCount} hoạt động, ${day.xpEarned} XP`}
                         />
                       ) : (
-                        <div key={`${weekIndex}-${dayIndex}`} className="aspect-square rounded-[3px] bg-transparent" />
-                      )
-                    ))}
+                        <div
+                          key={`${weekIndex}-${dayIndex}`}
+                          className="aspect-square rounded-[3px] bg-transparent"
+                        />
+                      ),
+                    )}
                   </div>
                 ))}
               </div>
@@ -119,11 +145,19 @@ export default function ActivityHeatmap({ days }: ActivityHeatmapProps) {
       )}
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-[11px] font-bold text-slate-400">
-        <span>{totalActivity.toLocaleString("vi-VN")} hoat dong trong nam qua</span>
+        <span>
+          {totalActivity.toLocaleString("vi-VN")} hoạt động trong năm qua
+        </span>
         <div className="flex items-center gap-1.5">
-          <span>It</span>
-          {cellTones.map((tone, index) => <span key={tone} className={`h-3 w-3 rounded-[3px] ${tone}`} title={`Cap do ${index}`} />)}
-          <span>Nhieu</span>
+          <span>Ít</span>
+          {cellTones.map((tone, index) => (
+            <span
+              key={tone}
+              className={`h-3 w-3 rounded-[3px] ${tone}`}
+              title={`Cấp độ ${index}`}
+            />
+          ))}
+          <span>Nhiều</span>
         </div>
       </div>
     </section>

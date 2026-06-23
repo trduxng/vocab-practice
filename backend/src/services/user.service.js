@@ -1155,16 +1155,33 @@ class UserService {
   }
 
   // =============== VOCABULARY NOTEBOOK ===============
-  static async getNotebook(userId, page = 1, pageSize = 20) {
+  static async getNotebook(userId, page = 1, pageSize = 20, search, sortBy = 'recent') {
     const pool = await poolPromise;
     page = Math.max(1, page);
     pageSize = Math.min(50, Math.max(1, pageSize));
     const offset = (page - 1) * pageSize;
 
+    const searchClause = search
+      ? `AND (w.Term LIKE N'%${search.replace(/'/g, "''")}%' OR w.Meaning LIKE N'%${search.replace(/'/g, "''")}%')`
+      : '';
+
+    const orderClauses = {
+      recent: 'un.UpdatedAt DESC',
+      oldest: 'un.UpdatedAt ASC',
+      term_asc: 'w.Term ASC',
+      term_desc: 'w.Term DESC',
+      mastery_desc: 'ISNULL(uwp.MasteryLevel, 0) DESC, un.UpdatedAt DESC',
+      mastery_asc: 'ISNULL(uwp.MasteryLevel, 0) ASC, un.UpdatedAt DESC',
+      favorite: 'un.IsFavorite DESC, un.UpdatedAt DESC',
+    };
+    const orderBy = orderClauses[sortBy] || orderClauses.recent;
+
     const countResult = await pool.request().input("UserID", sql.BigInt, userId)
       .query(`
-        SELECT COUNT(*) AS total FROM UserVocabularyNotebook
-        WHERE UserID = @UserID
+        SELECT COUNT(*) AS total
+        FROM UserVocabularyNotebook un
+        JOIN Words w ON un.WordID = w.WordID
+        WHERE un.UserID = @UserID ${searchClause}
       `);
     const total = countResult.recordset[0].total;
 
@@ -1190,8 +1207,8 @@ class UserService {
         JOIN Words w ON un.WordID = w.WordID
         LEFT JOIN PartOfSpeeches p ON w.PartOfSpeechID = p.PartOfSpeechID
         LEFT JOIN UserWordProgress uwp ON w.WordID = uwp.WordID AND uwp.UserID = @UserID
-        WHERE un.UserID = @UserID
-        ORDER BY un.IsFavorite DESC, un.UpdatedAt DESC
+        WHERE un.UserID = @UserID ${searchClause}
+        ORDER BY ${orderBy}
         OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
       `);
     return {

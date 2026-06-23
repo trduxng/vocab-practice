@@ -31,6 +31,9 @@ export default function CreatorTopicsPage() {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [categories, setCategories] = useState<TopicCategory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Topic | null>(null);
   const [form, setForm] = useState<TopicPayload>({ topicName: '', topicCode: '', description: '', topicCategoryId: undefined, displayOrder: 0 });

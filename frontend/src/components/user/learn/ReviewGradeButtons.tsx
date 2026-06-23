@@ -10,7 +10,7 @@ type ReviewGradeButtonsProps = {
 const grades = [
   {
     rating: "Again" as const,
-    label: "Again",
+    label: "Lại",
     shortcut: "1",
     interval: "10 phút",
     icon: RotateCcw,
@@ -18,7 +18,7 @@ const grades = [
   },
   {
     rating: "Hard" as const,
-    label: "Hard",
+    label: "Khó",
     shortcut: "2",
     interval: "1 ngày",
     icon: TrendingUp,
@@ -26,7 +26,7 @@ const grades = [
   },
   {
     rating: "Good" as const,
-    label: "Good",
+    label: "Tốt",
     shortcut: "3",
     interval: "3 ngày",
     icon: Smile,
@@ -34,7 +34,7 @@ const grades = [
   },
   {
     rating: "Easy" as const,
-    label: "Easy",
+    label: "Dễ",
     shortcut: "4",
     interval: "7+ ngày",
     icon: Sparkles,

@@ -15,6 +15,7 @@ import LevelProgressBar from "@/src/components/user/gamification/LevelProgressBa
 import type { GamificationReward } from "@/src/modules/user/types";
 
 const QUESTION_TIME = 20;
+const SMART_QUESTION_TIME = 45; // Smart mode: more time for deep recall
 
 type PracticeMode = "normal" | "smart" | null;
 
@@ -29,6 +30,16 @@ type PracticeQuestion = {
   meaning?: string;
 };
 
+type SmartQuestion = PracticeQuestion & {
+  masteryLevel?: number;
+  memoryStatus?: string;
+  consecutiveWrong?: number;
+  repetitionCount?: number;
+  nextReviewDate?: string;
+  lastReviewedAt?: string;
+  priorityScore?: number;
+};
+
 const shuffle = <T,>(items: T[]) => {
   const nextItems = [...items];
   for (let index = nextItems.length - 1; index > 0; index -= 1) {
@@ -40,7 +51,7 @@ const shuffle = <T,>(items: T[]) => {
 
 export default function UserPractice() {
   const { loading: authLoading } = useAuth();
-  const [questions, setQuestions] = useState<PracticeQuestion[]>([]);
+  const [questions, setQuestions] = useState<(PracticeQuestion | SmartQuestion)[]>([]);
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState("");
   const [checked, setChecked] = useState(false);
@@ -78,8 +89,7 @@ export default function UserPractice() {
     try {
       if (mode === "smart") {
         const smartQueue = await userService.getSmartReviewQueue(15);
-        // Transform smart queue items into practice question format
-        // Note: questionId is intentionally omitted — these use wordId for review submission
+        // Preserve all SRS fields — questionId is omitted so backend uses submitWordReview path
         const mapped = smartQueue.map((item: Record<string, unknown>) => ({
           wordId: item.wordId as number,
           questionType: "FillBlank",
@@ -87,7 +97,14 @@ export default function UserPractice() {
           correctAnswer: item.term as string,
           term: item.term as string,
           meaning: item.meaning as string,
-        } as PracticeQuestion));
+          masteryLevel: item.masteryLevel as number,
+          memoryStatus: item.memoryStatus as string,
+          consecutiveWrong: item.consecutiveWrong as number,
+          repetitionCount: item.repetitionCount as number,
+          nextReviewDate: item.nextReviewDate as string,
+          lastReviewedAt: item.lastReviewedAt as string,
+          priorityScore: item.priorityScore as number,
+        } as SmartQuestion));
         setQuestions(shuffle(mapped));
       } else {
         const searchParams = new URLSearchParams(window.location.search);
@@ -153,10 +170,10 @@ export default function UserPractice() {
   const resetQuestionState = useCallback((items: string[] = []) => {
     setSelected("");
     setChecked(false);
-    setTimeLeft(QUESTION_TIME);
+    setTimeLeft(practiceMode === "smart" ? SMART_QUESTION_TIME : QUESTION_TIME);
     setOrderedItems(items);
     setDraggedIndex(null);
-  }, []);
+  }, [practiceMode]);
 
   useEffect(() => {
     if (current?.questionType === "DragDrop") {
@@ -380,10 +397,10 @@ export default function UserPractice() {
     const weakWords = summary?.weakWords ?? [];
 
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white px-4 py-6 sm:py-10">
+      <div className={`min-h-screen flex items-center justify-center px-4 py-6 sm:py-10 ${practiceMode === "smart" ? "bg-linear-to-br from-slate-100 via-emerald-50/40 to-slate-100 dark:from-slate-950 dark:via-emerald-950/20 dark:to-slate-950" : "bg-slate-100 dark:bg-slate-950"}`}>
         <GamificationCelebration reward={practiceReward} />
         <div className="w-full max-w-lg animate-in zoom-in-95 duration-500">
-          <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-[28px] sm:rounded-[40px] p-6 sm:p-8 md:p-10 shadow-sm text-center">
+          <div className={`bg-white dark:bg-white/5 border ${practiceMode === "smart" ? "border-emerald-200 dark:border-emerald-500/20" : "border-slate-200 dark:border-white/10"} rounded-[28px] sm:rounded-[40px] p-6 sm:p-8 md:p-10 shadow-sm text-center`}>
             {/* Circular accuracy display */}
             <div className="relative mx-auto mb-5 sm:mb-6 h-20 w-20 sm:h-24 sm:w-24">
               <svg className="h-full w-full -rotate-90" viewBox="0 0 36 36">
@@ -399,8 +416,14 @@ export default function UserPractice() {
                 <span className={`text-2xl sm:text-3xl font-black ${accuracy >= 80 ? 'text-green-500' : accuracy >= 50 ? 'text-amber-500' : 'text-red-500'}`}>{accuracy}%</span>
               </div>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black mb-2 text-slate-900 dark:text-white">Hoàn thành</h1>
-            <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mb-6 sm:mb-8 max-w-xs mx-auto">Bạn đã hoàn thành phiên luyện tập với độ chính xác {accuracy}%.</p>
+            <h1 className="text-2xl sm:text-3xl font-black mb-2 text-slate-900 dark:text-white">
+              {practiceMode === "smart" ? "Ôn tập hoàn tất" : "Hoàn thành"}
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mb-6 sm:mb-8 max-w-xs mx-auto">
+              {practiceMode === "smart"
+                ? `Bạn đã ôn lại ${questions.length} từ với độ chính xác ${accuracy}%. Hệ thống SRS đã được cập nhật.`
+                : `Bạn đã hoàn thành phiên luyện tập với độ chính xác ${accuracy}%.`}
+            </p>
 
             {/* Stats grid */}
             <div className="grid grid-cols-2 gap-3 mb-6 sm:mb-8">
@@ -501,18 +524,49 @@ export default function UserPractice() {
               <span>{index + 1} / {questions.length}</span>
             </div>
             <div className="w-full h-1 sm:h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
-              <div className="h-full bg-linear-to-r from-blue-600 to-cyan-400 transition-all duration-500 shadow-glow" style={{ width: `${progress}%` }} />
+              <div className={`h-full transition-all duration-500 shadow-glow ${practiceMode === "smart" ? "bg-linear-to-r from-emerald-500 to-teal-400" : "bg-linear-to-r from-blue-600 to-cyan-400"}`} style={{ width: `${progress}%` }} />
             </div>
           </div>
-          <div className={`flex shrink-0 items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl border-2 transition-all ${timeLeft < 5 ? "bg-red-500/10 border-red-500/30 text-red-500 animate-pulse" : "bg-white/5 border-white/5 text-slate-400"}`}>
-            <Clock size={13} className="sm:size-4" />
-            <span className="font-mono font-black text-base sm:text-lg tabular-nums">{timeLeft}s</span>
-          </div>
+          {practiceMode === "smart" ? (
+            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl border-2 border-emerald-500/20 bg-emerald-500/10 text-emerald-400">
+              <Brain size={13} className="sm:size-4" />
+              <span className="font-mono font-black text-xs sm:text-sm uppercase tracking-widest">Ôn tập</span>
+            </div>
+          ) : (
+            <div className={`flex shrink-0 items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl border-2 transition-all ${timeLeft < 5 ? "bg-red-500/10 border-red-500/30 text-red-500 animate-pulse" : "bg-white/5 border-white/5 text-slate-400"}`}>
+              <Clock size={13} className="sm:size-4" />
+              <span className="font-mono font-black text-base sm:text-lg tabular-nums">{timeLeft}s</span>
+            </div>
+          )}
         </div>
 
         {/* Question card */}
-        <Card className="bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 p-6 sm:p-8 md:p-12 mb-6 sm:mb-8 relative overflow-hidden rounded-[24px] sm:rounded-[32px] shadow-sm">
-          <div className="absolute top-0 left-0 w-1 sm:w-1.5 h-full bg-blue-600 shadow-glow" />
+        <Card className={`bg-white dark:bg-white/5 border p-6 sm:p-8 md:p-12 mb-6 sm:mb-8 relative overflow-hidden rounded-[24px] sm:rounded-[32px] shadow-sm ${practiceMode === "smart" ? "border-emerald-200 dark:border-emerald-500/20" : "border-slate-200 dark:border-white/10"}`}>
+          <div className={`absolute top-0 left-0 w-1 sm:w-1.5 h-full shadow-glow ${practiceMode === "smart" ? "bg-emerald-500" : "bg-blue-600"}`} />
+          
+          {/* Smart mode: SRS context badges */}
+          {practiceMode === "smart" && (current as SmartQuestion).masteryLevel !== undefined && (
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              {/* Memory status badge */}
+              <SRSStatusBadge status={(current as SmartQuestion).memoryStatus} />
+              {/* Mastery level */}
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold text-slate-600 dark:bg-white/10 dark:text-slate-400">
+                Thành thạo {(current as SmartQuestion).masteryLevel}/10
+              </span>
+              {/* Consecutive wrong indicator */}
+              {(current as SmartQuestion).consecutiveWrong !== undefined && (current as SmartQuestion).consecutiveWrong! >= 2 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-[10px] font-bold text-red-600 dark:bg-red-500/15 dark:text-red-300">
+                  <XCircle size={10} />
+                  Sai {(current as SmartQuestion).consecutiveWrong} lần liên tiếp
+                </span>
+              )}
+              {/* Days since last review */}
+              {(current as SmartQuestion).lastReviewedAt && (
+                <DaysSinceBadge date={(current as SmartQuestion).lastReviewedAt!} />
+              )}
+            </div>
+          )}
+
           <div className="absolute right-3 top-3 sm:right-5 sm:top-5">
             <ReportDialog
               wordId={current.wordId}
@@ -523,7 +577,7 @@ export default function UserPractice() {
               context={current.term || current.meaning || current.questionText}
             />
           </div>
-          <p className="text-blue-500 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] mb-3 sm:mb-4">{questionLabel}</p>
+          <p className={`text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] mb-3 sm:mb-4 ${practiceMode === "smart" ? "text-emerald-500" : "text-blue-500"}`}>{questionLabel}</p>
           <h1 className="text-2xl sm:text-3xl md:text-5xl text-slate-900 dark:text-white font-black mb-3 sm:mb-4 tracking-tight leading-tight">
             {current.questionType === "MCQ" ? current.term : current.questionType === "Dictation" ? "Nghe và nhập từ" : current.meaning}
           </h1>
@@ -603,7 +657,7 @@ export default function UserPractice() {
         {/* Action button */}
         <div className="mt-8 sm:mt-10 md:mt-12">
           {!checked ? (
-            <Button disabled={current.questionType !== "DragDrop" && !selected} onClick={() => handleCheck()} className="w-full py-5 sm:py-7 md:py-8 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl sm:rounded-3xl text-base sm:text-lg md:text-xl font-black uppercase tracking-widest shadow-2xl shadow-blue-900/40 transition-all disabled:opacity-20">
+            <Button disabled={current.questionType !== "DragDrop" && !selected} onClick={() => handleCheck()} className={`w-full py-5 sm:py-7 md:py-8 text-white rounded-2xl sm:rounded-3xl text-base sm:text-lg md:text-xl font-black uppercase tracking-widest shadow-2xl transition-all disabled:opacity-20 ${practiceMode === "smart" ? "bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/40" : "bg-blue-600 hover:bg-blue-500 shadow-blue-900/40"}`}>
               Kiểm tra
             </Button>
           ) : (
@@ -614,5 +668,47 @@ export default function UserPractice() {
         </div>
       </div>
     </div>
+  );
+}
+
+// ─── SRS Status Badge ─────────────────────────────────────────────────
+
+function SRSStatusBadge({ status }: { status?: string }) {
+  if (!status || status === "New") return null;
+
+  const config: Record<string, { label: string; colors: string }> = {
+    Learning: { label: "Đang học", colors: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300" },
+    Reviewing: { label: "Đang ôn", colors: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300" },
+    Mastered: { label: "Đã thuộc", colors: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" },
+    Lapsed: { label: "Cần ôn lại", colors: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300" },
+  };
+
+  const c = config[status] || { label: status, colors: "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-400" };
+
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${c.colors}`}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+      {c.label}
+    </span>
+  );
+}
+
+function DaysSinceBadge({ date }: { date: string }) {
+  const daysSince = Math.floor(
+    (Date.now() - new Date(date).getTime()) / (1000 * 60 * 60 * 24),
+  );
+
+  if (daysSince < 0) return null;
+
+  const colors = daysSince >= 7
+    ? "bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-300"
+    : daysSince >= 3
+      ? "bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300"
+      : "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-400";
+
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${colors}`}>
+      {daysSince === 0 ? "Hôm nay" : `${daysSince} ngày trước`}
+    </span>
   );
 }

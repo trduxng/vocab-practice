@@ -26,7 +26,7 @@ export default function LevelProgressBar({
           </div>
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Cấp độ hiện tại</p>
-            <p className="text-sm font-black text-slate-900 dark:text-white">Level {currentLevel}</p>
+            <p className="text-sm font-black text-slate-900 dark:text-white">Cấp {currentLevel}</p>
           </div>
         </div>
         <div className="flex items-center gap-1 text-xs font-black text-amber-600 dark:text-amber-300">
@@ -42,7 +42,7 @@ export default function LevelProgressBar({
       </div>
       <div className="mt-2 flex justify-between text-[10px] font-bold text-slate-400">
         <span>{currentLevelXP}/{xpForNextLevel} XP</span>
-        <span>Level {currentLevel + 1}</span>
+        <span>Cấp {currentLevel + 1}</span>
       </div>
     </div>
   );

@@ -442,7 +442,7 @@ export default function UserProfilePage({
                         <RetentionStats stats={analytics.retention} />
                       </>
                     ) : (
-                      <div className="flex min-h-[420px] flex-col items-center justify-center rounded-[28px] border border-dashed border-slate-200 bg-white p-8 text-center dark:border-white/10 dark:bg-white/[0.04]">
+                      <div className="flex min-h-105 flex-col items-center justify-center rounded-[28px] border border-dashed border-slate-200 bg-white p-8 text-center dark:border-white/10 dark:bg-white/4">
                         <BarChart4 className="h-10 w-10 text-slate-300 dark:text-slate-600" />
                         <p className="mt-4 text-lg font-black text-slate-900 dark:text-white">
                           Không thể tải dữ liệu tiến độ
@@ -470,7 +470,7 @@ export default function UserProfilePage({
                     ) : gamification ? (
                       <>
                         {/* Hero Section */}
-                        <section className="rounded-[28px] border border-amber-200 bg-linear-to-br from-amber-50 via-white to-orange-50 p-5 shadow-sm dark:border-amber-500/20 dark:from-amber-500/10 dark:via-white/[0.04] dark:to-orange-500/10 sm:p-7">
+                        <section className="rounded-[28px] border border-amber-200 bg-linear-to-br from-amber-50 via-white to-orange-50 p-5 shadow-sm dark:border-amber-500/20 dark:from-amber-500/10 dark:via-white/4 dark:to-orange-500/10 sm:p-7">
                           <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr] lg:items-center">
                             <div>
                               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300">
@@ -537,7 +537,7 @@ export default function UserProfilePage({
                         </section>
                       </>
                     ) : (
-                      <div className="flex min-h-[420px] flex-col items-center justify-center rounded-[28px] border border-dashed border-slate-200 bg-white p-8 text-center dark:border-white/10 dark:bg-white/[0.04]">
+                      <div className="flex min-h-105 flex-col items-center justify-center rounded-[28px] border border-dashed border-slate-200 bg-white p-8 text-center dark:border-white/10 dark:bg-white/4">
                         <Trophy className="h-10 w-10 text-slate-300 dark:text-slate-600" />
                         <p className="mt-4 text-lg font-black text-slate-900 dark:text-white">
                           Không thể tải dữ liệu thành tích
@@ -589,7 +589,7 @@ function ProfileHeader({
   totalLearned: number;
 }) {
   return (
-    <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500">
+    <div className="relative overflow-hidden bg-linear-to-br from-indigo-600 via-purple-600 to-pink-500">
       {/* Decorative blobs */}
       <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/10" />
       <div className="absolute -bottom-16 left-1/3 h-48 w-48 rounded-full bg-pink-400/15" />
@@ -706,7 +706,7 @@ function AchievementMetric({
       "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300",
   };
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-white/10 dark:bg-white/[0.04] sm:p-4">
+    <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-white/10 dark:bg-white/4 sm:p-4">
       <div
         className={`flex h-8 w-8 items-center justify-center rounded-xl ${styles[tone]}`}
       >
@@ -724,7 +724,7 @@ function AchievementMetric({
 
 function DashboardError({ onRetry }: { onRetry: () => void }) {
   return (
-    <div className="flex min-h-[420px] flex-col items-center justify-center rounded-[28px] border border-dashed border-rose-200 bg-white p-8 text-center dark:border-rose-500/20 dark:bg-white/[0.04]">
+    <div className="flex min-h-105 flex-col items-center justify-center rounded-[28px] border border-dashed border-rose-200 bg-white p-8 text-center dark:border-rose-500/20 dark:bg-white/4">
       <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-100 text-rose-600 dark:bg-rose-500/15 dark:text-rose-300">
         <AlertCircle className="h-6 w-6" />
       </div>
