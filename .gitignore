@@ -80,6 +80,7 @@ mcp.json
 .claude/
 .codex/
 .vibecode-backup*/
+*.py
 
 # ==========================================
 # PROJECT-SPECIFIC
