@@ -304,7 +304,7 @@ class CreatorService {
     }
   }
 
-  static async bulkCreateWords(wordsData, userId) {
+  static async bulkCreateWords(wordsData, userId, conflictStrategy = 'merge') {
     const pool = await poolPromise;
     const transaction = new sql.Transaction(pool);
     try {
@@ -313,40 +313,110 @@ class CreatorService {
 
       for (const data of wordsData) {
         const { term, meaning, phonetic, partOfSpeechId, topicIds, examples } = data;
-        const req = new sql.Request(transaction);
-        const wordResult = await req
-          .input('Term', sql.NVarChar(200), term)
-          .input('Meaning', sql.NVarChar(1000), meaning)
-          .input('Phonetic', sql.NVarChar(255), phonetic || '')
-          .input('PartOfSpeechID', sql.Int, partOfSpeechId || 1) // default Noun if not provided
-          .input('CreatedByUserID', sql.BigInt, userId)
-          .query(`
-            INSERT INTO Words (Term, Meaning, Phonetic, PartOfSpeechID, CreatedByUserID,
-                               ContentStatus, CreatedAt, UpdatedAt)
-            OUTPUT inserted.WordID AS id
-            VALUES (@Term, @Meaning, @Phonetic, @PartOfSpeechID, @CreatedByUserID,
-                    'Draft', SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
-          `);
-        const wordId = wordResult.recordset[0].id;
-        insertedIds.push(wordId);
-
-        if (Array.isArray(topicIds)) {
-          for (const tid of topicIds) {
-            const r = new sql.Request(transaction);
-            await r.input('WordID', sql.BigInt, wordId)
-              .input('TopicID', sql.BigInt, tid)
-              .query(`INSERT INTO WordTopics (WordID, TopicID, AssignedAt) VALUES (@WordID, @TopicID, SYSDATETIMEOFFSET())`);
+        
+        // 1. Resolve Part of Speech ID
+        let resolvedPartOfSpeechId = 1; // Default
+        if (typeof partOfSpeechId === 'number') {
+          resolvedPartOfSpeechId = partOfSpeechId;
+        } else if (typeof partOfSpeechId === 'string' && partOfSpeechId.trim()) {
+          const cleanPos = partOfSpeechId.toLowerCase().trim();
+          if (cleanPos === 'noun' || cleanPos === 'n' || cleanPos === 'danh từ' || cleanPos === 'danh tu' || cleanPos === '1') {
+            resolvedPartOfSpeechId = 1;
+          } else if (cleanPos === 'verb' || cleanPos === 'v' || cleanPos === 'động từ' || cleanPos === 'dong tu' || cleanPos === '2') {
+            resolvedPartOfSpeechId = 2;
+          } else if (cleanPos === 'adjective' || cleanPos === 'adj' || cleanPos === 'tính từ' || cleanPos === 'tinh tu' || cleanPos === '3') {
+            resolvedPartOfSpeechId = 3;
+          } else if (cleanPos === 'adverb' || cleanPos === 'adv' || cleanPos === 'trạng từ' || cleanPos === 'trang tu' || cleanPos === '4') {
+            resolvedPartOfSpeechId = 4;
+          } else if (cleanPos === 'preposition' || cleanPos === 'prep' || cleanPos === 'giới từ' || cleanPos === 'gioi tu' || cleanPos === '5') {
+            resolvedPartOfSpeechId = 5;
           }
         }
 
+        // 2. Check for duplicate key (Term, PartOfSpeechID)
+        const checkReq = new sql.Request(transaction);
+        const existingResult = await checkReq
+          .input('Term', sql.NVarChar(200), term)
+          .input('PartOfSpeechID', sql.Int, resolvedPartOfSpeechId)
+          .query(`SELECT WordID, Meaning, Phonetic FROM Words WHERE Term = @Term AND PartOfSpeechID = @PartOfSpeechID`);
+
+        let wordId;
+        
+        if (existingResult.recordset.length > 0) {
+          // Word already exists
+          if (conflictStrategy === 'skip') {
+            continue; // Skip this word entirely
+          }
+          
+          wordId = existingResult.recordset[0].WordID;
+          
+          if (conflictStrategy === 'overwrite') {
+            // Update meaning & phonetic
+            const updateReq = new sql.Request(transaction);
+            await updateReq
+              .input('WordID', sql.BigInt, wordId)
+              .input('Meaning', sql.NVarChar(1000), meaning)
+              .input('Phonetic', sql.NVarChar(255), phonetic || '')
+              .query(`UPDATE Words SET Meaning = @Meaning, Phonetic = @Phonetic, UpdatedAt = SYSDATETIMEOFFSET() WHERE WordID = @WordID`);
+          }
+          // If strategy is merge, we keep the old meaning & phonetic and just reuse the ID
+        } else {
+          // Word does not exist, insert it
+          const insertReq = new sql.Request(transaction);
+          const wordResult = await insertReq
+            .input('Term', sql.NVarChar(200), term)
+            .input('Meaning', sql.NVarChar(1000), meaning)
+            .input('Phonetic', sql.NVarChar(255), phonetic || '')
+            .input('PartOfSpeechID', sql.Int, resolvedPartOfSpeechId)
+            .input('CreatedByUserID', sql.BigInt, userId)
+            .query(`
+              INSERT INTO Words (Term, Meaning, Phonetic, PartOfSpeechID, CreatedByUserID,
+                                 ContentStatus, CreatedAt, UpdatedAt)
+              OUTPUT inserted.WordID AS id
+              VALUES (@Term, @Meaning, @Phonetic, @PartOfSpeechID, @CreatedByUserID,
+                      'Draft', SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
+            `);
+          wordId = wordResult.recordset[0].id;
+          insertedIds.push(wordId);
+        }
+
+        // 3. Link topics safely
+        if (Array.isArray(topicIds)) {
+          for (const tid of topicIds) {
+            const topicCheckReq = new sql.Request(transaction);
+            const existsLink = await topicCheckReq
+              .input('WordID', sql.BigInt, wordId)
+              .input('TopicID', sql.BigInt, tid)
+              .query(`SELECT 1 FROM WordTopics WHERE WordID = @WordID AND TopicID = @TopicID`);
+            
+            if (existsLink.recordset.length === 0) {
+              const insertTopicReq = new sql.Request(transaction);
+              await insertTopicReq
+                .input('WordID', sql.BigInt, wordId)
+                .input('TopicID', sql.BigInt, tid)
+                .query(`INSERT INTO WordTopics (WordID, TopicID, AssignedAt) VALUES (@WordID, @TopicID, SYSDATETIMEOFFSET())`);
+            }
+          }
+        }
+
+        // 4. Add examples safely
         const validExamples = Array.isArray(examples) ? examples.filter(e => String(e?.sentence ?? '').trim()) : [];
         for (const ex of validExamples) {
-          const r = new sql.Request(transaction);
-          await r.input('WordID', sql.BigInt, wordId)
+          const exCheckReq = new sql.Request(transaction);
+          const existsEx = await exCheckReq
+            .input('WordID', sql.BigInt, wordId)
             .input('SentenceText', sql.NVarChar(2000), ex.sentence)
-            .input('SentenceTranslation', sql.NVarChar(2000), ex.meaning || '')
-            .query(`INSERT INTO ExampleSentences (WordID, SentenceText, SentenceTranslation, CreatedAt, UpdatedAt)
-                    VALUES (@WordID, @SentenceText, @SentenceTranslation, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())`);
+            .query(`SELECT 1 FROM ExampleSentences WHERE WordID = @WordID AND SentenceText = @SentenceText`);
+            
+          if (existsEx.recordset.length === 0) {
+            const insertExReq = new sql.Request(transaction);
+            await insertExReq
+              .input('WordID', sql.BigInt, wordId)
+              .input('SentenceText', sql.NVarChar(2000), ex.sentence)
+              .input('SentenceTranslation', sql.NVarChar(2000), ex.meaning || '')
+              .query(`INSERT INTO ExampleSentences (WordID, SentenceText, SentenceTranslation, CreatedAt, UpdatedAt)
+                      VALUES (@WordID, @SentenceText, @SentenceTranslation, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())`);
+          }
         }
       }
 

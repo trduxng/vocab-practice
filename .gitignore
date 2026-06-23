@@ -61,3 +61,10 @@ mcp.json
 #backend
 ./backend/yarn.lock
 .vibecode-backup*/
+
+process/
+.agents/
+.claude/
+.codex/
+.gemini/
+
