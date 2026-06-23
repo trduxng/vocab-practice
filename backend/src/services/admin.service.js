@@ -1703,6 +1703,12 @@ class AdminService {
       JOIN Users u ON ea.UserID = u.UserID
       JOIN Words w ON ea.WordID = w.WordID
       ORDER BY ea.AttemptedAt DESC;
+
+      SELECT p.PartOfSpeechName AS name, COUNT(w.WordID) AS value
+      FROM PartOfSpeeches p
+      LEFT JOIN Words w ON p.PartOfSpeechID = w.PartOfSpeechID
+      GROUP BY p.PartOfSpeechName
+      ORDER BY p.PartOfSpeechName;
     `);
 
     return {
@@ -1716,7 +1722,8 @@ class AdminService {
       userGrowth: result.recordsets[1],
       weeklyActivity: result.recordsets[2],
       userTypes: result.recordsets[3],
-      recentActivity: result.recordsets[4]
+      recentActivity: result.recordsets[4],
+      wordDistribution: result.recordsets[5]
     };
   }
 
