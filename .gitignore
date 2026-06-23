@@ -94,3 +94,5 @@ next-env.d.ts
 # DEPLOY / CI
 # ==========================================
 .vercel
+
+document/Baocao_CNPM.docx
