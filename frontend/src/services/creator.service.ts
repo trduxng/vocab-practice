@@ -1,6 +1,8 @@
 import apiClient from '../lib/api-client';
 
 // ── Types ──
+export type ContentStatus = "Draft" | "PendingReview" | "Published" | "Rejected" | "Archived";
+
 export interface TopicCategory {
   id: number;
   name: string;
