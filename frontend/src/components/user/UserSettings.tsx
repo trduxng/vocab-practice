@@ -43,7 +43,7 @@ export default function UserSettings({
   // Load daily goal and SRS config from backend
   useEffect(() => {
     if (!user) return;
-    setGoalLoading(true);
+    const timer = window.setTimeout(() => setGoalLoading(true), 0);
     userService
       .getDailyGoalSetting()
       .then((data) => {
@@ -58,6 +58,7 @@ export default function UserSettings({
         if (saved) setDailyWordGoal(parseInt(saved, 10));
       })
       .finally(() => setGoalLoading(false));
+    return () => window.clearTimeout(timer);
   }, [user]);
 
   const handleGoalChange = async (value: number) => {

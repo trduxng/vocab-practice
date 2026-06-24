@@ -114,25 +114,20 @@ export default function UserProfilePage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [analytics, setAnalytics] = useState<ProgressAnalytics | null>(null);
-  const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [gamification, setGamification] = useState<GamificationProfile | null>(
     null,
   );
-  const [gamificationLoading, setGamificationLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>(defaultTab);
   const router = useRouter();
 
   // ── Data fetching ──
 
   const fetchAnalytics = useCallback(async () => {
-    setAnalyticsLoading(true);
     try {
       const a = await userService.getProgressAnalytics();
       setAnalytics(a);
     } catch {
       // Non-critical
-    } finally {
-      setAnalyticsLoading(false);
     }
   }, []);
 
@@ -183,14 +178,11 @@ export default function UserProfilePage({
   }, []);
 
   const fetchGamification = useCallback(async () => {
-    setGamificationLoading(true);
     try {
       const data = await userService.getGamificationProfile();
       setGamification(data);
     } catch {
       // Non-critical
-    } finally {
-      setGamificationLoading(false);
     }
   }, []);
 
@@ -421,12 +413,7 @@ export default function UserProfilePage({
 
                 {activeTab === "progress" && (
                   <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-300">
-                    {analyticsLoading && !analytics ? (
-                      <div className="flex items-center justify-center py-32 text-sm text-slate-500">
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                        Đang tải dữ liệu phân tích...
-                      </div>
-                    ) : analytics ? (
+                    {analytics ? (
                       <>
                         <ProgressHero summary={analytics.summary} />
                         <ActivityHeatmap days={analytics.activity} />
@@ -462,12 +449,7 @@ export default function UserProfilePage({
 
                 {activeTab === "achievements" && (
                   <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-300">
-                    {gamificationLoading && !gamification ? (
-                      <div className="flex items-center justify-center py-32 text-sm text-slate-500">
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                        Đang tải thành tích...
-                      </div>
-                    ) : gamification ? (
+                    {gamification ? (
                       <>
                         {/* Hero Section */}
                         <section className="rounded-[28px] border border-amber-200 bg-linear-to-br from-amber-50 via-white to-orange-50 p-5 shadow-sm dark:border-amber-500/20 dark:from-amber-500/10 dark:via-white/4 dark:to-orange-500/10 sm:p-7">
