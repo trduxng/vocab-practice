@@ -12,12 +12,13 @@ graph TB
 
         subgraph UserPages["Khu vực Học viên (app/user/)"]
             UserDashboard["Dashboard<br/>user/dashboard"]
-            LearnPage["Học từ mới<br/>user/learn"]
+            LearnPage["Học từ mới<br/>user/learn, user/learn/[topicId]"]
             PracticePage["Luyện tập<br/>user/practice"]
-            MiniTestPage["Bài kiểm tra<br/>user/minitests"]
-            ProgressPage["Tiến độ<br/>user/progress"]
-            Achievements["Thành tích<br/>user/achievements"]
-            Notebook["Sổ tay<br/>user/notebook"]
+            MiniTestPage["Bài kiểm tra<br/>user/minitests, user/minitests/[id],<br/>user/minitests/history"]
+            ProgressPage["Tiến độ & Analytics<br/>user/progress"]
+            Notebook["Sổ tay từ vựng<br/>user/notebook"]
+            Courses["Khóa học<br/>user/courses"]
+            Settings["Cài đặt<br/>user/settings"]
         end
 
         subgraph CreatorPages["Khu vực Biên tập viên (app/creator/)"]
@@ -27,6 +28,10 @@ graph TB
             CreatorQuestions["Quản lý Câu hỏi<br/>creator/questions"]
             CreatorMiniTests["Quản lý Mini Test<br/>creator/mini-tests"]
             CreatorMedia["Quản lý Media<br/>creator/media"]
+            CreatorAnalytics["Thống kê nội dung<br/>creator/analytics"]
+            CreatorDrafts["Bản nháp<br/>creator/drafts"]
+            CreatorPending["Đang chờ duyệt<br/>creator/pending"]
+            CreatorRejected["Bị từ chối<br/>creator/rejected"]
         end
 
         subgraph AdminPages["Khu vực Quản trị (app/admin/)"]
@@ -37,10 +42,15 @@ graph TB
             AdminStudents["Quản lý Học viên<br/>admin/students"]
             AdminReview["Duyệt nội dung<br/>admin/content-review"]
             AdminAnalytics["Thống kê<br/>admin/analytics"]
+            AdminTopics["Quản lý Chủ đề<br/>admin/courses"]
+            AdminTopicCategories["Danh mục chủ đề<br/>admin/topic-categories"]
+            AdminAuditLogs["Nhật ký hệ thống<br/>admin/audit-logs"]
+            AdminReports["Báo cáo vi phạm<br/>admin/reports"]
+            AdminNotifications["Thông báo<br/>admin/notifications"]
         end
 
         subgraph Shared["Thành phần dùng chung"]
-            AuthContext["AuthContext<br/>Quản lý xác thực"]
+            AuthContext["AuthContext<br/>Quản lý xác thực & phân quyền"]
             Sidebar["Sidebar<br/>Điều hướng theo vai trò"]
             Topbar["Topbar<br/>Thanh công cụ"]
         end
@@ -48,9 +58,10 @@ graph TB
         subgraph Services_FE["Tầng Service (Frontend)"]
             AuthService["auth.service.ts"]
             UserService["user.service.ts"]
-            AdminService["admin.service.ts"]
-            CreatorService["creator.service.ts"]
+            AdminService["admin.service.ts<br/>(gồm cả content-review, audit-logs, reports, notifications)"]
+            CreatorService["creator.service.ts<br/>(CRUD + bulk-import + submit-review)"]
             CategoriesService["categories.service.ts"]
+            AIService["ai.service.ts"]
         end
 
         ApiClient["API Client<br/>api-client.ts (Axios)"]
@@ -61,45 +72,102 @@ graph TB
         subgraph Routes["Routes"]
             AuthRoutes["auth.routes.js<br/>POST /register, /login"]
             CategoriesRoutes["categories.routes.js<br/>GET /part-of-speeches, /topics"]
-            AdminRoutes["admin.routes.js<br/>CRUD words/questions/tests/users"]
-            UserRoutes["user.routes.js<br/>flashcards/submit/stats/minitests"]
+            AdminRoutes["admin.routes.js<br/>CRUD words/questions/tests/topics/topic-categories,<br/>students, analytics, content-review,<br/>audit-logs, reports, notifications"]
+            CreatorRoutes["creator.routes.js<br/>CRUD topics/words/questions/mini-tests,<br/>media upload, submit-review, analytics"]
+            UserRoutes["user.routes.js<br/>flashcards/submit/minitests<br/>notebook/review/stats/goals<br/>activity/notifications/settings"]
+            AIRoutes["ai.routes.js<br/>AI features"]
         end
 
         subgraph Middlewares["Middlewares"]
             verifyToken["verifyToken<br/>Xác thực JWT"]
             checkPermission["checkPermission<br/>Kiểm tra quyền RBAC"]
+            checkAnyPermission["checkAnyPermission<br/>Kiểm tra một trong nhiều quyền"]
             validate["validate<br/>Zod validation"]
             errorHandler["errorHandler<br/>Xử lý lỗi toàn cục"]
+            rateLimiter["rateLimiter<br/>Giới hạn request"]
+            upload["upload<br/>Multer file upload"]
         end
 
         subgraph Controllers["Controllers"]
             AuthController["auth.controller.js<br/>register, login"]
             CategoriesController["categories.controller.js<br/>getPartOfSpeeches, getTopics"]
-            AdminController["admin.controller.js<br/>10+ functions"]
-            UserController["user.controller.js<br/>8+ functions"]
+            AdminController["admin.controller.js<br/>49 functions (CRUD + content-review + audit + reports + notifications)"]
+            CreatorController["creator.controller.js<br/>20+ functions (CRUD + submit-review + media + analytics)"]
+            UserController["user.controller.js<br/>29 functions (flashcard/submit/minitests/notebook/review/stats/goals)"]
+            GamificationController["gamification.controller.js<br/>profile, practice-complete, achievements"]
+            LearningPathController["learning-path.controller.js<br/>getRoadmap"]
+            AIController["ai.controller.js<br/>AI features"]
         end
 
         subgraph Services_BE["Services"]
-            AuthServiceBE["auth.service.js<br/>JWT + bcrypt"]
+            AuthServiceBE["auth.service.js<br/>JWT + bcrypt + login/register"]
             CategoriesServiceBE["categories.service.js<br/>Read-only queries"]
-            AdminServiceBE["admin.service.js<br/>CRUD + Transaction"]
-            UserServiceBE["user.service.js<br/>SRS + Stats + SP"]
+            AdminServiceBE["admin.service.js<br/>CRUD + Transaction + content-review"]
+            CreatorServiceBE["creator.service.js<br/>CRUD + bulk-import + submit-for-review + media"]
+            UserServiceBE["user.service.js<br/>SRS + SP + Stats + Heatmap + Notebook + Review + Progress"]
+            GamificationService["gamification.service.js<br/>XP, Streaks, Achievements, Level"]
+            ProgressService["progress.service.js<br/>Progress tracking"]
+            LearningPathService["learning-path.service.js<br/>Roadmap"]
+            AIService["ai.service.js<br/>AI generation"]
+            ReportService["report.service.js<br/>Content reports"]
+            ReviewService["review.service.js<br/>Review workflows"]
         end
 
         subgraph Config["Cấu hình"]
-            DBConfig["config/db.js<br/>MSSQL Connection Pool"]
+            DBConfig["config/db.js<br/>MSSQL Connection Pool (mssql)"]
             RateLimiter["rateLimiter.js"]
-            Upload["upload.js"]
+            Upload["upload.js<br/>Multer config"]
+            HealthCheck["health-check.js"]
         end
     end
 
-    subgraph Database["SQL Server"]
-        TablesRBAC["RBAC<br/>Users, Roles, Permissions, RolePermissions"]
-        TablesContent["Nội dung<br/>Words, Topics, Questions,<br/>ExampleSentences, MiniTests"]
-        TablesProgress["Học tập<br/>UserWordProgress,<br/>ExerciseAttempts"]
-        TablesMedia["Media & Log<br/>MediaAssets,<br/>ContentReviewLogs"]
-        Views["Views<br/>4 Analytics Views"]
+    subgraph Database["SQL Server (dbo)"]
+        subgraph RBAC["RBAC"]
+            TablesUsers["Users<br/>(UserID, FullName, Email, PasswordHash,<br/>UserRole, RoleID, IsActive, DailyGoal,<br/>SRSReviewLimit, TotalXP, CurrentLevel)"]
+            TablesRoles["Roles<br/>(Admin, Learner, ContentCreator)"]
+            TablesPermissions["Permissions<br/>(MANAGE_WORDS, MANAGE_TESTS, ...)"]
+            TablesRolePerms["RolePermissions<br/>(RoleID, PermissionID)"]
+        end
+
+        subgraph Content["Nội dung học tập"]
+            TablesWords["Words<br/>(Term, Meaning, Phonetic, PartOfSpeechID<br/>AudioUrlUK/US, ImageUrl, DifficultyLevel,<br/>ContentStatus, CreatedByUserID)"]
+            TablesTopics["Topics<br/>(TopicName, TopicCode, TopicCategoryID,<br/>Description, ContentStatus, CreatedByUserID)"]
+            TablesTopicCats["TopicCategories<br/>(CategoryName, CategoryCode, IconUrl, DisplayOrder)"]
+            TablesPOS["PartOfSpeeches<br/>(PartOfSpeechCode, PartOfSpeechName)"]
+            TablesWordTopics["WordTopics<br/>(WordID, TopicID) - junction"]
+            TablesQuestions["Questions<br/>(QuestionType, QuestionText, OptionsJson,<br/>CorrectAnswer, Explanation, DifficultyLevel,<br/>ContentStatus, WordID, CreatedByUserID)"]
+            TablesExampleSent["ExampleSentences<br/>(SentenceText, SentenceTranslation, AudioUrl)"]
+        end
+
+        subgraph Testing["Kiểm tra"]
+            TablesMiniTests["MiniTests<br/>(TestTitle, Description, TopicID,<br/>TotalQuestions, IsPublished,<br/>ContentStatus, CreatedByUserID)"]
+            TablesMiniTestItems["MiniTestItems<br/>(MiniTestID, QuestionID, DisplayOrder)"]
+            TablesMiniTestAtt["MiniTestAttempts<br/>(UserID, MiniTestID, StartedAt,<br/>SubmittedAt, Score, CorrectCount)"]
+        end
+
+        subgraph Progress["Tiến độ học tập"]
+            TablesWordProgress["UserWordProgress<br/>(UserID, WordID, MasteryLevel, EaseFactor,<br/>RepetitionCount, NextReviewDate, MemoryStatus)"]
+            TablesExercises["ExerciseAttempts<br/>(UserID, QuestionID, WordID,<br/>SubmittedAnswer, IsCorrect, ScoreAwarded)"]
+            TablesEnrollments["UserTopicEnrollments<br/>(UserID, TopicID, IsActive)"]
+            TablesNotebook["UserVocabularyNotebook<br/>(UserID, WordID, PersonalNote, IsFavorite)"]
+        end
+
+        subgraph Gamification["Game hóa"]
+            TablesXP["UserXPEvents<br/>(UserID, XPAmount, EventType, SourceKey)"]
+            TablesStreaks["UserStreaks<br/>(CurrentStreak, LongestStreak, LastActivityDate)"]
+            TablesAchievements["UserAchievements<br/>(AchievementCode, UnlockedAt)"]
+        end
+
+        subgraph Monitoring["Giám sát & Báo cáo"]
+            TablesMedia["MediaAssets<br/>(MediaType, FileUrl, FileName, MimeType)"]
+            TablesReviewLogs["ContentReviewLogs<br/>(EntityType, EntityID, Action, Reason)"]
+            TablesReports["ContentReports<br/>(ReportType, Description, Priority, Status)"]
+            TablesAuditLogs["AdminAuditLogs<br/>(ActionType, EntityType, EntityID, Details)"]
+            TablesNotifications["Notifications<br/>(NotificationType, Title, Message, IsRead)"]
+        end
+
         SP["Stored Procedure<br/>usp_SubmitQuestionAttempt"]
+        Views["Views<br/>vw_MasteryTimelineProjection"]
     end
 
     %% Frontend Connections
@@ -115,49 +183,105 @@ graph TB
     CreatorService --> ApiClient
     AuthService --> ApiClient
     CategoriesService --> ApiClient
+    AIService --> ApiClient
 
     %% Backend Connections
     ApiClient -->|HTTP REST| AuthRoutes
     ApiClient -->|HTTP REST| CategoriesRoutes
     ApiClient -->|HTTP REST| AdminRoutes
+    ApiClient -->|HTTP REST| CreatorRoutes
     ApiClient -->|HTTP REST| UserRoutes
+    ApiClient -->|HTTP REST| AIRoutes
 
     AuthRoutes --> verifyToken
     CategoriesRoutes --> verifyToken
     AdminRoutes --> verifyToken
+    CreatorRoutes --> verifyToken
     UserRoutes --> verifyToken
+    AIRoutes --> verifyToken
+    AdminRoutes --> checkAnyPermission
+    CreatorRoutes --> checkPermission
     AdminRoutes --> checkPermission
     Routes --> validate
+    Routes --> rateLimiter
 
     verifyToken --> AuthController
     verifyToken --> CategoriesController
     verifyToken --> AdminController
+    verifyToken --> CreatorController
     verifyToken --> UserController
+    verifyToken --> GamificationController
+    verifyToken --> LearningPathController
+    verifyToken --> AIController
     checkPermission --> AdminController
+    checkPermission --> CreatorController
+    checkAnyPermission --> AdminController
 
     AuthController --> AuthServiceBE
     CategoriesController --> CategoriesServiceBE
     AdminController --> AdminServiceBE
+    CreatorController --> CreatorServiceBE
     UserController --> UserServiceBE
+    GamificationController --> GamificationService
+    LearningPathController --> LearningPathService
+    AIController --> AIService
 
     AuthServiceBE --> DBConfig
     CategoriesServiceBE --> DBConfig
     AdminServiceBE --> DBConfig
+    CreatorServiceBE --> DBConfig
     UserServiceBE --> DBConfig
+    GamificationService --> DBConfig
+    LearningPathService --> DBConfig
+    AIService --> DBConfig
+    ReportService --> DBConfig
+    ReviewService --> DBConfig
+    ProgressService --> DBConfig
 
     errorHandler --> Controllers
+    upload --> CreatorController
 
     %% Database Connections
-    DBConfig -->|mssql pool| TablesRBAC
-    DBConfig -->|mssql pool| TablesContent
-    DBConfig -->|mssql pool| TablesProgress
+    DBConfig -->|mssql pool| TablesUsers
+    DBConfig -->|mssql pool| TablesRoles
+    DBConfig -->|mssql pool| TablesPermissions
+    DBConfig -->|mssql pool| TablesRolePerms
+    DBConfig -->|mssql pool| TablesWords
+    DBConfig -->|mssql pool| TablesTopics
+    DBConfig -->|mssql pool| TablesTopicCats
+    DBConfig -->|mssql pool| TablesPOS
+    DBConfig -->|mssql pool| TablesWordTopics
+    DBConfig -->|mssql pool| TablesQuestions
+    DBConfig -->|mssql pool| TablesExampleSent
+    DBConfig -->|mssql pool| TablesMiniTests
+    DBConfig -->|mssql pool| TablesMiniTestItems
+    DBConfig -->|mssql pool| TablesMiniTestAtt
+    DBConfig -->|mssql pool| TablesWordProgress
+    DBConfig -->|mssql pool| TablesExercises
+    DBConfig -->|mssql pool| TablesEnrollments
+    DBConfig -->|mssql pool| TablesNotebook
+    DBConfig -->|mssql pool| TablesXP
+    DBConfig -->|mssql pool| TablesStreaks
+    DBConfig -->|mssql pool| TablesAchievements
     DBConfig -->|mssql pool| TablesMedia
-    DBConfig -->|mssql pool| Views
+    DBConfig -->|mssql pool| TablesReviewLogs
+    DBConfig -->|mssql pool| TablesReports
+    DBConfig -->|mssql pool| TablesAuditLogs
+    DBConfig -->|mssql pool| TablesNotifications
     DBConfig -->|mssql pool| SP
+    DBConfig -->|mssql pool| Views
+
+    UserServiceBE --> SP
+    UserServiceBE --> Views
 
     %% User role routing
     Learner --> Landing
     Learner -->|"/login"| LoginPage
+    Learner -->|"/register"| RegisterPage
     Learner -->|"/user/*"| UserPages
     Creator -->|"/creator/*"| CreatorPages
     Admin -->|"/admin/*"| AdminPages
+
+    %% Creator and Admin can access some user pages
+    Creator -.->|"/user/*"| UserPages
+    Admin -.->|"/user/*"| UserPages

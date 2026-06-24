@@ -1,0 +1,316 @@
+classDiagram
+    %% ================= BACKEND CLASSES =================
+    %% Based on actual backend source code at backend/src/
+    %% Controllers -> Services -> DBConnection
+    %% Middleware applied via routes to protect/validate controllers
+
+    class DBConnection {
+        +ConnectionPool pool
+        +sql library
+        +getConnection() Promise~ConnectionPool~
+        +closePool() void
+    }
+
+    %% ================= MIDDLEWARES =================
+
+    class AuthMiddleware {
+        +verifyToken(req, res, next) void
+        +checkPermission(code) Function
+        +checkAnyPermission(codes) Function
+        +verifyAdmin(req, res, next) void
+    }
+
+    class ValidationMiddleware {
+        +validate(schema) Function
+        +schemas Object
+    }
+
+    class ErrorHandler {
+        +handleError(err, req, res, next) void
+    }
+
+    class RateLimiter {
+        +limiter Function
+    }
+
+    class UploadMiddleware {
+        +upload MulterInstance
+        +upload.array(fieldName, maxCount) Function
+    }
+
+    %% ================= CONTROLLERS =================
+
+    class AuthController {
+        +register(req, res, next) Promise~void~
+        +login(req, res, next) Promise~void~
+    }
+
+    class CategoriesController {
+        +getPartOfSpeeches(req, res, next) Promise~void~
+        +getTopics(req, res, next) Promise~void~
+    }
+
+    class AdminController {
+        +getWords(req, res, next)
+        +createWord(req, res, next)
+        +updateWord(req, res, next)
+        +deleteWord(req, res, next)
+        +hardDeleteWord(req, res, next)
+        +bulkImportWords(req, res, next)
+        +getQuestionsByWord(req, res, next)
+        +createQuestion(req, res, next)
+        +updateQuestion(req, res, next)
+        +deleteQuestion(req, res, next)
+        +getMiniTests(req, res, next)
+        +createMiniTest(req, res, next)
+        +updateMiniTest(req, res, next)
+        +deleteMiniTest(req, res, next)
+        +publishMiniTest(req, res, next)
+        +archiveMiniTest(req, res, next)
+        +getStats(req, res, next)
+        +getStudents(req, res, next)
+        +getStudentDetail(req, res, next)
+        +createUser(req, res, next)
+        +updateUser(req, res, next)
+        +deleteUser(req, res, next)
+        +toggleStudentStatus(req, res, next)
+        +updateUserRole(req, res, next)
+        +getAnalytics(req, res, next)
+        +getPendingContent(req, res, next)
+        +approveContent(req, res, next)
+        +rejectContent(req, res, next)
+        +getNotifications(req, res, next)
+        +getAuditLogs(req, res, next)
+        +getReports(req, res, next)
+        +updateReport(req, res, next)
+        +sendAnnouncement(req, res, next)
+        +createDailyReminders(req, res, next)
+    }
+
+    class CreatorController {
+        +getDashboard(req, res, next)
+        +getContentSummary(req, res, next)
+        +getTopicAnalytics(req, res, next)
+        +getMiniTestAnalytics(req, res, next)
+        +getTopicCategories(req, res, next)
+        +getTopics(req, res, next)
+        +createTopic(req, res, next)
+        +updateTopic(req, res, next)
+        +deleteTopic(req, res, next)
+        +submitTopicForReview(req, res, next)
+        +getWords(req, res, next)
+        +createWord(req, res, next)
+        +bulkCreateWords(req, res, next)
+        +updateWord(req, res, next)
+        +deleteWord(req, res, next)
+        +submitWordForReview(req, res, next)
+        +getQuestions(req, res, next)
+        +createQuestion(req, res, next)
+        +updateQuestion(req, res, next)
+        +deleteQuestion(req, res, next)
+        +submitQuestionForReview(req, res, next)
+        +getMiniTests(req, res, next)
+        +createMiniTest(req, res, next)
+        +updateMiniTest(req, res, next)
+        +deleteMiniTest(req, res, next)
+        +addMiniTestItem(req, res, next)
+        +removeMiniTestItem(req, res, next)
+        +submitMiniTestForReview(req, res, next)
+        +getMedia(req, res, next)
+        +uploadMedia(req, res, next)
+        +deleteMedia(req, res, next)
+    }
+
+    class UserController {
+        +getFlashcards(req, res, next)
+        +getTopicWords(req, res, next)
+        +submitAnswer(req, res, next)
+        +getStats(req, res, next)
+        +getMasteryTimeline(req, res, next)
+        +getMiniTests(req, res, next)
+        +getMiniTestDetails(req, res, next)
+        +getTestHistory(req, res, next)
+        +getTestSessionDetails(req, res, next)
+        +submitMiniTest(req, res, next)
+        +updateProfile(req, res, next)
+        +createReport(req, res, next)
+        +getActivityHeatmap(req, res, next)
+        +getProgressAnalytics(req, res, next)
+        +getDailyProgress(req, res, next)
+        +getDailyGoal(req, res, next)
+        +updateDailyGoal(req, res, next)
+        +updateSRSConfig(req, res, next)
+        +getSmartReviewQueue(req, res, next)
+        +getMistakeReviewQueue(req, res, next)
+        +getSessionSummary(req, res, next)
+        +getNotifications(req, res, next)
+        +markNotificationRead(req, res, next)
+        +markAllNotificationsRead(req, res, next)
+        +getNotebook(req, res, next)
+        +checkNotebookEntry(req, res, next)
+        +addNotebookEntry(req, res, next)
+        +updateNotebookEntry(req, res, next)
+        +deleteNotebookEntry(req, res, next)
+    }
+
+    class GamificationController {
+        +getProfile(req, res, next)
+        +completePractice(req, res, next)
+        +markAchievementsSeen(req, res, next)
+    }
+
+    class LearningPathController {
+        +getRoadmap(req, res, next)
+    }
+
+    class AIController {
+        +suggestWordContent(req, res, next)
+    }
+
+    %% ================= SERVICES =================
+
+    class AuthService {
+        +register(fullName, email, password, role) Promise~Object~
+        +login(email, password) Promise~Object~
+    }
+
+    class AdminService {
+        +getWords(page, limit) Promise~Object~
+        +createWord(data, adminId) Promise~Object~
+        +updateWord(id, data) Promise~Object~
+        +deleteWord(id) Promise~void~
+        +hardDeleteWord(id) Promise~void~
+        +createQuestion(data, adminId) Promise~Object~
+        +getMiniTests(page, limit) Promise~Object~
+        +getDashboardStats() Promise~Object~
+        +getStudents() Promise~Array~
+        +getAnalyticsData() Promise~Object~
+        +getPendingContent() Promise~Object~
+        +approveContent(entityType, entityId, adminId) Promise~void~
+        +rejectContent(entityType, entityId, adminId, reason) Promise~void~
+    }
+
+    class CreatorService {
+        +getDashboardStats(userId) Promise~Object~
+        +getContentSummary(userId) Promise~Object~
+        +createTopic(data, userId) Promise~Object~
+        +createWord(data, userId) Promise~Object~
+        +bulkCreateWords(words, userId, strategy) Promise~Object~
+        +createQuestion(data, userId) Promise~Object~
+        +createMiniTest(data, userId) Promise~Object~
+        +submitForReview(entityType, entityId, userId) Promise~void~
+        +createMedia(file, userId, options) Promise~Object~
+    }
+
+    class UserService {
+        +getDueFlashcards(userId, options) Promise~Array~
+        +getTopicWords(userId, topicId) Promise~Array~
+        +submitAnswer(data) Promise~Object~
+        +submitWordReview(data) Promise~Object~
+        +getUserStats(userId) Promise~Object~
+        +getMiniTests(page, pageSize) Promise~Object~
+        +updateProfile(userId, fullName) Promise~Object~
+        +getTestHistory(userId, page, pageSize) Promise~Object~
+        +getActivityHeatmap(userId, year) Promise~Array~
+        +getProgressAnalytics(userId) Promise~Object~
+        +getDailyProgress(userId) Promise~Object~
+        +getSmartReviewQueue(userId, limit) Promise~Array~
+        +getMistakeReviewQueue(userId) Promise~Array~
+        +getSessionSummary(userId) Promise~Object~
+        +getNotebook(userId) Promise~Array~
+        +addNotebookEntry(userId, wordId, note) Promise~Object~
+        +submitMiniTestBatch(userId, testId, answers) Promise~Object~
+    }
+
+    class GamificationService {
+        +awardXP(userId, event) Promise~Object~
+        +awardDailyLogin(userId) Promise~Object~
+        +getProfile(userId) Promise~Object~
+        +getMetrics(userId) Promise~Object~
+        +checkAchievements(userId) Promise~Array~
+        +markAchievementsSeen(userId, ids) Promise~void~
+        +getAchievements(userId, metrics) Promise~Array~
+        +getDateKey(date) String
+        +getLevelState(totalXP) Object
+        +getAchievementProgress(criteriaType, metrics) Number
+    }
+
+    class CategoriesService {
+        +getPartOfSpeeches() Promise~Array~
+        +getTopics(userId) Promise~Array~
+    }
+
+    class LearningPathService {
+        +getRoadmap(userId) Promise~Object~
+        +ensureSchema() Promise~void~
+        +createSchema() Promise~void~
+        +syncPublishedTopics() Promise~void~
+        +buildRoadmap(levels, topics) Object
+    }
+
+    class AiService {
+        +suggestWordContent(term) Promise~Object~
+        +generateToeicExamples(params) Promise~Object~
+        +translateToVietnamese(text) Promise~String|null~
+        +lookupDictionary(term) Promise~Object|null~
+    }
+
+    class ProgressService {
+        +getProgress(userId) Promise~Object~
+        +getStats(userId) Promise~Object~
+    }
+
+    class ReviewService {
+        +getReviewQueue(userId) Promise~Array~
+    }
+
+    class ReportService {
+        +createReport(data) Promise~Object~
+    }
+
+    %% ================= RELATIONSHIPS =================
+
+    %% Controllers -> Services
+    AuthController --> AuthService : calls
+    AdminController --> AdminService : calls
+    UserController --> UserService : calls
+    CreatorController --> CreatorService : calls
+    CategoriesController --> CategoriesService : calls
+    GamificationController --> GamificationService : calls
+    LearningPathController --> LearningPathService : calls
+    AIController --> AiService : calls
+
+    %% Services -> DB
+    AuthService --> DBConnection : queries
+    AdminService --> DBConnection : queries
+    UserService --> DBConnection : queries
+    CreatorService --> DBConnection : queries
+    CategoriesService --> DBConnection : queries
+    GamificationService --> DBConnection : queries
+    LearningPathService --> DBConnection : queries
+    AiService --> DBConnection : queries
+    ProgressService --> DBConnection : queries
+    ReviewService --> DBConnection : queries
+    ReportService --> DBConnection : queries
+
+    %% Service -> Service (cross-service dependencies)
+    UserService --> GamificationService : awards XP
+    AuthService --> GamificationService : awards login XP
+    LearningPathService --> GamificationService : reads metrics
+    ProgressService --> GamificationService : reads metrics
+
+    %% Middleware applied to Controllers via route definitions
+    AuthMiddleware ..> AdminController : protects routes
+    AuthMiddleware ..> UserController : protects routes
+    AuthMiddleware ..> CreatorController : protects routes
+    ValidationMiddleware ..> AuthController : validates request body
+    ValidationMiddleware ..> AdminController : validates request body
+    ValidationMiddleware ..> UserController : validates request body
+    ValidationMiddleware ..> CreatorController : validates request body
+    ErrorHandler ..> AuthController : catches errors
+    ErrorHandler ..> AdminController : catches errors
+    ErrorHandler ..> UserController : catches errors
+    ErrorHandler ..> CreatorController : catches errors
+    ErrorHandler ..> GamificationController : catches errors
+    ErrorHandler ..> LearningPathController : catches errors
+    ErrorHandler ..> AIController : catches errors

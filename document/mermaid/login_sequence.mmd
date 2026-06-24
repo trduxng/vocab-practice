@@ -18,9 +18,9 @@ sequenceDiagram
         API->>BE: POST /api/auth/login<br/>{email, password}
         activate BE
 
-        BE->>BE: 4. Middleware chain:<br/>express.json()<br/>validate(loginSchema)
+        BE->>BE: 4. Middleware chain:<br/>rateLimiter → express.json() → validate(loginSchema)
 
-        BE->>DB: 5. SELECT Users<br/>WHERE Email = @email AND IsActive = 1<br/>JOIN Roles
+        BE->>DB: 5. SELECT Users<br/>WHERE Email = @email AND IsActive = 1<br/>JOIN Roles ON Users.RoleID = Roles.RoleID
         activate DB
         DB-->>BE: User record (id, fullName, email,<br/>passwordHash, roleId, roleName)
         deactivate DB
@@ -34,7 +34,7 @@ sequenceDiagram
             API-->>FE: Response lỗi
             FE-->>User: Hiển thị thông báo lỗi
         else User hợp lệ
-            BE->>BE: 6. bcrypt.compare(password, passwordHash)
+            BE->>BE: 6. auth.service.js: bcrypt.compare(password, passwordHash)
 
             alt Mật khẩu sai
                 BE-->>API: 401 {message: "Email hoặc mật khẩu không đúng"}
@@ -48,13 +48,13 @@ sequenceDiagram
 
                 BE->>BE: 8. jwt.sign(payload, secret, {expiresIn: '1d'})<br/>payload: {id, fullName, role, permissions}
 
-                BE-->>API: 200 {token, user}
+                BE-->>API: 200 {token, user: {id, fullName, email,<br/>role, permissions, totalXP, currentLevel}}
                 deactivate BE
 
                 API-->>FE: Response thành công
                 deactivate API
 
-                FE->>FE: 9. Lưu token & user vào localStorage<br/>Cập nhật AuthContext state
+                FE->>FE: 9. Lưu token & user vào localStorage<br/>Cập nhật AuthContext state (user + permissions)
 
                 alt User.role === "Admin"
                     FE-->>User: Redirect đến /admin/dashboard

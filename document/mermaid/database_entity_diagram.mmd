@@ -1,0 +1,357 @@
+classDiagram
+    %% ================= DATABASE ENTITIES =================
+    %% Based on actual SQL migrations and backend code at:
+    %% Database/migration_after_full_query_gen_used_with_topic_categories_FIXED.sql
+    %% Database/migration_gamification.sql
+    %% Database/migration_learner_xp_streak.sql
+    %% Database/migration_learning_path.sql
+    %% Database/migration_notifications.sql
+    %% Database/migration_user_daily_goal.sql
+    %% Database/migration_dynamic_permissions.sql
+    %% Database/migration_content_reports.sql
+
+    class User {
+        +BigInt UserID [PK]
+        +NVarChar FullName [NOT NULL]
+        +NVarChar Email [UNIQUE, NOT NULL]
+        +NVarChar PasswordHash [NOT NULL]
+        +NVarChar UserRole [Learner|ContentCreator|Admin]
+        +Int DailyGoal [DEFAULT 20]
+        +Int SRSReviewLimit [DEFAULT 15]
+        +Int TotalXP
+        +Int CurrentLevel
+        +Int RoleID [FK -> Roles]
+        +Bit IsActive
+        +DateTimeOffset CreatedAt
+        +DateTimeOffset UpdatedAt
+    }
+
+    class Role {
+        +Int RoleID [PK]
+        +NVarChar RoleName [UNIQUE]
+        +NVarChar Description
+    }
+
+    class Permission {
+        +Int PermissionID [PK]
+        +NVarChar PermissionCode [UNIQUE]
+        +NVarChar Description
+    }
+
+    class RolePermission {
+        +Int RoleID [PK]
+        +Int PermissionID [PK]
+    }
+
+    class PartOfSpeech {
+        +Int PartOfSpeechID [PK]
+        +NVarChar PartOfSpeechCode [UNIQUE, n|v|adj|adv|prep]
+        +NVarChar PartOfSpeechName [UNIQUE]
+        +NVarChar Description
+    }
+
+    class Word {
+        +BigInt WordID [PK]
+        +NVarChar Term [NOT NULL]
+        +NVarChar Meaning [NOT NULL]
+        +NVarChar Phonetic
+        +Int PartOfSpeechID [FK -> PartOfSpeeches]
+        +NVarChar AudioUrlUK
+        +NVarChar AudioUrlUS
+        +NVarChar ImageUrl
+        +TinyInt DifficultyLevel [1-5]
+        +NVarChar ContentStatus [Draft|Pending|Published|Archived]
+        +BigInt CreatedByUserID [FK -> Users]
+        +BigInt ReviewedByUserID [FK -> Users, nullable]
+        +DateTimeOffset ReviewedAt
+        +DateTimeOffset PublishedAt
+        +DateTimeOffset CreatedAt
+        +DateTimeOffset UpdatedAt
+    }
+
+    class Topic {
+        +BigInt TopicID [PK]
+        +NVarChar TopicName [UNIQUE]
+        +NVarChar TopicCode [UNIQUE]
+        +NVarChar Description
+        +Int TopicCategoryID [FK -> TopicCategories, nullable]
+        +NVarChar ContentStatus [Draft|Pending|Published|Archived]
+        +BigInt CreatedByUserID [FK -> Users]
+        +DateTimeOffset CreatedAt
+        +DateTimeOffset UpdatedAt
+    }
+
+    class TopicCategory {
+        +Int TopicCategoryID [PK]
+        +NVarChar CategoryName
+        +NVarChar CategoryCode
+        +NVarChar Description
+        +NVarChar IconUrl
+        +Int SortOrder
+        +Bit IsActive
+        +BigInt CreatedByUserID
+        +DateTimeOffset CreatedAt
+    }
+
+    class WordTopic {
+        +BigInt WordID [PK]
+        +BigInt TopicID [PK]
+        +DateTimeOffset AssignedAt
+    }
+
+    class ExampleSentence {
+        +BigInt ExampleSentenceID [PK]
+        +BigInt WordID [FK -> Words]
+        +NVarChar SentenceText [NOT NULL]
+        +NVarChar SentenceTranslation
+        +NVarChar AudioUrl
+    }
+
+    class Question {
+        +BigInt QuestionID [PK]
+        +BigInt WordID [FK -> Words]
+        +NVarChar QuestionType [MCQ|FillBlank|DragDrop|FlashcardCheck]
+        +NVarChar QuestionText [NOT NULL]
+        +NVarChar OptionsJson [JSON]
+        +NVarChar CorrectAnswer [NOT NULL]
+        +NVarChar Explanation
+        +TinyInt DifficultyLevel [1-5]
+        +NVarChar ContentStatus [Draft|Pending|Published|Archived]
+        +BigInt CreatedByUserID [FK -> Users]
+        +DateTimeOffset CreatedAt
+        +DateTimeOffset UpdatedAt
+    }
+
+    class MiniTest {
+        +BigInt MiniTestID [PK]
+        +NVarChar TestTitle [NOT NULL]
+        +NVarChar Description
+        +BigInt TopicID [FK -> Topics, nullable]
+        +Int TotalQuestions
+        +Bit IsPublished
+        +NVarChar ContentStatus
+        +BigInt CreatedByUserID [FK -> Users]
+        +DateTimeOffset CreatedAt
+        +DateTimeOffset UpdatedAt
+    }
+
+    class MiniTestItem {
+        +BigInt MiniTestID [PK]
+        +BigInt QuestionID [PK]
+        +Int DisplayOrder
+    }
+
+    class MiniTestAttempt {
+        +BigInt MiniTestAttemptID [PK]
+        +BigInt UserID [FK -> Users]
+        +BigInt MiniTestID [FK -> MiniTests]
+        +DateTimeOffset StartedAt
+        +DateTimeOffset SubmittedAt
+        +Int TotalQuestions
+        +Int CorrectCount
+        +Decimal Score
+    }
+
+    class ExerciseAttempt {
+        +BigInt ExerciseAttemptID [PK]
+        +BigInt UserID [FK -> Users]
+        +BigInt QuestionID [FK -> Questions]
+        +BigInt WordID [FK -> Words]
+        +NVarChar SubmittedAnswer
+        +Bit IsCorrect
+        +Decimal ScoreAwarded [0-100]
+        +DateTimeOffset AttemptedAt
+    }
+
+    class UserWordProgress {
+        +BigInt UserWordProgressID [PK]
+        +BigInt UserID [FK -> Users]
+        +BigInt WordID [FK -> Words]
+        +TinyInt MasteryLevel [0-10]
+        +Decimal EaseFactor [1.30-3.50]
+        +Int RepetitionCount
+        +Int ConsecutiveCorrect
+        +Int ConsecutiveWrong
+        +DateTimeOffset LastReviewedAt
+        +DateTimeOffset NextReviewDate
+        +NVarChar MemoryStatus [New|Learning|Reviewing|Mastered|Lapsed]
+        +Decimal LastScore [0-100]
+        +DateTimeOffset CreatedAt
+        +DateTimeOffset UpdatedAt
+    }
+
+    class UserTopicEnrollment {
+        +BigInt UserID [PK]
+        +BigInt TopicID [PK]
+        +Bit IsActive
+        +DateTimeOffset EnrolledAt
+    }
+
+    class UserVocabularyNotebook {
+        +BigInt NotebookID [PK]
+        +BigInt UserID [FK -> Users]
+        +BigInt WordID [FK -> Words]
+        +NVarChar PersonalNote
+        +Bit IsFavorite
+        +DateTimeOffset AddedAt
+    }
+
+    class UserXPEvent {
+        +BigInt XPEventID [PK]
+        +BigInt UserID [FK -> Users]
+        +Int XPAmount
+        +NVarChar EventType [LearnWord|PracticeComplete|MiniTestComplete|DailyLogin]
+        +NVarChar SourceKey
+        +NVarChar MetadataJson [JSON]
+        +DateTimeOffset CreatedAt
+    }
+
+    class Achievement {
+        +Int AchievementID [PK]
+        +NVarChar Code [UNIQUE]
+        +NVarChar Name
+        +NVarChar Description
+        +NVarChar Icon
+        +NVarChar CriteriaType [WORDS_LEARNED|STREAK_DAYS|TEST_SCORE|LEVEL]
+        +Int CriteriaValue
+        +Int DisplayOrder [UNIQUE]
+        +Bit IsActive
+        +DateTimeOffset CreatedAt
+    }
+
+    class UserAchievement {
+        +BigInt UserAchievementID [PK]
+        +BigInt UserID [FK -> Users]
+        +Int AchievementID [FK -> Achievements]
+        +DateTimeOffset UnlockedAt
+        +DateTimeOffset SeenAt
+    }
+
+    class LearningPathLevel {
+        +Int LearningPathLevelID [PK]
+        +NVarChar LevelCode [UNIQUE, TOEIC_300|TOEIC_500|TOEIC_700|TOEIC_900]
+        +NVarChar LevelName
+        +Int TargetScore
+        +NVarChar Description
+        +Int DisplayOrder [UNIQUE]
+        +NVarChar AccentKey
+        +Bit IsActive
+        +DateTimeOffset CreatedAt
+        +DateTimeOffset UpdatedAt
+    }
+
+    class LearningPathTopic {
+        +BigInt LearningPathTopicID [PK]
+        +Int LearningPathLevelID [FK -> LearningPathLevels]
+        +BigInt TopicID [FK -> Topics, UNIQUE]
+        +Int DisplayOrder
+        +Bit IsRequired
+        +DateTimeOffset CreatedAt
+    }
+
+    class Notification {
+        +BigInt NotificationID [PK]
+        +BigInt UserID [FK -> Users]
+        +NVarChar NotificationType
+        +NVarChar Title
+        +NVarChar Message
+        +Bit IsRead
+        +DateTimeOffset SentAt
+    }
+
+    class ContentReport {
+        +BigInt ReportID [PK]
+        +BigInt UserID [FK -> Users]
+        +NVarChar ReportType
+        +NVarChar Description
+        +NVarChar Priority
+        +NVarChar Status
+        +DateTimeOffset CreatedAt
+    }
+
+    class MediaAsset {
+        +BigInt MediaAssetID [PK]
+        +NVarChar MediaType
+        +NVarChar FileUrl
+        +NVarChar FileName
+        +NVarChar MimeType
+        +NVarChar AltText
+        +NVarChar Transcript
+    }
+
+    class ContentReviewLog {
+        +BigInt LogID [PK]
+        +NVarChar EntityType
+        +BigInt EntityID
+        +BigInt AdminUserID [FK -> Users]
+        +NVarChar Action
+        +NVarChar Reason
+        +DateTimeOffset CreatedAt
+    }
+
+    class AdminAuditLog {
+        +BigInt LogID [PK]
+        +BigInt UserID [FK -> Users]
+        +NVarChar ActionType
+        +NVarChar EntityType
+        +BigInt EntityID
+        +NVarChar Details
+        +DateTimeOffset CreatedAt
+    }
+
+    %% ================= RELATIONSHIPS =================
+
+    %% Users & Roles
+    User "1" --> "1" Role : has (RoleID)
+    Role "1" --> "*" RolePermission : has
+    Permission "1" --> "*" RolePermission : assigned to
+
+    %% User actions
+    User "1" --> "*" ExerciseAttempt : makes
+    User "1" --> "*" UserWordProgress : tracks
+    User "1" --> "*" UserTopicEnrollment : enrolls
+    User "1" --> "*" UserVocabularyNotebook : owns
+    User "1" --> "*" MiniTestAttempt : takes
+    User "1" --> "*" Notification : receives
+    User "1" --> "*" ContentReport : reports
+    User "1" --> "*" UserXPEvent : earns
+    User "1" --> "*" UserAchievement : unlocks
+    User "1" --> "*" ContentReviewLog : reviews as admin (AdminUserID)
+    User "1" --> "*" AdminAuditLog : logs
+
+    %% Words
+    Word "1" --> "*" ExampleSentence : has
+    Word "1" --> "*" Question : tested by
+    Word "1" --> "*" UserWordProgress : tracked in
+    Word "1" --> "*" UserVocabularyNotebook : saved in
+    Word "*" --> "1" PartOfSpeech : has (PartOfSpeechID)
+
+    %% Topics
+    Topic "1" --> "*" WordTopic : has
+    Word "1" --> "*" WordTopic : belongs to
+    Topic "1" --> "1" TopicCategory : categorized by
+    Topic "1" --> "*" MiniTest : belongs to
+
+    %% Questions / MiniTests
+    MiniTest "1" --> "*" MiniTestItem : has
+    MiniTestItem "*" --> "1" Question : references
+    MiniTest "1" --> "*" MiniTestAttempt : attempted in
+    ExerciseAttempt "*" --> "1" Question : answers
+    ExerciseAttempt "*" --> "1" Word : references
+
+    %% Gamification
+    Achievement "1" --> "*" UserAchievement : unlocked by
+
+    %% Learning Path
+    LearningPathLevel "1" --> "*" LearningPathTopic : contains
+    Topic "1" --> "*" LearningPathTopic : mapped to
+
+    %% Stored Procedure
+    class StoredProcedure {
+        +usp_SubmitQuestionAttempt
+        +@UserID BigInt
+        +@QuestionID BigInt
+        +@SubmittedAnswer NVarChar
+    }
+
+    DBConnection ..> StoredProcedure : runs

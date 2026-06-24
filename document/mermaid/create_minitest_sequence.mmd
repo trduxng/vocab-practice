@@ -15,25 +15,24 @@ sequenceDiagram
     User->>FE: 3. Nhập thông tin<br/>Chọn câu hỏi → Nhấn "Lưu"
 
     alt User là Creator
-        Note over FE: ContentStatus = 'Draft'
+        Note over FE: ContentStatus = 'Draft', IsPublished = false
+        FE->>API: 4a. POST /api/creator/mini-tests<br/>{testTitle, description, topicId, questionIds[]}
     else User là Admin
-        Note over FE: ContentStatus = 'Published'<br/>(bypass review)
+        Note over FE: ContentStatus = 'Published', IsPublished = true<br/>(bypass review)
+        FE->>API: 4b. POST /api/admin/minitests<br/>{testTitle, description, topicId, questionIds[]}
     end
 
-    FE->>API: 4. Gọi service tạo Mini Test
     activate API
+    API->>BE: Chuyển tiếp request
+    activate BE
 
-    alt User là Admin
-        API->>BE: POST /api/admin/minitests<br/>{testTitle, description, topicId,<br/>questionIds[], status}
-        activate BE
-        BE->>BE: verifyToken → checkPermission('MANAGE_TESTS')
-    else User là Creator
-        API->>BE: POST /api/creator/mini-tests<br/>{testTitle, description, topicId,<br/>questionIds[]}
-        activate BE
-        BE->>BE: verifyToken → checkPermission('MANAGE_TESTS')<br/>→ Ownership check (only own topics)
+    BE->>BE: verifyToken → checkPermission('MANAGE_TESTS')
+
+    alt User là Creator
+        BE->>BE: Ownership check<br/>(topic & questions belong to creator's topics)
     end
 
-    BE->>BE: validate middleware<br/>Zod: testTitle ≥ 3, topicId > 0,<br/>questionIds là mảng không rỗng
+    BE->>BE: validate middleware<br/>Zod: miniTest schema
 
     BE->>DB: 5. BEGIN TRANSACTION
     activate DB
@@ -45,12 +44,6 @@ sequenceDiagram
 
     Note over DB: DisplayOrder đánh số<br/>tự động từ 1, 2, 3...
 
-    alt Admin tạo
-        DB->>DB: IsPublished = 1<br/>Questions published
-    else Creator tạo
-        DB->>DB: ContentStatus = 'Draft'<br/>IsPublished = 0
-    end
-
     BE->>DB: 8. COMMIT TRANSACTION
     DB-->>BE: Xác nhận thành công
     deactivate DB
@@ -58,23 +51,43 @@ sequenceDiagram
     alt Admin tạo
         BE-->>API: 201 {message: "Tạo Mini Test thành công",<br/>data: {id, testTitle, totalQuestions,<br/>isPublished: true}}
     else Creator tạo
-        BE-->>API: 201 {message: "Đã lưu Mini Test dưới dạng Draft",<br/>data: {id, testTitle, totalQuestions,<br/>contentStatus: 'Draft'}}
+        BE-->>API: 201 {message: "Tạo bài test thành công",<br/>data: {id, testTitle, totalQuestions,<br/>contentStatus: 'Draft'}}
     end
 
     deactivate BE
     API-->>FE: Response
     deactivate API
-
     FE-->>User: 9. Hiển thị thông báo thành công<br/>Chuyển đến danh sách Mini Test
-
     deactivate FE
 
 
-    Note over User, DB: === LUỒNG PHỤ: CREATOR GỬI DUYỆT ===
+    Note over User, DB: === LUỒNG PHỤ 1: CREATOR THÊM/XÓA CÂU HỎI ===
 
-    User->>FE: 10. Chọn Mini Test Draft → "Gửi duyệt"
+    User->>FE: 10. Chọn Mini Test Draft → "Thêm câu hỏi"
+    FE->>API: POST /api/creator/mini-tests/:id/items<br/>{questionId}
+    API->>BE: POST /api/creator/mini-tests/:id/items
+    BE->>BE: verifyToken → checkPermission('MANAGE_TESTS')
+    BE->>DB: INSERT MiniTestItems VALUES (@id, @questionId, nextOrder)
+    DB-->>BE: OK
+    BE-->>API: 200 {message: "Thêm câu hỏi thành công"}
+    API-->>FE: Response
+    FE-->>User: Cập nhật danh sách câu hỏi
+
+    User->>FE: 11. Chọn câu hỏi → "Xóa"
+    FE->>API: DELETE /api/creator/mini-tests/:id/items/:questionId
+    API->>BE: DELETE /api/creator/mini-tests/:id/items/:questionId
+    BE->>BE: verifyToken → checkPermission('MANAGE_TESTS')
+    BE->>DB: DELETE MiniTestItems WHERE MiniTestID=@id AND QuestionID=@questionId
+    DB-->>BE: OK
+    BE-->>API: 200 {message: "Xóa câu hỏi khỏi test thành công"}
+    API-->>FE: Response
+    FE-->>User: Cập nhật danh sách câu hỏi
+
+
+    Note over User, DB: === LUỒNG PHỤ 2: CREATOR GỬI DUYỆT ===
+
+    User->>FE: 12. Chọn Mini Test Draft → "Gửi duyệt"
     activate FE
-
     FE->>API: POST /api/creator/mini-tests/:id/submit-review
     activate API
     API->>BE: POST /api/creator/mini-tests/:id/submit-review
@@ -82,30 +95,62 @@ sequenceDiagram
 
     BE->>BE: verifyToken → checkPermission('SUBMIT_CONTENT_REVIEW')<br/>→ Ownership check
 
-    BE->>DB: 11. Kiểm tra tất cả Questions đã Published?
+    BE->>DB: 13. Kiểm tra tất cả Questions đã Published?
     activate DB
     DB-->>BE: OK / Có question chưa publish
     deactivate DB
 
     alt Có question chưa publish
-        BE-->>API: 400 {message: "Có câu hỏi chưa được publish"}
+        BE-->>API: 400 {message: "Tồn tại câu hỏi chưa được xuất bản"}
         API-->>FE: Error
         FE-->>User: Hiển thị lỗi
     else Tất cả OK
-        BE->>DB: 12. UPDATE MiniTests<br/>SET ContentStatus = 'PendingReview'<br/>WHERE MiniTestID = @id
+        BE->>DB: 14. UPDATE MiniTests<br/>SET ContentStatus = 'PendingReview'<br/>WHERE MiniTestID = @id
 
-        BE->>DB: 13. INSERT ContentReviewLogs<br/>(AdminUserID: NULL, EntityType: 'MiniTest',<br/>EntityID: @id, Action: 'Submit',<br/>Reason: NULL, CreatedAt: NOW)
+        BE->>DB: 15. INSERT ContentReviewLogs<br/>(AdminUserID: NULL, EntityType: 'MiniTest',<br/>EntityID: @id, Action: 'Submit',<br/>Reason: NULL, CreatedAt: NOW)
 
-        BE->>DB: 14. INSERT Notification<br/>(UserID: all Admins,<br/>Type: 'CONTENT_REVIEW',<br/>Message: 'Creator đã gửi Mini Test ...')
+        BE->>DB: 16. INSERT Notification<br/>(UserID: all Admins,<br/>Type: 'CONTENT_REVIEW',<br/>Message: 'Creator đã gửi Mini Test ...')
 
         DB-->>BE: Xác nhận
         deactivate DB
-
-        BE-->>API: 200 {message: "Đã gửi yêu cầu duyệt"}
+        BE-->>API: 200 {message: "Đã gửi duyệt"}
         deactivate BE
         API-->>FE: Response
         deactivate API
         FE-->>User: Hiển thị thông báo thành công
+    end
+    deactivate FE
+
+
+    Note over User, DB: === LUỒNG PHỤ 3: ADMIN DUYỆT / TỪ CHỐI ===
+
+    Admin->>FE: 17. Vào admin/content-review → Chọn Mini Test
+    FE->>API: GET /api/admin/content-review/pending
+    API->>BE: GET /api/admin/content-review/pending
+    BE->>BE: verifyToken → checkAnyPermission(['REVIEW_CONTENT', 'PUBLISH_CONTENT', 'MANAGE_SYSTEM_SETTINGS'])
+    BE->>DB: SELECT pending content list
+    DB-->>BE: Danh sách
+
+    alt Admin "Approve"
+        Admin->>FE: Nhấn "Duyệt"
+        FE->>API: POST /api/admin/content-review/MiniTest/:id/approve
+        API->>BE: POST /api/admin/content-review/MiniTest/:id/approve
+        BE->>BE: checkAnyPermission(['REVIEW_CONTENT', 'PUBLISH_CONTENT', 'MANAGE_SYSTEM_SETTINGS'])
+        BE->>DB: UPDATE MiniTests SET ContentStatus='Published', IsPublished=1,<br/>ReviewedByUserID=@adminId, PublishedAt=NOW
+        BE->>DB: INSERT ContentReviewLogs (Action: 'Approve')
+        BE->>DB: INSERT Notification cho Creator
+        DB-->>BE: OK
+        BE-->>API: 200 {message: "Đã duyệt"}
+    else Admin "Reject"
+        Admin->>FE: Nhập lý do → Nhấn "Từ chối"
+        FE->>API: POST /api/admin/content-review/MiniTest/:id/reject
+        API->>BE: POST /api/admin/content-review/MiniTest/:id/reject<br/>{reason}
+        BE->>BE: checkAnyPermission(['REVIEW_CONTENT', 'PUBLISH_CONTENT', 'MANAGE_SYSTEM_SETTINGS'])
+        BE->>DB: UPDATE MiniTests SET ContentStatus='Rejected'
+        BE->>DB: INSERT ContentReviewLogs (Action: 'Reject', Reason)
+        BE->>DB: INSERT Notification cho Creator
+        DB-->>BE: OK
+        BE-->>API: 200 {message: "Đã từ chối"}
     end
 
     deactivate FE

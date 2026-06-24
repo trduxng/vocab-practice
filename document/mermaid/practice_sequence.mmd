@@ -7,19 +7,19 @@ sequenceDiagram
 
     Note over User, DB: === LUỒNG 1: LẤY FLASHCARD ===
 
-    User->>FE: 1. Mở trang Practice<br/>(/user/practice)
+    User->>FE: 1. Mở trang Practice<br/>(/user/practice) hoặc Learn (/user/learn/[topicId])
     activate FE
 
-    FE->>API: 2. GET /api/user/flashcards<br/>Authorization: Bearer {token}
+    FE->>API: 2. GET /api/user/flashcards[?topicId=&mode=]
     activate API
-    API->>BE: GET /api/user/flashcards
+    API->>BE: GET /api/user/flashcards[?topicId=&mode=]
     activate BE
 
     BE->>BE: 3. verifyToken middleware<br/>Giải mã JWT → req.user.id
 
-    BE->>DB: 4. SELECT TOP 15 q.QuestionID, q.QuestionType,<br/>        q.QuestionText, q.OptionsJson,<br/>        w.WordID, w.Term, w.Meaning,<br/>        uwp.MasteryLevel, uwp.MemoryStatus<br/>FROM Questions q<br/>JOIN Words w ON w.WordID = q.WordID<br/>LEFT JOIN UserWordProgress uwp<br/>  ON uwp.WordID = w.WordID<br/>  AND uwp.UserID = @userId<br/>WHERE uwp.NextReviewDate IS NULL<br/>   OR uwp.NextReviewDate <= GETDATE()<br/>ORDER BY uwp.MasteryLevel ASC, NEWID()
+    BE->>DB: 4. Query lấy Due Flashcards<br/>- Lấy SRSReviewLimit từ Users (mặc định 15)<br/>- JOIN Words, Questions, ExampleSentences, UserWordProgress<br/>- Filter: words published, due for review (NextReviewDate <= NOW)<br/>- Hỗ trợ topic filter, mode filter (new/learned/all)<br/>- OUTER APPLY cho 1 question + 1 example sentence mỗi word<br/>- ORDER BY: due first, mastery level ASC, NEWID()
     activate DB
-    DB-->>BE: Flashcard list (tối đa 15 câu)
+    DB-->>BE: Flashcard list (tối đa SRSReviewLimit câu)
     deactivate DB
 
     alt Không có từ cần ôn tập
@@ -27,56 +27,88 @@ sequenceDiagram
         API-->>FE: Response
         FE-->>User: Hiển thị thông báo "Không có từ cần ôn"
     else Có flashcards
-        BE-->>API: 200 {flashcards: [...]}
+        BE-->>API: 200 {flashcards: [{questionId, questionType, questionText,<br/>optionsJson, phonetic, meaning, term,<br/>audioUrlUK, audioUrlUS, imageUrl, wordId,<br/>partOfSpeechName, masteryLevel, memoryStatus,<br/>repetitionCount, exampleSentence, exampleMeaning}]}
         deactivate BE
         API-->>FE: Response
         deactivate API
-        FE-->>User: 5. Hiển thị flashcard từng câu<br/>Kèm đáp án lựa chọn / ô nhập liệu
+        FE-->>User: 5. Hiển thị flashcard từng câu<br/>Kèm đáp án lựa chọn / ô nhập liệu<br/>Hiển thị phonetic, audio, example sentence
     end
 
-    Note over User, DB: === LUỒNG 2: NỘP CÂU TRẢ LỜI ===
+    Note over User, DB: === LUỒNG 2: NỘP CÂU TRẢ LỜI (SRS Rating 4 mức) ===
 
-    User->>FE: 6. Chọn/điền đáp án → Nhấn "Nộp bài"
+    User->>FE: 6. Chọn/điền đáp án → Chọn mức độ nhớ<br/>(Again=1XP / Hard=3XP / Good=5XP / Easy=10XP)
 
-    FE->>API: 7. POST /api/user/submit-answer<br/>{questionId, submittedAnswer}
+    FE->>API: 7. POST /api/user/submit-answer<br/>{questionId, submittedAnswer, reviewRating}
     activate API
     API->>BE: POST /api/user/submit-answer
     activate BE
 
     BE->>BE: 8. verifyToken → req.user.id
 
-    BE->>DB: 9. EXEC usp_SubmitQuestionAttempt<br/>@UserID = @userId,<br/>@QuestionID = @questionId,<br/>@SubmittedAnswer = @answer
+    BE->>DB: 9a. Kiểm tra Question tồn tại & published
     activate DB
+    DB-->>BE: WordID
 
-    Note over DB: Stored Procedure xử lý ACID:
-
-    DB->>DB: 9a. SELECT Question<br/>Lấy WordID, CorrectAnswer, QuestionType
-    DB->>DB: 9b. So sánh đáp án<br/>(case-insensitive, trim)
-
-    alt Đáp án ĐÚNG
-        DB->>DB: 9c. UPSERT UserWordProgress:<br/>MasteryLevel + 1 (max 10)<br/>EaseFactor + 0.10 (max 3.50)<br/>RepetitionCount + 1<br/>Reset ConsecutiveWrong
-        DB->>DB: 9d. Tính NextReviewDate:<br/>interval tăng dần<br/>MemoryStatus = 'Reviewing'/'Mastered'
-    else Đáp án SAI
-        DB->>DB: 9c. UPSERT UserWordProgress:<br/>MasteryLevel - 1 (min 0)<br/>EaseFactor - 0.20 (min 1.30)<br/>Reset RepetitionCount<br/>ConsecutiveWrong + 1
-        DB->>DB: 9d. NextReviewDate = NOW + 30 phút<br/>MemoryStatus = 'Lapsed'
-    end
-
-    DB->>DB: 9e. INSERT ExerciseAttempts<br/>(UserID, QuestionID, WordID,<br/>SubmittedAnswer, IsCorrect,<br/>ScoreAwarded, AttemptedAt)
-
-    DB-->>BE: Kết quả: {isCorrect, correctAnswer,<br/>newMasteryLevel, xpAwarded}
+    BE->>DB: 9b. EXEC usp_SubmitQuestionAttempt<br/>@UserID = @userId,<br/>@QuestionID = @questionId,<br/>@SubmittedAnswer = @answer
+    Note over DB: Stored Procedure xử lý:
+    DB->>DB: compareAnswer() case-insensitive
+    DB->>DB: upsert UserWordProgress<br/>(MasteryLevel +/- 1, EaseFactor +/- 0.20)
+    DB->>DB: insert ExerciseAttempts
+    DB-->>BE: {isCorrect, correctAnswer, xpAwarded, ...}
     deactivate DB
 
-    BE-->>API: 200 {isCorrect, correctAnswer,<br/>explanation, newMasteryLevel, xpAwarded}
+    Note over BE: Xử lý ReviewRating (Again/Hard/Good/Easy)
+    BE->>DB: 10. UPDATE UserWordProgress theo reviewRating<br/>Again: EaseFactor -0.20(min 1.30), NextReview +10 phút<br/>Hard: EaseFactor -0.05(min 1.30), NextReview +1 ngày<br/>Good: EaseFactor +0.05(max 3.00), NextReview theo MasteryLevel<br/>Easy: EaseFactor +0.15(max 3.00), NextReview xa hơn
+    activate DB
+    DB-->>BE: {nextReviewDate, memoryStatus, masteryLevel}
+    deactivate DB
+
+    Note over BE: Tính XP theo rating + Gamification
+    BE->>BE: awardXP(userId, {eventType:'LearnWord',<br/>amount: Again=1/Hard=3/Good=5/Easy=10,<br/>sourceKey: unique daily key})
+
+    BE-->>API: 200 {isCorrect, correctAnswer, explanation,<br/>newMasteryLevel, xpGained, reviewRating,<br/>nextReviewDate, memoryStatus,<br/>gamification: {achievements, streak}}
     deactivate BE
     API-->>FE: Response
     deactivate API
 
-    FE->>User: 10. Hiển thị kết quả:<br/>✓ Đúng / ✗ Sai<br/>Đáp án đúng + giải thích<br/>+XP: +5 / +10
+    FE->>User: 11. Hiển thị kết quả:<br/>✓ Đúng / ✗ Sai<br/>Đáp án đúng + giải thích<br/>XP nhận được: 1/3/5/10<br/>Cập nhật streak & achievements
 
     alt Còn câu hỏi tiếp theo
         FE-->>User: Chuyển sang flashcard tiếp theo
     else Hết phiên luyện tập
-        FE-->>User: Hiển thị Session Summary:<br/>Số câu đúng/sai, tổng XP,<br/>độ chính xác
+        FE->>API: GET /api/user/review/session-summary
+        API->>BE: GET /api/user/review/session-summary
+        BE->>DB: Query thống kê phiên học
+        DB-->>BE: Dữ liệu
+        BE-->>API: 200 {totalQuestions, correctCount, accuracy, totalXP,<br/>streakExtended, achievementsUnlocked, timeSpent}
+        API-->>FE: Response
+        FE-->>User: Hiển thị Session Summary:<br/>Số câu đúng/sai, tổng XP, độ chính xác,<br/>streak mới, achievements
     end
 
     deactivate FE
+
+
+    Note over User, DB: === LUỒNG 3: SMART REVIEW QUEUE ===
+
+    User->>FE: 12. Mở Smart Review Queue
+    FE->>API: GET /api/user/review/smart-queue
+    API->>BE: GET /api/user/review/smart-queue
+    BE->>BE: verifyToken
+    BE->>DB: SELECT words due for review in next 7 days<br/>FROM UserWordProgress WHERE UserID=@id<br/>ORDER BY priorityScore DESC (overdue * consecutiveWrong bonus)
+    DB-->>BE: Danh sách từ cần ôn ưu tiên
+    BE-->>API: 200 {words: [...]}
+    API-->>FE: Response
+    FE-->>User: Hiển thị danh sách từ ưu tiên ôn tập
+
+
+    Note over User, DB: === LUỒNG 4: REVIEW TỪ SAI ===
+
+    User->>FE: 13. Mở Mistake Review Queue
+    FE->>API: GET /api/user/review/mistakes
+    API->>BE: GET /api/user/review/mistakes
+    BE->>BE: verifyToken
+    BE->>DB: SELECT words with ConsecutiveWrong > 0<br/>OR MemoryStatus = 'Lapsed'
+    DB-->>BE: Danh sách từ sai
+    BE-->>API: 200 {words: [...]}
+    API-->>FE: Response
+    FE-->>User: Hiển thị danh sách từ cần ôn lại
