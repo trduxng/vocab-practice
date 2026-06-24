@@ -93,45 +93,45 @@ class ReviewService {
         `);
 
       // Gửi notification cho Creator
-      const req3 = new sql.Request(transaction);
-      const creatorResult = await req3
-        .input('EntityID', sql.BigInt, entityId)
-        .query(`
-          DECLARE @CreatorID BIGINT;
-          DECLARE @Title NVARCHAR(200);
-          DECLARE @EntityName NVARCHAR(200);
+      let creatorId = null;
+      let title = '';
+      const req3 = new sql.Request(transaction).input('EntityID', sql.BigInt, entityId);
 
-          IF '${e.type}' = 'Topic'
-          BEGIN
-            SELECT @CreatorID = CreatedByUserID, @EntityName = TopicName
-            FROM Topics WHERE ${e.idCol} = @EntityID;
-            SET @Title = N'Topic "' + @EntityName + N'" đã được duyệt';
-          END
-          ELSE IF '${e.type}' = 'Word'
-          BEGIN
-            SELECT @CreatorID = CreatedByUserID, @EntityName = Term
-            FROM Words WHERE ${e.idCol} = @EntityID;
-            SET @Title = N'Từ "' + @EntityName + N'" đã được duyệt';
-          END
-          ELSE IF '${e.type}' = 'Question'
-          BEGIN
-            SELECT @CreatorID = CreatedByUserID, @EntityName = QuestionText
-            FROM Questions WHERE ${e.idCol} = @EntityID;
-            SET @Title = N'Câu hỏi "' + LEFT(@EntityName, 50) + N'" đã được duyệt';
-          END
-          ELSE IF '${e.type}' = 'MiniTest'
-          BEGIN
-            SELECT @CreatorID = CreatedByUserID, @EntityName = TestTitle
-            FROM MiniTests WHERE ${e.idCol} = @EntityID;
-            SET @Title = N'Bài test "' + @EntityName + N'" đã được duyệt';
-          END
+      if (e.type === 'Topic') {
+        const creatorResult = await req3.query(`SELECT CreatedByUserID, TopicName FROM Topics WHERE TopicID = @EntityID`);
+        if (creatorResult.recordset.length > 0) {
+          creatorId = creatorResult.recordset[0].CreatedByUserID;
+          title = `Topic "${creatorResult.recordset[0].TopicName}" đã được duyệt`;
+        }
+      } else if (e.type === 'Word') {
+        const creatorResult = await req3.query(`SELECT CreatedByUserID, Term FROM Words WHERE WordID = @EntityID`);
+        if (creatorResult.recordset.length > 0) {
+          creatorId = creatorResult.recordset[0].CreatedByUserID;
+          title = `Từ "${creatorResult.recordset[0].Term}" đã được duyệt`;
+        }
+      } else if (e.type === 'Question') {
+        const creatorResult = await req3.query(`SELECT CreatedByUserID, QuestionText FROM Questions WHERE QuestionID = @EntityID`);
+        if (creatorResult.recordset.length > 0) {
+          creatorId = creatorResult.recordset[0].CreatedByUserID;
+          title = `Câu hỏi "${creatorResult.recordset[0].QuestionText.substring(0, 50)}" đã được duyệt`;
+        }
+      } else if (e.type === 'MiniTest') {
+        const creatorResult = await req3.query(`SELECT CreatedByUserID, TestTitle FROM MiniTests WHERE MiniTestID = @EntityID`);
+        if (creatorResult.recordset.length > 0) {
+          creatorId = creatorResult.recordset[0].CreatedByUserID;
+          title = `Bài test "${creatorResult.recordset[0].TestTitle}" đã được duyệt`;
+        }
+      }
 
-          IF @CreatorID IS NOT NULL
-          BEGIN
+      if (creatorId) {
+        await new sql.Request(transaction)
+          .input('UserID', sql.BigInt, creatorId)
+          .input('Title', sql.NVarChar(200), title)
+          .query(`
             INSERT INTO Notifications (UserID, Title, Message, Type, DeliveryChannel)
-            VALUES (@CreatorID, @Title, N'Nội dung của bạn đã được admin phê duyệt và xuất bản.', 'Announcement', 'InApp');
-          END
-        `);
+            VALUES (@UserID, @Title, N'Nội dung của bạn đã được admin phê duyệt và xuất bản.', 'Announcement', 'InApp')
+          `);
+      }
 
       await transaction.commit();
       return true;
@@ -182,51 +182,51 @@ class ReviewService {
         `);
 
       // Gửi notification cho Creator
-      const req3 = new sql.Request(transaction);
-      await req3
-        .input('EntityID', sql.BigInt, entityId)
-        .input('RejectReason', sql.NVarChar(2000), reason || null)
-        .query(`
-          DECLARE @CreatorID BIGINT;
-          DECLARE @Title NVARCHAR(200);
-          DECLARE @EntityName NVARCHAR(200);
-          DECLARE @Msg NVARCHAR(500);
+      let creatorId = null;
+      let title = '';
+      const req3 = new sql.Request(transaction).input('EntityID', sql.BigInt, entityId);
 
-          IF '${e.type}' = 'Topic'
-          BEGIN
-            SELECT @CreatorID = CreatedByUserID, @EntityName = TopicName
-            FROM Topics WHERE ${e.idCol} = @EntityID;
-            SET @Title = N'Topic "' + @EntityName + N'" bị từ chối';
-          END
-          ELSE IF '${e.type}' = 'Word'
-          BEGIN
-            SELECT @CreatorID = CreatedByUserID, @EntityName = Term
-            FROM Words WHERE ${e.idCol} = @EntityID;
-            SET @Title = N'Từ "' + @EntityName + N'" bị từ chối';
-          END
-          ELSE IF '${e.type}' = 'Question'
-          BEGIN
-            SELECT @CreatorID = CreatedByUserID, @EntityName = QuestionText
-            FROM Questions WHERE ${e.idCol} = @EntityID;
-            SET @Title = N'Câu hỏi bị từ chối';
-          END
-          ELSE IF '${e.type}' = 'MiniTest'
-          BEGIN
-            SELECT @CreatorID = CreatedByUserID, @EntityName = TestTitle
-            FROM MiniTests WHERE ${e.idCol} = @EntityID;
-            SET @Title = N'Bài test "' + @EntityName + N'" bị từ chối';
-          END
+      if (e.type === 'Topic') {
+        const creatorResult = await req3.query(`SELECT CreatedByUserID, TopicName FROM Topics WHERE TopicID = @EntityID`);
+        if (creatorResult.recordset.length > 0) {
+          creatorId = creatorResult.recordset[0].CreatedByUserID;
+          title = `Topic "${creatorResult.recordset[0].TopicName}" bị từ chối`;
+        }
+      } else if (e.type === 'Word') {
+        const creatorResult = await req3.query(`SELECT CreatedByUserID, Term FROM Words WHERE WordID = @EntityID`);
+        if (creatorResult.recordset.length > 0) {
+          creatorId = creatorResult.recordset[0].CreatedByUserID;
+          title = `Từ "${creatorResult.recordset[0].Term}" bị từ chối`;
+        }
+      } else if (e.type === 'Question') {
+        const creatorResult = await req3.query(`SELECT CreatedByUserID, QuestionText FROM Questions WHERE QuestionID = @EntityID`);
+        if (creatorResult.recordset.length > 0) {
+          creatorId = creatorResult.recordset[0].CreatedByUserID;
+          title = `Câu hỏi bị từ chối`;
+        }
+      } else if (e.type === 'MiniTest') {
+        const creatorResult = await req3.query(`SELECT CreatedByUserID, TestTitle FROM MiniTests WHERE MiniTestID = @EntityID`);
+        if (creatorResult.recordset.length > 0) {
+          creatorId = creatorResult.recordset[0].CreatedByUserID;
+          title = `Bài test "${creatorResult.recordset[0].TestTitle}" bị từ chối`;
+        }
+      }
 
-          SET @Msg = N'Nội dung của bạn đã bị từ chối.';
-          IF @RejectReason IS NOT NULL
-            SET @Msg = @Msg + N' Lý do: ' + @RejectReason;
+      if (creatorId) {
+        let msg = 'Nội dung của bạn đã bị từ chối.';
+        if (reason) {
+          msg += ' Lý do: ' + reason;
+        }
 
-          IF @CreatorID IS NOT NULL
-          BEGIN
+        await new sql.Request(transaction)
+          .input('UserID', sql.BigInt, creatorId)
+          .input('Title', sql.NVarChar(200), title)
+          .input('Msg', sql.NVarChar(500), msg)
+          .query(`
             INSERT INTO Notifications (UserID, Title, Message, Type, DeliveryChannel)
-            VALUES (@CreatorID, @Title, @Msg, 'Announcement', 'InApp');
-          END
-        `);
+            VALUES (@UserID, @Title, @Msg, 'Announcement', 'InApp')
+          `);
+      }
 
       await transaction.commit();
       return true;

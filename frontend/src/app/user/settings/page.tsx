@@ -19,12 +19,25 @@ import { Input } from "@/src/components/ui/input";
 export default function UserSettingsPage() {
   const { user, logout } = useAuth();
   const [fullName, setFullName] = useState(user?.fullName || "");
+  const [email, setEmail] = useState(user?.email || "");
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
   const [goalLoading, setGoalLoading] = useState(true);
   const [dailyWordGoal, setDailyWordGoal] = useState(20);
   const [srsReviewLimit, setSrsReviewLimit] = useState(15);
   const [savingGoal, setSavingGoal] = useState(false);
   const [savingSrs, setSavingSrs] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setFullName(user.fullName || "");
+      setEmail(user.email || "");
+    }
+  }, [user]);
 
   // Load daily goal and SRS config from backend
   useEffect(() => {
@@ -77,23 +90,52 @@ export default function UserSettingsPage() {
     setLoading(true);
 
     try {
-      await userService.updateProfile({ fullName });
+      await userService.updateProfile({ fullName, email });
       toast.success(
         "Cập nhật thông tin thành công. Vui lòng đăng nhập lại để làm mới phiên làm việc.",
       );
     } catch (error) {
       console.error("Failed to update profile", error);
-      toast.error("Không thể cập nhật thông tin tài khoản.");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      toast.error((error as any).response?.data?.message || "Không thể cập nhật thông tin tài khoản.");
     } finally {
       setLoading(false);
     }
   };
 
+  const handleChangePassword = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (newPassword.length < 6) {
+      toast.error("Mật khẩu mới phải có ít nhất 6 ký tự!");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Mật khẩu mới nhập lại không khớp!");
+      return;
+    }
+    setPasswordLoading(true);
+    try {
+      await userService.changePassword({ oldPassword, newPassword });
+      toast.success("Thay đổi mật khẩu thành công!");
+      setOldPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error) {
+      console.error("Failed to change password", error);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      toast.error((error as any).response?.data?.message || "Không thể thay đổi mật khẩu.");
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const topbarRole = user?.role === "Admin" ? "admin" : user?.role === "ContentCreator" ? "creator" : "student";
+
   return (
     <div className="flex-1 flex flex-col bg-slate-100 dark:bg-slate-950">
       <Topbar
         title="Cài đặt tài khoản"
-        role="student"
+        role={topbarRole}
         userName={user?.fullName}
       />
 
@@ -125,9 +167,9 @@ export default function UserSettingsPage() {
                 </div>
               </div>
 
-              <div className="space-y-2 opacity-50 cursor-not-allowed">
+              <div className="space-y-2">
                 <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">
-                  Email không thể thay đổi
+                  Địa chỉ Email
                 </label>
                 <div className="relative">
                   <Mail
@@ -135,9 +177,11 @@ export default function UserSettingsPage() {
                     size={16}
                   />
                   <Input
-                    value={user?.email || ""}
-                    disabled
-                    className="dark:bg-white/5 bg-slate-100 border-slate-200 dark:border-white/10 h-12 pl-10 rounded-xl text-slate-500"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    type="email"
+                    className="dark:bg-white/5 bg-white border-slate-200 dark:border-white/10 h-12 pl-10 rounded-xl text-slate-900 dark:text-white"
+                    required
                   />
                 </div>
               </div>
@@ -153,7 +197,7 @@ export default function UserSettingsPage() {
                   />
                   <Input
                     value={
-                      user?.role === "Learner" ? "Người học" : user?.role || ""
+                      user?.role === "Learner" ? "Người học" : user?.role === "ContentCreator" ? "Người tạo nội dung" : user?.role === "Admin" ? "Quản trị viên" : user?.role || ""
                     }
                     disabled
                     className="dark:bg-white/5 bg-slate-100 border-slate-200 dark:border-white/10 h-12 pl-10 rounded-xl text-slate-500"
@@ -177,123 +221,188 @@ export default function UserSettingsPage() {
         <Card className="bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-[32px] overflow-hidden shadow-sm">
           <CardHeader className="p-8 border-b border-slate-200 dark:border-white/5 dark:bg-white/[0.02] bg-slate-50">
             <CardTitle className="text-slate-900 dark:text-white text-lg font-black uppercase tracking-widest flex items-center gap-3">
-              <Target
-                size={20}
-                className="text-emerald-600 dark:text-emerald-400"
-              />{" "}
-              Mục tiêu học tập
+              <Shield size={20} className="text-blue-600 dark:text-blue-400" />{" "}
+              Thay đổi mật khẩu
             </CardTitle>
           </CardHeader>
           <CardContent className="p-8">
-            <div className="space-y-6">
+            <form onSubmit={handleChangePassword} className="space-y-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">
-                  Mục tiêu từ vựng mỗi ngày
+                  Mật khẩu cũ
                 </label>
-                <div className="flex items-center gap-4">
-                  <input
-                    type="range"
-                    min={5}
-                    max={100}
-                    step={5}
-                    value={dailyWordGoal}
-                    onChange={(e) =>
-                      handleGoalChange(parseInt(e.target.value, 10))
-                    }
-                    className="flex-1 h-2 rounded-full appearance-none bg-slate-200 dark:bg-white/10 accent-emerald-500 cursor-pointer"
-                  />
-                  <span className="text-slate-900 dark:text-white font-black text-2xl min-w-[3rem] text-center">
-                    {dailyWordGoal}
-                  </span>
-                </div>
-                <div className="flex justify-between text-[10px] text-slate-500 dark:text-slate-400">
-                  <span>5 từ</span>
-                  <span>100 từ</span>
-                </div>
+                <Input
+                  type="password"
+                  value={oldPassword}
+                  onChange={(event) => setOldPassword(event.target.value)}
+                  className="dark:bg-white/5 bg-white border-slate-200 dark:border-white/10 h-12 px-4 rounded-xl text-slate-900 dark:text-white"
+                  required
+                />
               </div>
-              <div className="flex items-center gap-2 mt-2">
-                {goalLoading ? (
-                  <span className="text-[10px] text-slate-500"><RefreshCw size={12} className="inline animate-spin mr-1" />Đang tải...</span>
-                ) : (
-                  <span className="text-[10px] text-emerald-500 font-medium">
-                    <Save size={10} className="inline mr-1" />
-                    {savingGoal ? "Đang đồng bộ..." : "Đã đồng bộ với máy chủ"}
-                  </span>
-                )}
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">
+                  Mật khẩu mới
+                </label>
+                <Input
+                  type="password"
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                  className="dark:bg-white/5 bg-white border-slate-200 dark:border-white/10 h-12 px-4 rounded-xl text-slate-900 dark:text-white"
+                  required
+                />
               </div>
-            </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">
+                  Xác nhận mật khẩu mới
+                </label>
+                <Input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  className="dark:bg-white/5 bg-white border-slate-200 dark:border-white/10 h-12 px-4 rounded-xl text-slate-900 dark:text-white"
+                  required
+                />
+              </div>
+
+              <div className="pt-4 flex gap-4">
+                <Button
+                  type="submit"
+                  disabled={passwordLoading}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 h-12 rounded-xl font-bold uppercase text-xs tracking-widest gap-2"
+                >
+                  <Save size={16} /> {passwordLoading ? "Đang xử lý..." : "Cập nhật mật khẩu"}
+                </Button>
+              </div>
+            </form>
           </CardContent>
         </Card>
 
-        {/* SRS Config Card */}
-        <Card className="bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-[32px] overflow-hidden shadow-sm">
-          <CardHeader className="p-8 border-b border-slate-200 dark:border-white/5 dark:bg-white/[0.02] bg-slate-50">
-            <CardTitle className="text-slate-900 dark:text-white text-lg font-black uppercase tracking-widest flex items-center gap-3">
-              <Brain
-                size={20}
-                className="text-purple-600 dark:text-purple-400"
-              />{" "}
-              Ôn tập thông minh (SRS)
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-8">
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">
-                  Số thẻ ôn tập mỗi ngày
-                </label>
-                <div className="flex items-center gap-4">
-                  <input
-                    type="range"
-                    min={5}
-                    max={50}
-                    step={5}
-                    value={srsReviewLimit}
-                    onChange={(e) =>
-                      handleSRSChange(parseInt(e.target.value, 10))
-                    }
-                    className="flex-1 h-2 rounded-full appearance-none bg-slate-200 dark:bg-white/10 accent-purple-500 cursor-pointer"
-                  />
-                  <span className="text-slate-900 dark:text-white font-black text-2xl min-w-[3rem] text-center">
-                    {srsReviewLimit}
-                  </span>
+        {user?.role === "Learner" && (
+          <>
+            <Card className="bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-[32px] overflow-hidden shadow-sm">
+              <CardHeader className="p-8 border-b border-slate-200 dark:border-white/5 dark:bg-white/[0.02] bg-slate-50">
+                <CardTitle className="text-slate-900 dark:text-white text-lg font-black uppercase tracking-widest flex items-center gap-3">
+                  <Target
+                    size={20}
+                    className="text-emerald-600 dark:text-emerald-400"
+                  />{" "}
+                  Mục tiêu học tập
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-8">
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">
+                      Mục tiêu từ vựng mỗi ngày
+                    </label>
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="range"
+                        min={5}
+                        max={100}
+                        step={5}
+                        value={dailyWordGoal}
+                        onChange={(e) =>
+                          handleGoalChange(parseInt(e.target.value, 10))
+                        }
+                        className="flex-1 h-2 rounded-full appearance-none bg-slate-200 dark:bg-white/10 accent-emerald-500 cursor-pointer"
+                      />
+                      <span className="text-slate-900 dark:text-white font-black text-2xl min-w-[3rem] text-center">
+                        {dailyWordGoal}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-[10px] text-slate-500 dark:text-slate-400">
+                      <span>5 từ</span>
+                      <span>100 từ</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2">
+                    {goalLoading ? (
+                      <span className="text-[10px] text-slate-500"><RefreshCw size={12} className="inline animate-spin mr-1" />Đang tải...</span>
+                    ) : (
+                      <span className="text-[10px] text-emerald-500 font-medium">
+                        <Save size={10} className="inline mr-1" />
+                        {savingGoal ? "Đang đồng bộ..." : "Đã đồng bộ với máy chủ"}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex justify-between text-[10px] text-slate-500 dark:text-slate-400">
-                  <span>5 thẻ</span>
-                  <span>50 thẻ</span>
-                </div>
-                <div className="flex items-center gap-2 mt-2">
-                  {savingSrs ? (
-                    <span className="text-[10px] text-purple-500 font-medium"><RefreshCw size={12} className="inline animate-spin mr-1" />Đang lưu...</span>
-                  ) : (
-                    <span className="text-[10px] text-emerald-500 font-medium">
-                      <Save size={10} className="inline mr-1" />Đã đồng bộ
-                    </span>
-                  )}
-                </div>
-              </div>
-              <p className="text-xs text-slate-600 dark:text-slate-400 italic">
-                Hệ thống SRS sẽ ưu tiên những từ bạn sắp quên. Số thẻ càng cao, bạn càng ôn được nhiều từ mỗi ngày.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
 
-        {/* Notifications Card */}
-        <Card className="bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-[32px] overflow-hidden shadow-sm">
-          <CardHeader className="p-8 border-b border-slate-200 dark:border-white/5 dark:bg-white/[0.02] bg-slate-50">
-            <CardTitle className="text-slate-900 dark:text-white text-lg font-black uppercase tracking-widest flex items-center gap-3">
-              <Bell
-                size={20}
-                className="text-purple-600 dark:text-purple-400"
-              />{" "}
-              Thông báo
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-8">
-            <StudyReminder />
-          </CardContent>
-        </Card>
+            {/* SRS Config Card */}
+            <Card className="bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-[32px] overflow-hidden shadow-sm">
+              <CardHeader className="p-8 border-b border-slate-200 dark:border-white/5 dark:bg-white/[0.02] bg-slate-50">
+                <CardTitle className="text-slate-900 dark:text-white text-lg font-black uppercase tracking-widest flex items-center gap-3">
+                  <Brain
+                    size={20}
+                    className="text-purple-600 dark:text-purple-400"
+                  />{" "}
+                  Ôn tập thông minh (SRS)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-8">
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">
+                      Số thẻ ôn tập mỗi ngày
+                    </label>
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="range"
+                        min={5}
+                        max={50}
+                        step={5}
+                        value={srsReviewLimit}
+                        onChange={(e) =>
+                          handleSRSChange(parseInt(e.target.value, 10))
+                        }
+                        className="flex-1 h-2 rounded-full appearance-none bg-slate-200 dark:bg-white/10 accent-purple-500 cursor-pointer"
+                      />
+                      <span className="text-slate-900 dark:text-white font-black text-2xl min-w-[3rem] text-center">
+                        {srsReviewLimit}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-[10px] text-slate-500 dark:text-slate-400">
+                      <span>5 thẻ</span>
+                      <span>50 thẻ</span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-2">
+                      {savingSrs ? (
+                        <span className="text-[10px] text-purple-500 font-medium"><RefreshCw size={12} className="inline animate-spin mr-1" />Đang lưu...</span>
+                      ) : (
+                        <span className="text-[10px] text-emerald-500 font-medium">
+                          <Save size={10} className="inline mr-1" />Đã đồng bộ
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 italic">
+                    Hệ thống SRS sẽ ưu tiên những từ bạn sắp quên. Số thẻ càng cao, bạn càng ôn được nhiều từ mỗi ngày.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Notifications Card */}
+            <Card className="bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-[32px] overflow-hidden shadow-sm">
+              <CardHeader className="p-8 border-b border-slate-200 dark:border-white/5 dark:bg-white/[0.02] bg-slate-50">
+                <CardTitle className="text-slate-900 dark:text-white text-lg font-black uppercase tracking-widest flex items-center gap-3">
+                  <Bell
+                    size={20}
+                    className="text-purple-600 dark:text-purple-400"
+                  />{" "}
+                  Thông báo nhắc nhở học
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-8">
+                <StudyReminder />
+              </CardContent>
+            </Card>
+          </>
+        )}
 
         <Card className="bg-red-500/5 border-red-500/20 rounded-[32px] overflow-hidden shadow-sm">
           <CardContent className="p-8 flex items-center justify-between">

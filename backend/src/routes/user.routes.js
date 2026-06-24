@@ -26,6 +26,7 @@ router.get("/minitests/session-details", UserController.getTestSessionDetails);
 router.get("/minitests/:id", UserController.getMiniTestDetails);
 
 router.put("/profile", UserController.updateProfile);
+router.post("/change-password", UserController.changePassword);
 // Batch submit minitest answers
 router.post("/minitests/:id/submit", UserController.submitMiniTest);
 

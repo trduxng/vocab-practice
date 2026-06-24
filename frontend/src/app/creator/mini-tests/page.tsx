@@ -1,6 +1,6 @@
 'use client';
 import React, { useEffect, useState, useCallback } from 'react';
-import { creatorService, MiniTestPayload, MiniTest } from '@/src/services/creator.service';
+import { creatorService, MiniTestPayload, MiniTest, Topic } from '@/src/services/creator.service';
 import { Plus, Pencil, Trash2, Send, Loader2, X } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
@@ -11,6 +11,7 @@ const statusLabels: Record<string, string> = { Draft: 'Bản nháp', PendingRevi
 
 export default function CreatorMiniTestsPage() {
   const [items, setItems] = useState<MiniTest[]>([]);
+  const [topics, setTopics] = useState<Topic[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<MiniTest|null>(null);
@@ -19,16 +20,37 @@ export default function CreatorMiniTestsPage() {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    try { setItems(await creatorService.getMiniTests()); } catch { toast.error('Không thể tải'); } finally { setLoading(false); }
+    try {
+      const [testsRes, topicsRes] = await Promise.all([
+        creatorService.getMiniTests(),
+        creatorService.getTopics()
+      ]);
+      setItems(testsRes);
+      setTopics(topicsRes);
+    } catch {
+      toast.error('Không thể tải dữ liệu');
+    } finally {
+      setLoading(false);
+    }
   }, []);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, [load]);
 
-  const openCreate = () => { setEditing(null); setForm({ title:'', description:'', topicId:0, questionIds:[] }); setQidsInput(''); setShowForm(true); };
-  const openEdit = (t: MiniTest) => { setEditing(t); setForm({ title:t.title, description:t.description||'', topicId:0 }); setShowForm(true); };
+  const openCreate = () => {
+    setEditing(null);
+    setForm({ title:'', description:'', topicId: topics[0]?.id || 0, questionIds:[] });
+    setQidsInput('');
+    setShowForm(true);
+  };
+  const openEdit = (t: MiniTest) => {
+    setEditing(t);
+    setForm({ title:t.title, description:t.description||'', topicId: t.topicId || 0 });
+    setShowForm(true);
+  };
 
   const handleSave = async () => {
     if (!form.title.trim()) { toast.error('Tiêu đề bắt buộc'); return; }
+    if (!form.topicId) { toast.error('Vui lòng chọn một chủ đề'); return; }
     setSaving(true);
     try {
       const payload = { ...form };
@@ -58,7 +80,19 @@ export default function CreatorMiniTestsPage() {
             <div className="flex items-center justify-between"><h2 className="text-lg font-bold">{editing?'Sửa':'Tạo'} bài test</h2><button onClick={()=>setShowForm(false)}><X className="h-5 w-5 text-slate-500"/></button></div>
             <div className="space-y-3">
               <div><label className="text-xs font-semibold text-slate-500 uppercase">Tiêu đề *</label><Input value={form.title} onChange={e=>setForm({...form,title:e.target.value})} className="mt-1"/></div>
-              <div><label className="text-xs font-semibold text-slate-500 uppercase">Topic ID *</label><Input type="number" value={form.topicId} onChange={e=>setForm({...form,topicId:Number(e.target.value)})} className="mt-1"/></div>
+              <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase">Chủ đề (Topic) *</label>
+                <select
+                  value={form.topicId || ''}
+                  onChange={(e) => setForm({ ...form, topicId: Number(e.target.value) })}
+                  className="mt-1 w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800 dark:text-slate-200"
+                >
+                  <option value="">-- Chọn chủ đề --</option>
+                  {topics.map(t => (
+                    <option key={t.id} value={t.id}>{t.name} ({t.code})</option>
+                  ))}
+                </select>
+              </div>
               <div><label className="text-xs font-semibold text-slate-500 uppercase">Mô tả</label><textarea value={form.description} onChange={e=>setForm({...form,description:e.target.value})} rows={2} className="mt-1 w-full rounded-md border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 px-3 py-2 text-sm resize-none"/></div>
               {!editing && <div><label className="text-xs font-semibold text-slate-500 uppercase">Question IDs (phân cách dấu phẩy)</label><Input value={qidsInput} onChange={e=>setQidsInput(e.target.value)} placeholder="1,2,3" className="mt-1"/></div>}
             </div>

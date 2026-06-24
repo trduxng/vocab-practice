@@ -5,15 +5,16 @@ const XP_REWARDS = Object.freeze({
   PracticeComplete: 10,
   MiniTestComplete: 20,
   DailyLogin: 5,
+  AchievementUnlock: 50,
 });
 
 const ACHIEVEMENT_SEED = [
-  ["FIRST_WORD", "First Word", "Learn your first vocabulary word.", "🌱", "WORDS_LEARNED", 1, 1],
-  ["WORDS_100", "First 100 Words", "Learn 100 vocabulary words.", "📚", "WORDS_LEARNED", 100, 2],
-  ["STREAK_7", "7 Day Streak", "Learn for 7 consecutive days.", "🔥", "STREAK_DAYS", 7, 3],
-  ["STREAK_30", "30 Day Streak", "Learn for 30 consecutive days.", "⚡", "STREAK_DAYS", 30, 4],
-  ["TEST_SCORE_90", "Test Ace", "Score at least 90 percent on a mini test.", "🎯", "TEST_SCORE", 90, 5],
-  ["LEVEL_5", "Level Five", "Reach learner level 5.", "🏆", "LEVEL", 5, 6],
+  ["FIRST_WORD", "First Word", "Learn your first vocabulary word.", "🌱", "WORDS_LEARNED", 1, 1, 10],
+  ["WORDS_100", "First 100 Words", "Learn 100 vocabulary words.", "📚", "WORDS_LEARNED", 100, 2, 100],
+  ["STREAK_7", "7 Day Streak", "Learn for 7 consecutive days.", "🔥", "STREAK_DAYS", 7, 3, 50],
+  ["STREAK_30", "30 Day Streak", "Learn for 30 consecutive days.", "⚡", "STREAK_DAYS", 30, 4, 150],
+  ["TEST_SCORE_90", "Test Ace", "Score at least 90 percent on a mini test.", "🎯", "TEST_SCORE", 90, 5, 50],
+  ["LEVEL_5", "Level Five", "Reach learner level 5.", "🏆", "LEVEL", 5, 6, 100],
 ];
 
 class GamificationService {
@@ -120,8 +121,15 @@ class GamificationService {
           CriteriaValue INT NOT NULL CONSTRAINT CK_Achievements_CriteriaValue CHECK (CriteriaValue > 0),
           DisplayOrder INT NOT NULL,
           IsActive BIT NOT NULL CONSTRAINT DF_Achievements_IsActive DEFAULT (1),
+          XPReward INT NOT NULL CONSTRAINT DF_Achievements_XPReward DEFAULT (50),
           CreatedAt DATETIMEOFFSET(7) NOT NULL CONSTRAINT DF_Achievements_CreatedAt DEFAULT (SYSDATETIMEOFFSET())
         );
+      END;
+
+      IF COL_LENGTH(N'dbo.Achievements', N'XPReward') IS NULL
+      BEGIN
+        ALTER TABLE dbo.Achievements
+          ADD XPReward INT NOT NULL CONSTRAINT DF_Achievements_XPReward DEFAULT (50);
       END;
 
       IF OBJECT_ID(N'dbo.UserAchievements', N'U') IS NULL
@@ -138,7 +146,7 @@ class GamificationService {
     `);
 
     for (const achievement of ACHIEVEMENT_SEED) {
-      const [code, name, description, icon, criteriaType, criteriaValue, displayOrder] = achievement;
+      const [code, name, description, icon, criteriaType, criteriaValue, displayOrder, xpReward] = achievement;
       await pool.request()
         .input("Code", sql.NVarChar(80), code)
         .input("Name", sql.NVarChar(200), name)
@@ -147,6 +155,7 @@ class GamificationService {
         .input("CriteriaType", sql.NVarChar(50), criteriaType)
         .input("CriteriaValue", sql.Int, criteriaValue)
         .input("DisplayOrder", sql.Int, displayOrder)
+        .input("XPReward", sql.Int, xpReward || 50)
         .query(`
           MERGE dbo.Achievements AS target
           USING (SELECT @Code AS Code) AS source
@@ -158,18 +167,19 @@ class GamificationService {
                        CriteriaType = @CriteriaType,
                        CriteriaValue = @CriteriaValue,
                        DisplayOrder = @DisplayOrder,
+                       XPReward = @XPReward,
                        IsActive = 1
           WHEN NOT MATCHED THEN
-            INSERT (Code, Name, Description, Icon, CriteriaType, CriteriaValue, DisplayOrder)
-            VALUES (@Code, @Name, @Description, @Icon, @CriteriaType, @CriteriaValue, @DisplayOrder);
+            INSERT (Code, Name, Description, Icon, CriteriaType, CriteriaValue, DisplayOrder, XPReward)
+            VALUES (@Code, @Name, @Description, @Icon, @CriteriaType, @CriteriaValue, @DisplayOrder, @XPReward);
         `);
     }
   }
 
-  static async awardXP(userId, { eventType, sourceKey = null, metadata = null } = {}) {
+  static async awardXP(userId, { eventType, sourceKey = null, metadata = null, xpAmount = null } = {}) {
     await this.ensureSchema();
-    const amount = XP_REWARDS[eventType];
-    if (!amount) throw new Error(`Unsupported XP event type: ${eventType}`);
+    const amount = xpAmount !== null ? xpAmount : XP_REWARDS[eventType];
+    if (amount === undefined || amount === null) throw new Error(`Unsupported XP event type: ${eventType}`);
 
     const pool = await poolPromise;
     const transaction = new sql.Transaction(pool);
@@ -216,7 +226,7 @@ class GamificationService {
         `);
 
       await transaction.commit();
-      const unlockedAchievements = row.xpGained > 0 ? await this.checkAchievements(userId) : [];
+      const unlockedAchievements = (row.xpGained > 0 && eventType !== "AchievementUnlock") ? await this.checkAchievements(userId) : [];
       return {
         xpEventId: Number(row.xpEventId || 0),
         xpGained: Number(row.xpGained || 0),
@@ -269,8 +279,24 @@ class GamificationService {
 
     const unlockedIds = result.recordset.map((row) => Number(row.id));
     if (unlockedIds.length === 0) return [];
+    
     const allAchievements = await this.getAchievements(userId, profile);
-    return allAchievements.filter((achievement) => unlockedIds.includes(achievement.id));
+    const newlyUnlocked = allAchievements.filter((achievement) => unlockedIds.includes(achievement.id));
+
+    // Award XP for each newly unlocked achievement!
+    for (const ach of newlyUnlocked) {
+      const rewardXP = ach.xpReward || 50;
+      await this.awardXP(userId, {
+        eventType: "AchievementUnlock",
+        sourceKey: `achievement-unlock:${ach.code}`,
+        metadata: { achievementCode: ach.code, achievementName: ach.label },
+        xpAmount: rewardXP,
+      }).catch((err) => {
+        console.error(`[GamificationService.checkAchievements] Error awarding XP for ${ach.code}:`, err);
+      });
+    }
+
+    return newlyUnlocked;
   }
 
   static async getMetrics(userId) {
@@ -335,6 +361,7 @@ class GamificationService {
                a.Icon AS icon,
                a.CriteriaType AS criteriaType,
                a.CriteriaValue AS target,
+               a.XPReward AS xpReward,
                CASE WHEN ua.UserAchievementID IS NULL THEN CAST(0 AS BIT) ELSE CAST(1 AS BIT) END AS unlocked,
                ua.UnlockedAt AS unlockedAt,
                CASE WHEN ua.SeenAt IS NULL THEN CAST(0 AS BIT) ELSE CAST(1 AS BIT) END AS seen

@@ -220,12 +220,17 @@ class CreatorService {
     const page = Math.max(1, parseInt(filters.page) || 1);
     const pageSize = Math.min(100, Math.max(1, parseInt(filters.pageSize) || 50));
     const offset = (page - 1) * pageSize;
+    const topicId = filters.topicId ? Number(filters.topicId) : null;
 
     const req = pool.request().input('UserID', sql.BigInt, userId);
     let where = 'w.CreatedByUserID = @UserID';
     if (filters.status) {
       req.input('Status', sql.NVarChar(20), filters.status);
       where += ' AND w.ContentStatus = @Status';
+    }
+    if (topicId) {
+      req.input('TopicID', sql.BigInt, topicId);
+      where += ' AND EXISTS (SELECT 1 FROM WordTopics wt WHERE wt.WordID = w.WordID AND wt.TopicID = @TopicID)';
     }
 
     const countResult = await req.query(`
@@ -240,6 +245,10 @@ class CreatorService {
     if (filters.status) {
       req2.input('Status', sql.NVarChar(20), filters.status);
       where2 += ' AND w.ContentStatus = @Status';
+    }
+    if (topicId) {
+      req2.input('TopicID', sql.BigInt, topicId);
+      where2 += ' AND EXISTS (SELECT 1 FROM WordTopics wt WHERE wt.WordID = w.WordID AND wt.TopicID = @TopicID)';
     }
 
     const result = await req2.query(`
@@ -257,6 +266,9 @@ class CreatorService {
 
   static async createWord(data, userId) {
     const { term, meaning, phonetic, partOfSpeechId, topicIds, examples } = data;
+    if (!topicIds || !Array.isArray(topicIds) || topicIds.length === 0) {
+      throw new Error('Từ vựng bắt buộc phải được gán vào ít nhất một chủ đề (Topic)');
+    }
     const pool = await poolPromise;
     const transaction = new sql.Transaction(pool);
     try {
@@ -313,6 +325,9 @@ class CreatorService {
 
       for (const data of wordsData) {
         const { term, meaning, phonetic, partOfSpeechId, topicIds, examples } = data;
+        if (!topicIds || !Array.isArray(topicIds) || topicIds.length === 0) {
+          throw new Error('Tất cả từ vựng import bắt buộc phải được gán vào ít nhất một chủ đề (Topic)');
+        }
         
         // 1. Resolve Part of Speech ID
         let resolvedPartOfSpeechId = 1; // Default
@@ -461,12 +476,17 @@ class CreatorService {
     const page = Math.max(1, parseInt(filters.page) || 1);
     const pageSize = Math.min(100, Math.max(1, parseInt(filters.pageSize) || 50));
     const offset = (page - 1) * pageSize;
+    const topicId = filters.topicId ? Number(filters.topicId) : null;
 
     const req = pool.request().input('UserID', sql.BigInt, userId);
     let where = 'q.CreatedByUserID = @UserID';
     if (filters.status) {
       req.input('Status', sql.NVarChar(20), filters.status);
       where += ' AND q.ContentStatus = @Status';
+    }
+    if (topicId) {
+      req.input('TopicID', sql.BigInt, topicId);
+      where += ' AND EXISTS (SELECT 1 FROM WordTopics wt WHERE wt.WordID = q.WordID AND wt.TopicID = @TopicID)';
     }
 
     const countResult = await req.query(`
@@ -481,6 +501,10 @@ class CreatorService {
     if (filters.status) {
       req2.input('Status', sql.NVarChar(20), filters.status);
       where2 += ' AND q.ContentStatus = @Status';
+    }
+    if (topicId) {
+      req2.input('TopicID', sql.BigInt, topicId);
+      where2 += ' AND EXISTS (SELECT 1 FROM WordTopics wt WHERE wt.WordID = q.WordID AND wt.TopicID = @TopicID)';
     }
 
     const result = await req2.query(`
@@ -501,6 +525,20 @@ class CreatorService {
   static async createQuestion(data, userId) {
     const { wordId, questionType, questionText, optionsJson, correctAnswer, explanation } = data;
     const pool = await poolPromise;
+    
+    // Check if the word exists, belongs to a topic, and is owned by/accessible to the creator
+    const wordCheck = await pool.request()
+      .input('WordID', sql.BigInt, wordId)
+      .input('UserID', sql.BigInt, userId)
+      .query(`
+        SELECT w.WordID FROM Words w
+        JOIN WordTopics wt ON w.WordID = wt.WordID
+        WHERE w.WordID = @WordID AND w.CreatedByUserID = @UserID
+      `);
+    if (wordCheck.recordset.length === 0) {
+      throw new Error('Từ vựng không hợp lệ hoặc không thuộc về chủ đề nào do bạn quản lý');
+    }
+
     const result = await pool.request()
       .input('WordID', sql.BigInt, wordId)
       .input('QuestionType', sql.NVarChar(30), questionType)
@@ -522,6 +560,20 @@ class CreatorService {
   static async updateQuestion(id, data, userId) {
     const { wordId, questionType, questionText, optionsJson, correctAnswer, explanation } = data;
     const pool = await poolPromise;
+
+    // Check if the word exists, belongs to a topic, and is owned by/accessible to the creator
+    const wordCheck = await pool.request()
+      .input('WordID', sql.BigInt, wordId)
+      .input('UserID', sql.BigInt, userId)
+      .query(`
+        SELECT w.WordID FROM Words w
+        JOIN WordTopics wt ON w.WordID = wt.WordID
+        WHERE w.WordID = @WordID AND w.CreatedByUserID = @UserID
+      `);
+    if (wordCheck.recordset.length === 0) {
+      throw new Error('Từ vựng không hợp lệ hoặc không thuộc về chủ đề nào do bạn quản lý');
+    }
+
     const result = await pool.request()
       .input('QuestionID', sql.BigInt, id)
       .input('UserID', sql.BigInt, userId)
@@ -579,7 +631,7 @@ class CreatorService {
 
     const result = await req2.query(`
       SELECT mt.MiniTestID AS id, mt.TestTitle AS title, mt.Description AS description,
-             t.TopicName AS topicName, mt.TotalQuestions AS totalQuestions,
+             mt.TopicID AS topicId, t.TopicName AS topicName, mt.TotalQuestions AS totalQuestions,
              mt.IsPublished AS isPublished, mt.ContentStatus AS contentStatus,
              mt.CreatedAt AS createdAt
       FROM MiniTests mt
@@ -593,7 +645,19 @@ class CreatorService {
 
   static async createMiniTest(data, userId) {
     const { title, description, topicId, questionIds } = data;
+    if (!topicId) {
+      throw new Error('Bài test bắt buộc phải gắn liền với một chủ đề (Topic)');
+    }
     const pool = await poolPromise;
+    // Check if the topic exists and belongs to the creator
+    const topicCheck = await pool.request()
+      .input('TopicID', sql.BigInt, topicId)
+      .input('UserID', sql.BigInt, userId)
+      .query(`SELECT TopicID FROM Topics WHERE TopicID = @TopicID AND CreatedByUserID = @UserID`);
+    if (topicCheck.recordset.length === 0) {
+      throw new Error('Chủ đề (Topic) không hợp lệ hoặc không thuộc quyền sở hữu của bạn');
+    }
+
     const transaction = new sql.Transaction(pool);
     try {
       await transaction.begin();
@@ -632,7 +696,19 @@ class CreatorService {
 
   static async updateMiniTest(id, data, userId) {
     const { title, description, topicId } = data;
+    if (!topicId) {
+      throw new Error('Bài test bắt buộc phải gắn liền với một chủ đề (Topic)');
+    }
     const pool = await poolPromise;
+    // Check if the topic exists and belongs to the creator
+    const topicCheck = await pool.request()
+      .input('TopicID', sql.BigInt, topicId)
+      .input('UserID', sql.BigInt, userId)
+      .query(`SELECT TopicID FROM Topics WHERE TopicID = @TopicID AND CreatedByUserID = @UserID`);
+    if (topicCheck.recordset.length === 0) {
+      throw new Error('Chủ đề (Topic) không hợp lệ hoặc không thuộc quyền sở hữu của bạn');
+    }
+
     const result = await pool.request()
       .input('MiniTestID', sql.BigInt, id)
       .input('UserID', sql.BigInt, userId)

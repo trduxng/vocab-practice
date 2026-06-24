@@ -54,11 +54,7 @@ router.get('/students/:id/progress', checkPermission('MANAGE_USERS'), AdminContr
 router.get('/analytics', checkAnyPermission(['VIEW_ANALYTICS', 'VIEW_DASHBOARD']), AdminController.getAnalytics);
 router.get('/content-management', checkAnyPermission(['VIEW_DASHBOARD', 'MANAGE_TOPICS', 'MANAGE_WORDS', 'MANAGE_QUESTIONS', 'MANAGE_TESTS']), AdminController.getContentManagement);
 router.patch('/content-status', checkAnyPermission(['MANAGE_SYSTEM_SETTINGS', 'MANAGE_TOPICS', 'MANAGE_WORDS', 'MANAGE_QUESTIONS', 'MANAGE_TESTS']), validate(schemas.contentStatus), AdminController.updateContentStatus);
-router.get('/content-review/pending', checkAnyPermission(['REVIEW_CONTENT', 'PUBLISH_CONTENT', 'MANAGE_SYSTEM_SETTINGS']), AdminController.getPendingContent);
-router.post('/content-review/:entityType/:entityId/approve', checkAnyPermission(['REVIEW_CONTENT', 'PUBLISH_CONTENT', 'MANAGE_SYSTEM_SETTINGS']), validate(schemas.contentReviewTarget), AdminController.approveContent);
-router.post('/content-review/:entityType/:entityId/reject', checkAnyPermission(['REVIEW_CONTENT', 'PUBLISH_CONTENT', 'MANAGE_SYSTEM_SETTINGS']), validate(schemas.contentReviewTarget), AdminController.rejectContent);
-router.post('/content-review/:entityType/:entityId/archive', checkAnyPermission(['REVIEW_CONTENT', 'PUBLISH_CONTENT', 'MANAGE_SYSTEM_SETTINGS']), validate(schemas.contentReviewTarget), AdminController.archiveContent);
-router.get('/content-review/:entityType/:entityId/logs', checkAnyPermission(['REVIEW_CONTENT', 'PUBLISH_CONTENT', 'MANAGE_SYSTEM_SETTINGS']), validate(schemas.contentReviewTarget), AdminController.getContentReviewLogs);
+
 router.get('/audit-logs', checkAnyPermission(['VIEW_AUDIT_LOGS', 'MANAGE_SYSTEM_SETTINGS', 'MANAGE_USERS']), AdminController.getAuditLogs);
 router.get('/reports', checkAnyPermission(['MANAGE_REPORTS', 'MANAGE_SYSTEM_SETTINGS']), AdminController.getReports);
 router.patch('/reports/:id', checkAnyPermission(['MANAGE_REPORTS', 'MANAGE_SYSTEM_SETTINGS']), validate(schemas.updateReport), AdminController.updateReport);

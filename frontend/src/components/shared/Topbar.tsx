@@ -14,7 +14,7 @@ import { useAuth } from "@/src/app/context/AuthContext";
 interface TopbarProps {
   title: string;
   subtitle?: string;
-  role: "admin" | "student";
+  role: "admin" | "student" | "creator";
   userName?: string;
 }
 
@@ -197,7 +197,7 @@ export default function Topbar({
   userName,
 }: TopbarProps) {
   const { user } = useAuth();
-  const displayName = userName || user?.fullName || (role === "admin" ? "Quản trị viên" : "Người học");
+  const displayName = userName || user?.fullName || (role === "admin" ? "Quản trị viên" : role === "creator" ? "Người tạo" : "Người học");
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("theme");
@@ -228,7 +228,7 @@ export default function Topbar({
 
   // Initial fetch + poll every 60s
   useEffect(() => {
-    if (role !== "student") return;
+    if (role === "admin") return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchUnreadCount();
     const interval = setInterval(fetchUnreadCount, 60000);
@@ -267,7 +267,7 @@ export default function Topbar({
           {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
 
-        {role === "student" && (
+        {role !== "admin" && (
           <>
             <button
               onClick={() => setSheetOpen(true)}
@@ -291,7 +291,7 @@ export default function Topbar({
           </div>
           <div className="hidden md:block">
             <p className="text-sm font-medium leading-tight text-slate-950 dark:text-white">{displayName}</p>
-            <p className="text-xs text-slate-600 dark:text-slate-400">{role === "admin" ? "Quản trị viên" : "Người học"}</p>
+            <p className="text-xs text-slate-600 dark:text-slate-400">{role === "admin" ? "Quản trị viên" : role === "creator" ? "Người tạo" : "Người học"}</p>
           </div>
         </div>
       </div>

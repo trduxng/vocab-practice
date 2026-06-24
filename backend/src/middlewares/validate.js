@@ -158,7 +158,7 @@ const schemas = {
 
   contentReviewTarget: z.object({
     params: z.object({
-      entityType: z.enum(['Topic', 'Word', 'Question', 'MiniTest']),
+      entityType: z.enum(['Topic', 'Word', 'Question', 'MiniTest', 'topic', 'word', 'question', 'minitest']),
       entityId: z.coerce.number().int().positive()
     }),
     body: z.object({

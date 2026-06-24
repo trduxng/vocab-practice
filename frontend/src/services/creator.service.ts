@@ -84,6 +84,7 @@ export interface MiniTest {
   id: number;
   title: string;
   description: string;
+  topicId: number;
   topicName: string;
   totalQuestions: number;
   isPublished: boolean;
@@ -166,7 +167,7 @@ export const creatorService = {
   },
 
   // Words
-  async getWords(filters?: { status?: string; page?: number; pageSize?: number }): Promise<Word[]> {
+  async getWords(filters?: { status?: string; page?: number; pageSize?: number; topicId?: number }): Promise<Word[]> {
     const res = await apiClient.get('/creator/words', { params: filters });
     return unwrapItems<Word>(res.data);
   },
@@ -197,7 +198,7 @@ export const creatorService = {
   },
 
   // Questions
-  async getQuestions(filters?: { status?: string; page?: number; pageSize?: number }): Promise<Question[]> {
+  async getQuestions(filters?: { status?: string; page?: number; pageSize?: number; topicId?: number }): Promise<Question[]> {
     const res = await apiClient.get('/creator/questions', { params: filters });
     return unwrapItems<Question>(res.data);
   },

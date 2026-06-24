@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { creatorService } from '@/src/services/creator.service';
 import { BarChart3, BookOpen, FileQuestion, FileText, ListChecks, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import Topbar from '@/src/components/shared/Topbar';
 
 interface DashboardStats {
   TotalTopics?: number;
@@ -96,11 +97,9 @@ export default function CreatorDashboardPage() {
   };
 
   return (
-    <div className="flex-1 p-6 md:p-8 space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Bảng điều khiển Người tạo</h1>
-        <p className="text-slate-500 text-sm mt-1">Tổng quan nội dung của bạn</p>
-      </div>
+    <div className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-[#020617]">
+      <Topbar title="Bảng điều khiển Người tạo" subtitle="Tổng quan nội dung của bạn" role="creator" />
+      <div className="flex-1 p-6 md:p-8 space-y-8">
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -141,5 +140,6 @@ export default function CreatorDashboardPage() {
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 }
