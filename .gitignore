@@ -12,7 +12,6 @@ yarn.lock
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
-next-env.d.ts
 package-lock.json
 
 # ==========================================
@@ -68,6 +67,7 @@ server.log
 ~$*.doc
 .$*.docx
 .$*.doc
+document/~$*
 
 # ==========================================
 # AI AGENT ARTIFACTS
@@ -92,6 +92,8 @@ mcp.json
 backend/plan.md
 backend/yarn.lock
 ./backend/yarn.lock
+backend/uploads/
+jira_import.csv
 
 # ==========================================
 # DEPLOY / CI
@@ -107,6 +109,12 @@ next-env.d.ts
 # BINARY EXPORTS
 # ==========================================
 *.mv2
+
+# ==========================================
+# LINT / CODE QUALITY REPORTS (generated)
+# ==========================================
+frontend/eslint-report.*
+frontend/lint_*
 
 # ==========================================
 # PROCESS/PLANNING ARTIFACTS (local only)
