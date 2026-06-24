@@ -16,6 +16,13 @@ class CreatorController {
     } catch (err) { next(err); }
   }
 
+  static async getAcademicAnalytics(req, res, next) {
+    try {
+      const data = await CreatorService.getAcademicAnalytics(req.user.id);
+      res.json(data);
+    } catch (err) { next(err); }
+  }
+
   static async getTopicAnalytics(req, res, next) {
     try {
       const data = await CreatorService.getTopicAnalytics(req.user.id, req.params.id);

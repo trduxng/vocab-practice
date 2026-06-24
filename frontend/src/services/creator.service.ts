@@ -104,6 +104,49 @@ export interface MediaItem {
   createdAt: string;
 }
 
+export interface AcademicSummary {
+  totalStudents: number;
+  averageScore: number;
+  totalAttempts: number;
+  publishedTopics: number;
+}
+
+export interface HardWord {
+  wordId: number;
+  term: string;
+  meaning: string;
+  totalAttempts: number;
+  wrongAttempts: number;
+  failureRate: number;
+}
+
+export interface StudentAttempt {
+  id: number;
+  testId: number;
+  testTitle: string;
+  userId: number;
+  studentName: string;
+  studentEmail: string;
+  score: number;
+  totalQuestions: number;
+  correctCount: number;
+  submittedAt: string;
+}
+
+export interface TestPerformance {
+  testId: number;
+  testTitle: string;
+  averageScore: number;
+  attemptCount: number;
+}
+
+export interface AcademicAnalyticsData {
+  summary: AcademicSummary;
+  hardWords: HardWord[];
+  studentAttempts: StudentAttempt[];
+  testPerformance: TestPerformance[];
+}
+
 // ── Helpers ──
 function unwrapItems<T>(data: unknown): T[] {
   if (Array.isArray(data)) return data as T[];
@@ -121,6 +164,11 @@ export const creatorService = {
 
   async getContentSummary() {
     const res = await apiClient.get('/creator/content-summary');
+    return res.data;
+  },
+
+  async getAcademicAnalytics(): Promise<AcademicAnalyticsData> {
+    const res = await apiClient.get('/creator/academic-analytics');
     return res.data;
   },
 

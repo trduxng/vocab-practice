@@ -106,20 +106,23 @@ async function run() {
       topicCategoryId: 1
     });
     log('POST /creator/topics', res.status === 201 || res.status === 200, `status=${res.status}`);
+    console.log('Topic Create Response:', JSON.stringify(res.data));
     if (res.data?.data?.id) {
       createdTopicId = res.data.data.id;
     }
+    console.log('createdTopicId is:', createdTopicId);
 
     // List
     const list = await c.get('/creator/topics');
-    log('GET /creator/topics', list.status === 200, `count=${list.data?.length || 0}`);
+    log('GET /creator/topics', list.status === 200, `count=${list.data?.data?.length || 0}`);
 
     // Update
     if (createdTopicId) {
       const upd = await c.put(`/creator/topics/${createdTopicId}`, {
-        topicName: '[TEST] Chủ đề Updated',
+        topicName: '[TEST] Chủ đề Updated ' + Date.now(),
         description: 'Updated desc'
       });
+      console.log('Topic Update Response:', JSON.stringify(upd.data));
       log('PUT /creator/topics/:id', upd.status === 200, `status=${upd.status}`);
     }
   }
@@ -131,7 +134,7 @@ async function run() {
       meaning: 'Từ test tự động',
       phonetic: '/tɛst/',
       partOfSpeechId: 1,
-      topicId: createdTopicId || 1
+      topicIds: [createdTopicId || 1]
     });
     console.log('Word Create Response:', JSON.stringify(res.data));
     log('POST /creator/words', res.status === 201 || res.status === 200, `status=${res.status}`);
@@ -140,7 +143,7 @@ async function run() {
     }
 
     const list = await c.get('/creator/words');
-    log('GET /creator/words', list.status === 200, `count=${list.data?.length || 0}`);
+    log('GET /creator/words', list.status === 200, `count=${list.data?.data?.length || 0}`);
   }
 
   // === QUESTIONS ===
@@ -159,7 +162,7 @@ async function run() {
     }
 
     const list = await c.get('/creator/questions');
-    log('GET /creator/questions', list.status === 200, `count=${list.data?.length || 0}`);
+    log('GET /creator/questions', list.status === 200, `count=${list.data?.data?.length || 0}`);
   }
 
   // === MINITESTS ===
@@ -176,7 +179,7 @@ async function run() {
     }
 
     const list = await c.get('/creator/mini-tests');
-    log('GET /creator/mini-tests', list.status === 200, `count=${list.data?.length || 0}`);
+    log('GET /creator/mini-tests', list.status === 200, `count=${list.data?.data?.length || 0}`);
   }
 
   // ── Submit for review ──
