@@ -1,6 +1,3 @@
-/**
- * Setup test users: Hash passwords and update DB directly
- */
 require('dotenv').config();
 const bcrypt = require('bcrypt');
 
@@ -34,17 +31,60 @@ async function setup() {
   const teacherHash = await bcrypt.hash('Teacher@123', 10);
   const adminHash = await bcrypt.hash('Admin@123', 10);
 
-  const r1 = await pool.request()
-    .input('Hash', sql.NVarChar(500), teacherHash)
+  // Check if teacher exists
+  const checkTeacher = await pool.request()
     .input('Email', sql.NVarChar(255), 'teacher@vocaboost.com')
-    .query(`UPDATE Users SET PasswordHash = @Hash WHERE Email = @Email`);
-  console.log(`teacher@vocaboost.com → updated ${r1.rowsAffected[0]} row(s)`);
+    .query('SELECT UserID FROM Users WHERE Email = @Email');
 
-  const r2 = await pool.request()
-    .input('Hash', sql.NVarChar(500), adminHash)
+  if (checkTeacher.recordset.length === 0) {
+    await pool.request()
+      .input('Email', sql.NVarChar(255), 'teacher@vocaboost.com')
+      .input('Hash', sql.NVarChar(500), teacherHash)
+      .input('UserRole', sql.NVarChar(50), 'ContentCreator')
+      .input('RoleID', sql.Int, 3)
+      .query(`
+        INSERT INTO Users (FullName, Email, PasswordHash, UserRole, IsActive, RoleID, TotalXP, CurrentLevel)
+        VALUES ('Teacher Test', @Email, @Hash, @UserRole, 1, @RoleID, 0, 1)
+      `);
+    console.log('Inserted teacher@vocaboost.com');
+  } else {
+    await pool.request()
+      .input('Email', sql.NVarChar(255), 'teacher@vocaboost.com')
+      .input('Hash', sql.NVarChar(500), teacherHash)
+      .query('UPDATE Users SET PasswordHash = @Hash WHERE Email = @Email');
+    console.log('Updated teacher@vocaboost.com password');
+  }
+
+  // Check if admin exists
+  const checkAdmin = await pool.request()
     .input('Email', sql.NVarChar(255), 'system@vocaboost.com')
-    .query(`UPDATE Users SET PasswordHash = @Hash WHERE Email = @Email`);
-  console.log(`system@vocaboost.com  → updated ${r2.rowsAffected[0]} row(s)`);
+    .query('SELECT UserID FROM Users WHERE Email = @Email');
+
+  if (checkAdmin.recordset.length === 0) {
+    await pool.request()
+      .input('Email', sql.NVarChar(255), 'system@vocaboost.com')
+      .input('Hash', sql.NVarChar(500), adminHash)
+      .input('UserRole', sql.NVarChar(50), 'Admin')
+      .input('RoleID', sql.Int, 1)
+      .query(`
+        INSERT INTO Users (FullName, Email, PasswordHash, UserRole, IsActive, RoleID, TotalXP, CurrentLevel)
+        VALUES ('Admin Test', @Email, @Hash, @UserRole, 1, @RoleID, 0, 1)
+      `);
+    console.log('Inserted system@vocaboost.com');
+  } else {
+    await pool.request()
+      .input('Email', sql.NVarChar(255), 'system@vocaboost.com')
+      .input('Hash', sql.NVarChar(500), adminHash)
+      .query('UPDATE Users SET PasswordHash = @Hash WHERE Email = @Email');
+    console.log('Updated system@vocaboost.com password');
+  }
+
+  // Also let's update password for creator@gmail.com and admin@gmail.com to hash them properly just in case
+  const defaultHash = await bcrypt.hash('123', 10);
+  await pool.request()
+    .input('Hash', sql.NVarChar(500), defaultHash)
+    .query("UPDATE Users SET PasswordHash = @Hash WHERE Email IN ('creator@gmail.com', 'user2@gmail.com') AND PasswordHash = '123'");
+  console.log('Updated default plain-text passwords');
 
   await pool.close();
   console.log('Done!');

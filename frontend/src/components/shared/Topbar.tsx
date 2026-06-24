@@ -14,7 +14,7 @@ import { useAuth } from "@/src/app/context/AuthContext";
 interface TopbarProps {
   title: string;
   subtitle?: string;
-  role: "admin" | "student";
+  role: "admin" | "student" | "creator";
   userName?: string;
 }
 
@@ -203,7 +203,7 @@ export default function Topbar({
   const displayName =
     userName ||
     user?.fullName ||
-    (role === "admin" ? "Quản trị viên" : "Người học");
+    (role === "admin" ? "Quản trị viên" : role === "creator" ? "Người tạo" : "Người học");
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("theme");
@@ -234,7 +234,7 @@ export default function Topbar({
 
   // Initial fetch + poll every 60s
   useEffect(() => {
-    if (role !== "student") return;
+    if (role === "admin") return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchUnreadCount();
     const interval = setInterval(fetchUnreadCount, 60000);
@@ -276,7 +276,7 @@ export default function Topbar({
           )}
         </button>
 
-        {role === "student" && (
+        {role !== "admin" && (
           <>
             <button
               onClick={() => setSheetOpen(true)}
@@ -293,6 +293,16 @@ export default function Topbar({
             <NotificationSheet open={sheetOpen} onOpenChange={setSheetOpen} />
           </>
         )}
+
+        <div className="flex items-center gap-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-slate-950 text-xs font-semibold text-white dark:bg-white dark:text-slate-950">
+            {displayName.slice(0, 2).toUpperCase()}
+          </div>
+          <div className="hidden md:block">
+            <p className="text-sm font-medium leading-tight text-slate-950 dark:text-white">{displayName}</p>
+            <p className="text-xs text-slate-600 dark:text-slate-400">{role === "admin" ? "Quản trị viên" : role === "creator" ? "Người tạo" : "Người học"}</p>
+          </div>
+        </div>
       </div>
     </header>
   );

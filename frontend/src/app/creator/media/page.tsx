@@ -82,7 +82,6 @@ export default function CreatorMediaPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const abortRef = useRef<AbortController | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -103,6 +102,7 @@ export default function CreatorMediaPage() {
     }
   }, [page, filterType, search]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, [load]);
 
   // Global paste handler (Ctrl+V / Cmd+V)
@@ -126,7 +126,7 @@ export default function CreatorMediaPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const startUpload = async (files: File[]) => {
+  async function startUpload(files: File[]) {
     if (files.length === 0) return;
     const queue: UploadingFile[] = files.map(file => ({ file, progress: 0, status: 'pending' as const }));
     setUploadQueue(queue);
@@ -153,7 +153,7 @@ export default function CreatorMediaPage() {
       setPage(1);
       await load();
     }
-  };
+  }
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) startUpload(Array.from(e.target.files));
@@ -433,6 +433,7 @@ export default function CreatorMediaPage() {
                 {/* Preview */}
                 <div className="aspect-square bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden">
                   {isImage(item.mimeType) ? (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={`${API_BASE}${item.fileUrl}`}
                       alt={item.altText || item.fileName}

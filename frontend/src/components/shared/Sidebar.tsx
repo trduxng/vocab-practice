@@ -127,6 +127,11 @@ const adminLinks: NavLink[] = [
     href: "/admin/minitests",
     anyOf: [PERMISSIONS.manageTests],
   },
+  {
+    icon: Settings,
+    label: "Cài đặt",
+    href: "/admin/settings",
+  },
 ];
 
 const creatorLinks: NavLink[] = [
@@ -161,6 +166,7 @@ const creatorLinks: NavLink[] = [
     anyOf: [PERMISSIONS.manageTests],
   },
   { icon: Image, label: "Media", href: "/creator/media" },
+  { icon: Image, label: "Media", href: "/creator/media" },
   { icon: Edit3, label: "Bản nháp", href: "/creator/drafts" },
   { icon: Clock, label: "Chờ duyệt", href: "/creator/pending" },
   { icon: XCircle, label: "Bị từ chối", href: "/creator/rejected" },
@@ -169,6 +175,11 @@ const creatorLinks: NavLink[] = [
     label: "Phân tích",
     href: "/creator/analytics",
     anyOf: [PERMISSIONS.viewAnalytics, PERMISSIONS.viewDashboard],
+  },
+  {
+    icon: Settings,
+    label: "Cài đặt",
+    href: "/creator/settings",
   },
 ];
 

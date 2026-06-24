@@ -5,6 +5,20 @@ import { creatorService } from '@/src/services/creator.service';
 import { BarChart3, BookOpen, FileQuestion, FileText, ListChecks, Loader2, PieChart as PieChartIcon, Award, TrendingUp, Users } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, ComposedChart, Line } from 'recharts';
 import { toast } from 'sonner';
+import Topbar from '@/src/components/shared/Topbar';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+  Legend,
+} from 'recharts';
+import ChartFrame from '@/src/components/admin/ChartFrame';
+import { chartColors } from '@/src/components/admin/AdminPrimitives';
 
 interface DashboardStats {
   TotalTopics?: number;
@@ -154,12 +168,38 @@ export default function CreatorDashboardPage() {
   };
 
 
+  // 1. Data for Content Overview Chart
+  const overviewData = [
+    { name: 'Chủ đề', value: stats.TotalTopics ?? 0, color: '#3b82f6' }, // blue-500
+    { name: 'Từ vựng', value: stats.TotalWords ?? 0, color: '#10b981' }, // emerald-500
+    { name: 'Câu hỏi', value: stats.TotalQuestions ?? 0, color: '#f59e0b' }, // amber-500
+    { name: 'Bài test', value: stats.TotalMiniTests ?? 0, color: '#8b5cf6' }, // purple-500
+  ];
+
+  // 2. Data for Status Distribution Chart
+  const statusData = Object.entries(typeLabels).map(([type, label]) => {
+    const items = grouped[type] || [];
+    const getCount = (status: string) => items.find((i) => i.ContentStatus === status)?.Total || 0;
+    return {
+      name: label,
+      'Bản nháp': getCount('Draft'),
+      'Chờ duyệt': getCount('PendingReview'),
+      'Từ chối': getCount('Rejected'),
+      'Đã duyệt': getCount('Published'),
+    };
+  });
+
+  const tooltipStyle = {
+    background: 'rgb(15 23 42)',
+    border: '1px solid rgba(255,255,255,.12)',
+    borderRadius: 8,
+    color: 'white',
+  };
+
   return (
-    <div className="flex-1 p-6 md:p-8 space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Bảng điều khiển Người tạo</h1>
-        <p className="text-slate-500 text-sm mt-1">Tổng quan nội dung của bạn</p>
-      </div>
+    <div className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-[#020617]">
+      <Topbar title="Bảng điều khiển Người tạo" subtitle="Tổng quan nội dung của bạn" role="creator" />
+      <div className="flex-1 p-6 md:p-8 space-y-8">
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -313,5 +353,6 @@ export default function CreatorDashboardPage() {
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 }

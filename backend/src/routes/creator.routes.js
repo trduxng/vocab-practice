@@ -10,6 +10,7 @@ router.use(verifyToken);
 // Dashboard & Analytics
 router.get('/dashboard', checkPermission('VIEW_DASHBOARD'), CreatorController.getDashboard);
 router.get('/content-summary', checkPermission('VIEW_CONTENT_ANALYTICS'), CreatorController.getContentSummary);
+router.get('/academic-analytics', checkPermission('VIEW_CONTENT_ANALYTICS'), CreatorController.getAcademicAnalytics);
 router.get('/topics/:id/analytics', checkPermission('VIEW_CONTENT_ANALYTICS'), CreatorController.getTopicAnalytics);
 router.get('/mini-tests/:id/analytics', checkPermission('VIEW_CONTENT_ANALYTICS'), CreatorController.getMiniTestAnalytics);
 

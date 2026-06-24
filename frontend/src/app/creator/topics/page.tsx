@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { creatorService, TopicCategory, TopicPayload, Topic } from '@/src/services/creator.service';
-import { Plus, Pencil, Trash2, Send, Loader2, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Send, Loader2, X, ExternalLink } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import { toast } from 'sonner';
@@ -24,6 +25,7 @@ const statusLabels: Record<string, string> = {
 };
 
 export default function CreatorTopicsPage() {
+  const router = useRouter();
   const [topics, setTopics] = useState<Topic[]>([]);
   const [categories, setCategories] = useState<TopicCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -209,6 +211,13 @@ export default function CreatorTopicsPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
+                      <button
+                        onClick={() => router.push(`/creator/topics/${t.id}`)}
+                        title="Mở chi tiết"
+                        className="p-1.5 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-indigo-500"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </button>
                       {(t.contentStatus === 'Draft' || t.contentStatus === 'Rejected') && (
                         <button onClick={() => handleSubmitReview(t.id)} title="Gửi duyệt" className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-500">
                           <Send className="h-4 w-4" />
