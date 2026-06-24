@@ -5,6 +5,19 @@ import { creatorService } from '@/src/services/creator.service';
 import { BarChart3, BookOpen, FileQuestion, FileText, ListChecks, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import Topbar from '@/src/components/shared/Topbar';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+  Legend,
+} from 'recharts';
+import ChartFrame from '@/src/components/admin/ChartFrame';
+import { chartColors } from '@/src/components/admin/AdminPrimitives';
 
 interface DashboardStats {
   TotalTopics?: number;
@@ -96,6 +109,34 @@ export default function CreatorDashboardPage() {
     MiniTest: 'Bài test',
   };
 
+  // 1. Data for Content Overview Chart
+  const overviewData = [
+    { name: 'Chủ đề', value: stats.TotalTopics ?? 0, color: '#3b82f6' }, // blue-500
+    { name: 'Từ vựng', value: stats.TotalWords ?? 0, color: '#10b981' }, // emerald-500
+    { name: 'Câu hỏi', value: stats.TotalQuestions ?? 0, color: '#f59e0b' }, // amber-500
+    { name: 'Bài test', value: stats.TotalMiniTests ?? 0, color: '#8b5cf6' }, // purple-500
+  ];
+
+  // 2. Data for Status Distribution Chart
+  const statusData = Object.entries(typeLabels).map(([type, label]) => {
+    const items = grouped[type] || [];
+    const getCount = (status: string) => items.find((i) => i.ContentStatus === status)?.Total || 0;
+    return {
+      name: label,
+      'Bản nháp': getCount('Draft'),
+      'Chờ duyệt': getCount('PendingReview'),
+      'Từ chối': getCount('Rejected'),
+      'Đã duyệt': getCount('Published'),
+    };
+  });
+
+  const tooltipStyle = {
+    background: 'rgb(15 23 42)',
+    border: '1px solid rgba(255,255,255,.12)',
+    borderRadius: 8,
+    color: 'white',
+  };
+
   return (
     <div className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-[#020617]">
       <Topbar title="Bảng điều khiển Người tạo" subtitle="Tổng quan nội dung của bạn" role="creator" />
@@ -114,6 +155,59 @@ export default function CreatorDashboardPage() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        {/* Content Overview Chart */}
+        <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 p-6 space-y-4 shadow-sm">
+          <div>
+            <h3 className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-blue-500" /> Cấu trúc học liệu
+            </h3>
+            <p className="text-slate-500 text-xs mt-1">Tổng số lượng của từng loại học liệu hiện có</p>
+          </div>
+          <ChartFrame className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={overviewData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,.12)" />
+                <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                <YAxis tickLine={false} axisLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} width={32} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Bar dataKey="value" radius={[6, 6, 0, 0]} name="Số lượng">
+                  {overviewData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartFrame>
+        </div>
+
+        {/* Content Status Distribution Chart */}
+        <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 p-6 space-y-4 shadow-sm">
+          <div>
+            <h3 className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-violet-500" /> Trạng thái phân bổ học liệu
+            </h3>
+            <p className="text-slate-500 text-xs mt-1">Phân bố trạng thái kiểm duyệt của học liệu</p>
+          </div>
+          <ChartFrame className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={statusData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,.12)" />
+                <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                <YAxis tickLine={false} axisLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} width={32} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: 12, paddingTop: 10 }} />
+                <Bar dataKey="Bản nháp" stackId="a" fill={chartColors.slate} />
+                <Bar dataKey="Chờ duyệt" stackId="a" fill={chartColors.amber} />
+                <Bar dataKey="Từ chối" stackId="a" fill={chartColors.rose} />
+                <Bar dataKey="Đã duyệt" stackId="a" fill={chartColors.emerald} radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartFrame>
+        </div>
       </div>
 
       {/* Content Summary */}
