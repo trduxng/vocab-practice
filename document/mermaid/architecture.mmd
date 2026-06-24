@@ -1,0 +1,163 @@
+graph TB
+    subgraph Users["Người dùng"]
+        Learner["Học viên (Learner)"]
+        Creator["Biên tập viên (Content Creator)"]
+        Admin["Quản trị viên (Admin)"]
+    end
+
+    subgraph Frontend["Frontend - Next.js (App Router + TypeScript)"]
+        Landing["Landing Page<br/>app/page.tsx"]
+        LoginPage["Đăng nhập<br/>app/login/page.tsx"]
+        RegisterPage["Đăng ký<br/>app/register/page.tsx"]
+
+        subgraph UserPages["Khu vực Học viên (app/user/)"]
+            UserDashboard["Dashboard<br/>user/dashboard"]
+            LearnPage["Học từ mới<br/>user/learn"]
+            PracticePage["Luyện tập<br/>user/practice"]
+            MiniTestPage["Bài kiểm tra<br/>user/minitests"]
+            ProgressPage["Tiến độ<br/>user/progress"]
+            Achievements["Thành tích<br/>user/achievements"]
+            Notebook["Sổ tay<br/>user/notebook"]
+        end
+
+        subgraph CreatorPages["Khu vực Biên tập viên (app/creator/)"]
+            CreatorDashboard["Dashboard Creator<br/>creator/dashboard"]
+            CreatorTopics["Quản lý Chủ đề<br/>creator/topics"]
+            CreatorWords["Quản lý Từ vựng<br/>creator/words"]
+            CreatorQuestions["Quản lý Câu hỏi<br/>creator/questions"]
+            CreatorMiniTests["Quản lý Mini Test<br/>creator/mini-tests"]
+            CreatorMedia["Quản lý Media<br/>creator/media"]
+        end
+
+        subgraph AdminPages["Khu vực Quản trị (app/admin/)"]
+            AdminDashboard["Dashboard Admin<br/>admin/dashboard"]
+            AdminWords["Quản lý Từ vựng<br/>admin/words"]
+            AdminQuestions["Quản lý Câu hỏi<br/>admin/questions"]
+            AdminMiniTests["Quản lý Mini Test<br/>admin/minitests"]
+            AdminStudents["Quản lý Học viên<br/>admin/students"]
+            AdminReview["Duyệt nội dung<br/>admin/content-review"]
+            AdminAnalytics["Thống kê<br/>admin/analytics"]
+        end
+
+        subgraph Shared["Thành phần dùng chung"]
+            AuthContext["AuthContext<br/>Quản lý xác thực"]
+            Sidebar["Sidebar<br/>Điều hướng theo vai trò"]
+            Topbar["Topbar<br/>Thanh công cụ"]
+        end
+
+        subgraph Services_FE["Tầng Service (Frontend)"]
+            AuthService["auth.service.ts"]
+            UserService["user.service.ts"]
+            AdminService["admin.service.ts"]
+            CreatorService["creator.service.ts"]
+            CategoriesService["categories.service.ts"]
+        end
+
+        ApiClient["API Client<br/>api-client.ts (Axios)"]
+        Validations["Validation<br/>validations.ts (Zod)"]
+    end
+
+    subgraph Backend["Backend - Express.js REST API"]
+        subgraph Routes["Routes"]
+            AuthRoutes["auth.routes.js<br/>POST /register, /login"]
+            CategoriesRoutes["categories.routes.js<br/>GET /part-of-speeches, /topics"]
+            AdminRoutes["admin.routes.js<br/>CRUD words/questions/tests/users"]
+            UserRoutes["user.routes.js<br/>flashcards/submit/stats/minitests"]
+        end
+
+        subgraph Middlewares["Middlewares"]
+            verifyToken["verifyToken<br/>Xác thực JWT"]
+            checkPermission["checkPermission<br/>Kiểm tra quyền RBAC"]
+            validate["validate<br/>Zod validation"]
+            errorHandler["errorHandler<br/>Xử lý lỗi toàn cục"]
+        end
+
+        subgraph Controllers["Controllers"]
+            AuthController["auth.controller.js<br/>register, login"]
+            CategoriesController["categories.controller.js<br/>getPartOfSpeeches, getTopics"]
+            AdminController["admin.controller.js<br/>10+ functions"]
+            UserController["user.controller.js<br/>8+ functions"]
+        end
+
+        subgraph Services_BE["Services"]
+            AuthServiceBE["auth.service.js<br/>JWT + bcrypt"]
+            CategoriesServiceBE["categories.service.js<br/>Read-only queries"]
+            AdminServiceBE["admin.service.js<br/>CRUD + Transaction"]
+            UserServiceBE["user.service.js<br/>SRS + Stats + SP"]
+        end
+
+        subgraph Config["Cấu hình"]
+            DBConfig["config/db.js<br/>MSSQL Connection Pool"]
+            RateLimiter["rateLimiter.js"]
+            Upload["upload.js"]
+        end
+    end
+
+    subgraph Database["SQL Server"]
+        TablesRBAC["RBAC<br/>Users, Roles, Permissions, RolePermissions"]
+        TablesContent["Nội dung<br/>Words, Topics, Questions,<br/>ExampleSentences, MiniTests"]
+        TablesProgress["Học tập<br/>UserWordProgress,<br/>ExerciseAttempts"]
+        TablesMedia["Media & Log<br/>MediaAssets,<br/>ContentReviewLogs"]
+        Views["Views<br/>4 Analytics Views"]
+        SP["Stored Procedure<br/>usp_SubmitQuestionAttempt"]
+    end
+
+    %% Frontend Connections
+    Landing --> AuthContext
+    AuthContext --> ApiClient
+    UserPages --> UserService
+    CreatorPages --> CreatorService
+    AdminPages --> AdminService
+    LoginPage --> AuthService
+    RegisterPage --> AuthService
+    UserService --> ApiClient
+    AdminService --> ApiClient
+    CreatorService --> ApiClient
+    AuthService --> ApiClient
+    CategoriesService --> ApiClient
+
+    %% Backend Connections
+    ApiClient -->|HTTP REST| AuthRoutes
+    ApiClient -->|HTTP REST| CategoriesRoutes
+    ApiClient -->|HTTP REST| AdminRoutes
+    ApiClient -->|HTTP REST| UserRoutes
+
+    AuthRoutes --> verifyToken
+    CategoriesRoutes --> verifyToken
+    AdminRoutes --> verifyToken
+    UserRoutes --> verifyToken
+    AdminRoutes --> checkPermission
+    Routes --> validate
+
+    verifyToken --> AuthController
+    verifyToken --> CategoriesController
+    verifyToken --> AdminController
+    verifyToken --> UserController
+    checkPermission --> AdminController
+
+    AuthController --> AuthServiceBE
+    CategoriesController --> CategoriesServiceBE
+    AdminController --> AdminServiceBE
+    UserController --> UserServiceBE
+
+    AuthServiceBE --> DBConfig
+    CategoriesServiceBE --> DBConfig
+    AdminServiceBE --> DBConfig
+    UserServiceBE --> DBConfig
+
+    errorHandler --> Controllers
+
+    %% Database Connections
+    DBConfig -->|mssql pool| TablesRBAC
+    DBConfig -->|mssql pool| TablesContent
+    DBConfig -->|mssql pool| TablesProgress
+    DBConfig -->|mssql pool| TablesMedia
+    DBConfig -->|mssql pool| Views
+    DBConfig -->|mssql pool| SP
+
+    %% User role routing
+    Learner --> Landing
+    Learner -->|"/login"| LoginPage
+    Learner -->|"/user/*"| UserPages
+    Creator -->|"/creator/*"| CreatorPages
+    Admin -->|"/admin/*"| AdminPages

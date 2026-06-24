@@ -1,0 +1,111 @@
+sequenceDiagram
+    participant User as "Người dùng<br/>(Creator / Admin)"
+    participant FE as "Frontend (Next.js)"
+    participant API as "API Client (Axios)"
+    participant BE as "Backend (Express.js)"
+    participant DB as "SQL Server"
+
+    Note over User, DB: === LUỒNG TẠO MINI TEST ===
+
+    User->>FE: 1. Mở form tạo Mini Test
+    activate FE
+
+    FE->>FE: 2. Hiển thị form:<br/>- TestTitle (bắt buộc)<br/>- Description (tùy chọn)<br/>- Chọn Topic (dropdown)<br/>- Chọn Questions (multi-select)
+
+    User->>FE: 3. Nhập thông tin<br/>Chọn câu hỏi → Nhấn "Lưu"
+
+    alt User là Creator
+        Note over FE: ContentStatus = 'Draft'
+    else User là Admin
+        Note over FE: ContentStatus = 'Published'<br/>(bypass review)
+    end
+
+    FE->>API: 4. Gọi service tạo Mini Test
+    activate API
+
+    alt User là Admin
+        API->>BE: POST /api/admin/minitests<br/>{testTitle, description, topicId,<br/>questionIds[], status}
+        activate BE
+        BE->>BE: verifyToken → checkPermission('MANAGE_TESTS')
+    else User là Creator
+        API->>BE: POST /api/creator/mini-tests<br/>{testTitle, description, topicId,<br/>questionIds[]}
+        activate BE
+        BE->>BE: verifyToken → checkPermission('MANAGE_TESTS')<br/>→ Ownership check (only own topics)
+    end
+
+    BE->>BE: validate middleware<br/>Zod: testTitle ≥ 3, topicId > 0,<br/>questionIds là mảng không rỗng
+
+    BE->>DB: 5. BEGIN TRANSACTION
+    activate DB
+
+    BE->>DB: 6. INSERT MiniTests<br/>(TestTitle, Description, TopicID,<br/>CreatedByUserID, ContentStatus,<br/>TotalQuestions, IsPublished)<br/>OUTPUT inserted.MiniTestID
+    DB-->>BE: newMiniTestID
+
+    BE->>DB: 7. LOOP INSERT MiniTestItems<br/>(MiniTestID, QuestionID, DisplayOrder)<br/>Cho mỗi questionId trong mảng
+
+    Note over DB: DisplayOrder đánh số<br/>tự động từ 1, 2, 3...
+
+    alt Admin tạo
+        DB->>DB: IsPublished = 1<br/>Questions published
+    else Creator tạo
+        DB->>DB: ContentStatus = 'Draft'<br/>IsPublished = 0
+    end
+
+    BE->>DB: 8. COMMIT TRANSACTION
+    DB-->>BE: Xác nhận thành công
+    deactivate DB
+
+    alt Admin tạo
+        BE-->>API: 201 {message: "Tạo Mini Test thành công",<br/>data: {id, testTitle, totalQuestions,<br/>isPublished: true}}
+    else Creator tạo
+        BE-->>API: 201 {message: "Đã lưu Mini Test dưới dạng Draft",<br/>data: {id, testTitle, totalQuestions,<br/>contentStatus: 'Draft'}}
+    end
+
+    deactivate BE
+    API-->>FE: Response
+    deactivate API
+
+    FE-->>User: 9. Hiển thị thông báo thành công<br/>Chuyển đến danh sách Mini Test
+
+    deactivate FE
+
+
+    Note over User, DB: === LUỒNG PHỤ: CREATOR GỬI DUYỆT ===
+
+    User->>FE: 10. Chọn Mini Test Draft → "Gửi duyệt"
+    activate FE
+
+    FE->>API: POST /api/creator/mini-tests/:id/submit-review
+    activate API
+    API->>BE: POST /api/creator/mini-tests/:id/submit-review
+    activate BE
+
+    BE->>BE: verifyToken → checkPermission('SUBMIT_CONTENT_REVIEW')<br/>→ Ownership check
+
+    BE->>DB: 11. Kiểm tra tất cả Questions đã Published?
+    activate DB
+    DB-->>BE: OK / Có question chưa publish
+    deactivate DB
+
+    alt Có question chưa publish
+        BE-->>API: 400 {message: "Có câu hỏi chưa được publish"}
+        API-->>FE: Error
+        FE-->>User: Hiển thị lỗi
+    else Tất cả OK
+        BE->>DB: 12. UPDATE MiniTests<br/>SET ContentStatus = 'PendingReview'<br/>WHERE MiniTestID = @id
+
+        BE->>DB: 13. INSERT ContentReviewLogs<br/>(AdminUserID: NULL, EntityType: 'MiniTest',<br/>EntityID: @id, Action: 'Submit',<br/>Reason: NULL, CreatedAt: NOW)
+
+        BE->>DB: 14. INSERT Notification<br/>(UserID: all Admins,<br/>Type: 'CONTENT_REVIEW',<br/>Message: 'Creator đã gửi Mini Test ...')
+
+        DB-->>BE: Xác nhận
+        deactivate DB
+
+        BE-->>API: 200 {message: "Đã gửi yêu cầu duyệt"}
+        deactivate BE
+        API-->>FE: Response
+        deactivate API
+        FE-->>User: Hiển thị thông báo thành công
+    end
+
+    deactivate FE

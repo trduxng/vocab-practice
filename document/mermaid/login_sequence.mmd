@@ -1,0 +1,69 @@
+sequenceDiagram
+    participant User as "Người dùng"
+    participant FE as "Frontend (Next.js)"
+    participant API as "API Client (Axios)"
+    participant BE as "Backend (Express.js)"
+    participant DB as "SQL Server"
+
+    User->>FE: 1. Nhập email & mật khẩu
+    activate FE
+
+    FE->>FE: 2. Validate client-side<br/>Zod schema (loginSchema)
+    alt Validation thất bại
+        FE-->>User: Hiển thị lỗi validation<br/>(email không hợp lệ,<br/>thiếu mật khẩu...)
+    else Validation thành công
+        FE->>API: 3. Gọi auth.service.ts<br/>login(email, password)
+        activate API
+
+        API->>BE: POST /api/auth/login<br/>{email, password}
+        activate BE
+
+        BE->>BE: 4. Middleware chain:<br/>express.json()<br/>validate(loginSchema)
+
+        BE->>DB: 5. SELECT Users<br/>WHERE Email = @email AND IsActive = 1<br/>JOIN Roles
+        activate DB
+        DB-->>BE: User record (id, fullName, email,<br/>passwordHash, roleId, roleName)
+        deactivate DB
+
+        alt User không tồn tại
+            BE-->>API: 401 {message: "Email hoặc mật khẩu không đúng"}
+            API-->>FE: Response lỗi
+            FE-->>User: Hiển thị thông báo lỗi
+        else Tài khoản bị khóa (IsActive = 0)
+            BE-->>API: 401 {message: "Tài khoản đã bị khóa"}
+            API-->>FE: Response lỗi
+            FE-->>User: Hiển thị thông báo lỗi
+        else User hợp lệ
+            BE->>BE: 6. bcrypt.compare(password, passwordHash)
+
+            alt Mật khẩu sai
+                BE-->>API: 401 {message: "Email hoặc mật khẩu không đúng"}
+                API-->>FE: Response lỗi
+                FE-->>User: Hiển thị thông báo lỗi
+            else Mật khẩu đúng
+                BE->>DB: 7. SELECT Permissions<br/>FROM RolePermissions JOIN Permissions<br/>WHERE RoleID = @roleId
+                activate DB
+                DB-->>BE: Permission codes list<br/>[VIEW_DASHBOARD, MANAGE_WORDS, ...]
+                deactivate DB
+
+                BE->>BE: 8. jwt.sign(payload, secret, {expiresIn: '1d'})<br/>payload: {id, fullName, role, permissions}
+
+                BE-->>API: 200 {token, user}
+                deactivate BE
+
+                API-->>FE: Response thành công
+                deactivate API
+
+                FE->>FE: 9. Lưu token & user vào localStorage<br/>Cập nhật AuthContext state
+
+                alt User.role === "Admin"
+                    FE-->>User: Redirect đến /admin/dashboard
+                else User.role === "ContentCreator"
+                    FE-->>User: Redirect đến /creator/dashboard
+                else User.role === "Learner"
+                    FE-->>User: Redirect đến /user/dashboard
+                end
+            end
+        end
+    end
+    deactivate FE
