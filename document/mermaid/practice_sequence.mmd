@@ -1,0 +1,82 @@
+sequenceDiagram
+    participant User as "Học viên (Learner)"
+    participant FE as "Frontend (Next.js)"
+    participant API as "API Client (Axios)"
+    participant BE as "Backend (Express.js)"
+    participant DB as "SQL Server"
+
+    Note over User, DB: === LUỒNG 1: LẤY FLASHCARD ===
+
+    User->>FE: 1. Mở trang Practice<br/>(/user/practice)
+    activate FE
+
+    FE->>API: 2. GET /api/user/flashcards<br/>Authorization: Bearer {token}
+    activate API
+    API->>BE: GET /api/user/flashcards
+    activate BE
+
+    BE->>BE: 3. verifyToken middleware<br/>Giải mã JWT → req.user.id
+
+    BE->>DB: 4. SELECT TOP 15 q.QuestionID, q.QuestionType,<br/>        q.QuestionText, q.OptionsJson,<br/>        w.WordID, w.Term, w.Meaning,<br/>        uwp.MasteryLevel, uwp.MemoryStatus<br/>FROM Questions q<br/>JOIN Words w ON w.WordID = q.WordID<br/>LEFT JOIN UserWordProgress uwp<br/>  ON uwp.WordID = w.WordID<br/>  AND uwp.UserID = @userId<br/>WHERE uwp.NextReviewDate IS NULL<br/>   OR uwp.NextReviewDate <= GETDATE()<br/>ORDER BY uwp.MasteryLevel ASC, NEWID()
+    activate DB
+    DB-->>BE: Flashcard list (tối đa 15 câu)
+    deactivate DB
+
+    alt Không có từ cần ôn tập
+        BE-->>API: 200 {flashcards: [], message: "Hôm nay không có từ cần ôn tập"}
+        API-->>FE: Response
+        FE-->>User: Hiển thị thông báo "Không có từ cần ôn"
+    else Có flashcards
+        BE-->>API: 200 {flashcards: [...]}
+        deactivate BE
+        API-->>FE: Response
+        deactivate API
+        FE-->>User: 5. Hiển thị flashcard từng câu<br/>Kèm đáp án lựa chọn / ô nhập liệu
+    end
+
+    Note over User, DB: === LUỒNG 2: NỘP CÂU TRẢ LỜI ===
+
+    User->>FE: 6. Chọn/điền đáp án → Nhấn "Nộp bài"
+
+    FE->>API: 7. POST /api/user/submit-answer<br/>{questionId, submittedAnswer}
+    activate API
+    API->>BE: POST /api/user/submit-answer
+    activate BE
+
+    BE->>BE: 8. verifyToken → req.user.id
+
+    BE->>DB: 9. EXEC usp_SubmitQuestionAttempt<br/>@UserID = @userId,<br/>@QuestionID = @questionId,<br/>@SubmittedAnswer = @answer
+    activate DB
+
+    Note over DB: Stored Procedure xử lý ACID:
+
+    DB->>DB: 9a. SELECT Question<br/>Lấy WordID, CorrectAnswer, QuestionType
+    DB->>DB: 9b. So sánh đáp án<br/>(case-insensitive, trim)
+
+    alt Đáp án ĐÚNG
+        DB->>DB: 9c. UPSERT UserWordProgress:<br/>MasteryLevel + 1 (max 10)<br/>EaseFactor + 0.10 (max 3.50)<br/>RepetitionCount + 1<br/>Reset ConsecutiveWrong
+        DB->>DB: 9d. Tính NextReviewDate:<br/>interval tăng dần<br/>MemoryStatus = 'Reviewing'/'Mastered'
+    else Đáp án SAI
+        DB->>DB: 9c. UPSERT UserWordProgress:<br/>MasteryLevel - 1 (min 0)<br/>EaseFactor - 0.20 (min 1.30)<br/>Reset RepetitionCount<br/>ConsecutiveWrong + 1
+        DB->>DB: 9d. NextReviewDate = NOW + 30 phút<br/>MemoryStatus = 'Lapsed'
+    end
+
+    DB->>DB: 9e. INSERT ExerciseAttempts<br/>(UserID, QuestionID, WordID,<br/>SubmittedAnswer, IsCorrect,<br/>ScoreAwarded, AttemptedAt)
+
+    DB-->>BE: Kết quả: {isCorrect, correctAnswer,<br/>newMasteryLevel, xpAwarded}
+    deactivate DB
+
+    BE-->>API: 200 {isCorrect, correctAnswer,<br/>explanation, newMasteryLevel, xpAwarded}
+    deactivate BE
+    API-->>FE: Response
+    deactivate API
+
+    FE->>User: 10. Hiển thị kết quả:<br/>✓ Đúng / ✗ Sai<br/>Đáp án đúng + giải thích<br/>+XP: +5 / +10
+
+    alt Còn câu hỏi tiếp theo
+        FE-->>User: Chuyển sang flashcard tiếp theo
+    else Hết phiên luyện tập
+        FE-->>User: Hiển thị Session Summary:<br/>Số câu đúng/sai, tổng XP,<br/>độ chính xác
+    end
+
+    deactivate FE
