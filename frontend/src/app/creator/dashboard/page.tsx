@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { creatorService } from '@/src/services/creator.service';
-import { BarChart3, BookOpen, FileQuestion, FileText, ListChecks, Loader2 } from 'lucide-react';
+import { BarChart3, BookOpen, FileQuestion, FileText, ListChecks, Loader2, PieChart as PieChartIcon, Award, TrendingUp, Users } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, ComposedChart, Line } from 'recharts';
 import { toast } from 'sonner';
 import Topbar from '@/src/components/shared/Topbar';
 import {
@@ -38,9 +39,34 @@ interface ContentSummaryItem {
   Total: number;
 }
 
+interface TopicAnalyticsItem {
+  TopicID: number;
+  TopicName: string;
+  TopicCode: string;
+  TotalEnrolledLearners: number;
+  TotalWords: number;
+  LearnersWithProgress: number;
+  AvgMasteryLevel: number;
+  AvgLastScore: number;
+  TotalMasteredRecords: number;
+  TotalLapsedRecords: number;
+}
+
+interface MiniTestAnalyticsItem {
+  MiniTestID: number;
+  TestTitle: string;
+  TopicID: number;
+  TopicName: string;
+  TotalAttempts: number;
+  TotalLearners: number;
+  AvgScore: number;
+}
+
 export default function CreatorDashboardPage() {
   const [stats, setStats] = useState<DashboardStats>({});
   const [summary, setSummary] = useState<ContentSummaryItem[]>([]);
+  const [topicAnalytics, setTopicAnalytics] = useState<TopicAnalyticsItem[]>([]);
+  const [miniTestAnalytics, setMiniTestAnalytics] = useState<MiniTestAnalyticsItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadData = async () => {
@@ -49,7 +75,17 @@ export default function CreatorDashboardPage() {
         creatorService.getDashboard(),
         creatorService.getContentSummary(),
       ]);
-      setStats(s);
+      
+      if (s && s.stats) {
+        setStats(s.stats);
+        setTopicAnalytics(s.topicAnalytics || []);
+        setMiniTestAnalytics(s.miniTestAnalytics || []);
+      } else {
+        // Fallback for old API structure
+        setStats(s || {});
+        setTopicAnalytics([]);
+        setMiniTestAnalytics([]);
+      }
       setSummary(c);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
@@ -79,6 +115,35 @@ export default function CreatorDashboardPage() {
     { label: 'Bài test', value: stats.TotalMiniTests ?? 0, icon: ListChecks, color: 'bg-purple-500/10 text-purple-500' },
   ];
 
+  const typeLabels: Record<string, string> = {
+    Topic: 'Chủ đề',
+    Word: 'Từ vựng',
+    Question: 'Câu hỏi',
+    MiniTest: 'Bài test',
+  };
+
+  // Transform summary for BarChart (Status by Entity Type)
+  const barChartData = Object.entries(
+    summary.reduce((acc, curr) => {
+      const type = typeLabels[curr.EntityType] || curr.EntityType;
+      if (!acc[type]) acc[type] = { name: type, Draft: 0, PendingReview: 0, Published: 0, Rejected: 0, Archived: 0 };
+      acc[type][curr.ContentStatus] = curr.Total;
+      return acc;
+    }, {} as Record<string, any>)
+  ).map(([, value]) => value);
+
+  // Transform summary for PieChart (Total by Entity Type)
+  const pieChartData = Object.entries(
+    summary.reduce((acc, curr) => {
+      const type = typeLabels[curr.EntityType] || curr.EntityType;
+      acc[type] = (acc[type] || 0) + curr.Total;
+      return acc;
+    }, {} as Record<string, number>)
+  ).map(([name, value]) => ({ name, value }));
+
+  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'];
+
+
   // Group summary by EntityType
   const grouped: Record<string, ContentSummaryItem[]> = {};
   summary.forEach((item) => {
@@ -102,12 +167,6 @@ export default function CreatorDashboardPage() {
     Archived: 'Đã lưu trữ',
   };
 
-  const typeLabels: Record<string, string> = {
-    Topic: 'Chủ đề',
-    Word: 'Từ vựng',
-    Question: 'Câu hỏi',
-    MiniTest: 'Bài test',
-  };
 
   // 1. Data for Content Overview Chart
   const overviewData = [
@@ -158,79 +217,139 @@ export default function CreatorDashboardPage() {
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        {/* Content Overview Chart */}
-        <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 p-6 space-y-4 shadow-sm">
-          <div>
-            <h3 className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-blue-500" /> Cấu trúc học liệu
-            </h3>
-            <p className="text-slate-500 text-xs mt-1">Tổng số lượng của từng loại học liệu hiện có</p>
-          </div>
-          <ChartFrame className="h-64">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+        {/* Bar Chart: Content Status */}
+        <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 p-6">
+          <h2 className="text-lg font-semibold flex items-center gap-2 mb-6">
+            <BarChart3 className="h-5 w-5 text-slate-400" /> Trạng thái nội dung
+          </h2>
+          <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={overviewData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,.12)" />
-                <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                <YAxis tickLine={false} axisLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} width={32} />
-                <Tooltip contentStyle={tooltipStyle} />
-                <Bar dataKey="value" radius={[6, 6, 0, 0]} name="Số lượng">
-                  {overviewData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Bar>
+              <BarChart data={barChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,.18)" />
+                <XAxis dataKey="name" tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                <YAxis tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                <Tooltip
+                  contentStyle={{ background: "rgb(15 23 42)", border: "none", borderRadius: 8, color: "white" }}
+                />
+                <Legend />
+                <Bar dataKey="Published" name="Đã xuất bản" stackId="a" fill="#10b981" />
+                <Bar dataKey="PendingReview" name="Chờ duyệt" stackId="a" fill="#f59e0b" />
+                <Bar dataKey="Draft" name="Bản nháp" stackId="a" fill="#94a3b8" />
+                <Bar dataKey="Rejected" name="Từ chối" stackId="a" fill="#ef4444" />
               </BarChart>
             </ResponsiveContainer>
-          </ChartFrame>
+          </div>
         </div>
 
-        {/* Content Status Distribution Chart */}
-        <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 p-6 space-y-4 shadow-sm">
-          <div>
-            <h3 className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-violet-500" /> Trạng thái phân bổ học liệu
-            </h3>
-            <p className="text-slate-500 text-xs mt-1">Phân bố trạng thái kiểm duyệt của học liệu</p>
-          </div>
-          <ChartFrame className="h-64">
+        {/* Pie Chart: Content Types */}
+        <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 p-6">
+          <h2 className="text-lg font-semibold flex items-center gap-2 mb-6">
+            <PieChartIcon className="h-5 w-5 text-slate-400" /> Tỷ trọng nội dung
+          </h2>
+          <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={statusData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,.12)" />
-                <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                <YAxis tickLine={false} axisLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} width={32} />
-                <Tooltip contentStyle={tooltipStyle} />
-                <Legend iconType="circle" wrapperStyle={{ fontSize: 12, paddingTop: 10 }} />
-                <Bar dataKey="Bản nháp" stackId="a" fill={chartColors.slate} />
-                <Bar dataKey="Chờ duyệt" stackId="a" fill={chartColors.amber} />
-                <Bar dataKey="Từ chối" stackId="a" fill={chartColors.rose} />
-                <Bar dataKey="Đã duyệt" stackId="a" fill={chartColors.emerald} radius={[6, 6, 0, 0]} />
-              </BarChart>
+              <PieChart>
+                <Pie
+                  data={pieChartData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={100}
+                  paddingAngle={5}
+                  dataKey="value"
+                  label={({ name, percent }) => `${name} ${percent ? (percent * 100).toFixed(0) : 0}%`}
+                >
+                  {pieChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{ background: "rgb(15 23 42)", border: "none", borderRadius: 8, color: "white" }}
+                />
+              </PieChart>
             </ResponsiveContainer>
-          </ChartFrame>
+          </div>
         </div>
       </div>
 
-      {/* Content Summary */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <BarChart3 className="h-5 w-5 text-slate-400" /> Chi tiết theo trạng thái
-        </h2>
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {Object.entries(grouped).map(([type, items]) => (
-            <div key={type} className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 p-5 space-y-3">
-              <h3 className="font-semibold text-sm">{typeLabels[type] || type}</h3>
-              <div className="space-y-2">
-                {items.map((item) => (
-                  <div key={item.ContentStatus} className="flex items-center justify-between">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[item.ContentStatus] || ''}`}>
-                      {statusLabels[item.ContentStatus] || item.ContentStatus}
-                    </span>
-                    <span className="text-sm font-bold">{item.Total}</span>
-                  </div>
-                ))}
+      {/* Analytics Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Topic Engagement Chart */}
+        <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 p-6">
+          <h2 className="text-lg font-semibold flex items-center gap-2 mb-6">
+            <Users className="h-5 w-5 text-slate-400" /> Học tập & Tiến trình theo Chủ đề
+          </h2>
+          <div className="h-72">
+            {topicAnalytics.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-slate-400">
+                <BookOpen className="h-8 w-8 mb-2 stroke-1" />
+                <p className="text-sm">Chưa có học viên nào tham gia học chủ đề của bạn.</p>
               </div>
-            </div>
-          ))}
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topicAnalytics.slice(0, 8)}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,.18)" />
+                  <XAxis dataKey="TopicName" tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                  <YAxis tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                  <Tooltip
+                    contentStyle={{ background: "rgb(15 23 42)", border: "none", borderRadius: 8, color: "white" }}
+                    formatter={(value: any, name: any) => {
+                      if (name === 'TotalEnrolledLearners') return [value, 'Học viên đăng ký'];
+                      if (name === 'LearnersWithProgress') return [value, 'Học viên đã học'];
+                      return [value, name];
+                    }}
+                  />
+                  <Legend formatter={(value) => {
+                    if (value === 'TotalEnrolledLearners') return 'Đăng ký';
+                    if (value === 'LearnersWithProgress') return 'Đã bắt đầu học';
+                    return value;
+                  }} />
+                  <Bar dataKey="TotalEnrolledLearners" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="LearnersWithProgress" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+
+        {/* Mini-Test Performance Chart */}
+        <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 p-6">
+          <h2 className="text-lg font-semibold flex items-center gap-2 mb-6">
+            <Award className="h-5 w-5 text-slate-400" /> Hiệu suất và Lượt làm bài Test
+          </h2>
+          <div className="h-72">
+            {miniTestAnalytics.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-slate-400">
+                <ListChecks className="h-8 w-8 mb-2 stroke-1" />
+                <p className="text-sm">Chưa có lượt làm bài nào cho các đề thi thử của bạn.</p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={miniTestAnalytics.slice(0, 8)}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,.18)" />
+                  <XAxis dataKey="TestTitle" tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                  <YAxis yAxisId="left" tick={{ fill: "#94a3b8", fontSize: 12 }} label={{ value: 'Lượt làm', angle: -90, position: 'insideLeft', fill: '#94a3b8' }} />
+                  <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tick={{ fill: "#94a3b8", fontSize: 12 }} label={{ value: 'Điểm trung bình (%)', angle: 90, position: 'insideRight', fill: '#94a3b8' }} />
+                  <Tooltip
+                    contentStyle={{ background: "rgb(15 23 42)", border: "none", borderRadius: 8, color: "white" }}
+                    formatter={(value: any, name: any) => {
+                      if (name === 'TotalAttempts') return [value, 'Số lượt làm'];
+                      if (name === 'AvgScore') return [`${parseFloat(value).toFixed(1)}%`, 'Điểm trung bình'];
+                      return [value, name];
+                    }}
+                  />
+                  <Legend formatter={(value) => {
+                    if (value === 'TotalAttempts') return 'Số lượt làm bài';
+                    if (value === 'AvgScore') return 'Điểm số trung bình';
+                    return value;
+                  }} />
+                  <Bar yAxisId="left" dataKey="TotalAttempts" fill="#10b981" radius={[4, 4, 0, 0]} />
+                  <Line yAxisId="right" type="monotone" dataKey="AvgScore" stroke="#f59e0b" strokeWidth={3} activeDot={{ r: 6 }} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -7,9 +7,26 @@ class CreatorService {
     const result = await pool.request()
       .input('UserID', sql.BigInt, userId)
       .query(`
+        -- Query 1: Content Creator Summary
         SELECT * FROM vw_ContentCreatorContentSummary WHERE UserID = @UserID;
+
+        -- Query 2: Topic Learning Analytics for Creator's Topics
+        SELECT a.*
+        FROM vw_TopicLearningAnalytics a
+        JOIN Topics t ON t.TopicID = a.TopicID
+        WHERE t.CreatedByUserID = @UserID;
+
+        -- Query 3: MiniTest Analytics for Creator's MiniTests
+        SELECT a.*
+        FROM vw_MiniTestAnalytics a
+        JOIN MiniTests mt ON mt.MiniTestID = a.MiniTestID
+        WHERE mt.CreatedByUserID = @UserID;
       `);
-    return result.recordset[0] || {};
+    return {
+      stats: result.recordsets[0][0] || {},
+      topicAnalytics: result.recordsets[1] || [],
+      miniTestAnalytics: result.recordsets[2] || []
+    };
   }
 
   static async getContentSummary(userId) {
