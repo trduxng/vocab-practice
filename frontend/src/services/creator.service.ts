@@ -56,6 +56,15 @@ export interface Topic {
   createdAt: string;
 }
 
+export interface ReviewLog {
+  id: number;
+  oldStatus?: string;
+  newStatus: string;
+  comment?: string;
+  createdAt: string;
+  actionByName?: string;
+}
+
 export interface Word {
   id: number;
   term: string;
@@ -211,6 +220,21 @@ export const creatorService = {
 
   async submitTopicForReview(id: number) {
     const res = await apiClient.post(`/creator/topics/${id}/submit-review`);
+    return res.data;
+  },
+
+  async withdrawTopic(id: number) {
+    const res = await apiClient.post(`/creator/topics/${id}/withdraw`);
+    return res.data;
+  },
+
+  async duplicateTopic(id: number) {
+    const res = await apiClient.post(`/creator/topics/${id}/duplicate`);
+    return res.data;
+  },
+
+  async getTopicReviewLogs(id: number): Promise<ReviewLog[]> {
+    const res = await apiClient.get(`/creator/topics/${id}/logs`);
     return res.data;
   },
 

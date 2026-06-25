@@ -328,6 +328,183 @@ class CreatorService {
     return result.rowsAffected[0] > 0;
   }
 
+  static async withdrawTopic(topicId, userId) {
+    const pool = await poolPromise;
+    const transaction = new sql.Transaction(pool);
+    try {
+      await transaction.begin();
+
+      const reqCheck = new sql.Request(transaction);
+      const checkRes = await reqCheck
+        .input('TopicID', sql.BigInt, topicId)
+        .input('UserID', sql.BigInt, userId)
+        .query(`SELECT ContentStatus FROM Topics WHERE TopicID = @TopicID AND CreatedByUserID = @UserID`);
+
+      if (checkRes.recordset.length === 0) {
+        await transaction.rollback();
+        return { success: false, message: 'Chủ đề không tồn tại hoặc bạn không có quyền' };
+      }
+
+      const status = checkRes.recordset[0].ContentStatus;
+      if (status !== 'PendingReview') {
+        await transaction.rollback();
+        return { success: false, message: 'Chủ đề không ở trạng thái Chờ duyệt để thu hồi' };
+      }
+
+      const reqUpdate = new sql.Request(transaction);
+      await reqUpdate
+        .input('TopicID', sql.BigInt, topicId)
+        .input('UserID', sql.BigInt, userId)
+        .query(`
+          UPDATE Topics 
+          SET ContentStatus = 'Draft', UpdatedAt = SYSDATETIMEOFFSET() 
+          WHERE TopicID = @TopicID AND CreatedByUserID = @UserID AND ContentStatus = 'PendingReview'
+        `);
+
+      const reqLog = new sql.Request(transaction);
+      await reqLog
+        .input('TopicID', sql.BigInt, topicId)
+        .input('UserID', sql.BigInt, userId)
+        .query(`
+          INSERT INTO ContentReviewLogs (EntityType, EntityID, ActionByUserID, OldStatus, NewStatus, Comment, CreatedAt)
+          VALUES ('Topic', @TopicID, @UserID, 'PendingReview', 'Draft', N'Thu hồi yêu cầu duyệt bởi người tạo', SYSDATETIMEOFFSET())
+        `);
+
+      await transaction.commit();
+      return { success: true };
+    } catch (err) {
+      await transaction.rollback();
+      throw err;
+    }
+  }
+
+  static async duplicateTopic(topicId, userId) {
+    const pool = await poolPromise;
+    const transaction = new sql.Transaction(pool);
+    try {
+      await transaction.begin();
+
+      const reqTopic = new sql.Request(transaction);
+      const topicRes = await reqTopic
+        .input('TopicID', sql.BigInt, topicId)
+        .input('UserID', sql.BigInt, userId)
+        .query(`SELECT TopicName, TopicCode, Description, TopicCategoryID FROM Topics WHERE TopicID = @TopicID AND CreatedByUserID = @UserID`);
+
+      if (topicRes.recordset.length === 0) {
+        await transaction.rollback();
+        return { success: false, message: 'Chủ đề không tồn tại hoặc bạn không có quyền' };
+      }
+
+      const origin = topicRes.recordset[0];
+      const newName = `${origin.TopicName} (Bản sao)`;
+      const timestamp = Date.now();
+      const newCode = `${origin.TopicCode || 'CLONE'}_COPY_${timestamp}`.substring(0, 50);
+
+      const reqInsertTopic = new sql.Request(transaction);
+      const insertTopicRes = await reqInsertTopic
+        .input('TopicName', sql.NVarChar(200), newName)
+        .input('TopicCode', sql.NVarChar(50), newCode)
+        .input('Description', sql.NVarChar(1000), origin.Description)
+        .input('TopicCategoryID', sql.BigInt, origin.TopicCategoryID)
+        .input('CreatedByUserID', sql.BigInt, userId)
+        .query(`
+          INSERT INTO Topics (TopicName, TopicCode, Description, TopicCategoryID, CreatedByUserID, ContentStatus, CreatedAt, UpdatedAt)
+          OUTPUT inserted.TopicID AS id
+          VALUES (@TopicName, @TopicCode, @Description, @TopicCategoryID, @CreatedByUserID, 'Draft', SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
+        `);
+
+      const newTopicId = insertTopicRes.recordset[0].id;
+
+      const reqWords = new sql.Request(transaction);
+      const wordsRes = await reqWords
+        .input('TopicID', sql.BigInt, topicId)
+        .query(`
+          SELECT w.WordID, w.Term, w.Meaning, w.Phonetic, w.PartOfSpeechID, w.DifficultyLevel
+          FROM Words w
+          JOIN WordTopics wt ON w.WordID = wt.WordID
+          WHERE wt.TopicID = @TopicID
+        `);
+
+      const originWords = wordsRes.recordset;
+
+      for (const originWord of originWords) {
+        const reqInsertWord = new sql.Request(transaction);
+        const insertWordRes = await reqInsertWord
+          .input('Term', sql.NVarChar(200), originWord.Term)
+          .input('Meaning', sql.NVarChar(1000), originWord.Meaning)
+          .input('Phonetic', sql.NVarChar(255), originWord.Phonetic || '')
+          .input('PartOfSpeechID', sql.Int, originWord.PartOfSpeechID)
+          .input('CreatedByUserID', sql.BigInt, userId)
+          .input('DifficultyLevel', sql.Int, originWord.DifficultyLevel || 1)
+          .query(`
+            INSERT INTO Words (Term, Meaning, Phonetic, PartOfSpeechID, CreatedByUserID, ContentStatus, DifficultyLevel, CreatedAt, UpdatedAt)
+            OUTPUT inserted.WordID AS id
+            VALUES (@Term, @Meaning, @Phonetic, @PartOfSpeechID, @CreatedByUserID, 'Draft', @DifficultyLevel, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
+          `);
+
+        const newWordId = insertWordRes.recordset[0].id;
+
+        const reqAssoc = new sql.Request(transaction);
+        await reqAssoc
+          .input('WordID', sql.BigInt, newWordId)
+          .input('TopicID', sql.BigInt, newTopicId)
+          .query(`INSERT INTO WordTopics (WordID, TopicID) VALUES (@WordID, @TopicID)`);
+
+        const reqQuestions = new sql.Request(transaction);
+        const questionsRes = await reqQuestions
+          .input('WordID', sql.BigInt, originWord.WordID)
+          .query(`SELECT QuestionType, QuestionText, CorrectAnswer, OptionsJson FROM Questions WHERE WordID = @WordID`);
+
+        const originQuestions = questionsRes.recordset;
+        for (const originQuest of originQuestions) {
+          const reqInsertQuest = new sql.Request(transaction);
+          await reqInsertQuest
+            .input('WordID', sql.BigInt, newWordId)
+            .input('QuestionType', sql.NVarChar(30), originQuest.QuestionType)
+            .input('QuestionText', sql.NVarChar(sql.MAX), originQuest.QuestionText)
+            .input('CorrectAnswer', sql.NVarChar(sql.MAX), originQuest.CorrectAnswer)
+            .input('OptionsJson', sql.NVarChar(sql.MAX), originQuest.OptionsJson)
+            .input('CreatedByUserID', sql.BigInt, userId)
+            .query(`
+              INSERT INTO Questions (WordID, QuestionType, QuestionText, CorrectAnswer, OptionsJson, CreatedByUserID, ContentStatus, CreatedAt, UpdatedAt)
+              VALUES (@WordID, @QuestionType, @QuestionText, @CorrectAnswer, @OptionsJson, @CreatedByUserID, 'Draft', SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
+            `);
+        }
+      }
+
+      await transaction.commit();
+      return { success: true, newTopicId };
+    } catch (err) {
+      await transaction.rollback();
+      throw err;
+    }
+  }
+
+  static async getTopicReviewLogs(topicId, userId) {
+    const pool = await poolPromise;
+    const checkTopic = await pool.request()
+      .input('TopicID', sql.BigInt, topicId)
+      .input('UserID', sql.BigInt, userId)
+      .query('SELECT TopicID FROM Topics WHERE TopicID = @TopicID AND CreatedByUserID = @UserID');
+
+    if (checkTopic.recordset.length === 0) {
+      throw new Error('Chủ đề không tồn tại hoặc bạn không có quyền xem lịch sử');
+    }
+
+    const result = await pool.request()
+      .input('TopicID', sql.BigInt, topicId)
+      .query(`
+        SELECT crl.ContentReviewLogID AS id, crl.OldStatus AS oldStatus,
+               crl.NewStatus AS newStatus, crl.Comment AS comment,
+               crl.CreatedAt AS createdAt, u.FullName AS actionByName
+        FROM ContentReviewLogs crl
+        LEFT JOIN Users u ON crl.ActionByUserID = u.UserID
+        WHERE crl.EntityType = 'Topic' AND crl.EntityID = @TopicID
+        ORDER BY crl.CreatedAt DESC
+      `);
+    return result.recordset;
+  }
+
   static async submitForReview(entityType, id, userId) {
     const entityMap = {
       topic: { table: 'Topics', idCol: 'TopicID', type: 'Topic' },

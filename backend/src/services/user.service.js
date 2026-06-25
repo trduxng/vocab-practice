@@ -723,8 +723,18 @@ class UserService {
         .input("UserID", sql.BigInt, userId)
         .query(`
           WITH MonthOffsets AS (
-            SELECT offsetValue
-            FROM (VALUES (11), (10), (9), (8), (7), (6), (5), (4), (3), (2), (1), (0)) offsets(offsetValue)
+            SELECT 11 AS offsetValue UNION ALL
+            SELECT 10 UNION ALL
+            SELECT 9 UNION ALL
+            SELECT 8 UNION ALL
+            SELECT 7 UNION ALL
+            SELECT 6 UNION ALL
+            SELECT 5 UNION ALL
+            SELECT 4 UNION ALL
+            SELECT 3 UNION ALL
+            SELECT 2 UNION ALL
+            SELECT 1 UNION ALL
+            SELECT 0
           ),
           MonthSeries AS (
             SELECT DATEADD(
