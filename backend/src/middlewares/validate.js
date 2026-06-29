@@ -93,7 +93,7 @@ const schemas = {
   createQuestion: z.object({
     body: z.object({
       wordId: z.coerce.number().int().positive(),
-      questionType: z.enum(['MCQ', 'FillBlank', 'DragDrop', 'Dictation', 'FlashcardCheck', 'AudioRecognition']),
+      questionType: z.enum(['MCQ', 'FillBlank', 'DragDrop', 'Dictation', 'FlashcardCheck']),
       questionText: z.string().min(5),
       correctAnswer: z.string().min(1),
       optionsJson: z.string().optional(),
@@ -144,6 +144,70 @@ const schemas = {
       message: z.string().trim().min(5).max(2000),
       deliveryChannel: z.enum(['InApp', 'Email', 'PushNotification']).optional(),
       actionUrl: z.string().trim().max(1000).nullable().optional()
+    })
+  }),
+
+  creatorTopic: z.object({
+    body: z.object({
+      topicName: z.string().trim().min(2).max(200),
+      topicCode: z.string().trim().min(2).max(50),
+      description: z.string().trim().max(1000).optional(),
+      topicCategoryId: z.coerce.number().int().positive().nullable().optional()
+    })
+  }),
+
+  creatorWord: z.object({
+    body: z.object({
+      term: z.string().trim().min(1).max(200),
+      meaning: z.string().trim().min(1).max(1000),
+      phonetic: z.string().trim().max(255).optional(),
+      partOfSpeechId: z.coerce.number().int().positive(),
+      topicIds: z.array(z.coerce.number().int().positive()).optional(),
+      examples: z.array(z.object({
+        sentence: z.string().trim().min(1).max(2000),
+        meaning: z.string().trim().max(2000).optional()
+      })).optional()
+    })
+  }),
+
+  creatorQuestion: z.object({
+    body: z.object({
+      wordId: z.coerce.number().int().positive(),
+      questionType: z.enum(['MCQ', 'FillBlank', 'DragDrop', 'Dictation', 'FlashcardCheck']),
+      questionText: z.string().trim().min(5).max(2000),
+      optionsJson: z.string().max(10000).optional(),
+      correctAnswer: z.string().trim().min(1).max(500),
+      explanation: z.string().trim().max(2000).optional()
+    })
+  }),
+
+  creatorMiniTest: z.object({
+    body: z.object({
+      title: z.string().trim().min(3).max(255),
+      description: z.string().trim().max(1000).optional(),
+      topicId: z.coerce.number().int().positive().nullable().optional(),
+      questionIds: z.array(z.coerce.number().int().positive()).min(1)
+    })
+  }),
+
+  creatorMiniTestItem: z.object({
+    body: z.object({
+      questionId: z.coerce.number().int().positive()
+    })
+  }),
+
+  creatorMedia: z.object({
+    body: z.object({
+      mediaType: z.enum(['Image', 'AudioUK', 'AudioUS', 'ExampleAudio', 'QuestionAudio', 'QuestionImage']),
+      fileUrl: z.string().trim().url().max(1000).refine((value) => {
+        const protocol = new URL(value).protocol;
+        return protocol === 'http:' || protocol === 'https:';
+      }, 'Media URL must use HTTP or HTTPS'),
+      fileName: z.string().trim().max(255).optional(),
+      mimeType: z.string().trim().max(100).optional(),
+      fileSizeBytes: z.coerce.number().int().nonnegative().nullable().optional(),
+      altText: z.string().trim().max(500).optional(),
+      transcript: z.string().trim().max(2000).optional()
     })
   }),
 

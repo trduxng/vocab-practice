@@ -120,3 +120,8 @@ frontend/lint_*
 # PROCESS/PLANNING ARTIFACTS (local only)
 # ==========================================
 process/
+
+# ==========================================
+# DOCUMENTS
+# ==========================================
+document/Baocao_CNPM.docx

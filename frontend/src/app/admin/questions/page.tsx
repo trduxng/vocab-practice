@@ -28,7 +28,7 @@ import { adminService, type PaginationMeta } from "@/src/services/admin.service"
 import { adminLabel } from "@/src/lib/admin-i18n";
 
 type ContentStatus = "Draft" | "PendingReview" | "Published" | "Rejected" | "Archived";
-type QuestionType = "MCQ" | "FillBlank" | "DragDrop" | "Dictation" | "FlashcardCheck" | "AudioRecognition";
+type QuestionType = "MCQ" | "FillBlank" | "DragDrop" | "Dictation" | "FlashcardCheck";
 
 type WordItem = {
   id: number;
@@ -65,7 +65,7 @@ type BulkImportResult = {
   errors?: Array<{ row: number; message: string }>;
 };
 
-const questionTypes: QuestionType[] = ["MCQ", "FillBlank", "Dictation", "DragDrop", "FlashcardCheck", "AudioRecognition"];
+const questionTypes: QuestionType[] = ["MCQ", "FillBlank", "Dictation", "DragDrop", "FlashcardCheck"];
 const statusOptions: ContentStatus[] = ["Draft", "PendingReview", "Published", "Rejected", "Archived"];
 
 const statusTone: Record<ContentStatus, "slate" | "blue" | "emerald" | "amber" | "rose"> = {

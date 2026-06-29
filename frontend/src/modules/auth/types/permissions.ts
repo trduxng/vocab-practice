@@ -14,6 +14,8 @@ export const PERMISSIONS = {
   viewAnalytics: "VIEW_GLOBAL_ANALYTICS",
   manageSystemSettings: "MANAGE_SYSTEM_SETTINGS",
   viewAuditLogs: "VIEW_AUDIT_LOGS",
+  submitContentReview: "SUBMIT_CONTENT_REVIEW",
+  viewContentAnalytics: "VIEW_CONTENT_ANALYTICS",
 } as const;
 
 export type PermissionCode = (typeof PERMISSIONS)[keyof typeof PERMISSIONS] | string;
