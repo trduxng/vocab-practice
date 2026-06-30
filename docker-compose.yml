@@ -11,7 +11,7 @@ services:
     ports:
       - "1433:1433"
 
-  # Backend API
+  # Backend API (Node.js/Express)
   backend:
     build: ./backend
     container_name: vocaboost-api
@@ -22,8 +22,26 @@ services:
       - DB_SERVER=sqlserver
       - DB_NAME=ToeicVocabularyPlatform
       - JWT_SECRET=your_production_jwt_secret
+      - GAMIFICATION_SERVICE_URL=http://gamification:3002
     ports:
       - "3001:3001"
+    depends_on:
+      - sqlserver
+
+  # Gamification Service (Go)
+  gamification:
+    build: ./backend/go-services/gamification
+    container_name: vocaboost-gamification
+    environment:
+      - PORT=3002
+      - DB_USER=sa
+      - DB_PASSWORD=YourStrongPassword123
+      - DB_SERVER=sqlserver
+      - DB_PORT=1433
+      - DB_NAME=ToeicVocabularyPlatform
+      - GIN_MODE=release
+    ports:
+      - "3002:3002"
     depends_on:
       - sqlserver
 

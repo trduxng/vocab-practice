@@ -1086,10 +1086,13 @@ class UserService {
       await transaction.commit();
       committed = true;
       const miniTestAttemptId = attemptResult.recordset[0]?.id;
+      // Scale XP theo score: 20 XP * (score / 100), tối thiểu 5 XP
+      const scaledXp = Math.max(5, Math.round(20 * score / 100));
       const gamification = await GamificationService.awardXP(userId, {
         eventType: "MiniTestComplete",
         sourceKey: `mini-test-attempt:${miniTestAttemptId}`,
         metadata: { testId: Number(testId), miniTestAttemptId, score },
+        xpAmount: scaledXp,
       });
 
       return {
@@ -1204,8 +1207,10 @@ class UserService {
     pageSize = Math.min(50, Math.max(1, pageSize));
     const offset = (page - 1) * pageSize;
 
-    const searchClause = search
-      ? `AND (w.Term LIKE N'%${search.replace(/'/g, "''")}%' OR w.Meaning LIKE N'%${search.replace(/'/g, "''")}%')`
+    // Tham số hóa search để tránh SQL injection
+    const searchParam = search ? `%${search}%` : null;
+    const searchClause = searchParam
+      ? `AND (w.Term LIKE @SearchTerm OR w.Meaning LIKE @SearchTerm)`
       : '';
 
     const orderClauses = {
@@ -1219,7 +1224,9 @@ class UserService {
     };
     const orderBy = orderClauses[sortBy] || orderClauses.recent;
 
-    const countResult = await pool.request().input("UserID", sql.BigInt, userId)
+    const countResult = await pool.request()
+      .input("UserID", sql.BigInt, userId)
+      .input("SearchTerm", sql.NVarChar(200), searchParam)
       .query(`
         SELECT COUNT(*) AS total
         FROM UserVocabularyNotebook un
@@ -1231,6 +1238,7 @@ class UserService {
     const result = await pool
       .request()
       .input("UserID", sql.BigInt, userId)
+      .input("SearchTerm", sql.NVarChar(200), searchParam)
       .input("Offset", sql.Int, offset)
       .input("PageSize", sql.Int, pageSize).query(`
         SELECT

@@ -1,9 +1,16 @@
-const GamificationService = require("../services/gamification.service");
+/**
+ * Gamification Controller
+ *
+ * Uses the gamification.client.js proxy which automatically routes
+ * to the Go service when GAMIFICATION_SERVICE_URL is set,
+ * otherwise falls back to the JS GamificationService.
+ */
+const GamificationClient = require("../services/gamification.client");
 
 class GamificationController {
   static async getProfile(req, res, next) {
     try {
-      const profile = await GamificationService.getProfile(req.user.id);
+      const profile = await GamificationClient.getProfile(req.user.id);
       res.status(200).json(profile);
     } catch (error) {
       next(error);
@@ -16,7 +23,7 @@ class GamificationController {
       if (!sessionKey || typeof sessionKey !== "string") {
         return res.status(400).json({ message: "Missing practice session key" });
       }
-      const reward = await GamificationService.awardXP(req.user.id, {
+      const reward = await GamificationClient.awardXP(req.user.id, {
         eventType: "PracticeComplete",
         sourceKey: `practice:${sessionKey.slice(0, 120)}`,
         metadata: {
@@ -33,7 +40,7 @@ class GamificationController {
 
   static async markAchievementsSeen(req, res, next) {
     try {
-      await GamificationService.markAchievementsSeen(req.user.id, req.body.achievementIds);
+      await GamificationClient.markAchievementsSeen(req.user.id, req.body.achievementIds);
       res.status(200).json({ message: "Achievements marked as seen" });
     } catch (error) {
       next(error);

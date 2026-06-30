@@ -18,7 +18,7 @@ const ACHIEVEMENT_SEED = [
 ];
 
 class GamificationService {
-  static schemaReady = null;
+  static _schemaPromise = null;
 
   static getDateKey(date = new Date()) {
     return date.toISOString().slice(0, 10);
@@ -26,16 +26,11 @@ class GamificationService {
 
   static getLevelState(totalXP = 0) {
     const safeXP = Math.max(0, Number(totalXP) || 0);
-    let currentLevel = 1;
-    let levelStartXP = 0;
-    let xpForNextLevel = 100;
-
-    while (safeXP >= levelStartXP + xpForNextLevel) {
-      levelStartXP += xpForNextLevel;
-      currentLevel += 1;
-      xpForNextLevel = currentLevel * 100;
-    }
-
+    // Công thức O(1): level = floor((1 + sqrt(1 + 8 * totalXP / 100)) / 2)
+    // Vì: tổng XP cần cho level n = 50 * n * (n-1)
+    const currentLevel = Math.floor((1 + Math.sqrt(1 + 8 * safeXP / 100)) / 2);
+    const xpForNextLevel = currentLevel * 100;
+    const levelStartXP = 50 * (currentLevel - 1) * currentLevel;
     const currentLevelXP = safeXP - levelStartXP;
     return {
       totalXP: safeXP,
@@ -49,13 +44,14 @@ class GamificationService {
   }
 
   static async ensureSchema() {
-    if (!this.schemaReady) {
-      this.schemaReady = this.createSchema().catch((error) => {
-        this.schemaReady = null;
+    // Promise-based guard: đảm bảo chỉ một lần gọi createSchema() dù có concurrent calls
+    if (!this._schemaPromise) {
+      this._schemaPromise = this.createSchema().catch((error) => {
+        this._schemaPromise = null; // Reset để cho phép retry nếu thất bại
         throw error;
       });
     }
-    return this.schemaReady;
+    return this._schemaPromise;
   }
 
   static async createSchema() {
@@ -142,6 +138,36 @@ class GamificationService {
           SeenAt DATETIMEOFFSET(7) NULL,
           CONSTRAINT UQ_UserAchievements_User_Achievement UNIQUE (UserID, AchievementID)
         );
+      END;
+
+      -- Đảm bảo UNIQUE constraint trên MiniTestAttempts(UserID, MiniTestID) chống duplicate attempt
+      -- Dùng TRY-CATCH để tránh lỗi nếu dữ liệu cũ đã có duplicate
+      IF NOT EXISTS (
+        SELECT 1 FROM sys.indexes
+        WHERE name = N'UQ_MiniTestAttempts_User_Test'
+          AND object_id = OBJECT_ID(N'dbo.MiniTestAttempts')
+      )
+      BEGIN
+        BEGIN TRY
+          -- Xóa duplicate trước khi tạo constraint
+          DELETE t
+          FROM dbo.MiniTestAttempts t
+          WHERE t.MiniTestAttemptID NOT IN (
+            SELECT MIN(MiniTestAttemptID)
+            FROM dbo.MiniTestAttempts
+            GROUP BY UserID, MiniTestID
+          );
+          ALTER TABLE dbo.MiniTestAttempts
+            ADD CONSTRAINT UQ_MiniTestAttempts_User_Test UNIQUE (UserID, MiniTestID);
+        END TRY
+        BEGIN CATCH
+          -- Nếu bảng chưa tồn tại hoặc không có cột UserID/MiniTestID, bỏ qua lỗi
+          IF ERROR_NUMBER() NOT IN (208, 207) -- 208 = Invalid object, 207 = Invalid column
+          BEGIN
+            DECLARE @ErrMsg NVARCHAR(1000) = ERROR_MESSAGE();
+            PRINT N'Không thể tạo UNIQUE constraint MiniTestAttempts: ' + @ErrMsg;
+          END;
+        END CATCH
       END;
     `);
 
