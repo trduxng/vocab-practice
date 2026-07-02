@@ -27,7 +27,8 @@
 | Thành phần | Công nghệ sử dụng |
 | :--- | :--- |
 | **Frontend** | Next.js 15 (App Router), Tailwind CSS, Lucide Icons, Recharts, Sonner Toast |
-| **Backend** | Node.js, Express.js, JWT, Bcrypt, Zod Validation |
+| **Backend (Admin/Creator)** | Node.js, Express.js, JWT, Bcrypt, Zod Validation |
+| **Backend (User/Learner)** | Go (Gin), `jmoiron/sqlx`, `golang-jwt`, `go-mssqldb` |
 | **Database** | SQL Server (MSSQL), Raw SQL Queries, Stored Procedures |
 | **DevOps** | Docker, Docker Compose, Deployment Guide (Vercel/Render) |
 
@@ -36,8 +37,9 @@
 ## 🚀 Hướng Dẫn Vận Hành Nhanh
 
 ### 1. Yêu Cầu Cơ Bản
-- Node.js (v18.x trở lên).
-- SQL Server Express + **SQL Server Browser Service** đã bật.
+- Node.js (v18.x trở lên)
+- Go 1.21+ (cho backend user role)
+- SQL Server Express + **SQL Server Browser Service** đã bật
 
 ### 2. Thiết Lập Database
 - Tạo database `VocabPractice`.
@@ -45,12 +47,18 @@
 - Chạy dữ liệu mẫu: `Database/seed_data_final.sql`.
 
 ### 3. Cài Đặt & Khởi Chạy
-**Backend:**
+**Backend (Full — Express auto-spawn Go):**
 ```bash
 cd backend
 npm install
 # Tạo file .env dựa trên .env.example
-npm run dev
+npm start        # Build Go + start Express (proxy /api/user/* → Go:3002)
+```
+
+**Backend (Go riêng — dev mode):**
+```bash
+cd backend
+npm run dev:go   # Chạy Go server độc lập port 3002
 ```
 
 **Frontend:**
@@ -63,27 +71,77 @@ npm run dev
 
 ---
 
+## 🧠 Kiến Trúc Microservices (User Role)
+
+```text
+Frontend (Next.js)
+  │
+  ├── /api/user/* ────────── Go Server (port 3002 — Gin + sqlx)
+  ├── /api/admin/* ───────── Express (port 3001 — Node.js)
+  └── /api/creator/* ─────── Express (port 3001 — Node.js)
+```
+
+Express đóng vai trò **API Gateway**: tiếp nhận toàn bộ request từ frontend (port 3001), tự động proxy `/api/user/*` sang Go server (port 3002). Khi start, Express tự động spawn tiến trình Go — chỉ cần 1 lệnh duy nhất.
+
+### Go Backend (Phân hệ người học)
+
+**Cấu trúc project:**
+```text
+backend/user-go/
+├── cmd/server/main.go          # Entrypoint + route registration
+├── internal/
+│   ├── config/                 # Config (.env)
+│   ├── model/                  # Data models (json + db tags)
+│   ├── repository/             # SQL queries (sqlx SelectContext/GetContext)
+│   ├── service/                # Business logic (SRS, Gamification, Analytics)
+│   ├── handler/                # Gin HTTP handlers
+│   └── middleware/             # JWT auth + CORS
+├── go.mod
+└── go.sum
+```
+
+**Tính năng đã chuyển đổi (Go):**
+- SRS Engine (spaced repetition algorithm)
+- Flashcards & Smart Review Queue
+- Progress Analytics & Activity Heatmap
+- Mini Test (lấy đề, nộp bài, lịch sử)
+- Gamification (XP, Level, Streak, Achievements)
+- Vocabulary Notebook (sổ tay từ vựng)
+- Learning Path (lộ trình TOEIC)
+- Notifications
+- Dashboard & Mastery Timeline
+- Change Password & Content Reports
+
+---
+
 ## 📂 Sơ Đồ Cấu Trúc Dự Án
 
 ```text
 .
-├── backend/                # Server API (Express)
-│   ├── src/config/         # Cấu hình DB & Security
-│   ├── src/controllers/    # Xử lý Request/Response
-│   ├── src/services/       # Logic nghiệp vụ & Query SQL
-│   └── src/middlewares/    # Auth & Zod Validation
-├── frontend/               # Web Application (Next.js)
-│   ├── src/app/user/       # Portal cho học viên
-│   ├── src/app/admin/      # Portal cho quản trị viên
-│   └── src/services/       # API Clients
-├── Database/               # SQL Scripts & Diagrams
-└── docker-compose.yml      # Cấu hình triển khai Docker
+├── backend/
+│   ├── src/                    # Admin & Creator API (Express)
+│   │   ├── config/
+│   │   ├── controllers/
+│   │   ├── services/
+│   │   └── middlewares/
+│   ├── user-go/                # User/Learner API (Go + Gin)
+│   │   └── internal/
+│   │       ├── handler/
+│   │       ├── service/
+│   │       ├── repository/
+│   │       ├── model/
+│   │       └── middleware/
+│   ├── index.js                # Express server (with proxy → Go)
+│   └── package.json
+├── frontend/                   # Web Application (Next.js)
+│   ├── src/app/user/
+│   ├── src/app/admin/
+│   └── src/services/
+├── Database/                   # SQL Scripts & Diagrams
+└── docker-compose.yml
 ```
 
 ---
 
 ## 📜 Trạng Thái Dự Án
-Dự án đã hoàn thành **70% Giai đoạn**. Mọi tính năng bảo mật, tối ưu hóa database và giao diện người dùng đã được kiểm thử và sẵn sàng vận hành.
-
-<!-- **Phát triển bởi:** Gemini CLI & Team.
-**Tagline:** *Learn Faster, Remember Longer.* -->
+Dự án đã hoàn thành **70% Giai đoạn**. Phân hệ người học (user role) đã được chuyển hoàn toàn sang Go với kiến trúc 3-layer (handler → service → repository), sử dụng `sqlx` để giảm boilerplate và `EnsureSchema` tự động khi start server.

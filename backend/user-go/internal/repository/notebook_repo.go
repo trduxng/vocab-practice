@@ -62,15 +62,15 @@ func (r *NotebookRepo) AddEntry(ctx context.Context, userID, wordID int64, perso
 		return r.GetByID(ctx, existingID)
 	}
 
-	result, err := r.db.ExecContext(ctx,
+	var id int64
+	err = r.db.QueryRowContext(ctx,
 		`INSERT INTO UserVocabularyNotebook (UserID, WordID, PersonalNote, IsFavorite, AddedAt, UpdatedAt)
+		 OUTPUT INSERTED.NotebookID
 		 VALUES (@p1, @p2, @p3, 0, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())`,
-		userID, wordID, personalNote)
+		userID, wordID, personalNote).Scan(&id)
 	if err != nil {
 		return nil, err
 	}
-
-	id, _ := result.LastInsertId()
 	return r.GetByID(ctx, id)
 }
 

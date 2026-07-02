@@ -86,20 +86,20 @@ type DashboardStats struct {
 }
 
 type WeakWord struct {
-	Word    string `json:"word"`
-	Meaning string `json:"meaning"`
+	Word    string `json:"word" db:"word"`
+	Meaning string `json:"meaning" db:"meaning"`
 }
 
 type RecentAttempt struct {
-	Answer    string    `json:"answer"`
-	IsCorrect bool      `json:"isCorrect"`
-	Date      time.Time `json:"date"`
-	Term      string    `json:"term"`
+	Answer    string    `json:"answer" db:"answer"`
+	IsCorrect bool      `json:"isCorrect" db:"isCorrect"`
+	Date      time.Time `json:"date" db:"date"`
+	Term      string    `json:"term" db:"term"`
 }
 
 type DailyTrend struct {
-	Day   string `json:"day"`
-	Count int    `json:"count"`
+	Day   string `json:"day" db:"date"`
+	Count int    `json:"count" db:"count"`
 }
 
 func CalculatePercentage(value, total int) int {

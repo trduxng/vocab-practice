@@ -55,42 +55,42 @@ type SubmitAnswerResponse struct {
 }
 
 type SmartReviewItem struct {
-	WordID           int64      `json:"wordId"`
-	Term             string     `json:"term"`
-	Phonetic         *string    `json:"phonetic"`
-	Meaning          string     `json:"meaning"`
-	MasteryLevel     int        `json:"masteryLevel"`
-	MemoryStatus     string     `json:"memoryStatus"`
-	LastReviewedAt   *time.Time `json:"lastReviewedAt"`
-	NextReviewDate   *time.Time `json:"nextReviewDate"`
-	RepetitionCount  int        `json:"repetitionCount"`
-	ConsecutiveWrong int        `json:"consecutiveWrong"`
-	PriorityScore    float64    `json:"priorityScore"`
+	WordID           int64      `json:"wordId" db:"wordId"`
+	Term             string     `json:"term" db:"term"`
+	Phonetic         *string    `json:"phonetic" db:"phonetic"`
+	Meaning          string     `json:"meaning" db:"meaning"`
+	MasteryLevel     int        `json:"masteryLevel" db:"masteryLevel"`
+	MemoryStatus     string     `json:"memoryStatus" db:"memoryStatus"`
+	LastReviewedAt   *time.Time `json:"lastReviewedAt" db:"lastReviewedAt"`
+	NextReviewDate   *time.Time `json:"nextReviewDate" db:"nextReviewDate"`
+	RepetitionCount  int        `json:"repetitionCount" db:"repetitionCount"`
+	ConsecutiveWrong int        `json:"consecutiveWrong" db:"consecutiveWrong"`
+	PriorityScore    float64    `json:"priorityScore" db:"priorityScore"`
 }
 
 type MistakeReviewItem struct {
-	WordID           int64   `json:"wordId"`
-	Term             string  `json:"term"`
-	Meaning          string  `json:"meaning"`
-	MasteryLevel     int     `json:"masteryLevel"`
-	MemoryStatus     string  `json:"memoryStatus"`
-	ConsecutiveWrong int     `json:"consecutiveWrong"`
-	WrongCount       int     `json:"wrongCount"`
+	WordID           int64   `json:"wordId" db:"wordId"`
+	Term             string  `json:"term" db:"term"`
+	Meaning          string  `json:"meaning" db:"meaning"`
+	MasteryLevel     int     `json:"masteryLevel" db:"masteryLevel"`
+	MemoryStatus     string  `json:"memoryStatus" db:"memoryStatus"`
+	ConsecutiveWrong int     `json:"consecutiveWrong" db:"consecutiveWrong"`
+	WrongCount       int     `json:"wrongCount" db:"wrongCount"`
 }
 
 type TopicWord struct {
-	WordID          int64      `json:"wordId"`
-	Term            string     `json:"term"`
-	Meaning         string     `json:"meaning"`
-	Phonetic        *string    `json:"phonetic"`
-	PartOfSpeech    *string    `json:"partOfSpeechName"`
-	MasteryLevel    int        `json:"masteryLevel"`
-	MemoryStatus    string     `json:"memoryStatus"`
-	RepetitionCount int        `json:"repetitionCount"`
-	LastReviewedAt  *time.Time `json:"lastReviewedAt"`
-	NextReviewDate  *time.Time `json:"nextReviewDate"`
-	NotebookID      *int64     `json:"notebookId"`
-	IsInNotebook    bool       `json:"isInNotebook"`
-	ExampleSentence *string    `json:"exampleSentence"`
-	ExampleMeaning  *string    `json:"exampleMeaning"`
+	WordID          int64      `json:"wordId" db:"wordId"`
+	Term            string     `json:"term" db:"term"`
+	Meaning         string     `json:"meaning" db:"meaning"`
+	Phonetic        *string    `json:"phonetic" db:"phonetic"`
+	PartOfSpeech    *string    `json:"partOfSpeechName" db:"partOfSpeechName"`
+	MasteryLevel    int        `json:"masteryLevel" db:"masteryLevel"`
+	MemoryStatus    string     `json:"memoryStatus" db:"memoryStatus"`
+	RepetitionCount int        `json:"repetitionCount" db:"repetitionCount"`
+	LastReviewedAt  *time.Time `json:"lastReviewedAt" db:"lastReviewedAt"`
+	NextReviewDate  *time.Time `json:"nextReviewDate" db:"nextReviewDate"`
+	NotebookID      *int64     `json:"notebookId" db:"notebookId"`
+	IsInNotebook    bool       `json:"isInNotebook" db:"isInNotebook"`
+	ExampleSentence *string    `json:"exampleSentence" db:"exampleSentence"`
+	ExampleMeaning  *string    `json:"exampleMeaning" db:"exampleMeaning"`
 }
