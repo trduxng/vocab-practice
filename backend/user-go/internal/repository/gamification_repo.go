@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/vocab-practice/user-go/internal/model"
 )
@@ -24,7 +25,7 @@ func (r *GamificationRepo) EnsureSchema(ctx context.Context) error {
 			EventType NVARCHAR(50) NOT NULL,
 			XPAmount INT NOT NULL,
 			SourceKey NVARCHAR(200) NULL,
-			Metadata NVARCHAR(MAX) NULL,
+			MetadataJson NVARCHAR(MAX) NULL,
 			CreatedAt DATETIMEOFFSET(7) DEFAULT SYSDATETIMEOFFSET()
 		)`)
 	return err
@@ -71,15 +72,15 @@ func (r *GamificationRepo) AwardXP(ctx context.Context, userID int64, event mode
 		}
 	}
 
-	result, err := r.db.ExecContext(ctx,
-		`INSERT INTO UserXPEvents (UserID, EventType, XPAmount, SourceKey, Metadata, CreatedAt)
+	var id int64
+	err := r.db.QueryRowContext(ctx,
+		`INSERT INTO UserXPEvents (UserID, EventType, XPAmount, SourceKey, MetadataJson, CreatedAt)
+		 OUTPUT INSERTED.XPEventID
 		 VALUES (@p1, @p2, @p3, @p4, @p5, SYSDATETIMEOFFSET())`,
-		userID, event.EventType, event.XPAmount, event.SourceKey, event.Metadata)
+		userID, event.EventType, event.XPAmount, event.SourceKey, event.Metadata).Scan(&id)
 	if err != nil {
 		return 0, err
 	}
-
-	id, _ := result.LastInsertId()
 
 	// Update user totals
 	r.db.ExecContext(ctx,
@@ -89,6 +90,24 @@ func (r *GamificationRepo) AwardXP(ctx context.Context, userID int64, event mode
 		 WHERE UserID = @p2`, event.XPAmount, userID)
 
 	return id, nil
+}
+
+func (r *GamificationRepo) MarkAchievementsSeen(ctx context.Context, userID int64, achievementIDs []int64) error {
+	if len(achievementIDs) == 0 {
+		_, err := r.db.ExecContext(ctx,
+			`UPDATE dbo.UserAchievements SET SeenAt = COALESCE(SeenAt, SYSDATETIMEOFFSET()) WHERE UserID = @p1`,
+			userID)
+		return err
+	}
+
+	idsJSON, _ := json.Marshal(achievementIDs)
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE ua SET SeenAt = COALESCE(SeenAt, SYSDATETIMEOFFSET())
+		 FROM dbo.UserAchievements ua
+		 JOIN OPENJSON(@p2) WITH (id BIGINT '$') AS ids ON ids.id = ua.AchievementID
+		 WHERE ua.UserID = @p1`,
+		userID, string(idsJSON))
+	return err
 }
 
 func (r *GamificationRepo) GetMetrics(ctx context.Context, userID int64) (totalXP int64, streak int, currentLevel int, err error) {

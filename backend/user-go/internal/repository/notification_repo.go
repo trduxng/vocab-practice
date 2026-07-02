@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/vocab-practice/user-go/internal/model"
 )
@@ -16,32 +15,23 @@ func NewNotificationRepo(db *DB) *NotificationRepo {
 }
 
 func (r *NotificationRepo) GetNotifications(ctx context.Context, userID int64, limit int) (*model.NotificationResponse, error) {
-	rows, err := r.db.QueryContext(ctx, `
+	var notifications []model.Notification
+	if err := r.db.SelectContext(ctx, &notifications, `
 		SELECT TOP (@p2)
-			NotificationID, Title, Message, Type, DeliveryChannel,
-			IsRead, ActionUrl, CreatedAt
+			NotificationID AS id, Title AS title, Message AS message,
+			Type AS type, DeliveryChannel AS channel,
+			IsRead AS isRead, ActionUrl AS actionUrl, CreatedAt AS createdAt
 		FROM dbo.Notifications
 		WHERE UserID = @p1
-		ORDER BY IsRead ASC, CreatedAt DESC`, userID, limit)
-	if err != nil {
+		ORDER BY IsRead ASC, CreatedAt DESC`, userID, limit); err != nil {
 		return nil, err
-	}
-	defer rows.Close()
-
-	var notifications []model.Notification
-	for rows.Next() {
-		var n model.Notification
-		if err := rows.Scan(&n.ID, &n.Title, &n.Message, &n.Type, &n.Channel,
-			&n.IsRead, &n.ActionUrl, &n.CreatedAt); err != nil {
-			return nil, fmt.Errorf("scan notification: %w", err)
-		}
-		notifications = append(notifications, n)
 	}
 
 	var unreadCount, total int
-	r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*), SUM(CASE WHEN IsRead = 0 THEN 1 ELSE 0 END)
-		 FROM dbo.Notifications WHERE UserID = @p1`, userID).Scan(&total, &unreadCount)
+	r.db.GetContext(ctx, &total,
+		`SELECT COUNT(*) FROM dbo.Notifications WHERE UserID = @p1`, userID)
+	r.db.GetContext(ctx, &unreadCount,
+		`SELECT ISNULL(SUM(CASE WHEN IsRead = 0 THEN 1 ELSE 0 END), 0) FROM dbo.Notifications WHERE UserID = @p1`, userID)
 
 	return &model.NotificationResponse{
 		Notifications: notifications,

@@ -51,13 +51,11 @@ func (r *FlashcardRepo) GetDueFlashcards(ctx context.Context, userID int64, filt
 				 WHEN uwp.UserWordProgressID IS NOT NULL THEN 1 ELSE 2 END,
 			uwp.NextReviewDate, uwp.MasteryLevel, NEWID()`
 
-	rows, err := r.db.QueryContext(ctx, query, userID)
-	if err != nil {
+	var items []model.Flashcard
+	if err := r.db.SelectContext(ctx, &items, query, userID); err != nil {
 		return nil, fmt.Errorf("query flashcards: %w", err)
 	}
-	defer rows.Close()
-
-	return scanFlashcards(rows)
+	return items, nil
 }
 
 func (r *FlashcardRepo) GetTopicWords(ctx context.Context, userID, topicID int64) ([]model.TopicWord, error) {
@@ -84,13 +82,11 @@ func (r *FlashcardRepo) GetTopicWords(ctx context.Context, userID, topicID int64
 		WHERE t.TopicID = @p2 AND t.ContentStatus = N'Published'
 		ORDER BY w.Term ASC`
 
-	rows, err := r.db.QueryContext(ctx, query, userID, topicID)
-	if err != nil {
+	var items []model.TopicWord
+	if err := r.db.SelectContext(ctx, &items, query, userID, topicID); err != nil {
 		return nil, fmt.Errorf("query topic words: %w", err)
 	}
-	defer rows.Close()
-
-	return scanTopicWords(rows)
+	return items, nil
 }
 
 func (r *FlashcardRepo) GetSmartReviewQueue(ctx context.Context, userID int64, limit int) ([]model.SmartReviewItem, error) {
@@ -115,13 +111,11 @@ func (r *FlashcardRepo) GetSmartReviewQueue(ctx context.Context, userID int64, l
 			AND uwp.NextReviewDate <= DATEADD(day, 7, SYSDATETIMEOFFSET())
 		ORDER BY priorityScore DESC, uwp.MasteryLevel ASC`
 
-	rows, err := r.db.QueryContext(ctx, query, userID, limit)
-	if err != nil {
+	var items []model.SmartReviewItem
+	if err := r.db.SelectContext(ctx, &items, query, userID, limit); err != nil {
 		return nil, fmt.Errorf("query smart review: %w", err)
 	}
-	defer rows.Close()
-
-	return scanSmartReviewItems(rows)
+	return items, nil
 }
 
 func (r *FlashcardRepo) GetMistakeReviewQueue(ctx context.Context, userID int64, limit int) ([]model.MistakeReviewItem, error) {
@@ -142,13 +136,11 @@ func (r *FlashcardRepo) GetMistakeReviewQueue(ctx context.Context, userID int64,
 		LEFT JOIN UserWordProgress uwp ON w.WordID = uwp.WordID AND uwp.UserID = @p1
 		ORDER BY recent.wrongCount DESC, uwp.MasteryLevel ASC`
 
-	rows, err := r.db.QueryContext(ctx, query, userID, limit)
-	if err != nil {
+	var items []model.MistakeReviewItem
+	if err := r.db.SelectContext(ctx, &items, query, userID, limit); err != nil {
 		return nil, fmt.Errorf("query mistake review: %w", err)
 	}
-	defer rows.Close()
-
-	return scanMistakeReviewItems(rows)
+	return items, nil
 }
 
 func (r *FlashcardRepo) SubmitAnswer(ctx context.Context, userID int64, questionID, wordID *int64, submittedAnswer string, isCorrect bool, scoreAwarded float64) (int64, error) {
@@ -214,76 +206,4 @@ func (r *FlashcardRepo) GetDailyProgress(ctx context.Context, userID int64) (int
 
 // scan helpers
 
-func scanFlashcards(rows *sql.Rows) ([]model.Flashcard, error) {
-	var items []model.Flashcard
-	for rows.Next() {
-		var item model.Flashcard
-		err := rows.Scan(
-			&item.QuestionID, &item.QuestionType, &item.QuestionText,
-			&item.CorrectAnswer, &item.OptionsJson, &item.Phonetic,
-			&item.Meaning, &item.Term, &item.AudioUrlUK, &item.AudioUrlUS,
-			&item.WordID, &item.PartOfSpeech, &item.MasteryLevel,
-			&item.MemoryStatus, &item.RepetitionCount,
-			&item.ExampleSentence, &item.ExampleMeaning,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("scan flashcard: %w", err)
-		}
-		items = append(items, item)
-	}
-	return items, rows.Err()
-}
 
-func scanTopicWords(rows *sql.Rows) ([]model.TopicWord, error) {
-	var items []model.TopicWord
-	for rows.Next() {
-		var item model.TopicWord
-		err := rows.Scan(
-			&item.WordID, &item.Term, &item.Meaning, &item.Phonetic,
-			&item.PartOfSpeech, &item.MasteryLevel, &item.MemoryStatus,
-			&item.RepetitionCount, &item.LastReviewedAt, &item.NextReviewDate,
-			&item.NotebookID, &item.IsInNotebook,
-			&item.ExampleSentence, &item.ExampleMeaning,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("scan topic word: %w", err)
-		}
-		items = append(items, item)
-	}
-	return items, rows.Err()
-}
-
-func scanSmartReviewItems(rows *sql.Rows) ([]model.SmartReviewItem, error) {
-	var items []model.SmartReviewItem
-	for rows.Next() {
-		var item model.SmartReviewItem
-		err := rows.Scan(
-			&item.WordID, &item.Term, &item.Phonetic, &item.Meaning,
-			&item.MasteryLevel, &item.MemoryStatus,
-			&item.LastReviewedAt, &item.NextReviewDate,
-			&item.RepetitionCount, &item.ConsecutiveWrong, &item.PriorityScore,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("scan smart review: %w", err)
-		}
-		items = append(items, item)
-	}
-	return items, rows.Err()
-}
-
-func scanMistakeReviewItems(rows *sql.Rows) ([]model.MistakeReviewItem, error) {
-	var items []model.MistakeReviewItem
-	for rows.Next() {
-		var item model.MistakeReviewItem
-		err := rows.Scan(
-			&item.WordID, &item.Term, &item.Meaning,
-			&item.MasteryLevel, &item.MemoryStatus,
-			&item.ConsecutiveWrong, &item.WrongCount,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("scan mistake review: %w", err)
-		}
-		items = append(items, item)
-	}
-	return items, rows.Err()
-}

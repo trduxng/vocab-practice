@@ -3,16 +3,13 @@ package repository
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/vocab-practice/user-go/internal/model"
 )
 
 type ProgressRepo struct {
 	db *DB
-}
-
-func (p *ProgressRepo) GetDB() *DB {
-	return p.db
 }
 
 func NewProgressRepo(db *DB) *ProgressRepo {
@@ -37,21 +34,11 @@ func (r *ProgressRepo) GetActivityHeatmap(ctx context.Context, userID int64, yea
 		FROM DailyAttempts a FULL OUTER JOIN DailyXP x ON x.date = a.date
 		ORDER BY date`
 
-	rows, err := r.db.QueryContext(ctx, query, userID, year)
-	if err != nil {
+	var items []model.ActivityDay
+	if err := r.db.SelectContext(ctx, &items, query, userID, year); err != nil {
 		return nil, fmt.Errorf("query activity heatmap: %w", err)
 	}
-	defer rows.Close()
-
-	var items []model.ActivityDay
-	for rows.Next() {
-		var item model.ActivityDay
-		if err := rows.Scan(&item.Date, &item.ActivityCount, &item.XPEarned); err != nil {
-			return nil, fmt.Errorf("scan activity: %w", err)
-		}
-		items = append(items, item)
-	}
-	return items, rows.Err()
+	return items, nil
 }
 
 func (r *ProgressRepo) GetProgressAnalytics(ctx context.Context, userID int64) ([]model.ActivityDay, []model.VocabularyGrowthPoint, []model.TopicMasteryProgress, *model.RetentionStats, error) {
@@ -172,6 +159,18 @@ func (r *ProgressRepo) GetProgressAnalytics(ctx context.Context, userID int64) (
 	return activity, growth, topics, retention, nil
 }
 
+func (r *ProgressRepo) GetSessionSummary(ctx context.Context, userID int64) (totalAttempts, correctCount, wrongCount int, err error) {
+	err = r.db.QueryRowContext(ctx, `
+		SELECT
+			ISNULL(COUNT(*), 0),
+			ISNULL(SUM(CASE WHEN IsCorrect = 1 THEN 1 ELSE 0 END), 0),
+			ISNULL(SUM(CASE WHEN IsCorrect = 0 THEN 1 ELSE 0 END), 0)
+		FROM ExerciseAttempts
+		WHERE UserID = @p1 AND CAST(AttemptedAt AS DATE) = CAST(SYSDATETIMEOFFSET() AS DATE)`,
+		userID).Scan(&totalAttempts, &correctCount, &wrongCount)
+	return
+}
+
 func (r *ProgressRepo) GetUserStats(ctx context.Context, userID int64) (int, int, int, int, error) {
 	var learned, correct, wrong, streak int
 	err := r.db.QueryRowContext(ctx,
@@ -188,66 +187,78 @@ func (r *ProgressRepo) GetUserStats(ctx context.Context, userID int64) (int, int
 }
 
 func (r *ProgressRepo) GetWeakWords(ctx context.Context, userID int64) ([]model.WeakWord, error) {
-	rows, err := r.db.QueryContext(ctx,
-		`SELECT TOP 5 w.Term, w.Meaning
-		 FROM UserWordProgress uwp JOIN Words w ON uwp.WordID = w.WordID
-		 WHERE uwp.UserID = @p1 AND (uwp.MemoryStatus = 'Lapsed' OR uwp.MasteryLevel < 3)
-		 ORDER BY uwp.MasteryLevel ASC`, userID)
-	if err != nil {
+	var words []model.WeakWord
+	query := "SELECT TOP 5 w.Term AS word, w.Meaning AS meaning " +
+		"FROM UserWordProgress uwp JOIN Words w ON uwp.WordID = w.WordID " +
+		"WHERE uwp.UserID = @p1 AND (uwp.MemoryStatus = 'Lapsed' OR uwp.MasteryLevel < 3) " +
+		"ORDER BY uwp.MasteryLevel ASC"
+	if err := r.db.SelectContext(ctx, &words, query, userID); err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	var words []model.WeakWord
-	for rows.Next() {
-		var w model.WeakWord
-		if err := rows.Scan(&w.Word, &w.Meaning); err != nil {
-			return nil, err
-		}
-		words = append(words, w)
-	}
-	return words, rows.Err()
+	return words, nil
 }
 
 func (r *ProgressRepo) GetRecentAttempts(ctx context.Context, userID int64) ([]model.RecentAttempt, error) {
-	rows, err := r.db.QueryContext(ctx,
-		`SELECT TOP 10 ea.SubmittedAnswer, ea.IsCorrect, ea.AttemptedAt, w.Term
+	var attempts []model.RecentAttempt
+	if err := r.db.SelectContext(ctx, &attempts,
+		`SELECT TOP 10 ea.SubmittedAnswer AS answer, ea.IsCorrect AS isCorrect, ea.AttemptedAt AS date, w.Term AS term
 		 FROM ExerciseAttempts ea JOIN Words w ON ea.WordID = w.WordID
-		 WHERE ea.UserID = @p1 ORDER BY ea.AttemptedAt DESC`, userID)
+		 WHERE ea.UserID = @p1 ORDER BY ea.AttemptedAt DESC`, userID); err != nil {
+		return nil, err
+	}
+	return attempts, nil
+}
+
+func (r *ProgressRepo) GetMasteryTimeline(ctx context.Context, userID int64) (*model.MasteryTimeline, error) {
+	// Try view first
+	var viewExists int
+	r.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM sys.views WHERE name = N'vw_MasteryTimelineProjection'`,
+	).Scan(&viewExists)
+
+	if viewExists > 0 {
+		result := &model.MasteryTimeline{}
+		var estDays *int
+		var projDate *time.Time
+		err := r.db.QueryRowContext(ctx,
+			`SELECT TotalWords, MasteredWords,
+				ISNULL(CompletionPercentage, 0),
+				EstimatedDaysToMastery,
+				ProjectedCompletionDate
+			 FROM dbo.vw_MasteryTimelineProjection
+			 WHERE UserID = @p1`, userID,
+		).Scan(&result.TotalWords, &result.MasteredWords, &result.CompletionPct, &estDays, &projDate)
+		if err == nil {
+			result.EstimatedDays = estDays
+			result.ProjectedDate = projDate
+			return result, nil
+		}
+	}
+
+	// Fallback
+	result := &model.MasteryTimeline{}
+	err := r.db.QueryRowContext(ctx,
+		`SELECT
+			COUNT(*),
+			SUM(CASE WHEN MasteryLevel >= 7 THEN 1 ELSE 0 END),
+			CAST(SUM(CASE WHEN MasteryLevel >= 7 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0) AS DECIMAL(5,2))
+		 FROM UserWordProgress
+		 WHERE UserID = @p1`, userID,
+	).Scan(&result.TotalWords, &result.MasteredWords, &result.CompletionPct)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	var attempts []model.RecentAttempt
-	for rows.Next() {
-		var a model.RecentAttempt
-		if err := rows.Scan(&a.Answer, &a.IsCorrect, &a.Date, &a.Term); err != nil {
-			return nil, err
-		}
-		attempts = append(attempts, a)
-	}
-	return attempts, rows.Err()
+	return result, nil
 }
 
 func (r *ProgressRepo) GetDailyTrends(ctx context.Context, userID int64) ([]model.DailyTrend, error) {
-	rows, err := r.db.QueryContext(ctx,
+	var trends []model.DailyTrend
+	if err := r.db.SelectContext(ctx, &trends,
 		`SELECT CAST(AttemptedAt AS DATE) AS date, COUNT(*) AS count
 		 FROM ExerciseAttempts
 		 WHERE UserID = @p1 AND AttemptedAt >= DATEADD(day, -7, SYSDATETIMEOFFSET())
-		 GROUP BY CAST(AttemptedAt AS DATE) ORDER BY date ASC`, userID)
-	if err != nil {
+		 GROUP BY CAST(AttemptedAt AS DATE) ORDER BY date ASC`, userID); err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	var trends []model.DailyTrend
-	for rows.Next() {
-		var t model.DailyTrend
-		if err := rows.Scan(&t.Day, &t.Count); err != nil {
-			return nil, err
-		}
-		trends = append(trends, t)
-	}
-	return trends, rows.Err()
+	return trends, nil
 }

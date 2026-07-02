@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -28,19 +29,20 @@ func main() {
 		log.Printf("WARNING: Database connection failed: %v", err)
 		log.Println("Server will start but DB-dependent routes will fail")
 	} else {
-		defer db.Close()
 		log.Println("Connected to database")
 	}
 
 	// Repositories
 	var (
-		userRepo         *repository.UserRepo
-		flashcardRepo    *repository.FlashcardRepo
-		progressRepo     *repository.ProgressRepo
-		gamificationRepo *repository.GamificationRepo
-		notebookRepo     *repository.NotebookRepo
-		notificationRepo *repository.NotificationRepo
-		minitestRepo     *repository.MiniTestRepo
+		userRepo          *repository.UserRepo
+		flashcardRepo     *repository.FlashcardRepo
+		progressRepo      *repository.ProgressRepo
+		gamificationRepo  *repository.GamificationRepo
+		notebookRepo      *repository.NotebookRepo
+		notificationRepo  *repository.NotificationRepo
+		minitestRepo      *repository.MiniTestRepo
+		reportRepo        *repository.ReportRepo
+		learningPathRepo  *repository.LearningPathRepo
 	)
 
 	if db != nil {
@@ -51,18 +53,37 @@ func main() {
 		notebookRepo = repository.NewNotebookRepo(db)
 		notificationRepo = repository.NewNotificationRepo(db)
 		minitestRepo = repository.NewMiniTestRepo(db)
+		reportRepo = repository.NewReportRepo(db)
+		learningPathRepo = repository.NewLearningPathRepo(db)
+	}
+
+	// Run schema migrations on startup
+	if db != nil {
+		ctx := context.Background()
+		log.Println("Running schema migrations...")
+		if err := gamificationRepo.EnsureSchema(ctx); err != nil {
+			log.Printf("WARNING: gamification schema: %v", err)
+		}
+		if err := reportRepo.EnsureSchema(ctx); err != nil {
+			log.Printf("WARNING: report schema: %v", err)
+		}
+		if err := learningPathRepo.EnsureSchema(ctx); err != nil {
+			log.Printf("WARNING: learning path schema: %v", err)
+		}
+		log.Println("Schema migrations complete")
 	}
 
 	// Services
 	gamificationSvc := service.NewGamificationService(gamificationRepo, userRepo)
 
 	// Handlers
-	userHandler := handler.NewUserHandler(userRepo)
+	userHandler := handler.NewUserHandler(userRepo, reportRepo)
 	flashcardHandler := handler.NewFlashcardHandler(flashcardRepo)
 	progressHandler := handler.NewProgressHandler(progressRepo, gamificationRepo)
 	notebookHandler := handler.NewNotebookHandler(notebookRepo)
 	notificationHandler := handler.NewNotificationHandler(notificationRepo)
 	minitestHandler := handler.NewMiniTestHandler(minitestRepo, flashcardRepo, gamificationSvc)
+	learningPathHandler := handler.NewLearningPathHandler(learningPathRepo)
 	gamificationHandler := handler.NewGamificationHandler(gamificationSvc)
 	practiceHandler := handler.NewPracticeHandler(flashcardRepo, minitestRepo, gamificationRepo, gamificationSvc)
 
@@ -92,6 +113,10 @@ func main() {
 		userGroup.GET("/stats", progressHandler.GetStats)
 		userGroup.GET("/progress/analytics", progressHandler.GetProgressAnalytics)
 		userGroup.GET("/activity/heatmap", progressHandler.GetActivityHeatmap)
+		userGroup.GET("/dashboard/mastery-timeline", progressHandler.GetMasteryTimeline)
+
+		// Learning Path
+		userGroup.GET("/learning-path", learningPathHandler.GetRoadmap)
 
 		// Daily Goals
 		userGroup.GET("/goals/daily-goal", userHandler.GetDailyGoal)
@@ -101,6 +126,10 @@ func main() {
 
 		// Profile & Settings
 		userGroup.PUT("/profile", userHandler.UpdateProfile)
+		userGroup.POST("/change-password", userHandler.ChangePassword)
+
+		// Reports
+		userGroup.POST("/reports", userHandler.CreateReport)
 
 		// Mini Tests
 		userGroup.GET("/minitests", minitestHandler.GetMiniTests)

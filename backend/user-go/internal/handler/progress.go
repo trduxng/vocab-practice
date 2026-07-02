@@ -120,36 +120,37 @@ func (h *ProgressHandler) GetActivityHeatmap(c *gin.Context) {
 	c.JSON(http.StatusOK, data)
 }
 
+func (h *ProgressHandler) GetMasteryTimeline(c *gin.Context) {
+	userID := c.GetInt64("userId")
+
+	timeline, err := h.progressRepo.GetMasteryTimeline(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to load mastery timeline"})
+		return
+	}
+
+	c.JSON(http.StatusOK, timeline)
+}
+
 func (h *ProgressHandler) GetSessionSummary(c *gin.Context) {
 	userID := c.GetInt64("userId")
 
-	var totalAttempts, correctCount, wrongCount int
+	totalAttempts, correctCount, wrongCount, err := h.progressRepo.GetSessionSummary(c.Request.Context(), userID)
+
 	var accuracy float64
-	var xpEarned int64
-	var totalXP int64
-	var currentLevel int
-
-	db := h.progressRepo.GetDB()
-
-	err := db.QueryRowContext(c.Request.Context(), `
-		SELECT
-			ISNULL(COUNT(*), 0),
-			ISNULL(SUM(CASE WHEN IsCorrect = 1 THEN 1 ELSE 0 END), 0),
-			ISNULL(SUM(CASE WHEN IsCorrect = 0 THEN 1 ELSE 0 END), 0)
-		FROM ExerciseAttempts
-		WHERE UserID = @p1 AND CAST(AttemptedAt AS DATE) = CAST(SYSDATETIMEOFFSET() AS DATE)`,
-		userID).Scan(&totalAttempts, &correctCount, &wrongCount)
 	if err == nil && totalAttempts > 0 {
 		accuracy = float64(correctCount) * 100.0 / float64(totalAttempts)
 	}
 
-	db.QueryRowContext(c.Request.Context(),
-		`SELECT ISNULL(SUM(XPAmount), 0) FROM UserXPEvents
-		 WHERE UserID = @p1 AND CAST(CreatedAt AS DATE) = CAST(SYSDATETIMEOFFSET() AS DATE)`,
-		userID).Scan(&xpEarned)
-	db.QueryRowContext(c.Request.Context(),
-		`SELECT COALESCE(TotalXP, 0), COALESCE(CurrentLevel, 1) FROM Users WHERE UserID = @p1`,
-		userID).Scan(&totalXP, &currentLevel)
+	profile, _ := h.gamificationRepo.GetProfile(c.Request.Context(), userID)
+	var totalXP int64
+	var currentLevel int
+	var todayXP int64
+	if profile != nil {
+		totalXP = profile.TotalXP
+		currentLevel = profile.CurrentLevel
+		todayXP = profile.TodayXP
+	}
 
 	weakWords, _ := h.progressRepo.GetWeakWords(c.Request.Context(), userID)
 
@@ -158,7 +159,7 @@ func (h *ProgressHandler) GetSessionSummary(c *gin.Context) {
 		CorrectCount:  correctCount,
 		WrongCount:    wrongCount,
 		Accuracy:      accuracy,
-		XPEarned:      xpEarned,
+		XPEarned:      todayXP,
 		TotalXP:       totalXP,
 		CurrentLevel:  currentLevel,
 		WeakWords:     weakWords,

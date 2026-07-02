@@ -49,12 +49,20 @@ func (h *GamificationHandler) CompletePractice(c *gin.Context) {
 }
 
 func (h *GamificationHandler) MarkAchievementsSeen(c *gin.Context) {
+	userID := c.GetInt64("userId")
+
 	var req struct {
 		AchievementIDs []int64 `json:"achievementIds"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Dữ liệu không hợp lệ"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Achievements marked as seen"})
+
+	if err := h.gamificationSvc.MarkAchievementsSeen(c.Request.Context(), userID, req.AchievementIDs); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Không thể cập nhật trạng thái đã xem"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Đã đánh dấu thành tích đã xem"})
 }

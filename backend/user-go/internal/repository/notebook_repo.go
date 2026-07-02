@@ -20,13 +20,13 @@ func (r *NotebookRepo) GetNotebook(ctx context.Context, userID int64, page, page
 	offset := (page - 1) * pageSize
 
 	var total int
-	err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM UserVocabularyNotebook WHERE UserID = @p1`, userID).Scan(&total)
-	if err != nil {
+	if err := r.db.GetContext(ctx, &total,
+		`SELECT COUNT(*) FROM UserVocabularyNotebook WHERE UserID = @p1`, userID); err != nil {
 		return nil, err
 	}
 
-	rows, err := r.db.QueryContext(ctx, `
+	var entries []model.NotebookEntry
+	if err := r.db.SelectContext(ctx, &entries, `
 		SELECT un.NotebookID, un.UserID, un.WordID, un.PersonalNote, un.IsFavorite,
 			un.AddedAt, un.UpdatedAt, w.Term, w.Meaning, w.Phonetic,
 			p.PartOfSpeechName, ISNULL(uwp.MasteryLevel, 0) AS masteryLevel
@@ -36,23 +36,7 @@ func (r *NotebookRepo) GetNotebook(ctx context.Context, userID int64, page, page
 		LEFT JOIN UserWordProgress uwp ON w.WordID = uwp.WordID AND uwp.UserID = @p1
 		WHERE un.UserID = @p1
 		ORDER BY un.IsFavorite DESC, un.UpdatedAt DESC
-		OFFSET @p2 ROWS FETCH NEXT @p3 ROWS ONLY`, userID, offset, pageSize)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var entries []model.NotebookEntry
-	for rows.Next() {
-		var e model.NotebookEntry
-		if err := rows.Scan(&e.NotebookID, &e.UserID, &e.WordID, &e.PersonalNote, &e.IsFavorite,
-			&e.AddedAt, &e.UpdatedAt, &e.Term, &e.Meaning, &e.Phonetic,
-			&e.PartOfSpeech, &e.MasteryLevel); err != nil {
-			return nil, fmt.Errorf("scan notebook: %w", err)
-		}
-		entries = append(entries, e)
-	}
-	if err := rows.Err(); err != nil {
+		OFFSET @p2 ROWS FETCH NEXT @p3 ROWS ONLY`, userID, offset, pageSize); err != nil {
 		return nil, err
 	}
 

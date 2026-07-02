@@ -87,6 +87,10 @@ func (s *GamificationService) GetMetrics(ctx context.Context, userID int64) (tot
 	return s.gamificationRepo.GetMetrics(ctx, userID)
 }
 
+func (s *GamificationService) MarkAchievementsSeen(ctx context.Context, userID int64, achievementIDs []int64) error {
+	return s.gamificationRepo.MarkAchievementsSeen(ctx, userID, achievementIDs)
+}
+
 func (s *GamificationService) GetDateKey() string {
 	return time.Now().Format("2006-01-02")
 }

@@ -68,3 +68,7 @@ process/
 .codex/
 .gemini/
 
+# Go binaries
+backend/user-go/server
+backend/user-go/*.exe
+
