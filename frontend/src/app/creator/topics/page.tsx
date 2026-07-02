@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { creatorService, TopicCategory, TopicPayload, Topic } from '@/src/services/creator.service';
-import { Plus, Pencil, Trash2, Send, Loader2, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Send, Loader2, X, ExternalLink, RotateCcw, Copy, History, AlertTriangle } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import { toast } from 'sonner';
@@ -24,6 +25,7 @@ const statusLabels: Record<string, string> = {
 };
 
 export default function CreatorTopicsPage() {
+  const router = useRouter();
   const [topics, setTopics] = useState<Topic[]>([]);
   const [categories, setCategories] = useState<TopicCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,6 +33,47 @@ export default function CreatorTopicsPage() {
   const [editing, setEditing] = useState<Topic | null>(null);
   const [form, setForm] = useState<TopicPayload>({ topicName: '', topicCode: '', description: '', topicCategoryId: undefined, displayOrder: 0 });
   const [saving, setSaving] = useState(false);
+  const [showLogs, setShowLogs] = useState(false);
+  const [selectedTopicLogs, setSelectedTopicLogs] = useState<any[]>([]);
+  const [selectedTopicName, setSelectedTopicName] = useState('');
+  const [loadingLogs, setLoadingLogs] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    confirmText?: string;
+    cancelText?: string;
+    isDestructive?: boolean;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const triggerConfirm = (options: {
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    confirmText?: string;
+    cancelText?: string;
+    isDestructive?: boolean;
+  }) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: options.title,
+      message: options.message,
+      onConfirm: () => {
+        options.onConfirm();
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+      },
+      confirmText: options.confirmText,
+      cancelText: options.cancelText,
+      isDestructive: options.isDestructive,
+    });
+  };
+
 
   const loadData = useCallback(async () => {
     try {
@@ -84,16 +127,24 @@ export default function CreatorTopicsPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Xóa chủ đề này? (Chỉ xóa được bản nháp)')) return;
-    try {
-      await creatorService.deleteTopic(id);
-      toast.success('Đã xóa');
-      await loadData();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Không thể xóa');
-    }
+  const handleDelete = (id: number) => {
+    triggerConfirm({
+      title: 'Xóa chủ đề',
+      message: 'Bạn có chắc chắn muốn xóa chủ đề này? Hành động này sẽ xóa vĩnh viễn chủ đề và không thể hoàn tác.',
+      confirmText: 'Xóa',
+      cancelText: 'Hủy',
+      isDestructive: true,
+      onConfirm: async () => {
+        try {
+          await creatorService.deleteTopic(id);
+          toast.success('Đã xóa chủ đề');
+          await loadData();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } catch (err: any) {
+          toast.error(err.response?.data?.message || 'Không thể xóa');
+        }
+      }
+    });
   };
 
   const handleSubmitReview = async (id: number) => {
@@ -104,6 +155,61 @@ export default function CreatorTopicsPage() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Không thể gửi duyệt');
+    }
+  };
+
+  const handleWithdraw = (id: number) => {
+    triggerConfirm({
+      title: 'Thu hồi yêu cầu duyệt',
+      message: 'Bạn có chắc chắn muốn thu hồi yêu cầu duyệt cho chủ đề này? Trạng thái sẽ trở về Bản nháp.',
+      confirmText: 'Thu hồi',
+      cancelText: 'Hủy',
+      onConfirm: async () => {
+        try {
+          await creatorService.withdrawTopic(id);
+          toast.success('Đã thu hồi yêu cầu duyệt');
+          await loadData();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } catch (err: any) {
+          toast.error(err.response?.data?.message || 'Không thể thu hồi');
+        }
+      }
+    });
+  };
+
+  const handleDuplicate = (id: number) => {
+    triggerConfirm({
+      title: 'Sao chép chủ đề',
+      message: 'Bạn có muốn sao chép chủ đề này cùng toàn bộ từ vựng và câu hỏi bên trong không?',
+      confirmText: 'Sao chép',
+      cancelText: 'Hủy',
+      onConfirm: async () => {
+        try {
+          await creatorService.duplicateTopic(id);
+          toast.success('Sao chép chủ đề thành công');
+          await loadData();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } catch (err: any) {
+          toast.error(err.response?.data?.message || 'Không thể sao chép');
+        }
+      }
+    });
+  };
+
+  const handleViewLogs = async (id: number, name: string) => {
+    setLoadingLogs(true);
+    setSelectedTopicName(name);
+    setSelectedTopicLogs([]);
+    setShowLogs(true);
+    try {
+      const logs = await creatorService.getTopicReviewLogs(id);
+      setSelectedTopicLogs(logs);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Không thể tải lịch sử duyệt');
+      setShowLogs(false);
+    } finally {
+      setLoadingLogs(false);
     }
   };
 
@@ -206,6 +312,18 @@ export default function CreatorTopicsPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
+                      <button
+                        onClick={() => router.push(`/creator/topics/${t.id}`)}
+                        title="Mở chi tiết"
+                        className="p-1.5 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-indigo-500"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </button>
+                      {t.contentStatus === 'PendingReview' && (
+                        <button onClick={() => handleWithdraw(t.id)} title="Thu hồi yêu cầu duyệt" className="p-1.5 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/20 text-amber-500">
+                          <RotateCcw className="h-4 w-4" />
+                        </button>
+                      )}
                       {(t.contentStatus === 'Draft' || t.contentStatus === 'Rejected') && (
                         <button onClick={() => handleSubmitReview(t.id)} title="Gửi duyệt" className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-500">
                           <Send className="h-4 w-4" />
@@ -213,6 +331,12 @@ export default function CreatorTopicsPage() {
                       )}
                       <button onClick={() => openEdit(t)} title="Sửa" className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-500">
                         <Pencil className="h-4 w-4" />
+                      </button>
+                      <button onClick={() => handleDuplicate(t.id)} title="Sao chép chủ đề" className="p-1.5 rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/20 text-teal-500">
+                        <Copy className="h-4 w-4" />
+                      </button>
+                      <button onClick={() => handleViewLogs(t.id, t.name)} title="Xem lịch sử phê duyệt" className="p-1.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 text-purple-500">
+                        <History className="h-4 w-4" />
                       </button>
                       {t.contentStatus === 'Draft' && (
                         <button onClick={() => handleDelete(t.id)} title="Xóa" className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500">
@@ -227,6 +351,81 @@ export default function CreatorTopicsPage() {
           </table>
         </div>
       </div>
+
+      {/* Logs Modal */}
+      {showLogs && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowLogs(false)}>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-xl space-y-4 shadow-2xl border border-slate-200 dark:border-white/10 max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b pb-3 dark:border-white/10">
+              <h2 className="text-lg font-bold">Lịch sử phê duyệt: {selectedTopicName}</h2>
+              <button onClick={() => setShowLogs(false)}><X className="h-5 w-5 text-slate-500" /></button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto pr-1 py-2">
+              {loadingLogs ? (
+                <div className="flex items-center justify-center py-12"><Loader2 className="animate-spin h-8 w-8 text-blue-500" /></div>
+              ) : selectedTopicLogs.length === 0 ? (
+                <div className="text-center py-12 text-slate-500">Chưa có lịch sử phê duyệt cho chủ đề này.</div>
+              ) : (
+                <div className="relative border-l-2 border-slate-200 dark:border-slate-800 ml-3 space-y-6 py-2">
+                  {selectedTopicLogs.map((log) => (
+                    <div key={log.id} className="relative pl-6">
+                      <div className="absolute -left-[9px] top-1.5 h-4 w-4 rounded-full border-2 border-white dark:border-slate-900 bg-blue-500" />
+                      <div className="flex items-center justify-between text-xs text-slate-500">
+                        <span className="font-semibold text-slate-700 dark:text-slate-300">{log.actionByName || 'Hệ thống'}</span>
+                        <span>{new Date(log.createdAt).toLocaleString('vi-VN')}</span>
+                      </div>
+                      <div className="mt-1 flex items-center gap-2">
+                        <span className="text-xs text-slate-500 font-mono">Trạng thái:</span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${statusBadge[log.newStatus] || ''}`}>
+                          {statusLabels[log.newStatus] || log.newStatus}
+                        </span>
+                      </div>
+                      {log.comment && (
+                        <div className="mt-2 text-sm p-3 rounded-lg bg-slate-50 dark:bg-white/5 text-slate-700 dark:text-slate-300 italic border border-slate-100 dark:border-white/5">
+                          "{log.comment}"
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end pt-3 border-t dark:border-white/10">
+              <Button onClick={() => setShowLogs(false)} className="rounded-xl">Đóng</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {confirmDialog.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-md space-y-4 shadow-2xl border border-slate-200 dark:border-white/10 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start gap-3">
+              <div className={`p-2 rounded-full ${confirmDialog.isDestructive ? 'bg-red-50 text-red-500 dark:bg-red-950/30' : 'bg-blue-50 text-blue-500 dark:bg-blue-950/30'}`}>
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">{confirmDialog.title}</h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">{confirmDialog.message}</p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))} className="rounded-xl">
+                {confirmDialog.cancelText || 'Hủy'}
+              </Button>
+              <Button 
+                variant={confirmDialog.isDestructive ? 'destructive' : 'default'} 
+                onClick={confirmDialog.onConfirm} 
+                className="rounded-xl"
+              >
+                {confirmDialog.confirmText || 'Xác nhận'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

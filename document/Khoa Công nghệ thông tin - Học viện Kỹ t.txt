@@ -63,7 +63,7 @@ IV. Thiết kế giao diện người dùng	73
  
 I. GIỚI THIỆU
 1.1 Mục đích tài liệu 
-Tài liệu được xây dựng dựa trên quá trình khảo sát, phân tích yêu cầu khách hàng làm căn cứ cho quá trình phát triển, kiểm thử, bảo hành hệ thống. Nội dung tài liệu bao gồm đặc tả các yêu cầu chức năng và phi chức năng của hệ thống. Các chức năng chính của hệ thống gồm quản lý tài liệu, chủ đề, sự kiện, tóm tắt đơn văn bản, tóm tắt đa văn bản. Hệ thống sẽ giúp người dùng có thể dễ dàng quản lý và tổng hợp thông tin nhanh chóng, chính xác.
+Tài liệu được xây dựng dựa trên quá trình khảo sát, phân tích yêu cầu khách hàng làm căn cứ cho quá trình phát triển, kiểm thử, bảo hành hệ thống. Nội dung tài liệu bao gồm đặc tả các yêu cầu chức năng và phi chức năng của hệ thống. Các chức năng chính của hệ thống gồm quản lý từ vựng, luyện tập flashcard theo thuật toán Spaced Repetition, làm đề thi thử Mini Test, quản lý tiến trình học tập và gamification (XP, level, streak, achievements). Hệ thống sẽ giúp người học từ vựng TOEIC có thể dễ dàng ôn luyện và theo dõi tiến bộ một cách hiệu quả.
 1.2 Phạm vi tài liệu
 Tài liệu được sử dụng làm cơ sở cho thiết kế, phát triển, kiểm thử và bảo hành cho hệ thống. 
 1.3 Định nghĩa thuật ngữ viết tắt 

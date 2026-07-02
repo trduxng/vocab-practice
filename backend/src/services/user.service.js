@@ -508,16 +508,67 @@ class UserService {
     return result.recordset;
   }
 
-  static async updateProfile(userId, fullName) {
+  static async updateProfile(userId, fullName, email) {
     const pool = await poolPromise;
-    await pool
-      .request()
+    if (email) {
+      const checkEmail = await pool.request()
+        .input("UserID", sql.BigInt, userId)
+        .input("Email", sql.NVarChar(255), email)
+        .query("SELECT UserID FROM Users WHERE Email = @Email AND UserID <> @UserID");
+      if (checkEmail.recordset.length > 0) {
+        const err = new Error("Email đã được sử dụng bởi người dùng khác");
+        err.statusCode = 400;
+        throw err;
+      }
+      await pool
+        .request()
+        .input("UserID", sql.BigInt, userId)
+        .input("FullName", sql.NVarChar(200), fullName)
+        .input("Email", sql.NVarChar(255), email)
+        .query(
+          "UPDATE Users SET FullName = @FullName, Email = @Email, UpdatedAt = SYSDATETIMEOFFSET() WHERE UserID = @UserID",
+        );
+      return { id: userId, fullName, email };
+    } else {
+      await pool
+        .request()
+        .input("UserID", sql.BigInt, userId)
+        .input("FullName", sql.NVarChar(200), fullName)
+        .query(
+          "UPDATE Users SET FullName = @FullName, UpdatedAt = SYSDATETIMEOFFSET() WHERE UserID = @UserID",
+        );
+      return { id: userId, fullName };
+    }
+  }
+
+  static async changePassword(userId, oldPassword, newPassword) {
+    const pool = await poolPromise;
+    const userResult = await pool.request()
       .input("UserID", sql.BigInt, userId)
-      .input("FullName", sql.NVarChar(200), fullName)
-      .query(
-        "UPDATE Users SET FullName = @FullName, UpdatedAt = SYSDATETIMEOFFSET() WHERE UserID = @UserID",
-      );
-    return { id: userId, fullName };
+      .query("SELECT PasswordHash FROM Users WHERE UserID = @UserID");
+    
+    const user = userResult.recordset[0];
+    if (!user) {
+      const err = new Error("Người dùng không tồn tại");
+      err.statusCode = 404;
+      throw err;
+    }
+
+    const bcrypt = require('bcrypt');
+    const isMatch = await bcrypt.compare(oldPassword, user.PasswordHash);
+    if (!isMatch) {
+      const err = new Error("Mật khẩu cũ không chính xác");
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await pool.request()
+      .input("UserID", sql.BigInt, userId)
+      .input("PasswordHash", sql.NVarChar(500), hashedPassword)
+      .query("UPDATE Users SET PasswordHash = @PasswordHash, UpdatedAt = SYSDATETIMEOFFSET() WHERE UserID = @UserID");
+    
+    return true;
   }
 
   static async getTestHistory(userId, page = 1, pageSize = 20) {
@@ -672,8 +723,18 @@ class UserService {
         .input("UserID", sql.BigInt, userId)
         .query(`
           WITH MonthOffsets AS (
-            SELECT offsetValue
-            FROM (VALUES (11), (10), (9), (8), (7), (6), (5), (4), (3), (2), (1), (0)) offsets(offsetValue)
+            SELECT 11 AS offsetValue UNION ALL
+            SELECT 10 UNION ALL
+            SELECT 9 UNION ALL
+            SELECT 8 UNION ALL
+            SELECT 7 UNION ALL
+            SELECT 6 UNION ALL
+            SELECT 5 UNION ALL
+            SELECT 4 UNION ALL
+            SELECT 3 UNION ALL
+            SELECT 2 UNION ALL
+            SELECT 1 UNION ALL
+            SELECT 0
           ),
           MonthSeries AS (
             SELECT DATEADD(

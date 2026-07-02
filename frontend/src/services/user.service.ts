@@ -101,6 +101,11 @@ export const userService = {
     return response.data;
   },
 
+  async changePassword(data: unknown) {
+    const response = await apiClient.post('/user/change-password', data);
+    return response.data;
+  },
+
   // =============== CALENDAR HEATMAP ===============
   async getActivityHeatmap(year?: number) {
     const response = await apiClient.get('/user/activity/heatmap', {

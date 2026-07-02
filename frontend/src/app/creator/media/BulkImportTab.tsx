@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { UploadCloud, CheckCircle2, AlertCircle, FileText, Trash2, Save, Settings } from 'lucide-react';
+import { UploadCloud, AlertCircle, FileText, Trash2, Save, Settings } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
 import { creatorService, WordPayload } from '@/src/services/creator.service';
 import { toast } from 'sonner';
@@ -22,6 +22,7 @@ export default function BulkImportTab() {
   const [activeTab, setActiveTab] = useState<'paste' | 'file'>('paste');
   const [rawText, setRawText] = useState('');
   const [delimiter, setDelimiter] = useState<string>('tab');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [rawRows, setRawRows] = useState<any[][]>([]);
   const [parsedWords, setParsedWords] = useState<ParsedWord[]>([]);
   const [hasHeader, setHasHeader] = useState<boolean>(true);
@@ -35,6 +36,7 @@ export default function BulkImportTab() {
     exampleMeaning: -1,
   });
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [topics, setTopics] = useState<any[]>([]);
   const [selectedTopicId, setSelectedTopicId] = useState<number | null>(null);
   const [conflictStrategy, setConflictStrategy] = useState<string>('merge');
@@ -56,6 +58,7 @@ export default function BulkImportTab() {
   }, []);
 
   // Process data from raw file/text rows
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const processData = (data: any[][]) => {
     const cleaned = data.filter(row => row && row.length > 0 && row.some(cell => cell !== null && cell !== undefined && String(cell).trim() !== ''));
     if (cleaned.length === 0) {
@@ -79,6 +82,7 @@ export default function BulkImportTab() {
   // Re-compute parsedWords when rawRows, hasHeader, or columnMappings change
   useEffect(() => {
     if (rawRows.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setParsedWords([]);
       return;
     }
@@ -134,15 +138,18 @@ export default function BulkImportTab() {
           delimiter: actualDelimiter,
           skipEmptyLines: true,
           complete: (results) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             processData(results.data as any[][]);
             setIsParsing(false);
           },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           error: (error: any) => {
             toast.error('Lỗi phân tích: ' + error.message);
             setIsParsing(false);
           }
         });
       }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       toast.error('Lỗi khi phân tích dữ liệu');
       setIsParsing(false);
@@ -165,8 +172,10 @@ export default function BulkImportTab() {
           const firstSheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[firstSheetName];
           const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           processData(json as any[][]);
           toast.success('Đã đọc xong file Excel');
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (err) {
           toast.error('Lỗi khi đọc file Excel');
         } finally {
@@ -182,10 +191,12 @@ export default function BulkImportTab() {
       Papa.parse(file, {
         skipEmptyLines: true,
         complete: (results) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           processData(results.data as any[][]);
           toast.success('Đã đọc xong file CSV');
           setIsParsing(false);
         },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         error: (error: any) => {
           toast.error('Lỗi phân tích: ' + error.message);
           setIsParsing(false);
@@ -199,6 +210,10 @@ export default function BulkImportTab() {
   };
 
   const handleImport = async () => {
+    if (!selectedTopicId) {
+      toast.error('Vui lòng chọn chủ đề (Topic) để gán các từ vựng này!');
+      return;
+    }
     const validWords = parsedWords.filter(w => !w._error && w.term && w.meaning);
     if (validWords.length === 0) {
       toast.error('Không có từ vựng hợp lệ để import');
@@ -208,6 +223,7 @@ export default function BulkImportTab() {
     try {
       setIsImporting(true);
       const payload: WordPayload[] = validWords.map(w => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const item: any = {
           term: w.term,
           meaning: w.meaning,
@@ -242,6 +258,7 @@ export default function BulkImportTab() {
       setParsedWords([]);
       setRawRows([]);
       setRawText('');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Lỗi khi import');
     } finally {
@@ -432,7 +449,7 @@ export default function BulkImportTab() {
                 onChange={(e) => setSelectedTopicId(e.target.value ? Number(e.target.value) : null)}
                 className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               >
-                <option value="">-- Không gán topic (Lưu bản nháp tự do) --</option>
+                <option value="">-- Chọn chủ đề bắt buộc --</option>
                 {topics.map(t => (
                   <option key={t.id} value={t.id}>{t.name} ({t.code})</option>
                 ))}

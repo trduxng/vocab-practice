@@ -10,6 +10,7 @@ router.use(verifyToken);
 // Dashboard & Analytics
 router.get('/dashboard', checkPermission('VIEW_DASHBOARD'), CreatorController.getDashboard);
 router.get('/content-summary', checkPermission('VIEW_CONTENT_ANALYTICS'), CreatorController.getContentSummary);
+router.get('/academic-analytics', checkPermission('VIEW_CONTENT_ANALYTICS'), CreatorController.getAcademicAnalytics);
 router.get('/topics/:id/analytics', checkPermission('VIEW_CONTENT_ANALYTICS'), CreatorController.getTopicAnalytics);
 router.get('/mini-tests/:id/analytics', checkPermission('VIEW_CONTENT_ANALYTICS'), CreatorController.getMiniTestAnalytics);
 
@@ -22,6 +23,9 @@ router.post('/topics', checkPermission('MANAGE_TOPICS'), CreatorController.creat
 router.put('/topics/:id', checkPermission('MANAGE_TOPICS'), CreatorController.updateTopic);
 router.delete('/topics/:id', checkPermission('MANAGE_TOPICS'), CreatorController.deleteTopic);
 router.post('/topics/:id/submit-review', checkPermission('SUBMIT_CONTENT_REVIEW'), CreatorController.submitTopicForReview);
+router.post('/topics/:id/withdraw', checkPermission('MANAGE_TOPICS'), CreatorController.withdrawTopic);
+router.post('/topics/:id/duplicate', checkPermission('MANAGE_TOPICS'), CreatorController.duplicateTopic);
+router.get('/topics/:id/logs', checkPermission('MANAGE_TOPICS'), CreatorController.getTopicReviewLogs);
 
 // Words
 router.get('/words', checkPermission('MANAGE_WORDS'), CreatorController.getWords);

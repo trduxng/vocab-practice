@@ -109,10 +109,33 @@ class UserController {
   static async updateProfile(req, res, next) {
     try {
       const userId = req.user.id;
-      const { fullName } = req.body;
-      const result = await UserService.updateProfile(userId, fullName);
+      const { fullName, email } = req.body;
+      const result = await UserService.updateProfile(userId, fullName, email);
       res.status(200).json({ message: 'Cập nhật thành công', data: result });
     } catch (error) {
+      if (error.statusCode) {
+        return res.status(error.statusCode).json({ message: error.message });
+      }
+      next(error);
+    }
+  }
+
+  static async changePassword(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const { oldPassword, newPassword } = req.body;
+      if (!oldPassword || !newPassword) {
+        return res.status(400).json({ message: 'Thiếu thông tin mật khẩu cũ hoặc mới' });
+      }
+      if (newPassword.length < 6) {
+        return res.status(400).json({ message: 'Mật khẩu mới phải từ 6 ký tự trở lên' });
+      }
+      await UserService.changePassword(userId, oldPassword, newPassword);
+      res.status(200).json({ message: 'Thay đổi mật khẩu thành công' });
+    } catch (error) {
+      if (error.statusCode) {
+        return res.status(error.statusCode).json({ message: error.message });
+      }
       next(error);
     }
   }

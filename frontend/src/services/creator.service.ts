@@ -56,6 +56,15 @@ export interface Topic {
   createdAt: string;
 }
 
+export interface ReviewLog {
+  id: number;
+  oldStatus?: string;
+  newStatus: string;
+  comment?: string;
+  createdAt: string;
+  actionByName?: string;
+}
+
 export interface Word {
   id: number;
   term: string;
@@ -84,6 +93,7 @@ export interface MiniTest {
   id: number;
   title: string;
   description: string;
+  topicId: number;
   topicName: string;
   totalQuestions: number;
   isPublished: boolean;
@@ -103,6 +113,49 @@ export interface MediaItem {
   createdAt: string;
 }
 
+export interface AcademicSummary {
+  totalStudents: number;
+  averageScore: number;
+  totalAttempts: number;
+  publishedTopics: number;
+}
+
+export interface HardWord {
+  wordId: number;
+  term: string;
+  meaning: string;
+  totalAttempts: number;
+  wrongAttempts: number;
+  failureRate: number;
+}
+
+export interface StudentAttempt {
+  id: number;
+  testId: number;
+  testTitle: string;
+  userId: number;
+  studentName: string;
+  studentEmail: string;
+  score: number;
+  totalQuestions: number;
+  correctCount: number;
+  submittedAt: string;
+}
+
+export interface TestPerformance {
+  testId: number;
+  testTitle: string;
+  averageScore: number;
+  attemptCount: number;
+}
+
+export interface AcademicAnalyticsData {
+  summary: AcademicSummary;
+  hardWords: HardWord[];
+  studentAttempts: StudentAttempt[];
+  testPerformance: TestPerformance[];
+}
+
 // ── Helpers ──
 function unwrapItems<T>(data: unknown): T[] {
   if (Array.isArray(data)) return data as T[];
@@ -120,6 +173,11 @@ export const creatorService = {
 
   async getContentSummary() {
     const res = await apiClient.get('/creator/content-summary');
+    return res.data;
+  },
+
+  async getAcademicAnalytics(): Promise<AcademicAnalyticsData> {
+    const res = await apiClient.get('/creator/academic-analytics');
     return res.data;
   },
 
@@ -165,8 +223,23 @@ export const creatorService = {
     return res.data;
   },
 
+  async withdrawTopic(id: number) {
+    const res = await apiClient.post(`/creator/topics/${id}/withdraw`);
+    return res.data;
+  },
+
+  async duplicateTopic(id: number) {
+    const res = await apiClient.post(`/creator/topics/${id}/duplicate`);
+    return res.data;
+  },
+
+  async getTopicReviewLogs(id: number): Promise<ReviewLog[]> {
+    const res = await apiClient.get(`/creator/topics/${id}/logs`);
+    return res.data;
+  },
+
   // Words
-  async getWords(filters?: { status?: string; page?: number; pageSize?: number }): Promise<Word[]> {
+  async getWords(filters?: { status?: string; page?: number; pageSize?: number; topicId?: number }): Promise<Word[]> {
     const res = await apiClient.get('/creator/words', { params: filters });
     return unwrapItems<Word>(res.data);
   },
@@ -197,7 +270,7 @@ export const creatorService = {
   },
 
   // Questions
-  async getQuestions(filters?: { status?: string; page?: number; pageSize?: number }): Promise<Question[]> {
+  async getQuestions(filters?: { status?: string; page?: number; pageSize?: number; topicId?: number }): Promise<Question[]> {
     const res = await apiClient.get('/creator/questions', { params: filters });
     return unwrapItems<Question>(res.data);
   },

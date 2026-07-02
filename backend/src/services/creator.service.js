@@ -77,6 +77,165 @@ class CreatorService {
     return result.recordset[0] || null;
   }
 
+  static async getAcademicAnalytics(userId) {
+    const pool = await poolPromise;
+
+    const summaryQuery = pool.request()
+      .input('UserID', sql.BigInt, userId)
+      .query(`
+        SELECT
+          (SELECT COUNT(DISTINCT mta.UserID)
+           FROM dbo.MiniTestAttempts mta
+           JOIN dbo.MiniTests mt ON mta.MiniTestID = mt.MiniTestID
+           WHERE mt.CreatedByUserID = @UserID) AS totalStudents,
+
+          (SELECT ISNULL(AVG(mta.Score), 0)
+           FROM dbo.MiniTestAttempts mta
+           JOIN dbo.MiniTests mt ON mta.MiniTestID = mt.MiniTestID
+           WHERE mt.CreatedByUserID = @UserID) AS averageScore,
+
+          (SELECT COUNT(mta.MiniTestAttemptID)
+           FROM dbo.MiniTestAttempts mta
+           JOIN dbo.MiniTests mt ON mta.MiniTestID = mt.MiniTestID
+           WHERE mt.CreatedByUserID = @UserID) AS totalAttempts,
+
+          (SELECT COUNT(*)
+           FROM dbo.Topics
+           WHERE CreatedByUserID = @UserID AND ContentStatus = 'Published') AS publishedTopics
+      `);
+
+    const hardWordsQuery = pool.request()
+      .input('UserID', sql.BigInt, userId)
+      .query(`
+        SELECT TOP 10
+               w.WordID AS wordId,
+               w.Term AS term,
+               w.Meaning AS meaning,
+               COUNT(*) AS totalAttempts,
+               SUM(CASE WHEN ea.IsCorrect = 0 THEN 1 ELSE 0 END) AS wrongAttempts,
+               CAST(SUM(CASE WHEN ea.IsCorrect = 0 THEN 1.0 ELSE 0.0 END) * 100.0 / COUNT(*) AS DECIMAL(5,1)) AS failureRate
+        FROM dbo.ExerciseAttempts ea
+        JOIN dbo.Words w ON ea.WordID = w.WordID
+        WHERE w.CreatedByUserID = @UserID
+        GROUP BY w.WordID, w.Term, w.Meaning
+        HAVING COUNT(*) >= 1
+        ORDER BY failureRate DESC, wrongAttempts DESC
+      `);
+
+    const studentAttemptsQuery = pool.request()
+      .input('UserID', sql.BigInt, userId)
+      .query(`
+        SELECT mta.MiniTestAttemptID AS id,
+               mta.MiniTestID AS testId,
+               mt.TestTitle AS testTitle,
+               mta.UserID AS userId,
+               u.FullName AS studentName,
+               u.Email AS studentEmail,
+               mta.Score AS score,
+               mta.TotalQuestions AS totalQuestions,
+               mta.CorrectCount AS correctCount,
+               mta.SubmittedAt AS submittedAt
+        FROM dbo.MiniTestAttempts mta
+        JOIN dbo.MiniTests mt ON mta.MiniTestID = mt.MiniTestID
+        JOIN dbo.Users u ON mta.UserID = u.UserID
+        WHERE mt.CreatedByUserID = @UserID
+        ORDER BY mta.SubmittedAt DESC
+      `);
+
+    const testPerformanceQuery = pool.request()
+      .input('UserID', sql.BigInt, userId)
+      .query(`
+        SELECT mt.MiniTestID AS testId,
+               mt.TestTitle AS testTitle,
+               ISNULL(AVG(mta.Score), 0) AS averageScore,
+               COUNT(mta.MiniTestAttemptID) AS attemptCount
+        FROM dbo.MiniTests mt
+        LEFT JOIN dbo.MiniTestAttempts mta ON mt.MiniTestID = mta.MiniTestID
+        WHERE mt.CreatedByUserID = @UserID
+        GROUP BY mt.MiniTestID, mt.TestTitle
+      `);
+
+    const [summaryRes, hardWordsRes, attemptsRes, perfRes] = await Promise.all([
+      summaryQuery,
+      hardWordsQuery,
+      studentAttemptsQuery,
+      testPerformanceQuery
+    ]);
+
+    const summary = summaryRes.recordset[0] || { totalStudents: 0, averageScore: 0, totalAttempts: 0, publishedTopics: 0 };
+    summary.averageScore = Number(Number(summary.averageScore).toFixed(1));
+
+    return {
+      summary,
+      hardWords: hardWordsRes.recordset.map(w => ({
+        ...w,
+        failureRate: Number(w.failureRate)
+      })),
+      studentAttempts: attemptsRes.recordset,
+      testPerformance: perfRes.recordset.map(t => ({
+        ...t,
+        averageScore: Number(Number(t.averageScore).toFixed(1))
+      }))
+    };
+  }
+
+  static async submitForReview(entityType, entityId, userId) {
+    const map = {
+      topic: { table: 'Topics', idCol: 'TopicID', type: 'Topic' },
+      word: { table: 'Words', idCol: 'WordID', type: 'Word' },
+      question: { table: 'Questions', idCol: 'QuestionID', type: 'Question' },
+      minitest: { table: 'MiniTests', idCol: 'MiniTestID', type: 'MiniTest' }
+    };
+    const e = map[String(entityType || '').toLowerCase()];
+    if (!e) throw new Error('EntityType không hợp lệ');
+
+    const pool = await poolPromise;
+    const transaction = new sql.Transaction(pool);
+    try {
+      await transaction.begin();
+
+      const checkReq = new sql.Request(transaction);
+      const checkResult = await checkReq
+        .input('ID', sql.BigInt, entityId)
+        .input('UserID', sql.BigInt, userId)
+        .query(`SELECT ContentStatus FROM ${e.table} WHERE ${e.idCol} = @ID AND CreatedByUserID = @UserID`);
+
+      if (checkResult.recordset.length === 0) {
+        await transaction.rollback();
+        return false;
+      }
+
+      const status = checkResult.recordset[0].ContentStatus;
+      if (status !== 'Draft' && status !== 'Rejected') {
+        await transaction.rollback();
+        return false;
+      }
+
+      const updateReq = new sql.Request(transaction);
+      await updateReq
+        .input('ID', sql.BigInt, entityId)
+        .input('UserID', sql.BigInt, userId)
+        .query(`UPDATE ${e.table} SET ContentStatus = 'PendingReview', UpdatedAt = SYSDATETIMEOFFSET() WHERE ${e.idCol} = @ID AND CreatedByUserID = @UserID`);
+
+      const logReq = new sql.Request(transaction);
+      await logReq
+        .input('EntityType', sql.NVarChar(30), e.type)
+        .input('EntityID', sql.BigInt, entityId)
+        .input('UserID', sql.BigInt, userId)
+        .input('OldStatus', sql.NVarChar(20), status)
+        .query(`
+          INSERT INTO ContentReviewLogs (EntityType, EntityID, ActionByUserID, OldStatus, NewStatus, Comment, CreatedAt)
+          VALUES (@EntityType, @EntityID, @UserID, @OldStatus, 'PendingReview', N'Submitted for review by creator', SYSDATETIMEOFFSET())
+        `);
+
+      await transaction.commit();
+      return true;
+    } catch (err) {
+      await transaction.rollback();
+      throw err;
+    }
+  }
+
   // ── TopicCategories (Read-only) ──
   static async getTopicCategories() {
     const pool = await poolPromise;
@@ -186,6 +345,183 @@ class CreatorService {
     return result.rowsAffected[0] > 0;
   }
 
+  static async withdrawTopic(topicId, userId) {
+    const pool = await poolPromise;
+    const transaction = new sql.Transaction(pool);
+    try {
+      await transaction.begin();
+
+      const reqCheck = new sql.Request(transaction);
+      const checkRes = await reqCheck
+        .input('TopicID', sql.BigInt, topicId)
+        .input('UserID', sql.BigInt, userId)
+        .query(`SELECT ContentStatus FROM Topics WHERE TopicID = @TopicID AND CreatedByUserID = @UserID`);
+
+      if (checkRes.recordset.length === 0) {
+        await transaction.rollback();
+        return { success: false, message: 'Chủ đề không tồn tại hoặc bạn không có quyền' };
+      }
+
+      const status = checkRes.recordset[0].ContentStatus;
+      if (status !== 'PendingReview') {
+        await transaction.rollback();
+        return { success: false, message: 'Chủ đề không ở trạng thái Chờ duyệt để thu hồi' };
+      }
+
+      const reqUpdate = new sql.Request(transaction);
+      await reqUpdate
+        .input('TopicID', sql.BigInt, topicId)
+        .input('UserID', sql.BigInt, userId)
+        .query(`
+          UPDATE Topics 
+          SET ContentStatus = 'Draft', UpdatedAt = SYSDATETIMEOFFSET() 
+          WHERE TopicID = @TopicID AND CreatedByUserID = @UserID AND ContentStatus = 'PendingReview'
+        `);
+
+      const reqLog = new sql.Request(transaction);
+      await reqLog
+        .input('TopicID', sql.BigInt, topicId)
+        .input('UserID', sql.BigInt, userId)
+        .query(`
+          INSERT INTO ContentReviewLogs (EntityType, EntityID, ActionByUserID, OldStatus, NewStatus, Comment, CreatedAt)
+          VALUES ('Topic', @TopicID, @UserID, 'PendingReview', 'Draft', N'Thu hồi yêu cầu duyệt bởi người tạo', SYSDATETIMEOFFSET())
+        `);
+
+      await transaction.commit();
+      return { success: true };
+    } catch (err) {
+      await transaction.rollback();
+      throw err;
+    }
+  }
+
+  static async duplicateTopic(topicId, userId) {
+    const pool = await poolPromise;
+    const transaction = new sql.Transaction(pool);
+    try {
+      await transaction.begin();
+
+      const reqTopic = new sql.Request(transaction);
+      const topicRes = await reqTopic
+        .input('TopicID', sql.BigInt, topicId)
+        .input('UserID', sql.BigInt, userId)
+        .query(`SELECT TopicName, TopicCode, Description, TopicCategoryID FROM Topics WHERE TopicID = @TopicID AND CreatedByUserID = @UserID`);
+
+      if (topicRes.recordset.length === 0) {
+        await transaction.rollback();
+        return { success: false, message: 'Chủ đề không tồn tại hoặc bạn không có quyền' };
+      }
+
+      const origin = topicRes.recordset[0];
+      const newName = `${origin.TopicName} (Bản sao)`;
+      const timestamp = Date.now();
+      const newCode = `${origin.TopicCode || 'CLONE'}_COPY_${timestamp}`.substring(0, 50);
+
+      const reqInsertTopic = new sql.Request(transaction);
+      const insertTopicRes = await reqInsertTopic
+        .input('TopicName', sql.NVarChar(200), newName)
+        .input('TopicCode', sql.NVarChar(50), newCode)
+        .input('Description', sql.NVarChar(1000), origin.Description)
+        .input('TopicCategoryID', sql.BigInt, origin.TopicCategoryID)
+        .input('CreatedByUserID', sql.BigInt, userId)
+        .query(`
+          INSERT INTO Topics (TopicName, TopicCode, Description, TopicCategoryID, CreatedByUserID, ContentStatus, CreatedAt, UpdatedAt)
+          OUTPUT inserted.TopicID AS id
+          VALUES (@TopicName, @TopicCode, @Description, @TopicCategoryID, @CreatedByUserID, 'Draft', SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
+        `);
+
+      const newTopicId = insertTopicRes.recordset[0].id;
+
+      const reqWords = new sql.Request(transaction);
+      const wordsRes = await reqWords
+        .input('TopicID', sql.BigInt, topicId)
+        .query(`
+          SELECT w.WordID, w.Term, w.Meaning, w.Phonetic, w.PartOfSpeechID, w.DifficultyLevel
+          FROM Words w
+          JOIN WordTopics wt ON w.WordID = wt.WordID
+          WHERE wt.TopicID = @TopicID
+        `);
+
+      const originWords = wordsRes.recordset;
+
+      for (const originWord of originWords) {
+        const reqInsertWord = new sql.Request(transaction);
+        const insertWordRes = await reqInsertWord
+          .input('Term', sql.NVarChar(200), originWord.Term)
+          .input('Meaning', sql.NVarChar(1000), originWord.Meaning)
+          .input('Phonetic', sql.NVarChar(255), originWord.Phonetic || '')
+          .input('PartOfSpeechID', sql.Int, originWord.PartOfSpeechID)
+          .input('CreatedByUserID', sql.BigInt, userId)
+          .input('DifficultyLevel', sql.Int, originWord.DifficultyLevel || 1)
+          .query(`
+            INSERT INTO Words (Term, Meaning, Phonetic, PartOfSpeechID, CreatedByUserID, ContentStatus, DifficultyLevel, CreatedAt, UpdatedAt)
+            OUTPUT inserted.WordID AS id
+            VALUES (@Term, @Meaning, @Phonetic, @PartOfSpeechID, @CreatedByUserID, 'Draft', @DifficultyLevel, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
+          `);
+
+        const newWordId = insertWordRes.recordset[0].id;
+
+        const reqAssoc = new sql.Request(transaction);
+        await reqAssoc
+          .input('WordID', sql.BigInt, newWordId)
+          .input('TopicID', sql.BigInt, newTopicId)
+          .query(`INSERT INTO WordTopics (WordID, TopicID) VALUES (@WordID, @TopicID)`);
+
+        const reqQuestions = new sql.Request(transaction);
+        const questionsRes = await reqQuestions
+          .input('WordID', sql.BigInt, originWord.WordID)
+          .query(`SELECT QuestionType, QuestionText, CorrectAnswer, OptionsJson FROM Questions WHERE WordID = @WordID`);
+
+        const originQuestions = questionsRes.recordset;
+        for (const originQuest of originQuestions) {
+          const reqInsertQuest = new sql.Request(transaction);
+          await reqInsertQuest
+            .input('WordID', sql.BigInt, newWordId)
+            .input('QuestionType', sql.NVarChar(30), originQuest.QuestionType)
+            .input('QuestionText', sql.NVarChar(sql.MAX), originQuest.QuestionText)
+            .input('CorrectAnswer', sql.NVarChar(sql.MAX), originQuest.CorrectAnswer)
+            .input('OptionsJson', sql.NVarChar(sql.MAX), originQuest.OptionsJson)
+            .input('CreatedByUserID', sql.BigInt, userId)
+            .query(`
+              INSERT INTO Questions (WordID, QuestionType, QuestionText, CorrectAnswer, OptionsJson, CreatedByUserID, ContentStatus, CreatedAt, UpdatedAt)
+              VALUES (@WordID, @QuestionType, @QuestionText, @CorrectAnswer, @OptionsJson, @CreatedByUserID, 'Draft', SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
+            `);
+        }
+      }
+
+      await transaction.commit();
+      return { success: true, newTopicId };
+    } catch (err) {
+      await transaction.rollback();
+      throw err;
+    }
+  }
+
+  static async getTopicReviewLogs(topicId, userId) {
+    const pool = await poolPromise;
+    const checkTopic = await pool.request()
+      .input('TopicID', sql.BigInt, topicId)
+      .input('UserID', sql.BigInt, userId)
+      .query('SELECT TopicID FROM Topics WHERE TopicID = @TopicID AND CreatedByUserID = @UserID');
+
+    if (checkTopic.recordset.length === 0) {
+      throw new Error('Chủ đề không tồn tại hoặc bạn không có quyền xem lịch sử');
+    }
+
+    const result = await pool.request()
+      .input('TopicID', sql.BigInt, topicId)
+      .query(`
+        SELECT crl.ContentReviewLogID AS id, crl.OldStatus AS oldStatus,
+               crl.NewStatus AS newStatus, crl.Comment AS comment,
+               crl.CreatedAt AS createdAt, u.FullName AS actionByName
+        FROM ContentReviewLogs crl
+        LEFT JOIN Users u ON crl.ActionByUserID = u.UserID
+        WHERE crl.EntityType = 'Topic' AND crl.EntityID = @TopicID
+        ORDER BY crl.CreatedAt DESC
+      `);
+    return result.recordset;
+  }
+
   static async submitForReview(entityType, id, userId) {
     const entityMap = {
       topic: { table: 'Topics', idCol: 'TopicID', type: 'Topic' },
@@ -237,12 +573,17 @@ class CreatorService {
     const page = Math.max(1, parseInt(filters.page) || 1);
     const pageSize = Math.min(100, Math.max(1, parseInt(filters.pageSize) || 50));
     const offset = (page - 1) * pageSize;
+    const topicId = filters.topicId ? Number(filters.topicId) : null;
 
     const req = pool.request().input('UserID', sql.BigInt, userId);
     let where = 'w.CreatedByUserID = @UserID';
     if (filters.status) {
       req.input('Status', sql.NVarChar(20), filters.status);
       where += ' AND w.ContentStatus = @Status';
+    }
+    if (topicId) {
+      req.input('TopicID', sql.BigInt, topicId);
+      where += ' AND EXISTS (SELECT 1 FROM WordTopics wt WHERE wt.WordID = w.WordID AND wt.TopicID = @TopicID)';
     }
 
     const countResult = await req.query(`
@@ -257,6 +598,10 @@ class CreatorService {
     if (filters.status) {
       req2.input('Status', sql.NVarChar(20), filters.status);
       where2 += ' AND w.ContentStatus = @Status';
+    }
+    if (topicId) {
+      req2.input('TopicID', sql.BigInt, topicId);
+      where2 += ' AND EXISTS (SELECT 1 FROM WordTopics wt WHERE wt.WordID = w.WordID AND wt.TopicID = @TopicID)';
     }
 
     const result = await req2.query(`
@@ -274,6 +619,9 @@ class CreatorService {
 
   static async createWord(data, userId) {
     const { term, meaning, phonetic, partOfSpeechId, topicIds, examples } = data;
+    if (!topicIds || !Array.isArray(topicIds) || topicIds.length === 0) {
+      throw new Error('Từ vựng bắt buộc phải được gán vào ít nhất một chủ đề (Topic)');
+    }
     const pool = await poolPromise;
     const transaction = new sql.Transaction(pool);
     try {
@@ -330,6 +678,9 @@ class CreatorService {
 
       for (const data of wordsData) {
         const { term, meaning, phonetic, partOfSpeechId, topicIds, examples } = data;
+        if (!topicIds || !Array.isArray(topicIds) || topicIds.length === 0) {
+          throw new Error('Tất cả từ vựng import bắt buộc phải được gán vào ít nhất một chủ đề (Topic)');
+        }
         
         // 1. Resolve Part of Speech ID
         let resolvedPartOfSpeechId = 1; // Default
@@ -478,12 +829,17 @@ class CreatorService {
     const page = Math.max(1, parseInt(filters.page) || 1);
     const pageSize = Math.min(100, Math.max(1, parseInt(filters.pageSize) || 50));
     const offset = (page - 1) * pageSize;
+    const topicId = filters.topicId ? Number(filters.topicId) : null;
 
     const req = pool.request().input('UserID', sql.BigInt, userId);
     let where = 'q.CreatedByUserID = @UserID';
     if (filters.status) {
       req.input('Status', sql.NVarChar(20), filters.status);
       where += ' AND q.ContentStatus = @Status';
+    }
+    if (topicId) {
+      req.input('TopicID', sql.BigInt, topicId);
+      where += ' AND EXISTS (SELECT 1 FROM WordTopics wt WHERE wt.WordID = q.WordID AND wt.TopicID = @TopicID)';
     }
 
     const countResult = await req.query(`
@@ -498,6 +854,10 @@ class CreatorService {
     if (filters.status) {
       req2.input('Status', sql.NVarChar(20), filters.status);
       where2 += ' AND q.ContentStatus = @Status';
+    }
+    if (topicId) {
+      req2.input('TopicID', sql.BigInt, topicId);
+      where2 += ' AND EXISTS (SELECT 1 FROM WordTopics wt WHERE wt.WordID = q.WordID AND wt.TopicID = @TopicID)';
     }
 
     const result = await req2.query(`
@@ -518,6 +878,20 @@ class CreatorService {
   static async createQuestion(data, userId) {
     const { wordId, questionType, questionText, optionsJson, correctAnswer, explanation } = data;
     const pool = await poolPromise;
+    
+    // Check if the word exists, belongs to a topic, and is owned by/accessible to the creator
+    const wordCheck = await pool.request()
+      .input('WordID', sql.BigInt, wordId)
+      .input('UserID', sql.BigInt, userId)
+      .query(`
+        SELECT w.WordID FROM Words w
+        JOIN WordTopics wt ON w.WordID = wt.WordID
+        WHERE w.WordID = @WordID AND w.CreatedByUserID = @UserID
+      `);
+    if (wordCheck.recordset.length === 0) {
+      throw new Error('Từ vựng không hợp lệ hoặc không thuộc về chủ đề nào do bạn quản lý');
+    }
+
     const result = await pool.request()
       .input('WordID', sql.BigInt, wordId)
       .input('QuestionType', sql.NVarChar(30), questionType)
@@ -539,6 +913,20 @@ class CreatorService {
   static async updateQuestion(id, data, userId) {
     const { wordId, questionType, questionText, optionsJson, correctAnswer, explanation } = data;
     const pool = await poolPromise;
+
+    // Check if the word exists, belongs to a topic, and is owned by/accessible to the creator
+    const wordCheck = await pool.request()
+      .input('WordID', sql.BigInt, wordId)
+      .input('UserID', sql.BigInt, userId)
+      .query(`
+        SELECT w.WordID FROM Words w
+        JOIN WordTopics wt ON w.WordID = wt.WordID
+        WHERE w.WordID = @WordID AND w.CreatedByUserID = @UserID
+      `);
+    if (wordCheck.recordset.length === 0) {
+      throw new Error('Từ vựng không hợp lệ hoặc không thuộc về chủ đề nào do bạn quản lý');
+    }
+
     const result = await pool.request()
       .input('QuestionID', sql.BigInt, id)
       .input('UserID', sql.BigInt, userId)
@@ -596,7 +984,7 @@ class CreatorService {
 
     const result = await req2.query(`
       SELECT mt.MiniTestID AS id, mt.TestTitle AS title, mt.Description AS description,
-             t.TopicName AS topicName, mt.TotalQuestions AS totalQuestions,
+             mt.TopicID AS topicId, t.TopicName AS topicName, mt.TotalQuestions AS totalQuestions,
              mt.IsPublished AS isPublished, mt.ContentStatus AS contentStatus,
              mt.CreatedAt AS createdAt
       FROM MiniTests mt
@@ -610,7 +998,19 @@ class CreatorService {
 
   static async createMiniTest(data, userId) {
     const { title, description, topicId, questionIds } = data;
+    if (!topicId) {
+      throw new Error('Bài test bắt buộc phải gắn liền với một chủ đề (Topic)');
+    }
     const pool = await poolPromise;
+    // Check if the topic exists and belongs to the creator
+    const topicCheck = await pool.request()
+      .input('TopicID', sql.BigInt, topicId)
+      .input('UserID', sql.BigInt, userId)
+      .query(`SELECT TopicID FROM Topics WHERE TopicID = @TopicID AND CreatedByUserID = @UserID`);
+    if (topicCheck.recordset.length === 0) {
+      throw new Error('Chủ đề (Topic) không hợp lệ hoặc không thuộc quyền sở hữu của bạn');
+    }
+
     const transaction = new sql.Transaction(pool);
     try {
       await transaction.begin();
@@ -649,7 +1049,19 @@ class CreatorService {
 
   static async updateMiniTest(id, data, userId) {
     const { title, description, topicId } = data;
+    if (!topicId) {
+      throw new Error('Bài test bắt buộc phải gắn liền với một chủ đề (Topic)');
+    }
     const pool = await poolPromise;
+    // Check if the topic exists and belongs to the creator
+    const topicCheck = await pool.request()
+      .input('TopicID', sql.BigInt, topicId)
+      .input('UserID', sql.BigInt, userId)
+      .query(`SELECT TopicID FROM Topics WHERE TopicID = @TopicID AND CreatedByUserID = @UserID`);
+    if (topicCheck.recordset.length === 0) {
+      throw new Error('Chủ đề (Topic) không hợp lệ hoặc không thuộc quyền sở hữu của bạn');
+    }
+
     const result = await pool.request()
       .input('MiniTestID', sql.BigInt, id)
       .input('UserID', sql.BigInt, userId)

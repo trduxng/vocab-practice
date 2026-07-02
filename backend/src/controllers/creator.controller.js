@@ -16,6 +16,13 @@ class CreatorController {
     } catch (err) { next(err); }
   }
 
+  static async getAcademicAnalytics(req, res, next) {
+    try {
+      const data = await CreatorService.getAcademicAnalytics(req.user.id);
+      res.json(data);
+    } catch (err) { next(err); }
+  }
+
   static async getTopicAnalytics(req, res, next) {
     try {
       const data = await CreatorService.getTopicAnalytics(req.user.id, req.params.id);
@@ -76,6 +83,33 @@ class CreatorController {
       const ok = await CreatorService.submitForReview('topic', req.params.id, req.user.id);
       if (!ok) return res.status(400).json({ message: 'Không thể gửi duyệt (sai trạng thái hoặc không có quyền)' });
       res.json({ message: 'Đã gửi duyệt' });
+    } catch (err) { next(err); }
+  }
+
+  static async withdrawTopic(req, res, next) {
+    try {
+      const result = await CreatorService.withdrawTopic(req.params.id, req.user.id);
+      if (!result.success) {
+        return res.status(400).json({ message: result.message });
+      }
+      res.json({ message: 'Đã thu hồi yêu cầu duyệt' });
+    } catch (err) { next(err); }
+  }
+
+  static async duplicateTopic(req, res, next) {
+    try {
+      const result = await CreatorService.duplicateTopic(req.params.id, req.user.id);
+      if (!result.success) {
+        return res.status(400).json({ message: result.message });
+      }
+      res.status(201).json({ message: 'Sao chép chủ đề thành công', data: { id: result.newTopicId } });
+    } catch (err) { next(err); }
+  }
+
+  static async getTopicReviewLogs(req, res, next) {
+    try {
+      const logs = await CreatorService.getTopicReviewLogs(req.params.id, req.user.id);
+      res.json(logs);
     } catch (err) { next(err); }
   }
 
