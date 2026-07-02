@@ -23,7 +23,9 @@
     "nodemon": "^3.1.14"
   },
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "nodemon --watch src src/index.js"
+    "start": "npm run build:go && node src/index.js",
+    "dev": "npm run build:go && nodemon --watch src src/index.js",
+    "build:go": "cd user-go && go build -o server ./cmd/server && echo '[Go] Build successful'",
+    "dev:go": "cd user-go && go run ./cmd/server"
   }
 }

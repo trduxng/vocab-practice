@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
+const { spawn } = require('child_process');
 require('dotenv').config();
 
 if (!process.env.JWT_SECRET) {
@@ -12,6 +13,10 @@ if (!process.env.JWT_SECRET) {
 const errorHandler = require('./middlewares/errorHandler');
 const { poolPromise } = require('./config/db');
 
+// Go server config
+const GO_PORT = process.env.GO_PORT || '3002';
+const GO_SERVER_PATH = path.join(__dirname, '..', 'user-go', 'server');
+
 // Import routes
 const authRoutes = require('./routes/auth.routes');
 const categoriesRoutes = require('./routes/categories.routes');
@@ -21,6 +26,51 @@ const progressRoutes = require('./routes/progress.routes');
 const creatorRoutes = require('./routes/creator.routes');
 const reviewRoutes = require('./routes/review.routes');
 const aiRoutes = require('./routes/ai.routes');
+
+// ========== Auto-spawn Go user service ==========
+let goProcess = null;
+
+function startGoService() {
+  const fs = require('fs');
+  if (!fs.existsSync(GO_SERVER_PATH)) {
+    console.log('[Go] Binary not found at', GO_SERVER_PATH);
+    console.log('[Go] Run "cd user-go && go build -o server ./cmd/server" first');
+    return;
+  }
+
+  const goEnv = {
+    ...process.env,
+    PORT: GO_PORT,
+    GO_PORT: GO_PORT,
+  };
+
+  goProcess = spawn(GO_SERVER_PATH, [], {
+    env: goEnv,
+    stdio: ['ignore', 'inherit', 'inherit'],
+  });
+
+  goProcess.on('error', (err) => {
+    console.error('[Go] Failed to start:', err.message);
+    goProcess = null;
+  });
+
+  goProcess.on('exit', (code) => {
+    console.log(`[Go] Process exited with code ${code}`);
+    goProcess = null;
+  });
+
+  console.log(`[Go] User service starting on port ${GO_PORT}...`);
+}
+
+function stopGoService() {
+  if (goProcess) {
+    console.log('[Go] Stopping user service...');
+    goProcess.kill('SIGTERM');
+    goProcess = null;
+  }
+}
+
+startGoService();
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -77,7 +127,30 @@ app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/admin/content-review', reviewRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/user', userRoutes);
+// User routes → proxy to Go service (if running) or fallback to Express
+app.use('/api/user', (req, res, next) => {
+  if (goProcess) {
+    const http = require('http');
+    const options = {
+      hostname: 'localhost',
+      port: parseInt(GO_PORT),
+      path: '/api/user' + req.url.replace(/^\/api\/user/, '') || '/',
+      method: req.method,
+      headers: { ...req.headers, host: 'localhost:' + GO_PORT },
+    };
+    const proxyReq = http.request(options, (proxyRes) => {
+      res.writeHead(proxyRes.statusCode, proxyRes.headers);
+      proxyRes.pipe(res);
+    });
+    proxyReq.on('error', () => userRoutes(req, res, next));
+    if (req.body && Object.keys(req.body).length) {
+      proxyReq.write(JSON.stringify(req.body));
+    }
+    proxyReq.end();
+  } else {
+    userRoutes(req, res, next);
+  }
+});
 app.use('/api/progress', progressRoutes);
 app.use('/api/creator', creatorRoutes);
 app.use('/api/ai', aiRoutes);
@@ -93,6 +166,7 @@ app.listen(port, () => {
 // Graceful shutdown
 const gracefulShutdown = async (signal) => {
   console.log(`Received ${signal}. Shutting down gracefully...`);
+  stopGoService();
   try {
     const pool = await poolPromise;
     await pool.close();
