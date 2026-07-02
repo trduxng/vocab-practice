@@ -2,10 +2,10 @@ const { sql, poolPromise } = require("../config/db");
 const GamificationService = require("./gamification.service");
 
 const LEVEL_SEED = [
-  ["TOEIC_300", "TOEIC 300", 300, "Build a practical foundation with essential everyday TOEIC vocabulary.", 1, "sky"],
-  ["TOEIC_500", "TOEIC 500", 500, "Expand workplace vocabulary and improve response speed.", 2, "emerald"],
-  ["TOEIC_700", "TOEIC 700", 700, "Master higher-frequency business and academic contexts.", 3, "amber"],
-  ["TOEIC_900", "TOEIC 900", 900, "Refine advanced vocabulary for high-score TOEIC performance.", 4, "violet"],
+  ["TOEIC_300", "TOEIC 300", 300, "Xây dựng nền tảng vững chắc với từ vựng TOEIC thiết yếu hàng ngày.", 1, "sky"],
+  ["TOEIC_500", "TOEIC 500", 500, "Mở rộng từ vựng công sở và cải thiện tốc độ phản hồi.", 2, "emerald"],
+  ["TOEIC_700", "TOEIC 700", 700, "Làm chủ các ngữ cảnh kinh doanh và học thuật thường gặp.", 3, "amber"],
+  ["TOEIC_900", "TOEIC 900", 900, "Trau dồi từ vựng nâng cao để đạt điểm TOEIC cao.", 4, "violet"],
 ];
 
 class LearningPathService {
@@ -214,24 +214,24 @@ class LearningPathService {
           const activities = [
             {
               type: "lesson",
-              title: `Learn ${topic.title}`,
-              description: `${learnedWords}/${totalWords} words learned`,
+              title: `Học ${topic.title}`,
+              description: `${learnedWords}/${totalWords} từ đã học`,
               status: lessonCompleted ? "completed" : canStartLesson ? "available" : "locked",
               route: `/user/learn/${topic.topicId}`,
               configured: true,
             },
             {
               type: "practice",
-              title: "Practice session",
-              description: practiceCompleted ? "Practice completed" : "Reinforce this topic with a focused session",
+              title: "Buổi luyện tập",
+              description: practiceCompleted ? "Đã luyện tập" : "Củng cố chủ đề này với buổi luyện tập trung",
               status: practiceCompleted ? "completed" : canPractice ? "available" : "locked",
               route: `/user/practice?topicId=${topic.topicId}`,
               configured: true,
             },
             {
               type: "miniTest",
-              title: "Mini test",
-              description: miniTestConfigured ? `${topic.miniTestCount} mini test available` : "Mini test coming soon",
+              title: "Bài kiểm tra",
+              description: miniTestConfigured ? `${topic.miniTestCount} bài kiểm tra có sẵn` : "Bài kiểm tra sắp ra mắt",
               status: miniTestCompleted
                 ? "completed"
                 : canPractice && practiceCompleted && miniTestConfigured
@@ -300,7 +300,7 @@ class LearningPathService {
         topicId: currentTopic.topicId,
         topicTitle: currentTopic.title,
         topicStatus: currentTopic.status,
-        activityTitle: currentActivity?.title || "Roadmap completed",
+        activityTitle: currentActivity?.title || "Lộ trình đã hoàn thành",
         activityRoute: currentActivity?.route || "/user/courses",
         completionPercentage: currentTopic.completionPercentage,
       } : null,

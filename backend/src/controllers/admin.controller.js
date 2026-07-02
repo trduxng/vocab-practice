@@ -39,7 +39,8 @@ class AdminController {
         error.message === 'Topic already exists' ||
         error.message === 'Topic code already exists'
       ) {
-        return res.status(400).json({ message: error.message });
+        const map = { 'Invalid topic data': 'Dữ liệu chủ đề không hợp lệ', 'Topic already exists': 'Chủ đề đã tồn tại', 'Topic code already exists': 'Mã chủ đề đã tồn tại' };
+        return res.status(400).json({ message: map[error.message] || error.message });
       }
       next(error);
     }
@@ -54,7 +55,8 @@ class AdminController {
       res.status(200).json({ message: 'Cập nhật chủ đề thành công' });
     } catch (error) {
       if (['Invalid topic data', 'Topic already exists', 'Topic code already exists'].includes(error.message)) {
-        return res.status(400).json({ message: error.message });
+        const map = { 'Invalid topic data': 'Dữ liệu chủ đề không hợp lệ', 'Topic already exists': 'Chủ đề đã tồn tại', 'Topic code already exists': 'Mã chủ đề đã tồn tại' };
+        return res.status(400).json({ message: map[error.message] || error.message });
       }
       next(error);
     }
@@ -81,7 +83,8 @@ class AdminController {
       res.status(201).json({ message: 'Tạo danh mục chủ đề thành công', data: result });
     } catch (error) {
       if (['Invalid topic category data', 'Topic category code already exists'].includes(error.message)) {
-        return res.status(400).json({ message: error.message });
+        const map = { 'Invalid topic category data': 'Dữ liệu danh mục chủ đề không hợp lệ', 'Topic category code already exists': 'Mã danh mục chủ đề đã tồn tại' };
+        return res.status(400).json({ message: map[error.message] || error.message });
       }
       next(error);
     }
@@ -96,7 +99,8 @@ class AdminController {
       res.status(200).json({ message: 'Cập nhật danh mục chủ đề thành công' });
     } catch (error) {
       if (['Invalid topic category data', 'Topic category code already exists'].includes(error.message)) {
-        return res.status(400).json({ message: error.message });
+        const map = { 'Invalid topic category data': 'Dữ liệu danh mục chủ đề không hợp lệ', 'Topic category code already exists': 'Mã danh mục chủ đề đã tồn tại' };
+        return res.status(400).json({ message: map[error.message] || error.message });
       }
       next(error);
     }
@@ -171,7 +175,8 @@ class AdminController {
         error.message === 'Invalid import payload' ||
         error.message.startsWith('CSV must include')
       ) {
-        return res.status(400).json({ message: error.message });
+        const map = { 'Invalid import payload': 'Dữ liệu import không hợp lệ' };
+        return res.status(400).json({ message: map[error.message] || error.message });
       }
       next(error);
     }
@@ -186,7 +191,8 @@ class AdminController {
         error.message === 'Invalid import payload' ||
         error.message.startsWith('CSV must include')
       ) {
-        return res.status(400).json({ message: error.message });
+        const map = { 'Invalid import payload': 'Dữ liệu import không hợp lệ' };
+        return res.status(400).json({ message: map[error.message] || error.message.replace('CSV must include a header and at least one data row', 'CSV phải có tiêu đề và ít nhất một dòng dữ liệu') });
       }
       next(error);
     }
@@ -339,7 +345,8 @@ class AdminController {
       });
     } catch (error) {
       if (error.message === 'Invalid import payload' || error.message.startsWith('CSV must include')) {
-        return res.status(400).json({ message: error.message });
+        const map = { 'Invalid import payload': 'Dữ liệu import không hợp lệ' };
+        return res.status(400).json({ message: map[error.message] || error.message.replace('CSV must include a header and at least one data row', 'CSV phải có tiêu đề và ít nhất một dòng dữ liệu') });
       }
       next(error);
     }
@@ -397,7 +404,7 @@ class AdminController {
 
   static async publishMiniTest(req, res, next) {
     try {
-      const success = await AdminService.setMiniTestStatus(req.params.id, 'Published', req.user.id, 'Published from mini test manager');
+      const success = await AdminService.setMiniTestStatus(req.params.id, 'Published', req.user.id, 'Xuất bản từ trình quản lý mini test');
       if (!success) {
         return res.status(404).json({ message: 'Không tìm thấy mini test' });
       }
@@ -409,7 +416,7 @@ class AdminController {
 
   static async archiveMiniTest(req, res, next) {
     try {
-      const success = await AdminService.setMiniTestStatus(req.params.id, 'Archived', req.user.id, 'Archived from mini test manager');
+      const success = await AdminService.setMiniTestStatus(req.params.id, 'Archived', req.user.id, 'Lưu trữ từ trình quản lý mini test');
       if (!success) {
         return res.status(404).json({ message: 'Không tìm thấy mini test' });
       }
@@ -449,7 +456,8 @@ class AdminController {
       res.status(201).json({ message: 'Tạo user thành công', data: result });
     } catch (error) {
       if (error.message === 'Email already exists' || error.message === 'Invalid role' || error.message === 'Invalid user data') {
-        return res.status(400).json({ message: error.message });
+        const map = { 'Email already exists': 'Email đã tồn tại', 'Invalid role': 'Vai trò không hợp lệ', 'Invalid user data': 'Dữ liệu người dùng không hợp lệ' };
+        return res.status(400).json({ message: map[error.message] || error.message });
       }
       next(error);
     }
@@ -467,7 +475,8 @@ class AdminController {
       res.status(200).json({ message: 'Cập nhật user thành công' });
     } catch (error) {
       if (error.message === 'Email already exists' || error.message === 'Invalid role' || error.message === 'Invalid user data') {
-        return res.status(400).json({ message: error.message });
+        const map = { 'Email already exists': 'Email đã tồn tại', 'Invalid role': 'Vai trò không hợp lệ', 'Invalid user data': 'Dữ liệu người dùng không hợp lệ' };
+        return res.status(400).json({ message: map[error.message] || error.message });
       }
       next(error);
     }
@@ -571,13 +580,13 @@ class AdminController {
         entityType: req.params.entityType,
         entityId: req.params.entityId,
         status: 'Published',
-        comment: req.body?.comment || 'Approved from content review'
+        comment: req.body?.comment || 'Đã duyệt từ trang kiểm duyệt nội dung'
       }, req.user.id);
       if (!success) return res.status(404).json({ message: 'Không tìm thấy nội dung' });
       res.status(200).json({ message: 'Duyệt nội dung thành công' });
     } catch (error) {
       if (error.message === 'Invalid entity type') {
-        return res.status(400).json({ message: error.message });
+        return res.status(400).json({ message: 'Loại thực thể không hợp lệ' });
       }
       next(error);
     }
@@ -589,13 +598,13 @@ class AdminController {
         entityType: req.params.entityType,
         entityId: req.params.entityId,
         status: 'Rejected',
-        comment: req.body?.reason || 'Rejected from content review'
+        comment: req.body?.reason || 'Đã từ chối từ trang kiểm duyệt nội dung'
       }, req.user.id);
       if (!success) return res.status(404).json({ message: 'Không tìm thấy nội dung' });
       res.status(200).json({ message: 'Từ chối nội dung thành công' });
     } catch (error) {
       if (error.message === 'Invalid entity type') {
-        return res.status(400).json({ message: error.message });
+        return res.status(400).json({ message: 'Loại thực thể không hợp lệ' });
       }
       next(error);
     }
@@ -607,13 +616,13 @@ class AdminController {
         entityType: req.params.entityType,
         entityId: req.params.entityId,
         status: 'Archived',
-        comment: req.body?.comment || 'Archived from content review'
+        comment: req.body?.comment || 'Đã lưu trữ từ trang kiểm duyệt nội dung'
       }, req.user.id);
       if (!success) return res.status(404).json({ message: 'Không tìm thấy nội dung' });
       res.status(200).json({ message: 'Lưu trữ nội dung thành công' });
     } catch (error) {
       if (error.message === 'Invalid entity type') {
-        return res.status(400).json({ message: error.message });
+        return res.status(400).json({ message: 'Loại thực thể không hợp lệ' });
       }
       next(error);
     }
@@ -625,7 +634,7 @@ class AdminController {
       res.status(200).json(data);
     } catch (error) {
       if (error.message === 'Invalid entity type') {
-        return res.status(400).json({ message: error.message });
+        return res.status(400).json({ message: 'Loại thực thể không hợp lệ' });
       }
       next(error);
     }
@@ -684,12 +693,12 @@ class AdminController {
     try {
       const success = await ReportService.updateReport(req.params.id, req.body, req.user.id);
       if (!success) {
-        return res.status(404).json({ message: 'Report not found' });
+        return res.status(404).json({ message: 'Không tìm thấy báo cáo' });
       }
-      res.status(200).json({ message: 'Report updated' });
+      res.status(200).json({ message: 'Đã cập nhật báo cáo' });
     } catch (error) {
       if (error.message.startsWith('Invalid ')) {
-        return res.status(400).json({ message: error.message });
+        return res.status(400).json({ message: error.message.replace(/^Invalid report status$/, 'Trạng thái báo cáo không hợp lệ').replace(/^Invalid priority$/, 'Mức ưu tiên không hợp lệ') });
       }
       next(error);
     }
@@ -698,10 +707,10 @@ class AdminController {
   static async sendAnnouncement(req, res, next) {
     try {
       const result = await AdminService.sendAnnouncement(req.body);
-      res.status(201).json({ message: 'Announcement queued', data: result });
+      res.status(201).json({ message: 'Thông báo đã được xếp hàng', data: result });
     } catch (error) {
       if (error.message === 'Missing title or message') {
-        return res.status(400).json({ message: error.message });
+        return res.status(400).json({ message: 'Thiếu tiêu đề hoặc nội dung thông báo' });
       }
       next(error);
     }
@@ -710,7 +719,7 @@ class AdminController {
   static async createDailyReminders(req, res, next) {
     try {
       const result = await AdminService.createDailyReminders();
-      res.status(201).json({ message: 'Daily reminders queued', data: result });
+      res.status(201).json({ message: 'Nhắc nhở hàng ngày đã được xếp hàng', data: result });
     } catch (error) {
       next(error);
     }

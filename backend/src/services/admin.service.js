@@ -132,12 +132,12 @@ class AdminService {
     }
 
     if (typeof input !== 'string') {
-      throw new Error('Invalid import payload');
+      throw new Error('Dữ liệu import không hợp lệ');
     }
 
     const trimmed = input.trim();
     if (!trimmed) {
-      throw new Error('CSV must include a header and at least one data row');
+      throw new Error('CSV phải có tiêu đề và ít nhất một dòng dữ liệu');
     }
 
     const firstLine = trimmed.split(/\r?\n/)[0] || '';
@@ -180,7 +180,7 @@ class AdminService {
     if (row.some((value) => value !== '')) records.push(row);
 
     if (records.length < 2) {
-      throw new Error('CSV must include a header and at least one data row');
+      throw new Error('CSV phải có tiêu đề và ít nhất một dòng dữ liệu');
     }
 
     const headers = records[0].map((header) => header.trim());
@@ -319,7 +319,7 @@ class AdminService {
     const status = topicData?.status || 'Published';
 
     if (!name || !adminId) {
-      throw new Error('Invalid topic data');
+      throw new Error('Dữ liệu chủ đề không hợp lệ');
     }
     this.assertContentStatus(status);
 
@@ -337,10 +337,10 @@ class AdminService {
 
     const existing = duplicate.recordset[0] || {};
     if (existing.nameCount > 0) {
-      throw new Error('Topic already exists');
+      throw new Error('Chủ đề đã tồn tại');
     }
     if (existing.codeCount > 0) {
-      throw new Error('Topic code already exists');
+      throw new Error('Mã chủ đề đã tồn tại');
     }
 
     const result = await pool.request()
@@ -396,7 +396,7 @@ class AdminService {
     const status = topicData.status || null;
 
     if (!name && description === null && !code && topicCategoryId === undefined && !status) {
-      throw new Error('Invalid topic data');
+      throw new Error('Dữ liệu chủ đề không hợp lệ');
     }
     if (status) this.assertContentStatus(status);
 
@@ -416,8 +416,8 @@ class AdminService {
         `);
 
       const existing = duplicate.recordset[0] || {};
-      if (existing.nameCount > 0) throw new Error('Topic already exists');
-      if (existing.codeCount > 0) throw new Error('Topic code already exists');
+      if (existing.nameCount > 0) throw new Error('Chủ đề đã tồn tại');
+      if (existing.codeCount > 0) throw new Error('Mã chủ đề đã tồn tại');
     }
 
     const oldStatusResult = await pool.request()
@@ -453,7 +453,7 @@ class AdminService {
     if (result.rowsAffected[0] > 0) {
       await this.logAdminAction(adminId, 'UPDATE_TOPIC', 'Topic', topicId, topicData);
       if (status) {
-        await this.logContentReview('Topic', topicId, oldStatusResult.recordset[0].ContentStatus, status, adminId, 'Updated from topic manager');
+        await this.logContentReview('Topic', topicId, oldStatusResult.recordset[0].ContentStatus, status, adminId, 'Cập nhật từ trình quản lý chủ đề');
       }
     }
 
@@ -498,7 +498,7 @@ class AdminService {
     const displayOrder = Number(categoryData?.displayOrder) || 1;
     const isActive = categoryData?.isActive === undefined ? true : Boolean(categoryData.isActive);
 
-    if (!name) throw new Error('Invalid topic category data');
+    if (!name) throw new Error('Dữ liệu danh mục chủ đề không hợp lệ');
 
     const pool = await poolPromise;
     const result = await pool.request()
@@ -531,7 +531,7 @@ class AdminService {
     const displayOrder = Number(categoryData?.displayOrder) || 1;
     const isActive = categoryData?.isActive === undefined ? true : Boolean(categoryData.isActive);
 
-    if (!name) throw new Error('Invalid topic category data');
+    if (!name) throw new Error('Dữ liệu danh mục chủ đề không hợp lệ');
 
     const pool = await poolPromise;
     const result = await pool.request()
@@ -979,7 +979,7 @@ class AdminService {
 
     if (result.rowsAffected[0] > 0 && adminId) {
       await this.logAdminAction(adminId, 'ARCHIVE_WORD', 'Word', wordId);
-      await this.logContentReview('Word', wordId, oldStatus, 'Archived', adminId, 'Archived from word manager');
+      await this.logContentReview('Word', wordId, oldStatus, 'Archived', adminId, 'Lưu trữ từ trình quản lý từ vựng');
     }
 
     return result.rowsAffected[0] > 0;
@@ -1097,7 +1097,7 @@ class AdminService {
         const rawExampleMeaning = this.getImportValue(row, ['exampleMeaning', 'sentenceTranslation', 'translation', 'nghia cau vi du', 'dich']);
 
         if (!term || !meaning) {
-          throw new Error('Missing required fields: term, meaning');
+          throw new Error('Thiếu trường bắt buộc: term, meaning');
         }
 
         let partOfSpeechId = Number(rawPartOfSpeechId);
@@ -1106,7 +1106,7 @@ class AdminService {
         }
 
         if (!partOfSpeechId || !partOfSpeechById.has(Number(partOfSpeechId))) {
-          throw new Error('Invalid or missing partOfSpeechId/partOfSpeech');
+          throw new Error('Loại từ không hợp lệ hoặc bị thiếu');
         }
 
         const topicIds = new Set();
@@ -1369,7 +1369,7 @@ class AdminService {
 
     if (result.rowsAffected[0] > 0) {
       if (oldStatus !== status) {
-        await this.logContentReview('Question', questionId, oldStatus, status, adminId, 'Updated from question manager');
+        await this.logContentReview('Question', questionId, oldStatus, status, adminId, 'Cập nhật từ trình quản lý câu hỏi');
       }
       await this.logAdminAction(adminId, 'UPDATE_QUESTION', 'Question', questionId, { wordId, questionType, oldStatus, status });
     }
@@ -1696,7 +1696,7 @@ class AdminService {
       SELECT TOP 8
         'ExerciseAttempt' AS type,
         CONCAT(u.FullName, ' answered ', w.Term) AS title,
-        CASE WHEN ea.IsCorrect = 1 THEN 'Correct answer' ELSE 'Needs review' END AS detail,
+        CASE WHEN ea.IsCorrect = 1 THEN N'Đúng' ELSE N'Cần xem lại' END AS detail,
         ea.AttemptedAt AS createdAt,
         CASE WHEN ea.IsCorrect = 1 THEN 'emerald' ELSE 'amber' END AS tone
       FROM ExerciseAttempts ea
@@ -1787,7 +1787,7 @@ class AdminService {
     assertValidUserRole(role);
 
     if (!fullName || !email || !password || password.length < 6) {
-      throw new Error('Invalid user data');
+      throw new Error('Dữ liệu người dùng không hợp lệ');
     }
 
     const pool = await poolPromise;
@@ -1837,7 +1837,7 @@ class AdminService {
 
       try {
         if (!wordId || !questionType || !questionText || !correctAnswer) {
-          throw new Error('Missing required fields: wordId, questionType, questionText, correctAnswer');
+          throw new Error('Thiếu trường bắt buộc: wordId, questionType, questionText, correctAnswer');
         }
 
         JSON.parse(optionsJson || '[]');
@@ -1877,7 +1877,7 @@ class AdminService {
     assertValidUserRole(role);
 
     if (!fullName || !email) {
-      throw new Error('Invalid user data');
+      throw new Error('Dữ liệu người dùng không hợp lệ');
     }
 
     const pool = await poolPromise;
@@ -1900,7 +1900,7 @@ class AdminService {
     let passwordUpdate = '';
     if (password) {
       if (password.length < 6) {
-        throw new Error('Invalid user data');
+        throw new Error('Dữ liệu người dùng không hợp lệ');
       }
       const passwordHash = await bcrypt.hash(password, 10);
       request.input('PasswordHash', sql.NVarChar(500), passwordHash);
@@ -1942,7 +1942,7 @@ class AdminService {
 
     const ownedContent = dependencies.recordset[0];
     if (ownedContent.words || ownedContent.questions || ownedContent.miniTests || ownedContent.topics) {
-      throw new Error('User owns content');
+      throw new Error('Người dùng đã tạo nội dung');
     }
 
     const result = await pool.request()
@@ -1994,7 +1994,7 @@ class AdminService {
       MiniTest: { table: 'MiniTests', id: 'MiniTestID', publishColumn: true }
     };
     const target = tableMap[entityType];
-    if (!target) throw new Error('Invalid entity type');
+    if (!target) throw new Error('Loại thực thể không hợp lệ');
 
     const pool = await poolPromise;
     const oldStatusResult = await pool.request()
@@ -2099,7 +2099,7 @@ class AdminService {
   static async getContentReviewLogs(entityType, entityId) {
     const validEntityTypes = ['Topic', 'Word', 'Question', 'MiniTest'];
     if (!validEntityTypes.includes(entityType)) {
-      throw new Error('Invalid entity type');
+      throw new Error('Loại thực thể không hợp lệ');
     }
 
     const pool = await poolPromise;
@@ -2148,14 +2148,14 @@ class AdminService {
       FROM ExerciseAttempts ea;
 
       SELECT TOP 8
-        COALESCE(t.TopicName, 'Uncategorized') AS name,
+        COALESCE(t.TopicName, N'Chưa phân loại') AS name,
         COUNT(ea.ExerciseAttemptID) AS attempts,
         CAST(SUM(CASE WHEN ea.IsCorrect = 1 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(ea.ExerciseAttemptID), 0) AS DECIMAL(5,2)) AS completion
       FROM ExerciseAttempts ea
       JOIN Words w ON ea.WordID = w.WordID
       LEFT JOIN WordTopics wt ON w.WordID = wt.WordID
       LEFT JOIN Topics t ON wt.TopicID = t.TopicID
-      GROUP BY COALESCE(t.TopicName, 'Uncategorized')
+      GROUP BY COALESCE(t.TopicName, N'Chưa phân loại')
       ORDER BY COUNT(ea.ExerciseAttemptID) DESC;
 
       SELECT TOP 8
@@ -2186,13 +2186,13 @@ class AdminService {
       ORDER BY p.PartOfSpeechName;
 
       SELECT TOP 5
-        COALESCE(t.TopicName, 'Uncategorized') AS label,
+        COALESCE(t.TopicName, N'Chưa phân loại') AS label,
         CAST(SUM(CASE WHEN ea.IsCorrect = 1 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(ea.ExerciseAttemptID), 0) AS DECIMAL(5,2)) AS accuracy
       FROM ExerciseAttempts ea
       JOIN Words w ON ea.WordID = w.WordID
       LEFT JOIN WordTopics wt ON w.WordID = wt.WordID
       LEFT JOIN Topics t ON wt.TopicID = t.TopicID
-      GROUP BY COALESCE(t.TopicName, 'Uncategorized')
+      GROUP BY COALESCE(t.TopicName, N'Chưa phân loại')
       ORDER BY accuracy ASC;
     `);
 
@@ -2229,7 +2229,7 @@ class AdminService {
           t.TopicID AS entityId,
           'Topic' AS type,
           t.TopicName AS title,
-          COALESCE(tc.CategoryName, 'Uncategorized') AS category,
+          COALESCE(tc.CategoryName, N'Chưa phân loại') AS category,
           t.TopicCode AS code,
           t.ContentStatus AS status,
           COUNT(DISTINCT wt.WordID) AS itemCount,
@@ -2248,7 +2248,7 @@ class AdminService {
           w.WordID AS entityId,
           'Word' AS type,
           w.Term AS title,
-          COALESCE(p.PartOfSpeechName, 'Vocabulary') AS category,
+          COALESCE(p.PartOfSpeechName, N'Từ vựng') AS category,
           CAST(w.DifficultyLevel AS nvarchar(20)) AS code,
           w.ContentStatus AS status,
           COUNT(DISTINCT q.QuestionID) AS itemCount,
@@ -2287,7 +2287,7 @@ class AdminService {
           mt.MiniTestID AS entityId,
           'MiniTest' AS type,
           mt.TestTitle AS title,
-          COALESCE(t.TopicName, 'General') AS category,
+          COALESCE(t.TopicName, N'Chung') AS category,
           CAST(mt.TotalQuestions AS nvarchar(20)) AS code,
           mt.ContentStatus AS status,
           mt.TotalQuestions AS itemCount,
@@ -2462,7 +2462,7 @@ class AdminService {
 
   static async sendAnnouncement({ audience = 'All users', title, message, deliveryChannel = 'InApp', actionUrl = null }) {
     if (!title || !message) {
-      throw new Error('Missing title or message');
+      throw new Error('Thiếu tiêu đề hoặc nội dung thông báo');
     }
 
     const pool = await poolPromise;
@@ -2507,8 +2507,8 @@ class AdminService {
       INSERT INTO Notifications (UserID, Title, Message, Type, DeliveryChannel, ActionUrl)
       SELECT
         u.UserID,
-        N'Time to study!',
-        CONCAT(N'You have ', due.DueWords, N' words waiting for review today.'),
+        N'Đến giờ học rồi!',
+        CONCAT(N'Bạn có ', due.DueWords, N' từ đang chờ ôn tập hôm nay.'),
         'DailyReminder',
         'InApp',
         '/user/learn'

@@ -8,30 +8,29 @@ type RetentionStatsProps = {
 export default function RetentionStats({ stats }: RetentionStatsProps) {
   return (
     <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.04] sm:p-6">
-      <div>
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-600 dark:text-cyan-400">Retention</p>
-        <h2 className="mt-1 text-xl font-black tracking-tight text-slate-950 dark:text-white">Chi so ghi nho</h2>
+      <div>          <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-600 dark:text-cyan-400">Ghi nhớ</p>
+        <h2 className="mt-1 text-xl font-black tracking-tight text-slate-950 dark:text-white">Khả năng ghi nhớ</h2>
       </div>
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
         <RetentionMetric
           icon={CheckCircle2}
-          label="Tra loi dung"
+          label="Đúng"
           value={stats.correctAnswerRate}
-          detail={`${stats.correctAnswers}/${stats.totalAnswers} cau tra loi`}
+          detail={`${stats.correctAnswers}/${stats.totalAnswers} câu`}
           tone="emerald"
         />
         <RetentionMetric
           icon={Brain}
-          label="Tu bi quen"
+          label="Đã quên"
           value={stats.forgottenWordRate}
-          detail={`${stats.forgottenWords}/${stats.learnedWords} tu da hoc`}
+          detail={`${stats.forgottenWords}/${stats.learnedWords} từ`}
           tone="rose"
         />
         <RetentionMetric
           icon={RefreshCw}
-          label="On tap dung han"
+          label="Ôn đúng hạn"
           value={stats.reviewCompletionRate}
-          detail={`${stats.upToDateWords}/${stats.learnedWords} tu dang dung tien do`}
+          detail={`${stats.upToDateWords}/${stats.learnedWords} từ đúng hạn`}
           tone="sky"
         />
       </div>

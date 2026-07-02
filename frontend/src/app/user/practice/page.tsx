@@ -208,7 +208,7 @@ export default function UserPractice() {
       }));
     } catch (error) {
       console.error("Failed to submit answer", error);
-      toast.error("Không thể ghi nhận kết quả. Vui lòng thử lại.");
+      toast.error("Không lưu được kết quả, thử lại nhé.");
     }
   }, [checked, current, isCorrect, submittedAnswer]);
 
@@ -264,7 +264,7 @@ export default function UserPractice() {
           })
           .catch((error) => {
             console.error("Failed to finalize practice session", error);
-            toast.error("Không thể ghi nhận XP hoàn thành phiên luyện tập.");
+            toast.error("Không ghi nhận được XP cho buổi luyện tập.");
           })
           .finally(() => setSummaryLoading(false));
       }, 0);
@@ -273,7 +273,7 @@ export default function UserPractice() {
   }, [finalizeAttempted, index, questions.length, sessionResults.correctCount, sessionResults.totalAttempts, summaryLoading, sessionSummary]);
 
   if (authLoading) {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white">Đang xác thực...</div>;
+    return <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white">Đang xác thực…</div>;
   }
 
   // Show mode selector before starting
@@ -285,7 +285,7 @@ export default function UserPractice() {
             <Brain size={32} className="text-blue-400" />
           </div>
           <h2 className="text-2xl font-black mb-2">Chọn chế độ luyện tập</h2>
-          <p className="text-slate-600 dark:text-slate-400 text-sm mb-8">Chọn cách bạn muốn ôn tập từ vựng hôm nay.</p>
+          <p className="text-slate-600 dark:text-slate-400 text-sm mb-8">Bạn muốn ôn tập thế nào hôm nay?</p>
 
           <div className="grid gap-4">
             <button
@@ -297,7 +297,7 @@ export default function UserPractice() {
                   <RefreshCw size={22} className="text-blue-500" />
                 </div>
                 <div>
-                  <h3 className="font-black text-slate-900 dark:text-white mb-1">Luyện tập thường</h3>
+                  <h3 className="font-black text-slate-900 dark:text-white mb-1">Luyện tập cơ bản</h3>
                   <p className="text-xs text-slate-600 dark:text-slate-400">Câu hỏi ngẫu nhiên từ các chủ đề bạn đang học</p>
                 </div>
               </div>
@@ -313,7 +313,7 @@ export default function UserPractice() {
                 </div>
                 <div>
                   <h3 className="font-black text-slate-900 dark:text-white mb-1">Ôn tập thông minh</h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-400">Ưu tiên từ sắp quên, hay sai nhiều nhất theo SRS</p>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">Ưu tiên từ sắp quên và hay sai nhất theo SRS</p>
                 </div>
               </div>
             </button>
@@ -340,16 +340,15 @@ export default function UserPractice() {
         <CheckCircle2 size={64} className="text-green-500 mb-6 opacity-20" />
         <h2 className="text-2xl font-bold mb-2">Không có câu hỏi</h2>
         <p className="text-slate-500 dark:text-slate-400 mb-8">
-          {practiceMode === "smart"
-            ? "Hiện chưa có từ đã học nào cần ôn tập. Hãy học thêm từ mới hoặc chọn luyện tập thường."
-            : "Chủ đề này chưa có câu hỏi phù hợp. Hãy thử ôn tập thông minh hoặc chọn chủ đề khác."}
+          {practiceMode === "smart"              ? "Chưa có từ nào cần ôn. Học thêm từ mới hoặc chọn luyện tập cơ bản nhé."
+            : "Chủ đề này chưa có câu hỏi phù hợp. Thử ôn tập thông minh hoặc chọn chủ đề khác."}
         </p>
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button
             onClick={() => handleModeSelect(practiceMode === "smart" ? "normal" : "smart")}
             className="bg-blue-600"
           >
-            Đổi chế độ
+            Chuyển chế độ
           </Button>
           <Button variant="outline" onClick={() => router.push("/user/courses")}>
             Chọn chủ đề
@@ -378,7 +377,7 @@ export default function UserPractice() {
               <RefreshCw size={40} className="text-blue-400" />
             </div>
             <h1 className="text-3xl font-black mb-2 text-slate-900 dark:text-white">Hoàn thành</h1>
-            <p className="text-slate-500 dark:text-slate-400 text-sm mb-8">Bạn đã hoàn thành phiên luyện tập.</p>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mb-8">Bạn đã hoàn thành buổi luyện tập!</p>
 
             {/* Stats grid */}
             <div className="grid grid-cols-3 gap-4 mb-8">
@@ -398,7 +397,7 @@ export default function UserPractice() {
               </div>
               <div className="bg-amber-500/5 dark:bg-amber-500/5 bg-amber-50/50 rounded-2xl p-4 border border-amber-500/10">
                 <p className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-black tracking-widest mb-1">XP nhận được</p>
-                <p className="text-2xl font-black text-amber-400">+{xpEarned}</p>
+                <p className="text-2xl font-black text-amber-400">+{xpEarned} XP</p>
               </div>
             </div>
 
@@ -493,7 +492,7 @@ export default function UserPractice() {
               questionId={current.questionId}
               entityType="Question"
               defaultType={current.questionType === "Dictation" ? "AudioIssue" : "AnswerIncorrect"}
-              title={`Report question #${current.questionId}`}
+              title={`Báo cáo câu hỏi #${current.questionId}`}
               context={current.term || current.meaning || current.questionText}
             />
           </div>

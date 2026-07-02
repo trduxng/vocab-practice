@@ -9,12 +9,12 @@ const XP_REWARDS = Object.freeze({
 });
 
 const ACHIEVEMENT_SEED = [
-  ["FIRST_WORD", "First Word", "Learn your first vocabulary word.", "🌱", "WORDS_LEARNED", 1, 1, 10],
-  ["WORDS_100", "First 100 Words", "Learn 100 vocabulary words.", "📚", "WORDS_LEARNED", 100, 2, 100],
-  ["STREAK_7", "7 Day Streak", "Learn for 7 consecutive days.", "🔥", "STREAK_DAYS", 7, 3, 50],
-  ["STREAK_30", "30 Day Streak", "Learn for 30 consecutive days.", "⚡", "STREAK_DAYS", 30, 4, 150],
-  ["TEST_SCORE_90", "Test Ace", "Score at least 90 percent on a mini test.", "🎯", "TEST_SCORE", 90, 5, 50],
-  ["LEVEL_5", "Level Five", "Reach learner level 5.", "🏆", "LEVEL", 5, 6, 100],
+  ["FIRST_WORD", "Từ Đầu Tiên", "Học từ vựng đầu tiên của bạn.", "🌱", "WORDS_LEARNED", 1, 1, 10],
+  ["WORDS_100", "100 Từ Đầu Tiên", "Học 100 từ vựng.", "📚", "WORDS_LEARNED", 100, 2, 100],
+  ["STREAK_7", "Chuỗi 7 Ngày", "Học tập 7 ngày liên tiếp.", "🔥", "STREAK_DAYS", 7, 3, 50],
+  ["STREAK_30", "Chuỗi 30 Ngày", "Học tập 30 ngày liên tiếp.", "⚡", "STREAK_DAYS", 30, 4, 150],
+  ["TEST_SCORE_90", "Đỉnh Cao Bài Kiểm Tra", "Đạt ít nhất 90% trong bài kiểm tra.", "🎯", "TEST_SCORE", 90, 5, 50],
+  ["LEVEL_5", "Cấp Độ Năm", "Đạt cấp độ học viên 5.", "🏆", "LEVEL", 5, 6, 100],
 ];
 
 class GamificationService {
@@ -179,7 +179,7 @@ class GamificationService {
   static async awardXP(userId, { eventType, sourceKey = null, metadata = null, xpAmount = null } = {}) {
     await this.ensureSchema();
     const amount = xpAmount !== null ? xpAmount : XP_REWARDS[eventType];
-    if (amount === undefined || amount === null) throw new Error(`Unsupported XP event type: ${eventType}`);
+    if (amount === undefined || amount === null) throw new Error(`Loại sự kiện XP không được hỗ trợ: ${eventType}`);
 
     const pool = await poolPromise;
     const transaction = new sql.Transaction(pool);

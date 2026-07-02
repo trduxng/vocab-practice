@@ -28,14 +28,13 @@ function extractResponseText(response) {
 }
 
 function parseJsonText(text) {
-  const raw = cleanText(text);
-  if (!raw) throw new Error('AI response is empty');
+  const raw = cleanText(text);    if (!raw) throw new Error('Phản hồi từ AI bị trống');
 
   try {
     return JSON.parse(raw);
   } catch {
     const match = raw.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error('AI response is not valid JSON');
+    if (!match) throw new Error('Phản hồi từ AI không phải JSON hợp lệ');
     return JSON.parse(match[0]);
   }
 }
@@ -55,7 +54,7 @@ function normalizeExamples(examples) {
 class AiService {
   static async suggestWordContent({ term, meaning, partOfSpeech, exampleCount = 3 }) {
     const cleanTerm = cleanText(term);
-    if (!cleanTerm) throw new Error('Missing term');
+    if (!cleanTerm) throw new Error('Thiếu từ vựng');
 
     const [dictionary, translatedTerm] = await Promise.all([
       this.lookupDictionary(cleanTerm).catch(() => null),
@@ -86,7 +85,7 @@ class AiService {
   static async generateToeicExamples({ term, meaning, partOfSpeech, exampleCount }) {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      const error = new Error('OPENAI_API_KEY is not configured');
+      const error = new Error('OPENAI_API_KEY chưa được cấu hình');
       error.statusCode = 503;
       throw error;
     }

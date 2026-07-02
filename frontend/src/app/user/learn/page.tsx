@@ -55,9 +55,9 @@ export default function VocabularyTopicsPage() {
     <>
       <Topbar
         title="Học từ theo chủ đề"
-        subtitle="Chọn một chủ đề, xem trước danh sách từ và bắt đầu phiên flashcard."
+        subtitle="Chọn chủ đề, xem danh sách từ và bắt đầu học flashcard."
         role="student"
-        userName={user?.fullName || "Learner"}
+        userName={user?.fullName || "Người học"}
       />
 
       <main className="flex-1 overflow-auto bg-slate-100 p-4 dark:bg-slate-950 sm:p-6">
@@ -73,12 +73,12 @@ export default function VocabularyTopicsPage() {
               <section className="overflow-hidden rounded-[30px] bg-linear-to-br from-emerald-600 via-teal-600 to-cyan-700 p-5 text-white shadow-xl shadow-emerald-900/15 sm:p-7">
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
                   <div>
-                    <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-100">Vocabulary roadmap</p>
+                    <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-100">Lộ trình từ vựng</p>
                     <h1 className="mt-2 max-w-2xl text-2xl font-black tracking-tight sm:text-4xl">
                       Chọn chủ đề bạn muốn học hôm nay.
                     </h1>
                     <p className="mt-3 max-w-2xl text-sm leading-6 text-emerald-50/90">
-                      Mỗi chủ đề có danh sách từ riêng. Bạn có thể xem trước nội dung, lưu từ quan trọng và học từ mới bằng flashcard.
+                      Mỗi chủ đề có bộ từ riêng. Xem trước nội dung, lưu từ quan trọng và học bằng flashcard.
                     </p>
                   </div>
                   <button
@@ -146,7 +146,7 @@ function TopicCard({ topic, onOpen }: { topic: LearningPathTopic; onOpen: () => 
           </div>
           <ArrowRight className="h-5 w-5 text-white/70 transition-transform group-hover:translate-x-1" />
         </div>
-        <p className="mt-7 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-100">{topic.code || "TOEIC vocabulary"}</p>
+        <p className="mt-7 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-100">{topic.code || "Từ vựng TOEIC"}</p>
         <h3 className="mt-1 min-h-14 text-lg font-black leading-6">{topic.title}</h3>
       </div>
       <div className="p-4">
@@ -208,7 +208,7 @@ function EmptyTopics() {
     <div className="flex min-h-[420px] flex-col items-center justify-center rounded-[28px] border border-dashed border-slate-200 bg-white p-8 text-center dark:border-white/10 dark:bg-white/[0.04]">
       <BookOpen className="h-10 w-10 text-slate-300" />
       <h2 className="mt-4 text-lg font-black text-slate-900 dark:text-white">Chưa có chủ đề để học</h2>
-      <p className="mt-2 max-w-sm text-sm text-slate-500">Các chủ đề đã xuất bản sẽ xuất hiện tại đây.</p>
+      <p className="mt-2 max-w-sm text-sm text-slate-500">Chủ đề đã xuất bản sẽ hiển thị ở đây.</p>
     </div>
   );
 }

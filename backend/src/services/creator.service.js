@@ -225,7 +225,7 @@ class CreatorService {
         .input('OldStatus', sql.NVarChar(20), status)
         .query(`
           INSERT INTO ContentReviewLogs (EntityType, EntityID, ActionByUserID, OldStatus, NewStatus, Comment, CreatedAt)
-          VALUES (@EntityType, @EntityID, @UserID, @OldStatus, 'PendingReview', N'Submitted for review by creator', SYSDATETIMEOFFSET())
+          VALUES (@EntityType, @EntityID, @UserID, @OldStatus, 'PendingReview', N'Đã gửi duyệt bởi người tạo', SYSDATETIMEOFFSET())
         `);
 
       await transaction.commit();
@@ -557,7 +557,7 @@ class CreatorService {
         .input('ActionByUserID', sql.BigInt, userId)
         .query(`
           INSERT INTO ContentReviewLogs (EntityType, EntityID, ActionByUserID, NewStatus, Comment, CreatedAt)
-          VALUES (@EntityType, @EntityID, @ActionByUserID, 'PendingReview', 'Submitted for review', SYSDATETIMEOFFSET())
+          VALUES (@EntityType, @EntityID, @ActionByUserID, 'PendingReview', N'Đã gửi duyệt', SYSDATETIMEOFFSET())
         `);
       await transaction.commit();
       return true;

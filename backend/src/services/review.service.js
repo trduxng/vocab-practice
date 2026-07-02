@@ -89,7 +89,7 @@ class ReviewService {
         .input('AdminID', sql.BigInt, adminId)
         .query(`
           INSERT INTO ContentReviewLogs (EntityType, EntityID, ActionByUserID, OldStatus, NewStatus, Comment, CreatedAt)
-          VALUES (@EntityType, @EntityID, @AdminID, 'PendingReview', 'Published', 'Approved by admin', SYSDATETIMEOFFSET())
+          VALUES (@EntityType, @EntityID, @AdminID, 'PendingReview', 'Published', N'Đã được admin phê duyệt', SYSDATETIMEOFFSET())
         `);
 
       // Gửi notification cho Creator
@@ -267,7 +267,7 @@ class ReviewService {
         .input('AdminID', sql.BigInt, adminId)
         .query(`
           INSERT INTO ContentReviewLogs (EntityType, EntityID, ActionByUserID, NewStatus, Comment, CreatedAt)
-          VALUES (@EntityType, @EntityID, @AdminID, 'Archived', 'Archived by admin', SYSDATETIMEOFFSET())
+          VALUES (@EntityType, @EntityID, @AdminID, 'Archived', N'Đã được admin lưu trữ', SYSDATETIMEOFFSET())
         `);
 
       await transaction.commit();

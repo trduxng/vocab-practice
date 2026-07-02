@@ -6,7 +6,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/src/app/context/AuthContext";
 import { usePermissions } from "@/src/modules/auth/hooks/usePermissions";
-import { PERMISSIONS, type PermissionCode } from "@/src/modules/auth/types/permissions";
+import {
+  PERMISSIONS,
+  type PermissionCode,
+} from "@/src/modules/auth/types/permissions";
 import {
   BarChart3,
   Bell,
@@ -43,30 +46,118 @@ type NavLink = {
 };
 
 const adminLinks: NavLink[] = [
-  { icon: LayoutDashboard, label: "Tổng quan", href: "/admin/dashboard", anyOf: [PERMISSIONS.viewDashboard] },
-  { icon: Users, label: "Người dùng", href: "/admin/students", anyOf: [PERMISSIONS.manageUsers] },
-  { icon: ClipboardList, label: "Nội dung", href: "/admin/courses", anyOf: [PERMISSIONS.manageTopics, PERMISSIONS.manageWords] },
-  { icon: ShieldCheck, label: "Duyệt nội dung", href: "/admin/content-review", anyOf: [PERMISSIONS.reviewContent, PERMISSIONS.publishContent, PERMISSIONS.manageSystemSettings] },
-  { icon: Flag, label: "Báo cáo", href: "/admin/reports", anyOf: [PERMISSIONS.manageReports, PERMISSIONS.manageSystemSettings] },
-  { icon: BookOpen, label: "Danh mục chủ đề", href: "/admin/topic-categories", anyOf: [PERMISSIONS.manageTopicCategories, PERMISSIONS.manageTopics] },
-  { icon: BarChart3, label: "Phân tích", href: "/admin/analytics", anyOf: [PERMISSIONS.viewAnalytics, PERMISSIONS.viewDashboard] },
-  { icon: History, label: "Nhật ký hệ thống", href: "/admin/audit-logs", anyOf: [PERMISSIONS.viewAuditLogs, PERMISSIONS.manageSystemSettings, PERMISSIONS.manageUsers] },
-  { icon: Bell, label: "Thông báo", href: "/admin/notifications", anyOf: [PERMISSIONS.manageNotifications] },
-  { icon: BookOpen, label: "Từ vựng", href: "/admin/words", anyOf: [PERMISSIONS.manageWords] },
-  { icon: FileQuestion, label: "Câu hỏi", href: "/admin/questions", anyOf: [PERMISSIONS.manageQuestions] },
-  { icon: ListChecks, label: "Bài kiểm tra", href: "/admin/minitests", anyOf: [PERMISSIONS.manageTests] },
+  {
+    icon: LayoutDashboard,
+    label: "Tổng quan",
+    href: "/admin/dashboard",
+    anyOf: [PERMISSIONS.viewDashboard],
+  },
+  {
+    icon: Users,
+    label: "Người dùng",
+    href: "/admin/students",
+    anyOf: [PERMISSIONS.manageUsers],
+  },
+  {
+    icon: ClipboardList,
+    label: "Nội dung",
+    href: "/admin/courses",
+    anyOf: [PERMISSIONS.manageTopics, PERMISSIONS.manageWords],
+  },
+  {
+    icon: ShieldCheck,
+    label: "Duyệt nội dung",
+    href: "/admin/content-review",
+    anyOf: [
+      PERMISSIONS.reviewContent,
+      PERMISSIONS.publishContent,
+      PERMISSIONS.manageSystemSettings,
+    ],
+  },
+  {
+    icon: Flag,
+    label: "Báo cáo",
+    href: "/admin/reports",
+    anyOf: [PERMISSIONS.manageReports, PERMISSIONS.manageSystemSettings],
+  },
+  {
+    icon: BookOpen,
+    label: "Danh mục chủ đề",
+    href: "/admin/topic-categories",
+    anyOf: [PERMISSIONS.manageTopicCategories, PERMISSIONS.manageTopics],
+  },
+  {
+    icon: BarChart3,
+    label: "Phân tích",
+    href: "/admin/analytics",
+    anyOf: [PERMISSIONS.viewAnalytics, PERMISSIONS.viewDashboard],
+  },
+  {
+    icon: History,
+    label: "Nhật ký hệ thống",
+    href: "/admin/audit-logs",
+    anyOf: [
+      PERMISSIONS.viewAuditLogs,
+      PERMISSIONS.manageSystemSettings,
+      PERMISSIONS.manageUsers,
+    ],
+  },
+  {
+    icon: Bell,
+    label: "Thông báo",
+    href: "/admin/notifications",
+    anyOf: [PERMISSIONS.manageNotifications],
+  },
+  {
+    icon: BookOpen,
+    label: "Từ vựng",
+    href: "/admin/words",
+    anyOf: [PERMISSIONS.manageWords],
+  },
+  {
+    icon: FileQuestion,
+    label: "Câu hỏi",
+    href: "/admin/questions",
+    anyOf: [PERMISSIONS.manageQuestions],
+  },
+  {
+    icon: ListChecks,
+    label: "Bài kiểm tra",
+    href: "/admin/minitests",
+    anyOf: [PERMISSIONS.manageTests],
+  },
   { icon: Settings, label: "Cài đặt", href: "/admin/settings" },
 ];
 
 const creatorLinks: NavLink[] = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/creator/dashboard", anyOf: [PERMISSIONS.viewDashboard] },
-  { icon: BookOpen, label: "Chủ đề & Nội dung", href: "/creator/topics", anyOf: [PERMISSIONS.manageTopics] },
-  { icon: ListChecks, label: "Bài test", href: "/creator/mini-tests", anyOf: [PERMISSIONS.manageTests] },
+  {
+    icon: LayoutDashboard,
+    label: "Tổng quan",
+    href: "/creator/dashboard",
+    anyOf: [PERMISSIONS.viewDashboard],
+  },
+  {
+    icon: BookOpen,
+    label: "Chủ đề & Nội dung",
+    href: "/creator/topics",
+    anyOf: [PERMISSIONS.manageTopics],
+  },
+  {
+    icon: ListChecks,
+    label: "Bài test",
+    href: "/creator/mini-tests",
+    anyOf: [PERMISSIONS.manageTests],
+  },
   { icon: Image, label: "Media", href: "/creator/media" },
   { icon: Edit3, label: "Bản nháp", href: "/creator/drafts" },
   { icon: Clock, label: "Chờ duyệt", href: "/creator/pending" },
   { icon: XCircle, label: "Bị từ chối", href: "/creator/rejected" },
-  { icon: BarChart3, label: "Phân tích", href: "/creator/analytics", anyOf: [PERMISSIONS.viewAnalytics, PERMISSIONS.viewDashboard] },
+  {
+    icon: BarChart3,
+    label: "Phân tích",
+    href: "/creator/analytics",
+    anyOf: [PERMISSIONS.viewAnalytics, PERMISSIONS.viewDashboard],
+  },
   { icon: Settings, label: "Cài đặt", href: "/creator/settings" },
 ];
 
@@ -82,7 +173,13 @@ const studentLinks: NavLink[] = [
   { icon: Settings, label: "Cài đặt", href: "/user/settings" },
 ];
 
-function NavLinks({ links, collapsed }: { links: NavLink[]; collapsed: boolean }) {
+function NavLinks({
+  links,
+  collapsed,
+}: {
+  links: NavLink[];
+  collapsed: boolean;
+}) {
   const pathname = usePathname();
 
   return (
@@ -101,7 +198,9 @@ function NavLinks({ links, collapsed }: { links: NavLink[]; collapsed: boolean }
             title={collapsed ? link.label : undefined}
           >
             <link.icon className="h-4 w-4 shrink-0" />
-            <span className={`${collapsed ? "hidden" : "hidden md:inline"}`}>{link.label}</span>
+            <span className={`${collapsed ? "hidden" : "hidden md:inline"}`}>
+              {link.label}
+            </span>
           </Link>
         );
       })}
@@ -109,12 +208,23 @@ function NavLinks({ links, collapsed }: { links: NavLink[]; collapsed: boolean }
   );
 }
 
-export default function Sidebar({ role }: { role: "admin" | "creator" | "student" }) {
+export default function Sidebar({
+  role,
+}: {
+  role: "admin" | "creator" | "student";
+}) {
   const [collapsed, setCollapsed] = useState(false);
   const { logout } = useAuth();
   const { hasAnyPermission } = usePermissions();
-  const baseLinks = role === "admin" ? adminLinks : role === "creator" ? creatorLinks : studentLinks;
-  const links = baseLinks.filter((link) => !link.anyOf?.length || hasAnyPermission(link.anyOf));
+  const baseLinks =
+    role === "admin"
+      ? adminLinks
+      : role === "creator"
+        ? creatorLinks
+        : studentLinks;
+  const links = baseLinks.filter(
+    (link) => !link.anyOf?.length || hasAnyPermission(link.anyOf),
+  );
 
   return (
     <aside
@@ -132,8 +242,12 @@ export default function Sidebar({ role }: { role: "admin" | "creator" | "student
         </div>
         {!collapsed && (
           <div className="hidden md:block">
-            <p className="text-sm font-semibold tracking-tight text-slate-950 dark:text-white">VocaBoost</p>
-            <p className="text-xs text-slate-600 dark:text-slate-400">Học từ vựng TOEIC</p>
+            <p className="text-sm font-semibold tracking-tight text-slate-950 dark:text-white">
+              VocaBoost
+            </p>
+            <p className="text-xs text-slate-600 dark:text-slate-400">
+              Học từ vựng TOEIC
+            </p>
           </div>
         )}
       </div>
@@ -143,9 +257,15 @@ export default function Sidebar({ role }: { role: "admin" | "creator" | "student
           <ShieldCheck className="h-4 w-4 text-emerald-500" />
           <div>
             <p className="text-xs font-medium text-slate-800 dark:text-slate-200">
-              {role === "admin" ? "Khu vực quản trị" : role === "creator" ? "Khu vực tạo nội dung" : "Khu vực học tập"}
+              {role === "admin"
+                ? "Quản trị"
+                : role === "creator"
+                  ? "Sáng tạo"
+                  : "Học tập"}
             </p>
-            <p className="text-[11px] text-slate-600 dark:text-slate-400">Truy cập theo quyền hạn</p>
+            <p className="text-[11px] text-slate-600 dark:text-slate-400">
+              Truy cập theo phân quyền
+            </p>
           </div>
         </div>
       )}
@@ -155,7 +275,10 @@ export default function Sidebar({ role }: { role: "admin" | "creator" | "student
           fallback={
             <div className="space-y-2">
               {links.map((link) => (
-                <div key={link.href} className="h-10 rounded-md bg-slate-100 dark:bg-white/5" />
+                <div
+                  key={link.href}
+                  className="h-10 rounded-md bg-slate-100 dark:bg-white/5"
+                />
               ))}
             </div>
           }
@@ -165,13 +288,6 @@ export default function Sidebar({ role }: { role: "admin" | "creator" | "student
       </nav>
 
       <div className="border-t border-slate-200 p-2 dark:border-white/10">
-        <Link
-          href="/"
-          className="flex h-10 items-center justify-center gap-3 rounded-md px-3 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950 md:justify-start dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
-        >
-          <Home className="h-4 w-4" />
-          {!collapsed && <span className="hidden md:inline">Về trang chủ</span>}
-        </Link>
         <button
           type="button"
           onClick={logout}
@@ -185,9 +301,13 @@ export default function Sidebar({ role }: { role: "admin" | "creator" | "student
       <button
         onClick={() => setCollapsed(!collapsed)}
         className="absolute -right-3 top-20 hidden h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors hover:text-slate-950 md:flex dark:border-white/10 dark:bg-slate-950 dark:text-slate-400 dark:hover:text-white"
-        aria-label={collapsed ? "Mở rộng thanh menu" : "Thu gọn thanh menu"}
+        aria-label={collapsed ? "Mở rộng menu" : "Thu gọn menu"}
       >
-        {collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
+        {collapsed ? (
+          <ChevronRight className="h-3 w-3" />
+        ) : (
+          <ChevronLeft className="h-3 w-3" />
+        )}
       </button>
     </aside>
   );

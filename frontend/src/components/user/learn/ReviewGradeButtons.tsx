@@ -10,7 +10,7 @@ type ReviewGradeButtonsProps = {
 const grades = [
   {
     rating: "Again" as const,
-    label: "Again",
+    label: "Quên rồi",
     shortcut: "1",
     interval: "10 phút",
     icon: RotateCcw,
@@ -18,7 +18,7 @@ const grades = [
   },
   {
     rating: "Hard" as const,
-    label: "Hard",
+    label: "Khó",
     shortcut: "2",
     interval: "1 ngày",
     icon: TrendingUp,
@@ -26,7 +26,7 @@ const grades = [
   },
   {
     rating: "Good" as const,
-    label: "Good",
+    label: "Tốt",
     shortcut: "3",
     interval: "3 ngày",
     icon: Smile,
@@ -34,7 +34,7 @@ const grades = [
   },
   {
     rating: "Easy" as const,
-    label: "Easy",
+    label: "Dễ",
     shortcut: "4",
     interval: "7+ ngày",
     icon: Sparkles,
@@ -47,7 +47,7 @@ export default function ReviewGradeButtons({ disabled, revealed, onSelect }: Rev
     <div>
       <div className="mb-3 flex items-center justify-between gap-3">
         <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
-          {revealed ? "Bạn nhớ từ này thế nào?" : "Lật thẻ để chọn mức độ ghi nhớ"}
+          {revealed ? "Bạn nhớ từ này thế nào?" : "Lật thẻ để đánh giá"}
         </p>
         <p className="hidden text-[10px] font-bold text-slate-400 sm:block">Phím 1 - 4</p>
       </div>

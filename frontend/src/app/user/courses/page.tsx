@@ -61,10 +61,10 @@ export default function UserCoursesPage() {
   return (
     <>
       <Topbar
-        title="TOEIC learning path"
-        subtitle="Move through lessons, practice sessions, and mini tests in a clear sequence."
+        title="Lộ trình học TOEIC"
+        subtitle="Học theo trình tự từ bài học, luyện tập đến kiểm tra."
         role="student"
-        userName={user?.fullName || "Learner"}
+        userName={user?.fullName || "Bạn"}
       />
 
       <main className="flex-1 overflow-auto bg-slate-100 p-4 dark:bg-slate-950 sm:p-6">
@@ -109,9 +109,9 @@ function LearningPathError({ onRetry }: { onRetry: () => void }) {
       <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-100 text-rose-600 dark:bg-rose-500/15 dark:text-rose-300">
         <AlertCircle className="h-6 w-6" />
       </div>
-      <h2 className="mt-4 text-lg font-black text-slate-900 dark:text-white">Unable to load the learning path</h2>
+      <h2 className="mt-4 text-lg font-black text-slate-900 dark:text-white">Không thể tải lộ trình học</h2>
       <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500 dark:text-slate-400">
-        The roadmap is not available yet. Try loading the page again.
+        Lộ trình chưa sẵn sàng. Thử tải lại trang nhé.
       </p>
       <button
         type="button"
@@ -119,7 +119,7 @@ function LearningPathError({ onRetry }: { onRetry: () => void }) {
         className="mt-6 inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-black uppercase tracking-wide text-white transition-colors hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
       >
         <RefreshCw className="h-4 w-4" />
-        Retry
+        Thử lại
       </button>
     </div>
   );

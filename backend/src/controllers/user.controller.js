@@ -166,10 +166,11 @@ class UserController {
   static async createReport(req, res, next) {
     try {
       const result = await ReportService.createReport(req.user.id, req.body);
-      res.status(201).json({ message: 'Report submitted', data: result });
+      res.status(201).json({ message: 'Đã gửi báo cáo', data: result });
     } catch (error) {
       if (['Invalid report type', 'Invalid entity type', 'Report description is too short'].includes(error.message)) {
-        return res.status(400).json({ message: error.message });
+        const map = { 'Invalid report type': 'Loại báo cáo không hợp lệ', 'Invalid entity type': 'Loại thực thể không hợp lệ', 'Report description is too short': 'Mô tả báo cáo quá ngắn' };
+        return res.status(400).json({ message: map[error.message] || error.message });
       }
       next(error);
     }

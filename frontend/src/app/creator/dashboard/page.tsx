@@ -6,17 +6,6 @@ import { BarChart3, BookOpen, FileQuestion, FileText, ListChecks, Loader2, PieCh
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, ComposedChart, Line } from 'recharts';
 import { toast } from 'sonner';
 import Topbar from '@/src/components/shared/Topbar';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-  Legend,
-} from 'recharts';
 import ChartFrame from '@/src/components/admin/ChartFrame';
 import { chartColors } from '@/src/components/admin/AdminPrimitives';
 
@@ -89,7 +78,7 @@ export default function CreatorDashboardPage() {
       setSummary(c);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Không thể tải dữ liệu dashboard');
+      toast.error(err.response?.data?.message || 'Không tải được dữ liệu dashboard');
     } finally {
       setLoading(false);
     }
@@ -198,7 +187,7 @@ export default function CreatorDashboardPage() {
 
   return (
     <div className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-[#020617]">
-      <Topbar title="Bảng điều khiển Người tạo" subtitle="Tổng quan nội dung của bạn" role="creator" />
+      <Topbar title="Bảng điều khiển" subtitle="Tổng quan nội dung của bạn" role="creator" />
       <div className="flex-1 p-6 md:p-8 space-y-8">
 
       {/* Stats Cards */}
@@ -245,7 +234,7 @@ export default function CreatorDashboardPage() {
         {/* Pie Chart: Content Types */}
         <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 p-6">
           <h2 className="text-lg font-semibold flex items-center gap-2 mb-6">
-            <PieChartIcon className="h-5 w-5 text-slate-400" /> Tỷ trọng nội dung
+            <PieChartIcon className="h-5 w-5 text-slate-400" /> Cơ cấu nội dung
           </h2>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
@@ -278,13 +267,13 @@ export default function CreatorDashboardPage() {
         {/* Topic Engagement Chart */}
         <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 p-6">
           <h2 className="text-lg font-semibold flex items-center gap-2 mb-6">
-            <Users className="h-5 w-5 text-slate-400" /> Học tập & Tiến trình theo Chủ đề
+            <Users className="h-5 w-5 text-slate-400" /> Tương tác học tập theo Chủ đề
           </h2>
           <div className="h-72">
             {topicAnalytics.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-slate-400">
                 <BookOpen className="h-8 w-8 mb-2 stroke-1" />
-                <p className="text-sm">Chưa có học viên nào tham gia học chủ đề của bạn.</p>
+                <p className="text-sm">Chưa có học viên nào học chủ đề của bạn.</p>
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
@@ -316,13 +305,13 @@ export default function CreatorDashboardPage() {
         {/* Mini-Test Performance Chart */}
         <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 p-6">
           <h2 className="text-lg font-semibold flex items-center gap-2 mb-6">
-            <Award className="h-5 w-5 text-slate-400" /> Hiệu suất và Lượt làm bài Test
+            <Award className="h-5 w-5 text-slate-400" /> Hiệu suất bài kiểm tra
           </h2>
           <div className="h-72">
             {miniTestAnalytics.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-slate-400">
                 <ListChecks className="h-8 w-8 mb-2 stroke-1" />
-                <p className="text-sm">Chưa có lượt làm bài nào cho các đề thi thử của bạn.</p>
+                <p className="text-sm">Chưa có ai làm bài kiểm tra của bạn.</p>
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">

@@ -107,7 +107,7 @@ class ReportService {
     this.assertOneOf(entityType, ENTITY_TYPES, 'entity type');
 
     if (!description || description.length < 5) {
-      throw new Error('Report description is too short');
+      throw new Error('Mô tả báo cáo quá ngắn');
     }
 
     const pool = await poolPromise;
@@ -117,7 +117,7 @@ class ReportService {
       .input('WordID', sql.BigInt, wordId)
       .input('QuestionID', sql.BigInt, questionId)
       .input('ReportType', sql.NVarChar(50), reportType)
-      .input('Title', sql.NVarChar(200), title || 'Content report')
+      .input('Title', sql.NVarChar(200), title || 'Báo cáo nội dung')
       .input('Description', sql.NVarChar(2000), description)
       .query(`
         INSERT INTO ContentReports (ReporterUserID, EntityType, WordID, QuestionID, ReportType, Title, Description)

@@ -151,7 +151,7 @@ class UserService {
 
     const canonicalWordId = Number(result.recordset[0]?.WordID || 0);
     if (!canonicalWordId) {
-      throw new Error("Question does not resolve to a vocabulary word");
+      throw new Error("Câu hỏi không thuộc về từ vựng nào");
     }
 
     let reviewFeedback = {};

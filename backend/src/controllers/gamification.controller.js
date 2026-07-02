@@ -14,7 +14,7 @@ class GamificationController {
     try {
       const { sessionKey, topicId = null, correctCount = 0, totalAttempts = 0 } = req.body;
       if (!sessionKey || typeof sessionKey !== "string") {
-        return res.status(400).json({ message: "Missing practice session key" });
+        return res.status(400).json({ message: "Thiếu mã phiên luyện tập" });
       }
       const reward = await GamificationService.awardXP(req.user.id, {
         eventType: "PracticeComplete",
@@ -34,7 +34,7 @@ class GamificationController {
   static async markAchievementsSeen(req, res, next) {
     try {
       await GamificationService.markAchievementsSeen(req.user.id, req.body.achievementIds);
-      res.status(200).json({ message: "Achievements marked as seen" });
+      res.status(200).json({ message: "Đã đánh dấu thành tích đã xem" });
     } catch (error) {
       next(error);
     }

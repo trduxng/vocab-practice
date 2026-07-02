@@ -95,7 +95,7 @@ export default function CreatorAnalyticsPage() {
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2 text-slate-800 dark:text-slate-100">
             <BarChart3 className="h-7 w-7 text-violet-600" /> Báo cáo thống kê
           </h1>
-          <p className="text-slate-500 text-sm mt-1">Phân tích hiệu quả soạn thảo học liệu và chất lượng học tập của học viên</p>
+          <p className="text-slate-500 text-sm mt-1">Phân tích chất lượng học liệu và kết quả học tập của học viên</p>
         </div>
         <button
           onClick={handleRefresh}
@@ -117,7 +117,7 @@ export default function CreatorAnalyticsPage() {
               : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
           }`}
         >
-          <Users className="h-4 w-4" /> Thống kê học tập học viên
+          <Users className="h-4 w-4" /> Thống kê học viên
         </button>
         <button
           onClick={() => setActiveTab('content')}
@@ -127,7 +127,7 @@ export default function CreatorAnalyticsPage() {
               : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
           }`}
         >
-          <BookOpen className="h-4 w-4" /> Tổng quan số lượng nội dung
+          <BookOpen className="h-4 w-4" /> Tổng quan nội dung
         </button>
       </div>
 
@@ -165,7 +165,7 @@ export default function CreatorAnalyticsPage() {
           })}
           {Object.keys(grouped).length === 0 && (
             <div className="col-span-full rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 p-12 text-center text-slate-500">
-              Chưa có dữ liệu phân tích nội dung. Hãy bắt đầu soạn thảo học liệu!
+              Chưa có dữ liệu. Hãy bắt đầu soạn thảo học liệu nhé!
             </div>
           )}
         </div>
@@ -180,7 +180,7 @@ export default function CreatorAnalyticsPage() {
                 <Users className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-slate-500 text-xs font-medium">Tổng học viên học</p>
+                <p className="text-slate-500 text-xs font-medium">Học viên đang học</p>
                 <h3 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
                   {academicData.summary.totalStudents}
                 </h3>
@@ -230,9 +230,9 @@ export default function CreatorAnalyticsPage() {
             <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 p-5 space-y-4 shadow-sm">
               <div>
                 <h3 className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                  <AlertCircle className="h-5 w-5 text-rose-500" /> Từ vựng học viên hay làm sai
+                  <AlertCircle className="h-5 w-5 text-rose-500" /> Từ hay sai nhất
                 </h3>
-                <p className="text-slate-500 text-xs mt-1">Danh sách từ có tỷ lệ làm sai cao nhất của bạn (giúp phát hiện lỗi đề hoặc cần giải thích rõ hơn)</p>
+                <p className="text-slate-500 text-xs mt-1">Từ có tỷ lệ sai cao nhất, giúp phát hiện lỗi đề hoặc cần giải thích rõ hơn</p>
               </div>
 
               <div className="divide-y divide-slate-100 dark:divide-white/5 max-h-[400px] overflow-y-auto pr-1">
@@ -251,7 +251,7 @@ export default function CreatorAnalyticsPage() {
                   </div>
                 ))}
                 {academicData.hardWords.length === 0 && (
-                  <div className="py-12 text-center text-slate-400 text-sm">Chưa phát hiện từ vựng khó hoặc chưa có dữ liệu làm bài.</div>
+                  <div className="py-12 text-center text-slate-400 text-sm">Chưa phát hiện từ khó hoặc chưa có dữ liệu làm bài.</div>
                 )}
               </div>
             </div>
@@ -262,7 +262,7 @@ export default function CreatorAnalyticsPage() {
                 <h3 className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                   <Award className="h-5 w-5 text-emerald-500" /> Phân tích hiệu suất bài kiểm tra
                 </h3>
-                <p className="text-slate-500 text-xs mt-1">Điểm số trung bình học viên đạt được qua các Mini-Test</p>
+                <p className="text-slate-500 text-xs mt-1">Điểm trung bình học viên đạt được qua các bài kiểm tra</p>
               </div>
 
               <div className="divide-y divide-slate-100 dark:divide-white/5 max-h-[400px] overflow-y-auto pr-1">
@@ -290,7 +290,7 @@ export default function CreatorAnalyticsPage() {
                   </div>
                 ))}
                 {academicData.testPerformance.length === 0 && (
-                  <div className="py-12 text-center text-slate-400 text-sm">Chưa có bài kiểm tra hoặc chưa có học viên làm bài.</div>
+                  <div className="py-12 text-center text-slate-400 text-sm">Chưa có bài kiểm tra hoặc chưa có học viên làm.</div>
                 )}
               </div>
             </div>
@@ -300,9 +300,9 @@ export default function CreatorAnalyticsPage() {
           <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 p-5 space-y-4 shadow-sm">
             <div>
               <h3 className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                <Clock className="h-5 w-5 text-sky-500" /> Bảng điểm chi tiết của Học viên
+                <Clock className="h-5 w-5 text-sky-500" /> Bảng điểm học viên
               </h3>
-              <p className="text-slate-500 text-xs mt-1">Lịch sử và điểm số thực tế của từng học viên làm bài Mini-Test do bạn quản lý</p>
+              <p className="text-slate-500 text-xs mt-1">Điểm thi thực tế của từng học viên</p>
             </div>
 
             <div className="overflow-x-auto">

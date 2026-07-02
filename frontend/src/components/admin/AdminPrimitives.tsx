@@ -164,7 +164,7 @@ export function AdminLoadingState({ label = "Đang tải dữ liệu..." }: { la
 
 export function AdminErrorState({
   title = "Không thể tải dữ liệu",
-  description = "Vui lòng kiểm tra kết nối và thử lại.",
+  description = "Kiểm tra kết nối và thử lại nhé.",
   onRetry,
 }: {
   title?: string;
