@@ -16,6 +16,51 @@ func NewFlashcardRepo(db *DB) *FlashcardRepo {
 	return &FlashcardRepo{db: db}
 }
 
+func (r *FlashcardRepo) EnsureSchema(ctx context.Context) error {
+	_, err := r.db.ExecContext(ctx, `
+		IF OBJECT_ID(N'dbo.UserWordProgress', N'U') IS NULL
+		BEGIN
+			CREATE TABLE dbo.UserWordProgress (
+				UserWordProgressID BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_UserWordProgress PRIMARY KEY,
+				UserID BIGINT NOT NULL,
+				WordID BIGINT NOT NULL,
+				MasteryLevel INT NOT NULL CONSTRAINT DF_UserWordProgress_MasteryLevel DEFAULT (0),
+				EaseFactor DECIMAL(5,2) NOT NULL CONSTRAINT DF_UserWordProgress_EaseFactor DEFAULT (2.50),
+				RepetitionCount INT NOT NULL CONSTRAINT DF_UserWordProgress_RepetitionCount DEFAULT (0),
+				ConsecutiveCorrect INT NOT NULL CONSTRAINT DF_UserWordProgress_ConsecutiveCorrect DEFAULT (0),
+				ConsecutiveWrong INT NOT NULL CONSTRAINT DF_UserWordProgress_ConsecutiveWrong DEFAULT (0),
+				LastReviewedAt DATETIMEOFFSET(7) NULL,
+				NextReviewDate DATETIMEOFFSET(7) NULL,
+				LastScore DECIMAL(5,2) NULL,
+				MemoryStatus NVARCHAR(20) NOT NULL CONSTRAINT DF_UserWordProgress_MemoryStatus DEFAULT (N'New'),
+				CreatedAt DATETIMEOFFSET(7) NOT NULL CONSTRAINT DF_UserWordProgress_CreatedAt DEFAULT (SYSDATETIMEOFFSET()),
+				UpdatedAt DATETIMEOFFSET(7) NOT NULL CONSTRAINT DF_UserWordProgress_UpdatedAt DEFAULT (SYSDATETIMEOFFSET()),
+				CONSTRAINT FK_UserWordProgress_UserID FOREIGN KEY (UserID) REFERENCES dbo.Users(UserID),
+				CONSTRAINT FK_UserWordProgress_WordID FOREIGN KEY (WordID) REFERENCES dbo.Words(WordID),
+				CONSTRAINT UQ_UserWordProgress_UserWord UNIQUE (UserID, WordID)
+			);
+		END;
+
+		IF OBJECT_ID(N'dbo.ExerciseAttempts', N'U') IS NULL
+		BEGIN
+			CREATE TABLE dbo.ExerciseAttempts (
+				ExerciseAttemptID BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_ExerciseAttempts PRIMARY KEY,
+				UserID BIGINT NOT NULL,
+				QuestionID BIGINT NULL,
+				WordID BIGINT NULL,
+				SubmittedAnswer NVARCHAR(MAX) NOT NULL,
+				IsCorrect BIT NOT NULL,
+				ScoreAwarded DECIMAL(5,2) NULL,
+				AttemptedAt DATETIMEOFFSET(7) NOT NULL CONSTRAINT DF_ExerciseAttempts_AttemptedAt DEFAULT (SYSDATETIMEOFFSET()),
+				CONSTRAINT FK_ExerciseAttempts_UserID FOREIGN KEY (UserID) REFERENCES dbo.Users(UserID),
+				CONSTRAINT FK_ExerciseAttempts_QuestionID FOREIGN KEY (QuestionID) REFERENCES dbo.Questions(QuestionID),
+				CONSTRAINT FK_ExerciseAttempts_WordID FOREIGN KEY (WordID) REFERENCES dbo.Words(WordID)
+			);
+		END;
+	`)
+	return err
+}
+
 func (r *FlashcardRepo) GetDueFlashcards(ctx context.Context, userID int64, filters model.FlashcardFilters) ([]model.Flashcard, error) {
 	query := `
 		DECLARE @Limit INT = ISNULL(
@@ -168,16 +213,16 @@ func (r *FlashcardRepo) UpdateWordProgress(ctx context.Context, userID, wordID i
 		ON target.UserID = source.UserID AND target.WordID = source.WordID
 		WHEN MATCHED THEN
 			UPDATE SET MasteryLevel = CASE WHEN @p3 = 1 AND target.MasteryLevel < 10 THEN target.MasteryLevel + 1
-					WHEN @p3 = 0 AND target.MasteryLevel > 0 THEN target.MasteryLevel - 1 ELSE target.MasteryLevel END,
-				RepetitionCount = target.RepetitionCount + 1,
-				ConsecutiveCorrect = CASE WHEN @p3 = 1 THEN target.ConsecutiveCorrect + 1 ELSE 0 END,
-				ConsecutiveWrong = CASE WHEN @p3 = 0 THEN target.ConsecutiveWrong + 1 ELSE 0 END,
-				LastReviewedAt = SYSDATETIMEOFFSET(),
-				NextReviewDate = dbo.fn_CalculateNextReview(@p4, target.MasteryLevel, SYSDATETIMEOFFSET()),
-				EaseFactor = dbo.fn_CalculateEaseFactor(@p4, target.EaseFactor),
-				LastScore = CASE WHEN @p3 = 1 THEN 100.00 ELSE 0.00 END,
-				MemoryStatus = dbo.fn_GetMemoryStatus(@p3, target.MasteryLevel),
-				UpdatedAt = SYSDATETIMEOFFSET()
+						WHEN @p3 = 0 AND target.MasteryLevel > 0 THEN target.MasteryLevel - 1 ELSE target.MasteryLevel END,
+					RepetitionCount = target.RepetitionCount + 1,
+					ConsecutiveCorrect = CASE WHEN @p3 = 1 THEN target.ConsecutiveCorrect + 1 ELSE 0 END,
+					ConsecutiveWrong = CASE WHEN @p3 = 0 THEN target.ConsecutiveWrong + 1 ELSE 0 END,
+					LastReviewedAt = SYSDATETIMEOFFSET(),
+					NextReviewDate = dbo.fn_CalculateNextReview(@p4, target.MasteryLevel, SYSDATETIMEOFFSET()),
+					EaseFactor = dbo.fn_CalculateEaseFactor(@p4, target.EaseFactor),
+					LastScore = CASE WHEN @p3 = 1 THEN 100.00 ELSE 0.00 END,
+					MemoryStatus = dbo.fn_GetMemoryStatus(@p3, target.MasteryLevel),
+					UpdatedAt = SYSDATETIMEOFFSET()
 		WHEN NOT MATCHED THEN
 			INSERT (UserID, WordID, MasteryLevel, EaseFactor, RepetitionCount, ConsecutiveCorrect, ConsecutiveWrong,
 				LastReviewedAt, NextReviewDate, LastScore, MemoryStatus, CreatedAt, UpdatedAt)
@@ -203,7 +248,3 @@ func (r *FlashcardRepo) GetDailyProgress(ctx context.Context, userID int64) (int
 		userID).Scan(&count)
 	return count, err
 }
-
-// scan helpers
-
-

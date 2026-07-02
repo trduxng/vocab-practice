@@ -14,6 +14,28 @@ func NewMiniTestRepo(db *DB) *MiniTestRepo {
 	return &MiniTestRepo{db: db}
 }
 
+func (r *MiniTestRepo) EnsureSchema(ctx context.Context) error {
+	_, err := r.db.ExecContext(ctx, `
+		IF OBJECT_ID(N'dbo.MiniTestAttempts', N'U') IS NULL
+		BEGIN
+			CREATE TABLE dbo.MiniTestAttempts (
+				MiniTestAttemptID BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_MiniTestAttempts PRIMARY KEY,
+				MiniTestID BIGINT NOT NULL,
+				UserID BIGINT NOT NULL,
+				StartedAt DATETIMEOFFSET(7) NOT NULL,
+				SubmittedAt DATETIMEOFFSET(7) NULL,
+				TotalQuestions INT NOT NULL,
+				CorrectCount INT NOT NULL,
+				Score DECIMAL(5,2) NOT NULL,
+				CreatedAt DATETIMEOFFSET(7) NOT NULL CONSTRAINT DF_MiniTestAttempts_CreatedAt DEFAULT (SYSDATETIMEOFFSET()),
+				CONSTRAINT FK_MiniTestAttempts_MiniTestID FOREIGN KEY (MiniTestID) REFERENCES dbo.MiniTests(MiniTestID),
+				CONSTRAINT FK_MiniTestAttempts_UserID FOREIGN KEY (UserID) REFERENCES dbo.Users(UserID)
+			);
+		END;
+	`)
+	return err
+}
+
 func (r *MiniTestRepo) GetMiniTests(ctx context.Context, page, pageSize int) (*model.PaginatedResponse[model.MiniTest], error) {
 	offset := (page - 1) * pageSize
 

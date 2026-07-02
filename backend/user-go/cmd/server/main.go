@@ -70,6 +70,18 @@ func main() {
 		if err := learningPathRepo.EnsureSchema(ctx); err != nil {
 			log.Printf("WARNING: learning path schema: %v", err)
 		}
+		if err := flashcardRepo.EnsureSchema(ctx); err != nil {
+			log.Printf("WARNING: flashcard schema (UserWordProgress/ExerciseAttempts): %v", err)
+		}
+		if err := notebookRepo.EnsureSchema(ctx); err != nil {
+			log.Printf("WARNING: notebook schema: %v", err)
+		}
+		if err := notificationRepo.EnsureSchema(ctx); err != nil {
+			log.Printf("WARNING: notification schema: %v", err)
+		}
+		if err := minitestRepo.EnsureSchema(ctx); err != nil {
+			log.Printf("WARNING: mini test schema: %v", err)
+		}
 		log.Println("Schema migrations complete")
 	}
 

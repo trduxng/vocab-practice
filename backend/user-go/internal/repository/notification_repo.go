@@ -14,6 +14,27 @@ func NewNotificationRepo(db *DB) *NotificationRepo {
 	return &NotificationRepo{db: db}
 }
 
+func (r *NotificationRepo) EnsureSchema(ctx context.Context) error {
+	_, err := r.db.ExecContext(ctx, `
+		IF OBJECT_ID(N'dbo.Notifications', N'U') IS NULL
+		BEGIN
+			CREATE TABLE dbo.Notifications (
+				NotificationID BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_Notifications PRIMARY KEY,
+				UserID BIGINT NOT NULL,
+				Title NVARCHAR(200) NOT NULL,
+				Message NVARCHAR(MAX) NOT NULL,
+				Type NVARCHAR(50) NOT NULL CONSTRAINT DF_Notifications_Type DEFAULT (N'System'),
+				DeliveryChannel NVARCHAR(20) NOT NULL CONSTRAINT DF_Notifications_DeliveryChannel DEFAULT (N'InApp'),
+				ActionUrl NVARCHAR(500) NULL,
+				IsRead BIT NOT NULL CONSTRAINT DF_Notifications_IsRead DEFAULT (0),
+				CreatedAt DATETIMEOFFSET(7) NOT NULL CONSTRAINT DF_Notifications_CreatedAt DEFAULT (SYSDATETIMEOFFSET()),
+				CONSTRAINT FK_Notifications_UserID FOREIGN KEY (UserID) REFERENCES dbo.Users(UserID)
+			);
+		END;
+	`)
+	return err
+}
+
 func (r *NotificationRepo) GetNotifications(ctx context.Context, userID int64, limit int) (*model.NotificationResponse, error) {
 	var notifications []model.Notification
 	if err := r.db.SelectContext(ctx, &notifications, `

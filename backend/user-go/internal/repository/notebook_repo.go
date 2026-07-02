@@ -16,6 +16,27 @@ func NewNotebookRepo(db *DB) *NotebookRepo {
 	return &NotebookRepo{db: db}
 }
 
+func (r *NotebookRepo) EnsureSchema(ctx context.Context) error {
+	_, err := r.db.ExecContext(ctx, `
+		IF OBJECT_ID(N'dbo.UserVocabularyNotebook', N'U') IS NULL
+		BEGIN
+			CREATE TABLE dbo.UserVocabularyNotebook (
+				NotebookID BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_UserVocabularyNotebook PRIMARY KEY,
+				UserID BIGINT NOT NULL,
+				WordID BIGINT NOT NULL,
+				PersonalNote NVARCHAR(500) NULL,
+				IsFavorite BIT NOT NULL CONSTRAINT DF_UserVocabularyNotebook_IsFavorite DEFAULT (0),
+				AddedAt DATETIMEOFFSET(7) NOT NULL CONSTRAINT DF_UserVocabularyNotebook_AddedAt DEFAULT (SYSDATETIMEOFFSET()),
+				UpdatedAt DATETIMEOFFSET(7) NOT NULL CONSTRAINT DF_UserVocabularyNotebook_UpdatedAt DEFAULT (SYSDATETIMEOFFSET()),
+				CONSTRAINT FK_UserVocabularyNotebook_UserID FOREIGN KEY (UserID) REFERENCES dbo.Users(UserID),
+				CONSTRAINT FK_UserVocabularyNotebook_WordID FOREIGN KEY (WordID) REFERENCES dbo.Words(WordID),
+				CONSTRAINT UQ_UserVocabularyNotebook_UserWord UNIQUE (UserID, WordID)
+			);
+		END;
+	`)
+	return err
+}
+
 func (r *NotebookRepo) GetNotebook(ctx context.Context, userID int64, page, pageSize int) (*model.PaginatedResponse[model.NotebookEntry], error) {
 	offset := (page - 1) * pageSize
 
