@@ -1,4 +1,4 @@
-const { poolPromise, sql } = require('../config/db');
+import { poolPromise, sql } from '../../../config/db.ts';
 
 class ReviewService {
   /**
@@ -237,7 +237,7 @@ class ReviewService {
   }
 
   /**
-   * Archive: any status → Archived
+   * Archive: current status -> Archived
    */
   static async archive(entityType, entityId, adminId) {
     const e = this._resolveEntity(entityType);
@@ -300,4 +300,4 @@ class ReviewService {
   }
 }
 
-module.exports = ReviewService;
+export default ReviewService;

@@ -1,4 +1,4 @@
-const ReviewService = require('../services/review.service');
+import ReviewService from '../services/content-review.service.ts';
 
 class ReviewController {
   static async getPending(req, res, next) {
@@ -57,4 +57,4 @@ class ReviewController {
   }
 }
 
-module.exports = ReviewController;
+export default ReviewController;

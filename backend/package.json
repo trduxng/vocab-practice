@@ -24,6 +24,8 @@
   },
   "scripts": {
     "start": "node src/index.js",
-    "dev": "nodemon --watch src src/index.js"
+    "dev": "node scripts/dev-with-admin.js",
+    "dev:api": "nodemon --watch src src/index.js",
+    "dev:admin": "cd admin-service && node --watch src/index.ts"
   }
 }
