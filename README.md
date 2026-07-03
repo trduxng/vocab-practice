@@ -34,9 +34,9 @@
 
 | Thành viên | Ngôn ngữ | Phụ trách | Công nghệ |
 |:---|:---|:---|---|
-| **Trưởng nhóm** 🔵 | TypeScript / JS | Express Gateway + Frontend | Next.js, Tailwind, Recharts, Express |
-| **Bạn (Phúc)** 🟢 | **Go** | **User/Learner Microservice** | **Gin, sqlx, go-mssqldb** |
-| **Member JS** 🟡 | JavaScript | Admin/Creator API | Node.js, Express, Zod |
+| **Trần Dũng** 🔵 | TypeScript / JS | Express Gateway + Frontend | Next.js, Tailwind, Recharts, Express |
+| **Phúc** 🟢 | **Go** | **User/Learner Microservice** | **Gin, sqlx, go-mssqldb** |
+| **Tùng** 🟡 | JavaScript | Admin/Creator API | Node.js, Express, Zod |
 
 | Thành phần | Công nghệ |
 |:---|:---|
