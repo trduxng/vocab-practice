@@ -154,14 +154,16 @@ npm run dev
 ```
 
 ### 5. Các tài khoản user
-#1 user: phuc2011@gmail.com
+```bash
+##1 user: phuc2011@gmail.com
    mật khẩu: 123456
-#2 user: quocanh2005@gmail.com
+##2 user: quocanh2005@gmail.com
    mật khẩu: 123456
-#3 giáo viên: bangduc2005@gmail.com
+##3 giáo viên: bangduc2005@gmail.com
    mật khẩu: 123456
-#4 admin: tung@gmail.com 
+##4 admin: tung@gmail.com 
    mật khẩu: 123456
+```
 
 ---
 
