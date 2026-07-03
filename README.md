@@ -53,14 +53,14 @@
 ```text
 npm start  (backend/)
   │
-  ├── Express (port 3001) ←── JS (trưởng nhóm) + TS (member)
+  ├── Express (port 3001) ←── JS (Dũng) + TS (Tùng)
   │     │
   │     ├── /api/auth/*        → Express
   │     ├── /api/admin/*       → Express (JS/TS)
   │     ├── /api/categories/*  → Express
   │     ├── /api/creator/*     → Express
   │     ├── /api/ai/*          → Express
-  │     └── /api/user/*   ──── → proxy → Go (port 3002) ← BẠN 🟢
+  │     └── /api/user/*   ──── → proxy → Go (port 3002)
   │
   └── Go subprocess (port 3002) ←── user-go/
         └── user, progress, gamification, flashcards, minitests, notebook, notifications...
@@ -118,8 +118,8 @@ backend/user-go/
 ```env
 # backend/.env
 PORT=3001
-DB_SERVER=127.0.0.1
-DB_PORT=1434
+DB_SERVER=127.0.0.1/localhost
+DB_PORT=1434/1433
 DB_USER=sa
 DB_PASSWORD=your_password
 DB_NAME=ToeicVocabularyPlatform
@@ -165,7 +165,7 @@ npm run dev
 │   │   ├── services/           # admin, auth, categories, creator, review, ai, gamification
 │   │   ├── routes/             # admin, auth, categories, creator, review, ai
 │   │   └── middlewares/        # auth, errorHandler, rateLimiter, upload, validate
-│   ├── user-go/                # User/Learner API (Go + Gin) 🟢
+│   ├── user-go/                # User/Learner API (Go + Gin) 
 │   │   └── internal/
 │   │       ├── handler/        # 10 handlers
 │   │       ├── service/        # analytics, gamification, srs
@@ -219,4 +219,4 @@ Trả về `503` nếu DB mất kết nối hoặc Go service không chạy.
 ✅ **Express Gateway:** Proxy user → Go, các route JS/TS giữ nguyên  
 ✅ **Frontend:** 0 lỗi TypeScript, 34 API calls khớp hoàn toàn với Go endpoints  
 ✅ **Health Check:** DB + Go service monitoring  
-⏳ **Merge vào main:** Đang chờ Pull Request  
+⏳ **Merge vào main:** Đang chờ review & merge Pull Request  
