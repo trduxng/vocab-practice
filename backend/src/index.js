@@ -109,18 +109,46 @@ app.get('/api/health', async (req, res) => {
     uptime: process.uptime(),
     message: 'OK',
     timestamp: Date.now(),
-    db: 'Checking...'
+    db: 'Checking...',
+    go: goProcess ? 'Running' : 'Stopped',
   };
   try {
     const pool = await poolPromise;
     await pool.request().query('SELECT 1');
     status.db = 'Connected';
-    res.status(200).json(status);
   } catch (e) {
     status.db = 'Disconnected';
     status.error = e.message;
-    res.status(500).json(status);
   }
+  // Check Go health endpoint
+  if (goProcess) {
+    try {
+      const http = require('http');
+      await new Promise((resolve, reject) => {
+        const goReq = http.get(`http://localhost:${GO_PORT}/health`, (goRes) => {
+          if (goRes.statusCode === 200) {
+            status.go = 'Healthy';
+          } else {
+            status.go = 'Unhealthy';
+          }
+          resolve();
+        });
+        goReq.on('error', () => {
+          status.go = 'Not responding';
+          resolve();
+        });
+        goReq.setTimeout(3000, () => {
+          goReq.destroy();
+          status.go = 'Not responding';
+          resolve();
+        });
+      });
+    } catch (e) {
+      status.go = 'Error: ' + e.message;
+    }
+  }
+  const httpStatus = status.db === 'Connected' && status.go !== 'Stopped' ? 200 : 503;
+  res.status(httpStatus).json(status);
 });
 
 app.use('/api/auth', authRoutes);
@@ -146,8 +174,13 @@ app.use('/api/user', (req, res, next) => {
       console.error('[Go] Proxy error — user service unreachable');
       res.status(503).json({ message: 'User service unavailable' });
     });
+    // Fix: Recalculate content-length to match re-serialized body
     if (req.body && Object.keys(req.body).length) {
-      proxyReq.write(JSON.stringify(req.body));
+      const bodyStr = JSON.stringify(req.body);
+      proxyReq.setHeader('content-length', Buffer.byteLength(bodyStr));
+      proxyReq.write(bodyStr);
+    } else {
+      proxyReq.setHeader('content-length', 0);
     }
     proxyReq.end();
   } else {
