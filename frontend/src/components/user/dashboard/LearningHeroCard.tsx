@@ -80,7 +80,7 @@ export default function LearningHeroCard({
           </div>
 
           <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <HeroMetric icon={Flame} label="Streak" value={`${streak} ngày`} />
+            <HeroMetric icon={Flame} label="Chuỗi ngày" value={`${streak} ngày`} />
             <HeroMetric icon={Sparkles} label="Hôm nay" value={`${todayXP} XP`} />
             <HeroMetric icon={Star} label="Tổng XP" value={`${totalXP} XP`} />
             <HeroMetric icon={Target} label="Cấp độ" value={`Lv.${currentLevel}`} />

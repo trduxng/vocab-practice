@@ -20,12 +20,12 @@ func (r *ProgressRepo) GetActivityHeatmap(ctx context.Context, userID int64, yea
 	query := `
 		WITH DailyAttempts AS (
 			SELECT CAST(AttemptedAt AS DATE) AS date, COUNT(*) AS count
-			FROM ExerciseAttempts WHERE UserID = @p1 AND YEAR(AttemptedAt) = @p2
+			FROM ExerciseAttempts WHERE UserID = ? AND YEAR(AttemptedAt) = ?
 			GROUP BY CAST(AttemptedAt AS DATE)
 		),
 		DailyXP AS (
 			SELECT CAST(CreatedAt AS DATE) AS date, SUM(XPAmount) AS xpEarned
-			FROM dbo.UserXPEvents WHERE UserID = @p1 AND YEAR(CreatedAt) = @p2
+			FROM dbo.UserXPEvents WHERE UserID = ? AND YEAR(CreatedAt) = ?
 			GROUP BY CAST(CreatedAt AS DATE)
 		)
 		SELECT COALESCE(a.date, x.date) AS date,
@@ -35,7 +35,7 @@ func (r *ProgressRepo) GetActivityHeatmap(ctx context.Context, userID int64, yea
 		ORDER BY date`
 
 	var items []model.ActivityDay
-	if err := r.db.SelectContext(ctx, &items, query, userID, year); err != nil {
+	if err := r.db.SelectContext(ctx, &items, query, userID, year, userID, year); err != nil {
 		return nil, fmt.Errorf("query activity heatmap: %w", err)
 	}
 	return items, nil
@@ -54,14 +54,14 @@ func (r *ProgressRepo) GetProgressAnalytics(ctx context.Context, userID int64) (
 			ISNULL(r.XPEarned, 0) AS xpEarned
 		FROM DateSeries d
 		LEFT JOIN (SELECT CAST(AttemptedAt AS DATE) AS ActivityDate, COUNT(*) AS ActivityCount
-			FROM ExerciseAttempts WHERE UserID = @p1 AND AttemptedAt >= DATEADD(day, -364, SYSDATETIMEOFFSET())
+			FROM ExerciseAttempts WHERE UserID = ? AND AttemptedAt >= DATEADD(day, -364, SYSDATETIMEOFFSET())
 			GROUP BY CAST(AttemptedAt AS DATE)) a ON a.ActivityDate = d.ActivityDate
 		LEFT JOIN (SELECT CAST(CreatedAt AS DATE) AS ActivityDate, SUM(XPAmount) AS XPEarned
-			FROM UserXPEvents WHERE UserID = @p1 AND CreatedAt >= DATEADD(day, -364, SYSDATETIMEOFFSET())
+			FROM UserXPEvents WHERE UserID = ? AND CreatedAt >= DATEADD(day, -364, SYSDATETIMEOFFSET())
 			GROUP BY CAST(CreatedAt AS DATE)) r ON r.ActivityDate = d.ActivityDate
 		ORDER BY d.ActivityDate OPTION (MAXRECURSION 400)`
 
-	activityRows, err := r.db.QueryContext(ctx, activityQuery, userID)
+	activityRows, err := r.db.QueryContext(ctx, activityQuery, userID, userID)
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("query activity: %w", err)
 	}
@@ -90,7 +90,7 @@ func (r *ProgressRepo) GetProgressAnalytics(ctx context.Context, userID int64) (
 			SUM(CASE WHEN uwp.CreatedAt < DATEADD(month, 1, DATEADD(month, -v, DATEFROMPARTS(YEAR(SYSDATETIMEOFFSET()), MONTH(SYSDATETIMEOFFSET()), 1))) THEN 1 ELSE 0 END) AS learnedWords,
 			SUM(CASE WHEN uwp.MasteryLevel >= 7 AND uwp.UpdatedAt < DATEADD(month, 1, DATEADD(month, -v, DATEFROMPARTS(YEAR(SYSDATETIMEOFFSET()), MONTH(SYSDATETIMEOFFSET()), 1))) THEN 1 ELSE 0 END) AS masteredWords
 		FROM MonthOffsets mo
-		LEFT JOIN UserWordProgress uwp ON uwp.UserID = @p1
+		LEFT JOIN UserWordProgress uwp ON uwp.UserID = ?
 		GROUP BY mo.v ORDER BY mo.v`
 
 	growthRows, err := r.db.QueryContext(ctx, growthQuery, userID)
@@ -117,7 +117,7 @@ func (r *ProgressRepo) GetProgressAnalytics(ctx context.Context, userID int64) (
 			ISNULL(AVG(CAST(ISNULL(uwp.MasteryLevel, 0) AS DECIMAL(10,2))), 0) AS averageMastery
 		FROM Topics t
 		JOIN WordTopics wt ON wt.TopicID = t.TopicID
-		LEFT JOIN UserWordProgress uwp ON uwp.WordID = wt.WordID AND uwp.UserID = @p1
+		LEFT JOIN UserWordProgress uwp ON uwp.WordID = wt.WordID AND uwp.UserID = ?
 		GROUP BY t.TopicID, t.TopicName
 		ORDER BY averageMastery DESC, t.TopicName`
 
@@ -140,15 +140,15 @@ func (r *ProgressRepo) GetProgressAnalytics(ctx context.Context, userID int64) (
 	// Retention stats
 	retentionQuery := `
 		SELECT
-			ISNULL((SELECT COUNT(*) FROM ExerciseAttempts WHERE UserID = @p1), 0) AS totalAnswers,
-			ISNULL((SELECT SUM(CASE WHEN IsCorrect = 1 THEN 1 ELSE 0 END) FROM ExerciseAttempts WHERE UserID = @p1), 0) AS correctAnswers,
-			ISNULL((SELECT COUNT(*) FROM UserWordProgress WHERE UserID = @p1 AND RepetitionCount > 0), 0) AS learnedWords,
-			ISNULL((SELECT COUNT(*) FROM UserWordProgress WHERE UserID = @p1 AND RepetitionCount > 0 AND MemoryStatus = N'Lapsed'), 0) AS forgottenWords,
-			ISNULL((SELECT COUNT(*) FROM UserWordProgress WHERE UserID = @p1 AND RepetitionCount > 0 AND (NextReviewDate IS NULL OR NextReviewDate > SYSDATETIMEOFFSET())), 0) AS upToDateWords,
-			ISNULL((SELECT COUNT(*) FROM UserWordProgress WHERE UserID = @p1 AND MasteryLevel >= 7), 0) AS masteredWords`
+			ISNULL((SELECT COUNT(*) FROM ExerciseAttempts WHERE UserID = ?), 0) AS totalAnswers,
+			ISNULL((SELECT SUM(CASE WHEN IsCorrect = 1 THEN 1 ELSE 0 END) FROM ExerciseAttempts WHERE UserID = ?), 0) AS correctAnswers,
+			ISNULL((SELECT COUNT(*) FROM UserWordProgress WHERE UserID = ? AND RepetitionCount > 0), 0) AS learnedWords,
+			ISNULL((SELECT COUNT(*) FROM UserWordProgress WHERE UserID = ? AND RepetitionCount > 0 AND MemoryStatus = N'Lapsed'), 0) AS forgottenWords,
+			ISNULL((SELECT COUNT(*) FROM UserWordProgress WHERE UserID = ? AND RepetitionCount > 0 AND (NextReviewDate IS NULL OR NextReviewDate > SYSDATETIMEOFFSET())), 0) AS upToDateWords,
+			ISNULL((SELECT COUNT(*) FROM UserWordProgress WHERE UserID = ? AND MasteryLevel >= 7), 0) AS masteredWords`
 
 	retention := &model.RetentionStats{}
-	err = r.db.QueryRowContext(ctx, retentionQuery, userID).Scan(
+	err = r.db.QueryRowContext(ctx, retentionQuery, userID, userID, userID, userID, userID, userID).Scan(
 		&retention.TotalAnswers, &retention.CorrectAnswers, &retention.LearnedWords,
 		&retention.ForgottenWords, &retention.UpToDateWords, &retention.MasteredWords,
 	)
@@ -166,7 +166,7 @@ func (r *ProgressRepo) GetSessionSummary(ctx context.Context, userID int64) (tot
 			ISNULL(SUM(CASE WHEN IsCorrect = 1 THEN 1 ELSE 0 END), 0),
 			ISNULL(SUM(CASE WHEN IsCorrect = 0 THEN 1 ELSE 0 END), 0)
 		FROM ExerciseAttempts
-		WHERE UserID = @p1 AND CAST(AttemptedAt AS DATE) = CAST(SYSDATETIMEOFFSET() AS DATE)`,
+		WHERE UserID = ? AND CAST(AttemptedAt AS DATE) = CAST(SYSDATETIMEOFFSET() AS DATE)`,
 		userID).Scan(&totalAttempts, &correctCount, &wrongCount)
 	return
 }
@@ -174,7 +174,7 @@ func (r *ProgressRepo) GetSessionSummary(ctx context.Context, userID int64) (tot
 func (r *ProgressRepo) GetUserStats(ctx context.Context, userID int64) (int, int, int, int, error) {
 	var learned, correct, wrong, streak int
 	err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM UserWordProgress WHERE UserID = @p1 AND MasteryLevel >= 3`,
+		`SELECT COUNT(*) FROM UserWordProgress WHERE UserID = ? AND MasteryLevel >= 3`,
 		userID).Scan(&learned)
 	if err != nil {
 		return 0, 0, 0, 0, err
@@ -182,7 +182,7 @@ func (r *ProgressRepo) GetUserStats(ctx context.Context, userID int64) (int, int
 	err = r.db.QueryRowContext(ctx,
 		`SELECT ISNULL(SUM(CASE WHEN IsCorrect = 1 THEN 1 ELSE 0 END), 0) AS correct,
 				ISNULL(SUM(CASE WHEN IsCorrect = 0 THEN 1 ELSE 0 END), 0) AS wrong
-		 FROM ExerciseAttempts WHERE UserID = @p1`, userID).Scan(&correct, &wrong)
+		 FROM ExerciseAttempts WHERE UserID = ?`, userID).Scan(&correct, &wrong)
 	return learned, correct, wrong, streak, err
 }
 
@@ -190,7 +190,7 @@ func (r *ProgressRepo) GetWeakWords(ctx context.Context, userID int64) ([]model.
 	var words []model.WeakWord
 	query := "SELECT TOP 5 w.Term AS word, w.Meaning AS meaning " +
 		"FROM UserWordProgress uwp JOIN Words w ON uwp.WordID = w.WordID " +
-		"WHERE uwp.UserID = @p1 AND (uwp.MemoryStatus = 'Lapsed' OR uwp.MasteryLevel < 3) " +
+		"WHERE uwp.UserID = ? AND (uwp.MemoryStatus = 'Lapsed' OR uwp.MasteryLevel < 3) " +
 		"ORDER BY uwp.MasteryLevel ASC"
 	if err := r.db.SelectContext(ctx, &words, query, userID); err != nil {
 		return nil, err
@@ -203,7 +203,7 @@ func (r *ProgressRepo) GetRecentAttempts(ctx context.Context, userID int64) ([]m
 	if err := r.db.SelectContext(ctx, &attempts,
 		`SELECT TOP 10 ea.SubmittedAnswer AS answer, ea.IsCorrect AS isCorrect, ea.AttemptedAt AS date, w.Term AS term
 		 FROM ExerciseAttempts ea JOIN Words w ON ea.WordID = w.WordID
-		 WHERE ea.UserID = @p1 ORDER BY ea.AttemptedAt DESC`, userID); err != nil {
+		 WHERE ea.UserID = ? ORDER BY ea.AttemptedAt DESC`, userID); err != nil {
 		return nil, err
 	}
 	return attempts, nil
@@ -226,7 +226,7 @@ func (r *ProgressRepo) GetMasteryTimeline(ctx context.Context, userID int64) (*m
 				EstimatedDaysToMastery,
 				ProjectedCompletionDate
 			 FROM dbo.vw_MasteryTimelineProjection
-			 WHERE UserID = @p1`, userID,
+			 WHERE UserID = ?`, userID,
 		).Scan(&result.TotalWords, &result.MasteredWords, &result.CompletionPct, &estDays, &projDate)
 		if err == nil {
 			result.EstimatedDays = estDays
@@ -243,7 +243,7 @@ func (r *ProgressRepo) GetMasteryTimeline(ctx context.Context, userID int64) (*m
 			SUM(CASE WHEN MasteryLevel >= 7 THEN 1 ELSE 0 END),
 			CAST(SUM(CASE WHEN MasteryLevel >= 7 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0) AS DECIMAL(5,2))
 		 FROM UserWordProgress
-		 WHERE UserID = @p1`, userID,
+		 WHERE UserID = ?`, userID,
 	).Scan(&result.TotalWords, &result.MasteredWords, &result.CompletionPct)
 	if err != nil {
 		return nil, err
@@ -256,7 +256,7 @@ func (r *ProgressRepo) GetDailyTrends(ctx context.Context, userID int64) ([]mode
 	if err := r.db.SelectContext(ctx, &trends,
 		`SELECT CAST(AttemptedAt AS DATE) AS date, COUNT(*) AS count
 		 FROM ExerciseAttempts
-		 WHERE UserID = @p1 AND AttemptedAt >= DATEADD(day, -7, SYSDATETIMEOFFSET())
+		 WHERE UserID = ? AND AttemptedAt >= DATEADD(day, -7, SYSDATETIMEOFFSET())
 		 GROUP BY CAST(AttemptedAt AS DATE) ORDER BY date ASC`, userID); err != nil {
 		return nil, err
 	}

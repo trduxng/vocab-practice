@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 
@@ -23,6 +24,7 @@ func (h *NotebookHandler) GetNotebook(c *gin.Context) {
 
 	result, err := h.notebookRepo.GetNotebook(c.Request.Context(), userID, page, pageSize)
 	if err != nil {
+		log.Printf("GetNotebook error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to load notebook"})
 		return
 	}
@@ -42,6 +44,7 @@ func (h *NotebookHandler) AddEntry(c *gin.Context) {
 
 	entry, err := h.notebookRepo.AddEntry(c.Request.Context(), userID, req.WordID, req.PersonalNote)
 	if err != nil {
+		log.Printf("AddEntry error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to add entry"})
 		return
 	}
@@ -64,6 +67,7 @@ func (h *NotebookHandler) UpdateEntry(c *gin.Context) {
 
 	entry, err := h.notebookRepo.UpdateEntry(c.Request.Context(), notebookID, userID, req.PersonalNote, req.IsFavorite)
 	if err != nil {
+		log.Printf("UpdateEntry error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to update entry"})
 		return
 	}

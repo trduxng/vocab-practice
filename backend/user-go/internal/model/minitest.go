@@ -16,6 +16,7 @@ type MiniTestQuestion struct {
 	OptionsJson   *string `json:"optionsJson" db:"optionsJson"`
 	CorrectAnswer string  `json:"correctAnswer" db:"correctAnswer"`
 	Term          string  `json:"term" db:"term"`
+	Meaning       string  `json:"meaning" db:"meaning"`
 }
 
 type MiniTestAnswer struct {

@@ -12,6 +12,7 @@ if (!process.env.JWT_SECRET) {
 
 const errorHandler = require('./middlewares/errorHandler');
 const { poolPromise } = require('./config/db');
+const GamificationService = require('./services/gamification.service');
 
 // Go server config
 const GO_PORT = process.env.GO_PORT || '3002';
@@ -21,8 +22,7 @@ const GO_SERVER_PATH = path.join(__dirname, '..', 'user-go', 'server');
 const authRoutes = require('./routes/auth.routes');
 const categoriesRoutes = require('./routes/categories.routes');
 const adminRoutes = require('./routes/admin.routes');
-const userRoutes = require('./routes/user.routes');
-const progressRoutes = require('./routes/progress.routes');
+
 const creatorRoutes = require('./routes/creator.routes');
 const reviewRoutes = require('./routes/review.routes');
 const aiRoutes = require('./routes/ai.routes');
@@ -127,7 +127,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/admin/content-review', reviewRoutes);
 app.use('/api/admin', adminRoutes);
-// User routes → proxy to Go service (if running) or fallback to Express
+// User routes → proxy to Go service (required — no JS fallback)
 app.use('/api/user', (req, res, next) => {
   if (goProcess) {
     const http = require('http');
@@ -142,16 +142,19 @@ app.use('/api/user', (req, res, next) => {
       res.writeHead(proxyRes.statusCode, proxyRes.headers);
       proxyRes.pipe(res);
     });
-    proxyReq.on('error', () => userRoutes(req, res, next));
+    proxyReq.on('error', () => {
+      console.error('[Go] Proxy error — user service unreachable');
+      res.status(503).json({ message: 'User service unavailable' });
+    });
     if (req.body && Object.keys(req.body).length) {
       proxyReq.write(JSON.stringify(req.body));
     }
     proxyReq.end();
   } else {
-    userRoutes(req, res, next);
+    console.error('[Go] User service not running');
+    res.status(503).json({ message: 'User service unavailable' });
   }
 });
-app.use('/api/progress', progressRoutes);
 app.use('/api/creator', creatorRoutes);
 app.use('/api/ai', aiRoutes);
 
@@ -161,6 +164,10 @@ app.use(errorHandler);
 console.log('Attempting to start server...');
 app.listen(port, () => {
   console.log(`Server successfully started on port ${port}`);
+  // Seed achievements (idempotent — MERGE)
+  GamificationService.seedAchievements()
+    .then(() => console.log('[Init] Achievements seeded'))
+    .catch(err => console.error('[Init] Failed to seed achievements:', err.message));
 });
 
 // Graceful shutdown

@@ -21,8 +21,8 @@ export default function TopicRoadmap({ level, onOpenActivity, onPreviewTopic }: 
     <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.04] sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-600 dark:text-violet-400">Vertical roadmap</p>
-          <h2 className="mt-1 text-xl font-black tracking-tight text-slate-950 dark:text-white">{level.title} topics</h2>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-600 dark:text-violet-400">Lộ trình chi tiết</p>
+          <h2 className="mt-1 text-xl font-black tracking-tight text-slate-950 dark:text-white">Chủ đề {level.title}</h2>
         </div>
         <PathStatusBadge status={level.status} />
       </div>
@@ -30,7 +30,7 @@ export default function TopicRoadmap({ level, onOpenActivity, onPreviewTopic }: 
       {level.topics.length === 0 ? (
         <div className="mt-6 flex min-h-44 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-6 text-center dark:border-white/10 dark:bg-white/[0.02]">
           <Lock className="h-8 w-8 text-slate-300 dark:text-slate-600" />
-          <p className="mt-3 text-sm font-bold text-slate-700 dark:text-slate-200">Topics are coming soon for this level.</p>
+          <p className="mt-3 text-sm font-bold text-slate-700 dark:text-slate-200">Chủ đề sẽ sớm được cập nhật cho cấp độ này.</p>
         </div>
       ) : (
         <div className="relative mt-6 space-y-5 before:absolute before:bottom-6 before:left-5 before:top-6 before:w-px before:bg-slate-200 dark:before:bg-white/10 sm:before:left-6">
@@ -49,10 +49,10 @@ export default function TopicRoadmap({ level, onOpenActivity, onPreviewTopic }: 
               <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-white/10 dark:bg-white/[0.025] sm:p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">{topic.code || `Lesson ${index + 1}`}</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">{topic.code || `Bài ${index + 1}`}</p>
                     <h3 className="mt-1 text-lg font-black text-slate-950 dark:text-white">{topic.title}</h3>
                     <p className="mt-2 max-w-3xl text-xs leading-5 text-slate-500 dark:text-slate-400">
-                      {topic.description || "Learn the topic vocabulary, reinforce it in practice, then check your understanding."}
+                      {topic.description || "Học từ vựng theo chủ đề, luyện tập và kiểm tra lại."}
                     </p>
                   </div>
                   <PathStatusBadge status={topic.status} />
@@ -66,7 +66,7 @@ export default function TopicRoadmap({ level, onOpenActivity, onPreviewTopic }: 
 
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                   <span className="text-[11px] font-bold text-slate-400">
-                    {topic.learnedWords}/{topic.totalWords} learned - {topic.masteredWords} mastered
+                    {topic.learnedWords}/{topic.totalWords} đã học - {topic.masteredWords} nắm vững
                   </span>
                   <div className="flex items-center gap-3">
                     <button
@@ -77,7 +77,7 @@ export default function TopicRoadmap({ level, onOpenActivity, onPreviewTopic }: 
                       <Eye className="h-3.5 w-3.5" />
                       Xem từ vựng
                     </button>
-                    <span className="text-xs font-black text-slate-600 dark:text-slate-300">{topic.completionPercentage}% complete</span>
+                    <span className="text-xs font-black text-slate-600 dark:text-slate-300">{topic.completionPercentage}% hoàn thành</span>
                   </div>
                 </div>
                 <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">

@@ -258,7 +258,6 @@ export interface GamificationProfile {
   levelProgress: number;
   wordsLearned: number;
   streak: number;
-  bestTestScore: number;
   achievements: Achievement[];
   unseenAchievements: Achievement[];
 }

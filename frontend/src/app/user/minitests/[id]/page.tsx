@@ -166,7 +166,7 @@ const MiniTestExecutionPage = () => {
   if (submitted && !showReview) {
     const score = resultData?.total ?? questions.length;
     const correct = resultData?.correct ?? 0;
-    const accuracy = resultData?.score ?? Math.round((correct / score) * 100);
+    const accuracy = resultData?.score != null ? Math.round(resultData.score) : Math.round((correct / score) * 100);
 
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white p-4">
@@ -365,7 +365,7 @@ const MiniTestExecutionPage = () => {
                 questionId={currentQuestion.questionId}
                 entityType="Question"
                 defaultType="AnswerIncorrect"
-                title={`Report test question #${currentQuestion.questionId}`}
+                title={`Báo cáo câu hỏi kiểm tra #${currentQuestion.questionId}`}
                 context={currentQuestion.term || currentQuestion.questionText}
               />
             </div>

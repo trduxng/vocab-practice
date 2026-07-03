@@ -58,7 +58,7 @@ function RetentionMetric({ icon: Icon, label, value, detail, tone }: RetentionMe
       <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${metricTones[tone]}`}>
         <Icon className="h-4 w-4" />
       </div>
-      <p className="mt-4 text-3xl font-black text-slate-950 dark:text-white">{value}%</p>
+      <p className="mt-4 text-3xl font-black text-slate-950 dark:text-white">{Math.round(value)}%</p>
       <p className="mt-1 text-[11px] font-black uppercase tracking-wide text-slate-600 dark:text-slate-300">{label}</p>
       <p className="mt-2 text-[11px] leading-5 text-slate-400">{detail}</p>
     </div>

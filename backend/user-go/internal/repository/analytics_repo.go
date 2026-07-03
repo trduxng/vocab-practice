@@ -29,7 +29,7 @@ func (p *ProgressRepo) GetUserStatsForTimeline(ctx context.Context, userID int64
 			SUM(CASE WHEN MasteryLevel >= 7 THEN 1 ELSE 0 END) AS masteredWords,
 			CAST(SUM(CASE WHEN MasteryLevel >= 7 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0) AS DECIMAL(5,2)) AS completionPercentage
 		FROM UserWordProgress
-		WHERE UserID = @p1`, userID).Scan(&result.TotalWords, &result.MasteredWords, &result.CompletionPct)
+		WHERE UserID = ?`, userID).Scan(&result.TotalWords, &result.MasteredWords, &result.CompletionPct)
 
 	if err == sql.ErrNoRows {
 		return result, nil
@@ -39,7 +39,7 @@ func (p *ProgressRepo) GetUserStatsForTimeline(ctx context.Context, userID int64
 	p.db.QueryRowContext(ctx, `
 		SELECT ISNULL(CAST(COUNT(*) * 1.0 / 30.0 AS DECIMAL(10,2)), 0)
 		FROM ExerciseAttempts
-		WHERE UserID = @p1 AND AttemptedAt >= DATEADD(day, -30, SYSDATETIMEOFFSET())`,
+		WHERE UserID = ? AND AttemptedAt >= DATEADD(day, -30, SYSDATETIMEOFFSET())`,
 		userID).Scan(&result.AverageDailyRate)
 
 	return result, err

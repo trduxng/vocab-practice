@@ -8,10 +8,9 @@ import (
 )
 
 type Config struct {
-	Port        string
-	Database    DatabaseConfig
-	JWTSecret   string
-	ExpressPort string
+	Port      string
+	Database  DatabaseConfig
+	JWTSecret string
 }
 
 type DatabaseConfig struct {
@@ -33,18 +32,19 @@ func (d DatabaseConfig) DSN() string {
 }
 
 func Load() (*Config, error) {
+	// Try loading from both CWDs: Express spawns from backend/, go run from user-go/
+	_ = godotenv.Load(".env")
 	_ = godotenv.Load("../.env")
 
 	cfg := &Config{
-		Port:        getEnv("GO_PORT", "3002"),
-		ExpressPort: getEnv("PORT", "3001"),
-		JWTSecret:   os.Getenv("JWT_SECRET"),
+		Port:      getEnv("GO_PORT", "3002"),
+		JWTSecret: os.Getenv("JWT_SECRET"),
 		Database: DatabaseConfig{
-			Server:   getEnv("DB_SERVER", "localhost"),
+			Server:   getEnv("DB_SERVER", "127.0.0.1"),
 			Port:     getEnv("DB_PORT", "1434"),
 			User:     getEnv("DB_USER", "sa"),
 			Password: os.Getenv("DB_PASSWORD"),
-			Database: getEnv("DB_DATABASE", "VocaBoost"),
+			Database: getEnv("DB_DATABASE", getEnv("DB_NAME", "ToeicVocabularyPlatform")),
 			Instance: os.Getenv("DB_INSTANCE"),
 		},
 	}

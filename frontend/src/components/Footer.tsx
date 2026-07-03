@@ -147,7 +147,7 @@ export function Footer() {
                 "Tính năng",
                 "Khóa học",
                 "Bảng giá",
-                "Blog",
+                "Bài viết",
                 "Cập nhật mới",
               ],
             },

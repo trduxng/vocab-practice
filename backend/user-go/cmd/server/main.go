@@ -70,6 +70,12 @@ func main() {
 		if err := learningPathRepo.EnsureSchema(ctx); err != nil {
 			log.Printf("WARNING: learning path schema: %v", err)
 		}
+		if err := learningPathRepo.SeedLevels(ctx); err != nil {
+			log.Printf("WARNING: seed learning path levels: %v", err)
+		}
+		if err := learningPathRepo.SyncPublishedTopics(ctx); err != nil {
+			log.Printf("WARNING: sync published topics: %v", err)
+		}
 		if err := flashcardRepo.EnsureSchema(ctx); err != nil {
 			log.Printf("WARNING: flashcard schema (UserWordProgress/ExerciseAttempts): %v", err)
 		}
@@ -138,7 +144,6 @@ func main() {
 
 		// Profile & Settings
 		userGroup.PUT("/profile", userHandler.UpdateProfile)
-		userGroup.POST("/change-password", userHandler.ChangePassword)
 
 		// Reports
 		userGroup.POST("/reports", userHandler.CreateReport)

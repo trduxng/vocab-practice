@@ -29,7 +29,11 @@ func (h *ProgressHandler) GetStats(c *gin.Context) {
 	weakWords, _ := h.progressRepo.GetWeakWords(c.Request.Context(), userID)
 	recentAttempts, _ := h.progressRepo.GetRecentAttempts(c.Request.Context(), userID)
 	dailyTrends, _ := h.progressRepo.GetDailyTrends(c.Request.Context(), userID)
-	gamification, _ := h.gamificationRepo.GetProfile(c.Request.Context(), userID)
+	gamification, err := h.gamificationRepo.GetProfile(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to load profile", "error": err.Error()})
+		return
+	}
 
 	accuracy := 0
 	total := correct + wrong
@@ -38,18 +42,21 @@ func (h *ProgressHandler) GetStats(c *gin.Context) {
 	}
 
 	stats := model.DashboardStats{
-		TotalLearned:   learned,
-		Accuracy:       accuracy,
-		Correct:        correct,
-		Wrong:          wrong,
-		Streak:         gamification.Streak,
-		TotalXP:        gamification.TotalXP,
-		CurrentLevel:   gamification.CurrentLevel,
-		LevelProgress:  gamification.LevelProgress,
-		TodayXP:        gamification.TodayXP,
-		WeakWords:      weakWords,
-		RecentAttempts: recentAttempts,
-		DailyTrends:    dailyTrends,
+		TotalLearned:    learned,
+		Accuracy:        accuracy,
+		Correct:         correct,
+		Wrong:           wrong,
+		Streak:          gamification.Streak,
+		TotalXP:         gamification.TotalXP,
+		CurrentLevel:    gamification.CurrentLevel,
+		CurrentLevelXP:  gamification.CurrentLevelXP,
+		XpForNextLevel:  gamification.XpForNextLevel,
+		XpToNextLevel:   gamification.XpToNextLevel,
+		LevelProgress:   gamification.LevelProgress,
+		TodayXP:         gamification.TodayXP,
+		WeakWords:       weakWords,
+		RecentAttempts:  recentAttempts,
+		DailyTrends:     dailyTrends,
 	}
 
 	c.JSON(http.StatusOK, stats)

@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/vocab-practice/user-go/internal/model"
 	"github.com/vocab-practice/user-go/internal/repository"
 	"github.com/vocab-practice/user-go/internal/service"
 )
@@ -139,17 +140,15 @@ func (h *MiniTestHandler) SubmitMiniTest(c *gin.Context) {
 	results := make([]map[string]interface{}, 0, len(req.Answers))
 
 	for i, ans := range req.Answers {
-		if ans.QuestionID == nil || ans.QuestionID != nil {
-			qid := questions[i].QuestionID
-			if ans.QuestionID != nil {
-				qid = *ans.QuestionID
-			}
-			if submittedIDs[qid] {
-				c.JSON(http.StatusBadRequest, gin.H{"message": "Duplicate question submission"})
-				return
-			}
-			submittedIDs[qid] = true
+		qid := questions[i].QuestionID
+		if ans.QuestionID != nil {
+			qid = *ans.QuestionID
 		}
+		if submittedIDs[qid] {
+			c.JSON(http.StatusBadRequest, gin.H{"message": "Duplicate question submission"})
+			return
+		}
+		submittedIDs[qid] = true
 
 		isCorrect := false
 		correctAnswer := questions[i].CorrectAnswer
@@ -187,18 +186,21 @@ func (h *MiniTestHandler) SubmitMiniTest(c *gin.Context) {
 
 	// Award XP
 	var xpEarned int64
+	var gamification *model.GamificationReward
 	sourceKey := "mini-test-attempt:" + strconv.FormatInt(attemptID, 10)
 	reward, err := h.gamificationSvc.AwardXP(c.Request.Context(), userID, "MiniTestComplete", &sourceKey, nil)
 	if err == nil && reward != nil {
 		xpEarned = reward.XpGained
+		gamification = reward
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"total":    len(req.Answers),
-		"correct":  correctCount,
-		"score":    score,
-		"xpEarned": xpEarned,
-		"results":  results,
+		"total":        len(req.Answers),
+		"correct":      correctCount,
+		"score":        score,
+		"xpEarned":     xpEarned,
+		"gamification": gamification,
+		"results":      results,
 	})
 }
 

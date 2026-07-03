@@ -76,6 +76,9 @@ type DashboardStats struct {
 	Streak          int                    `json:"streak"`
 	TotalXP         int64                  `json:"totalXP"`
 	CurrentLevel    int                    `json:"currentLevel"`
+	CurrentLevelXP  int64                  `json:"currentLevelXP"`
+	XpForNextLevel  int64                  `json:"xpForNextLevel"`
+	XpToNextLevel   int64                  `json:"xpToNextLevel"`
 	LevelProgress   float64                `json:"levelProgress"`
 	TodayXP         int64                  `json:"todayXP"`
 	WeakWords       []WeakWord             `json:"weakWords"`

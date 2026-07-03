@@ -8,6 +8,7 @@ type Achievement struct {
 	Label         string  `json:"label" db:"label"`
 	Description   string  `json:"description" db:"description"`
 	Icon          string  `json:"icon" db:"icon"`
+	XPReward      int     `json:"xpReward" db:"xpReward"`
 	Unlocked      bool    `json:"unlocked" db:"unlocked"`
 	UnlockedAt    *string `json:"unlockedAt" db:"unlockedAt"`
 	Seen          bool    `json:"seen" db:"seen"`
@@ -21,10 +22,10 @@ type GamificationProfile struct {
 	CurrentLevelXP int64         `json:"currentLevelXP"`
 	XpForNextLevel int64         `json:"xpForNextLevel"`
 	XpToNextLevel  int64         `json:"xpToNextLevel"`
+	NextLevelTotalXP int64       `json:"nextLevelTotalXP"`
 	LevelProgress  float64       `json:"levelProgress"`
 	WordsLearned   int           `json:"wordsLearned"`
 	Streak         int           `json:"streak"`
-	BestTestScore  *float64      `json:"bestTestScore"`
 	Achievements   []Achievement `json:"achievements"`
 	UnseenAchievements []Achievement `json:"unseenAchievements"`
 }
@@ -38,6 +39,8 @@ type GamificationReward struct {
 	CurrentLevel   int           `json:"currentLevel"`
 	CurrentLevelXP int64         `json:"currentLevelXP"`
 	XpForNextLevel int64         `json:"xpForNextLevel"`
+	XpToNextLevel  int64         `json:"xpToNextLevel"`
+	NextLevelTotalXP int64       `json:"nextLevelTotalXP"`
 	LevelProgress  float64       `json:"levelProgress"`
 	Achievements   []Achievement `json:"unlockedAchievements"`
 }

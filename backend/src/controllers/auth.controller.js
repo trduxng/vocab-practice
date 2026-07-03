@@ -21,6 +21,20 @@ class AuthController {
     }
   }
 
+  static async changePassword(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const { oldPassword, newPassword } = req.body;
+      const result = await AuthService.changePassword(userId, oldPassword, newPassword);
+      res.status(200).json(result);
+    } catch (error) {
+      if (['Thiếu thông tin mật khẩu cũ hoặc mới', 'Mật khẩu mới phải từ 6 ký tự trở lên', 'Mật khẩu cũ không chính xác', 'Người dùng không tồn tại'].includes(error.message)) {
+        return res.status(400).json({ message: error.message });
+      }
+      next(error);
+    }
+  }
+
   static async login(req, res, next) {
     try {
       const { email, password } = req.body;

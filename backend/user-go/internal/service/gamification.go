@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/vocab-practice/user-go/internal/model"
@@ -41,10 +42,6 @@ func (s *GamificationService) AwardXP(ctx context.Context, userID int64, eventTy
 		return nil, fmt.Errorf("unsupported XP event type: %s", eventType)
 	}
 
-	if err := s.gamificationRepo.EnsureSchema(ctx); err != nil {
-		return nil, err
-	}
-
 	event := model.XPEvent{
 		UserID:    userID,
 		EventType: eventType,
@@ -65,21 +62,70 @@ func (s *GamificationService) AwardXP(ctx context.Context, userID int64, eventTy
 	}
 
 	awarded := xpEventID > 0
-	return &model.GamificationReward{
-		XpEventID:      xpEventID,
-		XpGained:       amount,
-		EventType:      eventType,
-		Awarded:        awarded,
-		TotalXP:        profile.TotalXP,
-		CurrentLevel:   profile.CurrentLevel,
-		CurrentLevelXP: profile.TotalXP - int64(profile.CurrentLevel-1)*100,
-		XpForNextLevel: profile.XpForNextLevel,
-		LevelProgress:  profile.LevelProgress,
-		Achievements:   []model.Achievement{},
-	}, nil
+	xpToNextLevel := profile.XpForNextLevel - profile.TotalXP
+	if xpToNextLevel < 0 {
+		xpToNextLevel = 0
+	}
+
+	reward := &model.GamificationReward{
+		XpEventID:       xpEventID,
+		XpGained:        amount,
+		EventType:       eventType,
+		Awarded:         awarded,
+		TotalXP:         profile.TotalXP,
+		CurrentLevel:    profile.CurrentLevel,
+		CurrentLevelXP:  profile.TotalXP - int64(profile.CurrentLevel-1)*100,
+		XpForNextLevel:  profile.XpForNextLevel,
+		XpToNextLevel:   xpToNextLevel,
+		NextLevelTotalXP: profile.XpForNextLevel,
+		LevelProgress:   profile.LevelProgress,
+		Achievements:    []model.Achievement{},
+	}
+
+	// Check for newly unlocked achievements (skip for AchievementUnlock itself)
+	if eventType != "AchievementUnlock" && awarded {
+		newAchievements, err := s.gamificationRepo.CheckAndAwardAchievements(ctx, userID)
+		if err != nil {
+			log.Printf("CheckAndAwardAchievements after %s: %v", eventType, err)
+		} else {
+			reward.Achievements = newAchievements
+			for _, a := range newAchievements {
+				sourceKey := "achievement-unlock:" + a.Code
+				xp := int64(a.XPReward)
+				if xp <= 0 {
+					xp = 50
+				}
+				s.gamificationRepo.AwardXP(ctx, userID, model.XPEvent{
+					UserID:    userID,
+					EventType: "AchievementUnlock",
+					XPAmount:  xp,
+					SourceKey: &sourceKey,
+				})
+			}
+		}
+	}
+
+	return reward, nil
 }
 
 func (s *GamificationService) GetProfile(ctx context.Context, userID int64) (*model.GamificationProfile, error) {
+	achievements, err := s.gamificationRepo.CheckAndAwardAchievements(ctx, userID)
+	if err != nil {
+		log.Printf("CheckAndAwardAchievements error: %v", err)
+	}
+	for _, a := range achievements {
+		sourceKey := "achievement-unlock:" + a.Code
+		xp := int64(a.XPReward)
+		if xp <= 0 {
+			xp = 50
+		}
+		s.gamificationRepo.AwardXP(ctx, userID, model.XPEvent{
+			UserID:    userID,
+			EventType: "AchievementUnlock",
+			XPAmount:  xp,
+			SourceKey: &sourceKey,
+		})
+	}
 	return s.gamificationRepo.GetProfile(ctx, userID)
 }
 

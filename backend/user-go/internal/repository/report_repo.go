@@ -46,6 +46,15 @@ func (r *ReportRepo) EnsureSchema(ctx context.Context) error {
 				CONSTRAINT CK_ContentReports_Priority CHECK (Priority IN (N'Low', N'Normal', N'High', N'Urgent'))
 			);
 		END
+
+		IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_ContentReports_Status_CreatedAt' AND object_id = OBJECT_ID(N'dbo.ContentReports'))
+			CREATE INDEX IX_ContentReports_Status_CreatedAt ON dbo.ContentReports(Status, CreatedAt DESC);
+
+		IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_ContentReports_ReportType' AND object_id = OBJECT_ID(N'dbo.ContentReports'))
+			CREATE INDEX IX_ContentReports_ReportType ON dbo.ContentReports(ReportType);
+
+		IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_ContentReports_ReporterUserID' AND object_id = OBJECT_ID(N'dbo.ContentReports'))
+			CREATE INDEX IX_ContentReports_ReporterUserID ON dbo.ContentReports(ReporterUserID, CreatedAt DESC);
 	`)
 	return err
 }
@@ -110,7 +119,7 @@ func (r *ReportRepo) CreateReport(ctx context.Context, userID int64, req model.C
 	err := r.db.QueryRowContext(ctx,
 		`INSERT INTO ContentReports (ReporterUserID, EntityType, WordID, QuestionID, ReportType, Title, Description)
 		 OUTPUT INSERTED.ContentReportID
-		 VALUES (@p1, @p2, @p3, @p4, @p5, @p6, @p7)`,
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		userID, entityType, req.WordID, req.QuestionID, req.ReportType, title, req.Description,
 	).Scan(&id)
 	if err != nil {

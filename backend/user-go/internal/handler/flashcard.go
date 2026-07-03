@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 
@@ -30,6 +31,7 @@ func (h *FlashcardHandler) GetDueFlashcards(c *gin.Context) {
 
 	flashcards, err := h.flashcardRepo.GetDueFlashcards(c.Request.Context(), userID, filters)
 	if err != nil {
+		log.Printf("GetDueFlashcards error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to load flashcards"})
 		return
 	}

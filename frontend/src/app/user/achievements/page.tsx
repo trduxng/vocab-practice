@@ -64,7 +64,7 @@ export default function UserAchievements() {
 
         <div className="grid grid-cols-3 gap-3">
           <Metric icon={Sparkles} label="Tổng XP" value={profile.totalXP} tone="amber" />
-          <Metric icon={Flame} label="Streak" value={`${profile.streak} ngày`} tone="rose" />
+          <Metric icon={Flame} label="Chuỗi ngày" value={`${profile.streak} ngày`} tone="rose" />
           <Metric icon={Target} label="Huy hiệu" value={`${unlockedCount}/${profile.achievements.length}`} tone="emerald" />
         </div>
 

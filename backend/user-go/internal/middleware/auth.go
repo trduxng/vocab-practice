@@ -10,7 +10,7 @@ import (
 )
 
 type Claims struct {
-	UserID int64  `json:"userId"`
+	UserID int64  `json:"id"`
 	Role   string `json:"role"`
 	Email  string `json:"email"`
 	jwt.RegisteredClaims
@@ -45,7 +45,7 @@ func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
 			return
 		}
 
-		if claims.Role != "" && claims.Role != "Learner" && claims.Role != "User" {
+		if claims.Role != "Learner" && claims.Role != "User" {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"message": "Access denied: user role required"})
 			return
 		}

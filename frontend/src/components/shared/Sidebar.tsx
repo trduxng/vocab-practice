@@ -148,7 +148,7 @@ const creatorLinks: NavLink[] = [
     href: "/creator/mini-tests",
     anyOf: [PERMISSIONS.manageTests],
   },
-  { icon: Image, label: "Media", href: "/creator/media" },
+  { icon: Image, label: "Thư viện", href: "/creator/media" },
   { icon: Edit3, label: "Bản nháp", href: "/creator/drafts" },
   { icon: Clock, label: "Chờ duyệt", href: "/creator/pending" },
   { icon: XCircle, label: "Bị từ chối", href: "/creator/rejected" },

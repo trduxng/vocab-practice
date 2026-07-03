@@ -1,10 +1,14 @@
 package handler
 
 import (
+	"log"
+	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/vocab-practice/user-go/internal/model"
 	"github.com/vocab-practice/user-go/internal/repository"
 	"github.com/vocab-practice/user-go/internal/service"
 )
@@ -66,6 +70,7 @@ func (h *PracticeHandler) SubmitAnswer(c *gin.Context) {
 	}
 
 	if err != nil {
+		log.Printf("SubmitAnswer repo error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to submit answer"})
 		return
 	}
@@ -84,18 +89,27 @@ func (h *PracticeHandler) SubmitAnswer(c *gin.Context) {
 			if rows.Next() {
 				var nextReview interface{}
 				rows.Scan(&masteryLevel, &memoryStatus, &nextReview)
+				if nextReview != nil {
+					if t, ok := nextReview.(time.Time); ok {
+						nextReviewDate = t.Format(time.RFC3339)
+					} else {
+						nextReviewDate = fmt.Sprintf("%v", nextReview)
+					}
+				}
 			}
 		}
 	}
 
 	// Award XP for learning activity
 	var xpGained int64
+	var gamification *model.GamificationReward
 	if req.ActivityType == "LearnWord" {
 		dateKey := h.gamificationSvc.GetDateKey()
 		sourceKey := "learn-word:" + strconv.FormatInt(canonicalWordID, 10) + ":" + dateKey
 		reward, err := h.gamificationSvc.AwardXP(c.Request.Context(), userID, "LearnWord", &sourceKey, nil)
 		if err == nil && reward != nil {
 			xpGained = reward.XpGained
+			gamification = reward
 		}
 	}
 
@@ -106,5 +120,6 @@ func (h *PracticeHandler) SubmitAnswer(c *gin.Context) {
 		"memoryStatus": memoryStatus,
 		"reviewRating": req.ReviewRating,
 		"nextReviewDate": nextReviewDate,
+		"gamification": gamification,
 	})
 }

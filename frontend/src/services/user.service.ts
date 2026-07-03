@@ -102,7 +102,7 @@ export const userService = {
   },
 
   async changePassword(data: unknown) {
-    const response = await apiClient.post('/user/change-password', data);
+    const response = await apiClient.post('/auth/change-password', data);
     return response.data;
   },
 

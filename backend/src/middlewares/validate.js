@@ -189,6 +189,13 @@ const schemas = {
     })
   }),
 
+  changePassword: z.object({
+    body: z.object({
+      oldPassword: z.string().min(1, 'Vui lòng nhập mật khẩu cũ'),
+      newPassword: z.string().min(6, 'Mật khẩu mới phải từ 6 ký tự trở lên'),
+    })
+  }),
+
   aiWordSuggestion: z.object({
     body: z.object({
       term: z.string().trim().min(1).max(100),

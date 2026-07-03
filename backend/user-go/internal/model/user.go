@@ -27,11 +27,6 @@ type UpdateProfileRequest struct {
 	Email    string `json:"email"`
 }
 
-type ChangePasswordRequest struct {
-	OldPassword string `json:"oldPassword"`
-	NewPassword string `json:"newPassword"`
-}
-
 type DailyGoalSetting struct {
 	DailyGoal  int `json:"dailyGoal"`
 	SRSLimit   int `json:"srsReviewLimit"`

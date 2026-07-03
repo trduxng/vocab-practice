@@ -1,5 +1,6 @@
 const express = require('express');
 const AuthController = require('../controllers/auth.controller');
+const authMiddleware = require('../middlewares/auth');
 const { validate, schemas } = require('../middlewares/validate');
 const rateLimiter = require('../middlewares/rateLimiter');
 
@@ -9,5 +10,6 @@ const router = express.Router();
 
 router.post('/register', authLimiter, validate(schemas.register), AuthController.register);
 router.post('/login', authLimiter, validate(schemas.login), AuthController.login);
+router.post('/change-password', authMiddleware.verifyToken, validate(schemas.changePassword), AuthController.changePassword);
 
 module.exports = router;

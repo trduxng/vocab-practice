@@ -22,21 +22,6 @@ func (h *LearningPathHandler) GetRoadmap(c *gin.Context) {
 	userID := c.GetInt64("userId")
 	ctx := c.Request.Context()
 
-	// Ensure schema + seed levels
-	if err := h.learningPathRepo.EnsureSchema(ctx); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Database error"})
-		return
-	}
-	if err := h.learningPathRepo.SeedLevels(ctx); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Seed error"})
-		return
-	}
-	if err := h.learningPathRepo.SyncPublishedTopics(ctx); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Sync error"})
-		return
-	}
-
-	// Get data
 	levels, topics, err := h.learningPathRepo.GetRoadmapData(ctx, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to load roadmap"})

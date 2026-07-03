@@ -64,7 +64,7 @@ func (r *FlashcardRepo) EnsureSchema(ctx context.Context) error {
 func (r *FlashcardRepo) GetDueFlashcards(ctx context.Context, userID int64, filters model.FlashcardFilters) ([]model.Flashcard, error) {
 	query := `
 		DECLARE @Limit INT = ISNULL(
-			(SELECT SRSReviewLimit FROM dbo.Users WHERE UserID = @p1), 15
+			(SELECT SRSReviewLimit FROM dbo.Users WHERE UserID = ?), 15
 		);
 		SELECT TOP (@Limit)
 			q.QuestionID AS questionId, q.QuestionType AS questionType,
@@ -89,7 +89,7 @@ func (r *FlashcardRepo) GetDueFlashcards(ctx context.Context, userID int64, filt
 			SELECT TOP 1 SentenceText, SentenceTranslation
 			FROM ExampleSentences WHERE WordID = w.WordID ORDER BY ExampleSentenceID
 		) ex
-		LEFT JOIN UserWordProgress uwp ON w.WordID = uwp.WordID AND uwp.UserID = @p1
+		LEFT JOIN UserWordProgress uwp ON w.WordID = uwp.WordID AND uwp.UserID = ?
 		WHERE w.ContentStatus = N'Published'
 		ORDER BY
 			CASE WHEN uwp.NextReviewDate <= SYSDATETIMEOFFSET() THEN 0
@@ -97,7 +97,7 @@ func (r *FlashcardRepo) GetDueFlashcards(ctx context.Context, userID int64, filt
 			uwp.NextReviewDate, uwp.MasteryLevel, NEWID()`
 
 	var items []model.Flashcard
-	if err := r.db.SelectContext(ctx, &items, query, userID); err != nil {
+	if err := r.db.SelectContext(ctx, &items, query, userID, userID); err != nil {
 		return nil, fmt.Errorf("query flashcards: %w", err)
 	}
 	return items, nil
@@ -118,17 +118,17 @@ func (r *FlashcardRepo) GetTopicWords(ctx context.Context, userID, topicID int64
 		JOIN WordTopics wt ON wt.TopicID = t.TopicID
 		JOIN Words w ON wt.WordID = w.WordID AND w.ContentStatus = N'Published'
 		LEFT JOIN PartOfSpeeches p ON w.PartOfSpeechID = p.PartOfSpeechID
-		LEFT JOIN UserWordProgress uwp ON w.WordID = uwp.WordID AND uwp.UserID = @p1
-		LEFT JOIN UserVocabularyNotebook nb ON nb.WordID = w.WordID AND nb.UserID = @p1
+		LEFT JOIN UserWordProgress uwp ON w.WordID = uwp.WordID AND uwp.UserID = ?
+		LEFT JOIN UserVocabularyNotebook nb ON nb.WordID = w.WordID AND nb.UserID = ?
 		OUTER APPLY (
 			SELECT TOP 1 SentenceText, SentenceTranslation
 			FROM ExampleSentences WHERE WordID = w.WordID ORDER BY ExampleSentenceID
 		) ex
-		WHERE t.TopicID = @p2 AND t.ContentStatus = N'Published'
+		WHERE t.TopicID = ? AND t.ContentStatus = N'Published'
 		ORDER BY w.Term ASC`
 
 	var items []model.TopicWord
-	if err := r.db.SelectContext(ctx, &items, query, userID, topicID); err != nil {
+	if err := r.db.SelectContext(ctx, &items, query, userID, userID, topicID); err != nil {
 		return nil, fmt.Errorf("query topic words: %w", err)
 	}
 	return items, nil
@@ -136,7 +136,7 @@ func (r *FlashcardRepo) GetTopicWords(ctx context.Context, userID, topicID int64
 
 func (r *FlashcardRepo) GetSmartReviewQueue(ctx context.Context, userID int64, limit int) ([]model.SmartReviewItem, error) {
 	query := `
-		SELECT TOP (@p2)
+		SELECT TOP (?)
 			w.WordID AS wordId, w.Term AS term, w.Phonetic AS phonetic,
 			w.Meaning AS meaning, ISNULL(uwp.MasteryLevel, 0) AS masteryLevel,
 			ISNULL(uwp.MemoryStatus, N'New') AS memoryStatus,
@@ -151,7 +151,7 @@ func (r *FlashcardRepo) GetSmartReviewQueue(ctx context.Context, userID int64, l
 				ELSE DATEDIFF(hour, SYSDATETIMEOFFSET(), uwp.NextReviewDate) * -1
 			END AS priorityScore
 		FROM Words w
-		JOIN UserWordProgress uwp ON w.WordID = uwp.WordID AND uwp.UserID = @p1
+		JOIN UserWordProgress uwp ON w.WordID = uwp.WordID AND uwp.UserID = ?
 		WHERE w.ContentStatus = N'Published'
 			AND uwp.NextReviewDate <= DATEADD(day, 7, SYSDATETIMEOFFSET())
 		ORDER BY priorityScore DESC, uwp.MasteryLevel ASC`
@@ -165,7 +165,7 @@ func (r *FlashcardRepo) GetSmartReviewQueue(ctx context.Context, userID int64, l
 
 func (r *FlashcardRepo) GetMistakeReviewQueue(ctx context.Context, userID int64, limit int) ([]model.MistakeReviewItem, error) {
 	query := `
-		SELECT TOP (@p2)
+		SELECT TOP (?)
 			w.WordID AS wordId, w.Term AS term, w.Meaning AS meaning,
 			ISNULL(uwp.MasteryLevel, 0) AS masteryLevel,
 			ISNULL(uwp.MemoryStatus, N'New') AS memoryStatus,
@@ -174,15 +174,15 @@ func (r *FlashcardRepo) GetMistakeReviewQueue(ctx context.Context, userID int64,
 		FROM (
 			SELECT WordID, COUNT(*) AS wrongCount
 			FROM ExerciseAttempts
-			WHERE UserID = @p1 AND IsCorrect = 0 AND WordID IS NOT NULL
+			WHERE UserID = ? AND IsCorrect = 0 AND WordID IS NOT NULL
 			GROUP BY WordID HAVING COUNT(*) >= 1
 		) recent
 		JOIN Words w ON recent.WordID = w.WordID
-		LEFT JOIN UserWordProgress uwp ON w.WordID = uwp.WordID AND uwp.UserID = @p1
+		LEFT JOIN UserWordProgress uwp ON w.WordID = uwp.WordID AND uwp.UserID = ?
 		ORDER BY recent.wrongCount DESC, uwp.MasteryLevel ASC`
 
 	var items []model.MistakeReviewItem
-	if err := r.db.SelectContext(ctx, &items, query, userID, limit); err != nil {
+	if err := r.db.SelectContext(ctx, &items, query, userID, userID, limit); err != nil {
 		return nil, fmt.Errorf("query mistake review: %w", err)
 	}
 	return items, nil
@@ -191,14 +191,14 @@ func (r *FlashcardRepo) GetMistakeReviewQueue(ctx context.Context, userID int64,
 func (r *FlashcardRepo) SubmitAnswer(ctx context.Context, userID int64, questionID, wordID *int64, submittedAnswer string, isCorrect bool, scoreAwarded float64) (int64, error) {
 	var canonicalWordID int64
 	err := r.db.QueryRowContext(ctx,
-		`EXEC usp_SubmitQuestionAttempt @UserID = @p1, @QuestionID = @p2, @SubmittedAnswer = @p3`,
+		`EXEC usp_SubmitQuestionAttempt @UserID = ?, @QuestionID = ?, @SubmittedAnswer = ?`,
 		userID, questionID, submittedAnswer).Scan(&canonicalWordID)
 
 	if canonicalWordID == 0 && wordID != nil {
 		// Insert attempt directly
 		_, err = r.db.ExecContext(ctx,
 			`INSERT INTO ExerciseAttempts (UserID, QuestionID, WordID, SubmittedAnswer, IsCorrect, ScoreAwarded, AttemptedAt)
-			 VALUES (@p1, @p2, @p3, @p4, @p5, @p6, SYSDATETIMEOFFSET())`,
+			 VALUES (?, ?, ?, ?, ?, ?, SYSDATETIMEOFFSET())`,
 			userID, questionID, wordID, submittedAnswer, isCorrect, scoreAwarded)
 		return *wordID, err
 	}
@@ -209,42 +209,54 @@ func (r *FlashcardRepo) SubmitAnswer(ctx context.Context, userID int64, question
 func (r *FlashcardRepo) UpdateWordProgress(ctx context.Context, userID, wordID int64, isCorrect bool, rating string) (*sql.Rows, error) {
 	query := `
 		MERGE UserWordProgress WITH (HOLDLOCK) AS target
-		USING (SELECT @p1 AS UserID, @p2 AS WordID) AS source
+		USING (SELECT ? AS UserID, ? AS WordID) AS source
 		ON target.UserID = source.UserID AND target.WordID = source.WordID
 		WHEN MATCHED THEN
-			UPDATE SET MasteryLevel = CASE WHEN @p3 = 1 AND target.MasteryLevel < 10 THEN target.MasteryLevel + 1
-						WHEN @p3 = 0 AND target.MasteryLevel > 0 THEN target.MasteryLevel - 1 ELSE target.MasteryLevel END,
+			UPDATE SET MasteryLevel = CASE WHEN ? = 1 AND target.MasteryLevel < 10 THEN target.MasteryLevel + 1
+						WHEN ? = 0 AND target.MasteryLevel > 0 THEN target.MasteryLevel - 1 ELSE target.MasteryLevel END,
 					RepetitionCount = target.RepetitionCount + 1,
-					ConsecutiveCorrect = CASE WHEN @p3 = 1 THEN target.ConsecutiveCorrect + 1 ELSE 0 END,
-					ConsecutiveWrong = CASE WHEN @p3 = 0 THEN target.ConsecutiveWrong + 1 ELSE 0 END,
+					ConsecutiveCorrect = CASE WHEN ? = 1 THEN target.ConsecutiveCorrect + 1 ELSE 0 END,
+					ConsecutiveWrong = CASE WHEN ? = 0 THEN target.ConsecutiveWrong + 1 ELSE 0 END,
 					LastReviewedAt = SYSDATETIMEOFFSET(),
-					NextReviewDate = dbo.fn_CalculateNextReview(@p4, target.MasteryLevel, SYSDATETIMEOFFSET()),
-					EaseFactor = dbo.fn_CalculateEaseFactor(@p4, target.EaseFactor),
-					LastScore = CASE WHEN @p3 = 1 THEN 100.00 ELSE 0.00 END,
-					MemoryStatus = dbo.fn_GetMemoryStatus(@p3, target.MasteryLevel),
+					NextReviewDate = dbo.fn_CalculateNextReview(?, target.MasteryLevel, SYSDATETIMEOFFSET()),
+					EaseFactor = dbo.fn_CalculateEaseFactor(?, target.EaseFactor),
+					LastScore = CASE WHEN ? = 1 THEN 100.00 ELSE 0.00 END,
+					MemoryStatus = dbo.fn_GetMemoryStatus(?, target.MasteryLevel),
 					UpdatedAt = SYSDATETIMEOFFSET()
 		WHEN NOT MATCHED THEN
 			INSERT (UserID, WordID, MasteryLevel, EaseFactor, RepetitionCount, ConsecutiveCorrect, ConsecutiveWrong,
 				LastReviewedAt, NextReviewDate, LastScore, MemoryStatus, CreatedAt, UpdatedAt)
-			VALUES (@p1, @p2, CASE WHEN @p3 = 1 THEN 1 ELSE 0 END, 2.50, 1,
-				CASE WHEN @p3 = 1 THEN 1 ELSE 0 END, CASE WHEN @p3 = 0 THEN 1 ELSE 0 END,
+			VALUES (?, ?, CASE WHEN ? = 1 THEN 1 ELSE 0 END, 2.50, 1,
+				CASE WHEN ? = 1 THEN 1 ELSE 0 END, CASE WHEN ? = 0 THEN 1 ELSE 0 END,
 				SYSDATETIMEOFFSET(),
-				dbo.fn_CalculateNextReview(@p4, CASE WHEN @p3 = 1 THEN 1 ELSE 0 END, SYSDATETIMEOFFSET()),
-				CASE WHEN @p3 = 1 THEN 100.00 ELSE 0.00 END,
-				CASE WHEN @p3 = 1 THEN N'Learning' ELSE N'Lapsed' END,
+				dbo.fn_CalculateNextReview(?, CASE WHEN ? = 1 THEN 1 ELSE 0 END, SYSDATETIMEOFFSET()),
+				CASE WHEN ? = 1 THEN 100.00 ELSE 0.00 END,
+				CASE WHEN ? = 1 THEN N'Learning' ELSE N'Lapsed' END,
 				SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
 		OUTPUT inserted.MasteryLevel AS masteryLevel,
 			inserted.MemoryStatus AS memoryStatus,
 			inserted.NextReviewDate AS nextReviewDate;`
 
-	return r.db.QueryContext(ctx, query, userID, wordID, isCorrect, rating)
+	return r.db.QueryContext(ctx, query,
+		userID, wordID, // USING
+		isCorrect, isCorrect, // MasteryLevel MATCHED (2 uses)
+		isCorrect, isCorrect, // ConsecutiveCorrect, ConsecutiveWrong
+		rating, rating, // fn_CalculateNextReview, fn_CalculateEaseFactor
+		isCorrect, rating, // LastScore, fn_GetMemoryStatus
+		userID, wordID, // INSERT VALUES
+		isCorrect, // MasteryLevel NOT MATCHED
+		isCorrect, isCorrect, // ConsecutiveCorrect, ConsecutiveWrong
+		rating, isCorrect, // fn_CalculateNextReview
+		isCorrect, // LastScore
+		isCorrect, // MemoryStatus
+	)
 }
 
 func (r *FlashcardRepo) GetDailyProgress(ctx context.Context, userID int64) (int, error) {
 	var count int
 	err := r.db.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM ExerciseAttempts
-		 WHERE UserID = @p1 AND CAST(AttemptedAt AS DATE) = CAST(SYSDATETIMEOFFSET() AS DATE)`,
+		 WHERE UserID = ? AND CAST(AttemptedAt AS DATE) = CAST(SYSDATETIMEOFFSET() AS DATE)`,
 		userID).Scan(&count)
 	return count, err
 }

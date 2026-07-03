@@ -72,3 +72,7 @@ process/
 backend/user-go/server
 backend/user-go/*.exe
 
+# Scripts
+start.sh
+stop.sh
+

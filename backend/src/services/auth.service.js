@@ -65,6 +65,39 @@ class AuthService {
     return { ...user, role: targetRoleName, permissions };
   }
 
+  static async changePassword(userId, oldPassword, newPassword) {
+    const pool = await poolPromise;
+
+    if (!oldPassword || !newPassword) {
+      throw new Error('Thiếu thông tin mật khẩu cũ hoặc mới');
+    }
+    if (newPassword.length < 6) {
+      throw new Error('Mật khẩu mới phải từ 6 ký tự trở lên');
+    }
+
+    const result = await pool.request()
+      .input('UserID', sql.BigInt, userId)
+      .query(`SELECT PasswordHash FROM Users WHERE UserID = @UserID`);
+
+    const user = result.recordset[0];
+    if (!user) {
+      throw new Error('Người dùng không tồn tại');
+    }
+
+    const isMatch = await bcrypt.compare(oldPassword, user.PasswordHash);
+    if (!isMatch) {
+      throw new Error('Mật khẩu cũ không chính xác');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await pool.request()
+      .input('UserID', sql.BigInt, userId)
+      .input('PasswordHash', sql.NVarChar(500), hashedPassword)
+      .query(`UPDATE Users SET PasswordHash = @PasswordHash, UpdatedAt = SYSDATETIMEOFFSET() WHERE UserID = @UserID`);
+
+    return { message: 'Thay đổi mật khẩu thành công' };
+  }
+
   static async login(email, password) {
     const pool = await poolPromise;
 
@@ -102,7 +135,7 @@ class AuthService {
     const permissions = permResult.recordset.map(r => r.PermissionCode);
 
     const payload = {
-      id: user.id,
+      id: Number(user.id),
       fullName: user.fullName,
       role: user.role,
       permissions

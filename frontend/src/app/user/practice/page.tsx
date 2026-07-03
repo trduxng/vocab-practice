@@ -362,7 +362,7 @@ export default function UserPractice() {
     const localAccuracy = Math.round((score / questions.length) * 100);
 
     const summary = sessionSummary;
-    const accuracy = summary?.accuracy ?? localAccuracy;
+    const accuracy = summary?.accuracy != null ? Math.round(summary.accuracy) : localAccuracy;
     const totalXP = summary?.totalXP ?? 0;
     const currentLevel = summary?.currentLevel ?? 1;
     const xpEarned = practiceReward?.xpGained ?? 0;
@@ -432,8 +432,8 @@ export default function UserPractice() {
                   </Button>
                 </div>
                 <div className="space-y-2">
-                  {weakWords.slice(0, 5).map((w) => (
-                    <div key={w.wordId} className="flex items-center justify-between">
+                  {weakWords.slice(0, 5).map((w, idx) => (
+                    <div key={`${w.wordId}-${idx}`} className="flex items-center justify-between">
                       <span className="text-sm font-bold text-slate-900 dark:text-white">{w.term}</span>
                       <span className="text-xs text-slate-500 dark:text-slate-400">{w.meaning}</span>
                     </div>

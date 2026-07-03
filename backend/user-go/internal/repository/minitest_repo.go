@@ -53,7 +53,7 @@ func (r *MiniTestRepo) GetMiniTests(ctx context.Context, page, pageSize int) (*m
 		LEFT JOIN Topics t ON mt.TopicID = t.TopicID
 		WHERE mt.IsPublished = 1
 		ORDER BY mt.CreatedAt DESC
-		OFFSET @p1 ROWS FETCH NEXT @p2 ROWS ONLY`, offset, pageSize); err != nil {
+		OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`, offset, pageSize); err != nil {
 		return nil, err
 	}
 
@@ -69,12 +69,12 @@ func (r *MiniTestRepo) GetMiniTestDetails(ctx context.Context, testID int64) ([]
 	if err := r.db.SelectContext(ctx, &questions, `
 		SELECT q.QuestionID AS questionId, q.QuestionType AS questionType,
 			q.QuestionText AS questionText, q.OptionsJson AS optionsJson,
-			q.CorrectAnswer AS correctAnswer, w.Term AS term
+			q.CorrectAnswer AS correctAnswer, w.Term AS term, w.Meaning AS meaning
 		FROM MiniTests mt
 		JOIN MiniTestItems mti ON mti.MiniTestID = mt.MiniTestID
 		JOIN Questions q ON mti.QuestionID = q.QuestionID AND q.ContentStatus = N'Published'
 		JOIN Words w ON q.WordID = w.WordID AND w.ContentStatus = N'Published'
-		WHERE mt.MiniTestID = @p1 AND mt.IsPublished = 1
+		WHERE mt.MiniTestID = ? AND mt.IsPublished = 1
 		ORDER BY mti.DisplayOrder`, testID); err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func (r *MiniTestRepo) GetTestHistory(ctx context.Context, userID int64, page, p
 		JOIN Questions q ON ea.QuestionID = q.QuestionID
 		JOIN MiniTestItems mti ON q.QuestionID = mti.QuestionID
 		JOIN MiniTests mt ON mti.MiniTestID = mt.MiniTestID
-		WHERE ea.UserID = @p1`, userID)
+		WHERE ea.UserID = ?`, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -105,10 +105,10 @@ func (r *MiniTestRepo) GetTestHistory(ctx context.Context, userID int64, page, p
 		JOIN Questions q ON ea.QuestionID = q.QuestionID
 		JOIN MiniTestItems mti ON q.QuestionID = mti.QuestionID
 		JOIN MiniTests mt ON mti.MiniTestID = mt.MiniTestID
-		WHERE ea.UserID = @p1
+		WHERE ea.UserID = ?
 		GROUP BY CAST(ea.AttemptedAt AS DATE), mt.TestTitle, mt.MiniTestID
 		ORDER BY date DESC
-		OFFSET @p2 ROWS FETCH NEXT @p3 ROWS ONLY`, userID, offset, pageSize); err != nil {
+		OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`, userID, offset, pageSize); err != nil {
 		return nil, err
 	}
 
@@ -130,7 +130,7 @@ func (r *MiniTestRepo) GetSessionDetails(ctx context.Context, userID, testID int
 		JOIN Questions q ON ea.QuestionID = q.QuestionID
 		JOIN MiniTestItems mti ON q.QuestionID = mti.QuestionID
 		JOIN Words w ON q.WordID = w.WordID
-		WHERE ea.UserID = @p1 AND mti.MiniTestID = @p2 AND CAST(ea.AttemptedAt AS DATE) = @p3`,
+		WHERE ea.UserID = ? AND mti.MiniTestID = ? AND CAST(ea.AttemptedAt AS DATE) = ?`,
 		userID, testID, date); err != nil {
 		return nil, err
 	}
@@ -140,7 +140,7 @@ func (r *MiniTestRepo) GetSessionDetails(ctx context.Context, userID, testID int
 func (r *MiniTestRepo) CheckTestPublished(ctx context.Context, testID int64) (bool, error) {
 	var published bool
 	err := r.db.QueryRowContext(ctx,
-		`SELECT IsPublished FROM MiniTests WHERE MiniTestID = @p1`, testID).Scan(&published)
+		`SELECT IsPublished FROM MiniTests WHERE MiniTestID = ?`, testID).Scan(&published)
 	return published, err
 }
 
@@ -150,7 +150,7 @@ func (r *MiniTestRepo) GetTestQuestions(ctx context.Context, testID int64) ([]Qu
 		SELECT q.QuestionID, q.WordID, q.CorrectAnswer
 		FROM MiniTestItems mti
 		JOIN Questions q ON q.QuestionID = mti.QuestionID AND q.ContentStatus = N'Published'
-		WHERE mti.MiniTestID = @p1`, testID); err != nil {
+		WHERE mti.MiniTestID = ?`, testID); err != nil {
 		return nil, err
 	}
 	return questions, nil
@@ -166,7 +166,7 @@ func (r *MiniTestRepo) CheckDuplicateAttempt(ctx context.Context, userID, testID
 	var count int
 	err := r.db.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM MiniTestAttempts
-		 WHERE MiniTestID = @p1 AND UserID = @p2 AND SubmittedAt IS NOT NULL`,
+		 WHERE MiniTestID = ? AND UserID = ? AND SubmittedAt IS NOT NULL`,
 		testID, userID).Scan(&count)
 	return count > 0, err
 }
@@ -176,7 +176,7 @@ func (r *MiniTestRepo) InsertMiniTestAttempt(ctx context.Context, userID, testID
 	err := r.db.QueryRowContext(ctx, `
 		INSERT INTO MiniTestAttempts (MiniTestID, UserID, StartedAt, SubmittedAt, TotalQuestions, CorrectCount, Score)
 		OUTPUT inserted.MiniTestAttemptID
-		VALUES (@p1, @p2, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET(), @p3, @p4, @p5)`,
+		VALUES (?, ?, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET(), ?, ?, ?)`,
 		testID, userID, total, correct, score).Scan(&id)
 	return id, err
 }

@@ -130,7 +130,7 @@ function getAchievementProgress(
     case 2:
       return { value: stats.correct, target: 100, detail: `${stats.correct}/100 câu trả lời đúng` };
     case 3:
-      return { value: stats.accuracy, target: 90, detail: `${stats.accuracy}/90% độ chính xác` };
+      return { value: Math.round(stats.accuracy), target: 90, detail: `${Math.round(stats.accuracy)}/90% độ chính xác` };
     case 4:
       return { value: stats.totalLearned, target: 50, detail: `${stats.totalLearned}/50 từ đã thành thạo` };
     case 5:

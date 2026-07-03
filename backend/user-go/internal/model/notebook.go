@@ -10,10 +10,10 @@ type NotebookEntry struct {
 	IsFavorite    bool      `json:"isFavorite" db:"IsFavorite"`
 	AddedAt       time.Time `json:"addedAt" db:"AddedAt"`
 	UpdatedAt     time.Time `json:"updatedAt" db:"UpdatedAt"`
-	Term          string    `json:"term" db:"term"`
-	Meaning       string    `json:"meaning" db:"meaning"`
-	Phonetic      *string   `json:"phonetic" db:"phonetic"`
-	PartOfSpeech  *string   `json:"partOfSpeechName" db:"partOfSpeechName"`
+	Term          string    `json:"term" db:"Term"`
+	Meaning       string    `json:"meaning" db:"Meaning"`
+	Phonetic      *string   `json:"phonetic" db:"Phonetic"`
+	PartOfSpeech  *string   `json:"partOfSpeechName" db:"PartOfSpeechName"`
 	MasteryLevel  int       `json:"masteryLevel" db:"masteryLevel"`
 }
 

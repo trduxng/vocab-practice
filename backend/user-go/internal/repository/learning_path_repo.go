@@ -68,14 +68,16 @@ func (r *LearningPathRepo) SeedLevels(ctx context.Context) error {
 	for _, l := range levels {
 		_, err := r.db.ExecContext(ctx,
 			`MERGE dbo.LearningPathLevels AS target
-			 USING (SELECT @p1 AS LevelCode) AS source
+			 USING (SELECT ? AS LevelCode) AS source
 			 ON target.LevelCode = source.LevelCode
 			 WHEN MATCHED THEN
-				 UPDATE SET LevelName = @p2, TargetScore = @p3, Description = @p4,
-					 DisplayOrder = @p5, AccentKey = @p6, IsActive = 1, UpdatedAt = SYSDATETIMEOFFSET()
+				 UPDATE SET LevelName = ?, TargetScore = ?, Description = ?,
+					 DisplayOrder = ?, AccentKey = ?, IsActive = 1, UpdatedAt = SYSDATETIMEOFFSET()
 			 WHEN NOT MATCHED THEN
 				 INSERT (LevelCode, LevelName, TargetScore, Description, DisplayOrder, AccentKey)
-				 VALUES (@p1, @p2, @p3, @p4, @p5, @p6);`,
+				 VALUES (?, ?, ?, ?, ?, ?);`,
+			// Each ? is positional — provide for USING, UPDATE, INSERT clauses
+			l.Code, l.Name, l.TargetScore, l.Description, l.DisplayOrder, l.AccentKey,
 			l.Code, l.Name, l.TargetScore, l.Description, l.DisplayOrder, l.AccentKey)
 		if err != nil {
 			return fmt.Errorf("seed level %s: %w", l.Code, err)
@@ -148,13 +150,13 @@ func (r *LearningPathRepo) GetRoadmapData(ctx context.Context, userID int64) ([]
 				   COUNT(DISTINCT CASE WHEN uwp.MasteryLevel >= 7 THEN wt.WordID END) AS masteredWords
 			FROM dbo.WordTopics wt
 			LEFT JOIN dbo.UserWordProgress uwp
-				ON uwp.WordID = wt.WordID AND uwp.UserID = @p1
+				ON uwp.WordID = wt.WordID AND uwp.UserID = ?
 			WHERE wt.TopicID = t.TopicID
 		) wordStats
 		OUTER APPLY (
 			SELECT COUNT(*) AS practiceCompletions
 			FROM dbo.UserXPEvents x
-			WHERE x.UserID = @p1
+			WHERE x.UserID = ?
 			  AND x.EventType = N'PracticeComplete'
 			  AND TRY_CONVERT(BIGINT, JSON_VALUE(x.MetadataJson, '$.topicId')) = t.TopicID
 		) practiceStats
@@ -164,11 +166,11 @@ func (r *LearningPathRepo) GetRoadmapData(ctx context.Context, userID int64) ([]
 				   MIN(mt.MiniTestID) AS firstMiniTestId
 			FROM dbo.MiniTests mt
 			LEFT JOIN dbo.MiniTestAttempts mta
-				ON mta.MiniTestID = mt.MiniTestID AND mta.UserID = @p1
+				ON mta.MiniTestID = mt.MiniTestID AND mta.UserID = ?
 			WHERE mt.TopicID = t.TopicID AND mt.IsPublished = 1
 		) testStats
 		WHERE t.ContentStatus = N'Published'
-		ORDER BY lpt.LearningPathLevelID, lpt.DisplayOrder, lpt.LearningPathTopicID`, userID); err != nil {
+		ORDER BY lpt.LearningPathLevelID, lpt.DisplayOrder, lpt.LearningPathTopicID`, userID, userID, userID); err != nil {
 		return nil, nil, fmt.Errorf("query topics: %w", err)
 	}
 	return levels, topics, nil
