@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useDarkMode } from '@/hooks/use-dark-mode';
 import { creatorService } from '@/src/services/creator.service';
 import { BarChart3, BookOpen, FileQuestion, FileText, ListChecks, Loader2, PieChart as PieChartIcon, Award, TrendingUp, Users } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, ComposedChart, Line } from 'recharts';
@@ -52,6 +53,7 @@ interface MiniTestAnalyticsItem {
 }
 
 export default function CreatorDashboardPage() {
+  const isDark = useDarkMode();
   const [stats, setStats] = useState<DashboardStats>({});
   const [summary, setSummary] = useState<ContentSummaryItem[]>([]);
   const [topicAnalytics, setTopicAnalytics] = useState<TopicAnalyticsItem[]>([]);
@@ -179,10 +181,10 @@ export default function CreatorDashboardPage() {
   });
 
   const tooltipStyle = {
-    background: 'rgb(15 23 42)',
-    border: '1px solid rgba(255,255,255,.12)',
+    background: isDark ? '#1e293b' : '#fff',
+    border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
     borderRadius: 8,
-    color: 'white',
+    color: isDark ? '#f1f5f9' : '#0f172a',
   };
 
   return (
@@ -218,9 +220,7 @@ export default function CreatorDashboardPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,.18)" />
                 <XAxis dataKey="name" tick={{ fill: "#94a3b8", fontSize: 12 }} />
                 <YAxis tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                <Tooltip
-                  contentStyle={{ background: "rgb(15 23 42)", border: "none", borderRadius: 8, color: "white" }}
-                />
+                <Tooltip contentStyle={tooltipStyle} />
                 <Legend />
                 <Bar dataKey="Published" name="Đã xuất bản" stackId="a" fill="#10b981" />
                 <Bar dataKey="PendingReview" name="Chờ duyệt" stackId="a" fill="#f59e0b" />
@@ -253,9 +253,7 @@ export default function CreatorDashboardPage() {
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip
-                  contentStyle={{ background: "rgb(15 23 42)", border: "none", borderRadius: 8, color: "white" }}
-                />
+                <Tooltip contentStyle={tooltipStyle} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -282,7 +280,7 @@ export default function CreatorDashboardPage() {
                   <XAxis dataKey="TopicName" tick={{ fill: "#94a3b8", fontSize: 12 }} />
                   <YAxis tick={{ fill: "#94a3b8", fontSize: 12 }} />
                   <Tooltip
-                    contentStyle={{ background: "rgb(15 23 42)", border: "none", borderRadius: 8, color: "white" }}
+                    contentStyle={tooltipStyle}
                     formatter={(value: any, name: any) => {
                       if (name === 'TotalEnrolledLearners') return [value, 'Học viên đăng ký'];
                       if (name === 'LearnersWithProgress') return [value, 'Học viên đã học'];
@@ -321,7 +319,7 @@ export default function CreatorDashboardPage() {
                   <YAxis yAxisId="left" tick={{ fill: "#94a3b8", fontSize: 12 }} label={{ value: 'Lượt làm', angle: -90, position: 'insideLeft', fill: '#94a3b8' }} />
                   <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tick={{ fill: "#94a3b8", fontSize: 12 }} label={{ value: 'Điểm trung bình (%)', angle: 90, position: 'insideRight', fill: '#94a3b8' }} />
                   <Tooltip
-                    contentStyle={{ background: "rgb(15 23 42)", border: "none", borderRadius: 8, color: "white" }}
+                    contentStyle={tooltipStyle}
                     formatter={(value: any, name: any) => {
                       if (name === 'TotalAttempts') return [value, 'Số lượt làm'];
                       if (name === 'AvgScore') return [`${parseFloat(value).toFixed(1)}%`, 'Điểm trung bình'];

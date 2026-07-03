@@ -52,9 +52,9 @@ export default function ActivityHeatmap({ days }: ActivityHeatmapProps) {
   const weeks = Array.from({ length: paddedDays.length / 7 }, (_, index) =>
     paddedDays.slice(index * 7, index * 7 + 7),
   );
-  const maxActivity = Math.max(...days.map((day) => day.activityCount), 1);
-  const totalActivity = days.reduce((sum, day) => sum + day.activityCount, 0);
-  const activeDays = days.filter((day) => day.activityCount > 0).length;
+  const maxActivity = Math.max(...days.map((day) => day.count), 1);
+  const totalActivity = days.reduce((sum, day) => sum + day.count, 0);
+  const activeDays = days.filter((day) => day.count > 0).length;
 
   return (
     <TooltipProvider delay={80}>
@@ -127,7 +127,7 @@ export default function ActivityHeatmap({ days }: ActivityHeatmapProps) {
                             <TooltipTrigger
                               render={
                                 <div
-                                  className={`aspect-square rounded-[3px] transition-all duration-150 hover:scale-110 hover:ring-2 hover:ring-slate-400/50 dark:hover:ring-slate-300/50 ${cellTones[getIntensity(day.activityCount, maxActivity)]}`}
+                                  className={`aspect-square rounded-[3px] transition-all duration-150 hover:scale-110 hover:ring-2 hover:ring-slate-400/50 dark:hover:ring-slate-300/50 ${cellTones[getIntensity(day.count, maxActivity)]}`}
                                 />
                               }
                             />
@@ -135,13 +135,13 @@ export default function ActivityHeatmap({ days }: ActivityHeatmapProps) {
                               side="top"
                               sideOffset={4}
                               align="center"
-                              className="z-50 rounded-[8px] border border-slate-200/30 bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white shadow-lg dark:border-slate-700/50 dark:bg-slate-200 dark:text-slate-900"
+                              className="z-50 rounded-[8px] border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-900 shadow-lg dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                             >
                               <div className="text-xs">
                                 <div className="font-semibold">
-                                  {day.activityCount.toLocaleString("vi-VN")} hoạt động
+                                  {day.count > 0 ? `${day.count.toLocaleString("vi-VN")} hoạt động` : "Không có hoạt động"}
                                 </div>
-                                <div className="text-[10px] text-slate-200/80 dark:text-slate-500">
+                                <div className="text-[10px] text-slate-500 dark:text-slate-400">
                                   {parseDate(day.date).toLocaleDateString("vi-VN", {
                                     weekday: "long",
                                     year: "numeric",
@@ -149,7 +149,7 @@ export default function ActivityHeatmap({ days }: ActivityHeatmapProps) {
                                     day: "numeric",
                                   })}
                                 </div>
-                                <div className="text-[10px] text-slate-200/80 dark:text-slate-500">{day.xpEarned} XP</div>
+                                <div className="text-[10px] text-slate-500 dark:text-slate-400">{day.xpEarned} XP</div>
                               </div>
                             </TooltipContent>
                           </Tooltip>

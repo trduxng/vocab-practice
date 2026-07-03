@@ -265,7 +265,7 @@ export interface GamificationProfile {
 // ---------- Progress Analytics ----------
 export interface ProgressActivityDay {
   date: string;
-  activityCount: number;
+  count: number;
   xpEarned: number;
 }
 

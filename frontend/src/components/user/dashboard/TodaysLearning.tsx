@@ -52,7 +52,7 @@ export default function TodaysLearning({ actions }: TodaysLearningProps) {
 
   return (
     <section>
-      <div className="mb-4 flex items-end justify-between gap-4">
+      <div className="mb-3 flex items-end justify-between gap-2">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
             Học tập hôm nay
@@ -68,7 +68,7 @@ export default function TodaysLearning({ actions }: TodaysLearningProps) {
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
         {actions.map((action) => (
           <LearningActionCard key={action.title} action={action} />
         ))}
@@ -85,15 +85,15 @@ function LearningActionCard({ action }: { action: LearningAction }) {
     <button
       type="button"
       onClick={action.onClick}
-      className={`group flex min-h-44 flex-col rounded-3xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg dark:border-white/10 dark:bg-white/[0.04] ${tone.hover}`}
+      className={`group flex min-h-[120px] flex-col rounded-3xl border border-slate-200 bg-white p-2.5 text-left shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg dark:border-white/10 dark:bg-white/[0.04] ${tone.hover}`}
     >
       <div className="flex items-start justify-between">
-        <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${tone.icon}`}>
-          <Icon className="h-5 w-5" />
+        <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${tone.icon}`}>
+          <Icon className="h-[18px] w-[18px]" />
         </div>
-        <ArrowUpRight className="h-4 w-4 text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-slate-600 dark:text-slate-600 dark:group-hover:text-slate-300" />
+        <ArrowUpRight className="h-3.5 w-3.5 text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-slate-600 dark:text-slate-600 dark:group-hover:text-slate-300" />
       </div>
-      <p className="mt-5 text-3xl font-black tracking-tight text-slate-950 dark:text-white">
+      <p className="mt-2 text-xl font-black tracking-tight text-slate-950 dark:text-white">
         {action.count}
         <span className="ml-1 text-xs font-bold uppercase tracking-wider text-slate-400">{action.unit}</span>
       </p>

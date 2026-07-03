@@ -15,6 +15,7 @@ const ACHIEVEMENT_SEED = [
   ["STREAK_30", "Chuỗi 30 Ngày", "Học tập 30 ngày liên tiếp.", "⚡", "STREAK_DAYS", 30, 4, 150],
   ["TEST_SCORE_90", "Đỉnh Cao Bài Kiểm Tra", "Đạt ít nhất 90% trong bài kiểm tra.", "🎯", "TEST_SCORE", 90, 5, 50],
   ["LEVEL_5", "Cấp Độ Năm", "Đạt cấp độ học viên 5.", "🏆", "LEVEL", 5, 6, 100],
+  ["FIRST_MINI_TEST", "Bài Kiểm Tra Đầu Tiên", "Hoàn thành bài kiểm tra đầu tiên của bạn.", "📝", "TEST_SCORE", 1, 7, 20],
 ];
 
 class GamificationService {

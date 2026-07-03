@@ -10,6 +10,7 @@ import DashboardSkeleton from "@/src/components/user/dashboard/DashboardSkeleton
 import LearningHeroCard from "@/src/components/user/dashboard/LearningHeroCard";
 import TodaysLearning, { learningActionIcons, type LearningAction } from "@/src/components/user/dashboard/TodaysLearning";
 import WeeklyActivity, { type WeeklyActivityDay } from "@/src/components/user/dashboard/WeeklyActivity";
+import XpTrendMini from "@/src/components/user/dashboard/XpTrendMini";
 import { useAuth } from "@/src/app/context/AuthContext";
 import { userService } from "@/src/services/user.service";
 import type { LearningPathRoadmap } from "@/src/modules/user/types";
@@ -187,14 +188,14 @@ export default function StudentDashboard() {
         userName={user?.fullName || "Người dùng"}
       />
 
-      <main className="flex-1 overflow-auto bg-slate-100 p-4 dark:bg-slate-950 sm:p-6">
-        <div className="mx-auto max-w-7xl">
+      <main className="flex-1 overflow-auto bg-slate-100 p-3 dark:bg-slate-950 sm:p-4">
+        <div className="mx-auto max-w-6xl">
           {loading ? (
             <DashboardSkeleton />
           ) : error ? (
             <DashboardError onRetry={fetchDashboard} />
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-4">
               <LearningHeroCard
                 streak={data.stats.streak || 0}
                 todayCount={data.todayCount}
@@ -209,17 +210,18 @@ export default function StudentDashboard() {
                 onContinue={() => router.push(continueRoute)}
               />
 
-              <TodaysLearning actions={actions} />
+              <div className="grid gap-4 xl:grid-cols-2">
+                <TodaysLearning actions={actions} />
+                {data.learningPath && (
+                  <DashboardLearningPath
+                    roadmap={data.learningPath}
+                    onContinue={() => router.push(data.learningPath?.currentPosition?.activityRoute || "/user/courses")}
+                    onViewRoadmap={() => router.push("/user/courses")}
+                  />
+                )}
+              </div>
 
-              {data.learningPath && (
-                <DashboardLearningPath
-                  roadmap={data.learningPath}
-                  onContinue={() => router.push(data.learningPath?.currentPosition?.activityRoute || "/user/courses")}
-                  onViewRoadmap={() => router.push("/user/courses")}
-                />
-              )}
-
-              <div className="grid gap-6 xl:grid-cols-[1.45fr_0.85fr]">
+              <div className="grid gap-4 xl:grid-cols-3">
                 <WeeklyActivity days={weeklyDays} dailyGoal={data.dailyGoal} />
                 <AchievementPreview
                   achievements={data.stats.achievements || []}
@@ -230,6 +232,7 @@ export default function StudentDashboard() {
                   currentLevel={data.stats.currentLevel || 1}
                   onViewAll={() => router.push("/user/achievements")}
                 />
+                <XpTrendMini data={data.heatmap} />
               </div>
             </div>
           )}

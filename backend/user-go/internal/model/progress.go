@@ -4,7 +4,7 @@ import "time"
 
 type ActivityDay struct {
 	Date          string `json:"date" db:"date"`
-	ActivityCount int    `json:"activityCount" db:"activityCount"`
+	ActivityCount int    `json:"count" db:"activityCount"`
 	XPEarned      int64  `json:"xpEarned" db:"xpEarned"`
 }
 

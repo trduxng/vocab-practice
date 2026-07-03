@@ -69,7 +69,8 @@ func (r *GamificationRepo) CheckAndAwardAchievements(ctx context.Context, userID
 	var toUnlock []model.Achievement
 	err := r.db.SelectContext(ctx, &toUnlock, `
 		SELECT a.AchievementID AS id, a.Code AS code, a.Name AS label,
-			a.Description AS description, a.Icon AS icon, a.XPReward
+			a.Description AS description, a.Icon AS icon, a.XPReward,
+			a.CriteriaType AS criteriaType, a.CriteriaValue AS criteriaValue
 		FROM dbo.Achievements a
 		WHERE a.IsActive = 1
 		  AND NOT EXISTS (
@@ -101,6 +102,26 @@ func (r *GamificationRepo) CheckAndAwardAchievements(ctx context.Context, userID
 		toUnlock[i].Seen = false
 		now := time.Now().UTC().Format("2006-01-02T15:04:05Z")
 		toUnlock[i].UnlockedAt = &now
+		toUnlock[i].Target = toUnlock[i].CriteriaValue
+		progress := 0
+		switch toUnlock[i].CriteriaType {
+		case "WORDS_LEARNED":
+			progress = wordsLearned
+		case "STREAK_DAYS":
+			progress = streak
+		case "TEST_SCORE":
+			progress = bestTestScore
+		case "LEVEL":
+			progress = currentLevel
+		}
+		toUnlock[i].Progress = progress
+		if toUnlock[i].Target > 0 {
+			pct := progress * 100 / toUnlock[i].Target
+			if pct > 100 {
+				pct = 100
+			}
+			toUnlock[i].ProgressPct = pct
+		}
 	}
 	return toUnlock, nil
 }
@@ -219,6 +240,7 @@ func (r *GamificationRepo) GetProfile(ctx context.Context, userID int64) (*model
 	if s, err := r.getStreak(ctx, userID); err == nil {
 		profile.Streak = s
 	}
+	bestTestScore, _ := r.getBestTestScore(ctx, userID)
 
 	// Today's XP
 	if err := r.db.QueryRowContext(ctx,
@@ -248,7 +270,8 @@ func (r *GamificationRepo) GetProfile(ctx context.Context, userID int64) (*model
 			a.Description AS description, a.Icon AS icon, a.XPReward AS xpReward,
 			CASE WHEN ua.UserAchievementID IS NOT NULL THEN 1 ELSE 0 END AS unlocked,
 			LEFT(CONVERT(NVARCHAR(30), ua.AchievedAt, 126), 19) + 'Z' AS unlockedAt,
-			CASE WHEN ua.SeenAt IS NOT NULL THEN 1 ELSE 0 END AS seen
+			CASE WHEN ua.SeenAt IS NOT NULL THEN 1 ELSE 0 END AS seen,
+			a.CriteriaType AS criteriaType, a.CriteriaValue AS criteriaValue
 		FROM dbo.Achievements a
 		LEFT JOIN dbo.UserAchievements ua ON a.AchievementID = ua.AchievementID AND ua.UserID = ?
 		WHERE a.IsActive = 1
@@ -256,6 +279,31 @@ func (r *GamificationRepo) GetProfile(ctx context.Context, userID int64) (*model
 	if selErr != nil {
 		log.Printf("load achievements: %v", selErr)
 	}
+
+	for i := range achievements {
+		a := &achievements[i]
+		a.Target = a.CriteriaValue
+		progress := 0
+		switch a.CriteriaType {
+		case "WORDS_LEARNED":
+			progress = profile.WordsLearned
+		case "STREAK_DAYS":
+			progress = profile.Streak
+		case "TEST_SCORE":
+			progress = bestTestScore
+		case "LEVEL":
+			progress = profile.CurrentLevel
+		}
+		a.Progress = progress
+		if a.Target > 0 {
+			pct := progress * 100 / a.Target
+			if pct > 100 {
+				pct = 100
+			}
+			a.ProgressPct = pct
+		}
+	}
+
 	profile.Achievements = achievements
 	unseen := []model.Achievement{}
 	for _, a := range achievements {

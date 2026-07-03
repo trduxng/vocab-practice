@@ -12,6 +12,10 @@ type Achievement struct {
 	Unlocked      bool    `json:"unlocked" db:"unlocked"`
 	UnlockedAt    *string `json:"unlockedAt" db:"unlockedAt"`
 	Seen          bool    `json:"seen" db:"seen"`
+	CriteriaType  string  `json:"criteriaType" db:"criteriaType"`
+	CriteriaValue int     `json:"-" db:"criteriaValue"`
+	Progress      int     `json:"progress"`
+	Target        int     `json:"target"`
 	ProgressPct   int     `json:"progressPercentage"`
 }
 

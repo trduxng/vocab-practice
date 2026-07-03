@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { useDarkMode } from "@/hooks/use-dark-mode";
 import Topbar from "@/src/components/shared/Topbar";
 import ChartFrame from "@/src/components/admin/ChartFrame";
 import { AdminErrorState, AdminPage, AdminPanel, KpiCard, StatusBadge, TableShell, ToolbarButton, chartColors } from "@/src/components/admin/AdminPrimitives";
@@ -22,7 +23,7 @@ type AnalyticsData = {
   difficultTopics?: Array<{ label: string; accuracy: number | null }>;
 };
 
-const tooltipStyle = { background: "rgb(15 23 42)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, color: "white" };
+
 
 function difficultyClass(value: number) {
   if (value < 50) return "bg-rose-500/80 text-white";
@@ -32,6 +33,14 @@ function difficultyClass(value: number) {
 }
 
 export default function AdminAnalytics() {
+  const isDark = useDarkMode();
+
+  const tooltipStyle = {
+    background: isDark ? "#1e293b" : "#fff",
+    border: isDark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.08)",
+    borderRadius: 8,
+    color: isDark ? "#f1f5f9" : "#0f172a",
+  };
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");

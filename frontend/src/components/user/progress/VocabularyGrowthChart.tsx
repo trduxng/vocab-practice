@@ -1,6 +1,7 @@
 "use client";
 
 import { BookOpenCheck } from "lucide-react";
+import { useDarkMode } from "@/hooks/use-dark-mode";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { VocabularyGrowthPoint } from "@/src/modules/user/types";
 
@@ -9,7 +10,17 @@ type VocabularyGrowthChartProps = {
 };
 
 export default function VocabularyGrowthChart({ points }: VocabularyGrowthChartProps) {
-  const series = points.map((point) => ({
+  const isDark = useDarkMode();
+
+  const tooltipStyle = {
+    background: isDark ? "#1e293b" : "#fff",
+    border: isDark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.08)",
+    borderRadius: 8,
+    color: isDark ? "#f1f5f9" : "#0f172a",
+    fontSize: 12,
+  };
+  const sortedPoints = [...points].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const series = sortedPoints.map((point) => ({
     ...point,
     label: new Date(`${point.date}T00:00:00Z`).toLocaleDateString("vi-VN", {
       month: "short",
@@ -39,7 +50,7 @@ export default function VocabularyGrowthChart({ points }: VocabularyGrowthChartP
               <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#94a3b833" />
               <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
               <YAxis allowDecimals={false} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-              <Tooltip />
+              <Tooltip contentStyle={tooltipStyle} />
               <Legend wrapperStyle={{ fontSize: 11, paddingTop: 12 }} />
               <Line type="monotone" dataKey="learnedWords" name="Đã học" stroke="#0ea5e9" strokeWidth={3} dot={false} />
               <Line type="monotone" dataKey="masteredWords" name="Nắm vững" stroke="#10b981" strokeWidth={3} dot={false} />

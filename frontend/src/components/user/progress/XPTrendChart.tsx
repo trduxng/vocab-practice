@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { BarChart3 } from "lucide-react";
+import { useDarkMode } from "@/hooks/use-dark-mode";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { ProgressActivityDay } from "@/src/modules/user/types";
 
@@ -58,7 +59,16 @@ function buildSeries(activity: ProgressActivityDay[], period: TrendPeriod) {
 }
 
 export default function XPTrendChart({ activity }: XPTrendChartProps) {
+  const isDark = useDarkMode();
   const [period, setPeriod] = useState<TrendPeriod>("daily");
+
+  const tooltipStyle = {
+    background: isDark ? "#1e293b" : "#fff",
+    border: isDark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.08)",
+    borderRadius: 8,
+    color: isDark ? "#f1f5f9" : "#0f172a",
+  };
+
   const series = useMemo(() => buildSeries(activity, period), [activity, period]);
   const totalXP = series.reduce((sum, item) => sum + item.xp, 0);
 
@@ -105,7 +115,7 @@ export default function XPTrendChart({ activity }: XPTrendChartProps) {
               <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#94a3b833" />
               <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
               <YAxis allowDecimals={false} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-              <Tooltip />
+              <Tooltip contentStyle={tooltipStyle} />
               <Area type="monotone" dataKey="xp" name="XP" stroke="#f59e0b" strokeWidth={3} fill="url(#xpTrendFill)" />
             </AreaChart>
           </ResponsiveContainer>

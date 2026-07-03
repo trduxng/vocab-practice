@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useDarkMode } from "@/hooks/use-dark-mode";
 import Topbar from "@/src/components/shared/Topbar";
 import ChartFrame from "@/src/components/admin/ChartFrame";
 import { AdminErrorState, AdminLoadingState, AdminPage, AdminPanel, KpiCard, StatusBadge, chartColors } from "@/src/components/admin/AdminPrimitives";
@@ -40,12 +41,7 @@ type DashboardStats = {
   };
 };
 
-const tooltipStyle = {
-  background: "rgb(15 23 42)",
-  border: "1px solid rgba(255,255,255,.12)",
-  borderRadius: 8,
-  color: "white",
-};
+
 
 const roleColors = [chartColors.blue, chartColors.emerald, chartColors.amber, chartColors.violet, chartColors.rose];
 
@@ -68,6 +64,7 @@ function formatUptime(seconds?: number) {
 }
 
 export default function AdminDashboard() {
+  const isDark = useDarkMode();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -95,6 +92,13 @@ export default function AdminDashboard() {
       cancelled = true;
     };
   }, [refreshIndex]);
+
+  const tooltipStyle = {
+    background: isDark ? "#1e293b" : "#fff",
+    border: isDark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.08)",
+    borderRadius: 8,
+    color: isDark ? "#f1f5f9" : "#0f172a",
+  };
 
   const userGrowth = useMemo(() => {
     return (stats?.userGrowth || []).map((item) => ({

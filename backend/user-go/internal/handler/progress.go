@@ -57,6 +57,7 @@ func (h *ProgressHandler) GetStats(c *gin.Context) {
 		WeakWords:       weakWords,
 		RecentAttempts:  recentAttempts,
 		DailyTrends:     dailyTrends,
+		Achievements:    gamification.Achievements,
 	}
 
 	c.JSON(http.StatusOK, stats)

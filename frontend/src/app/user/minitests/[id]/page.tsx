@@ -2,11 +2,22 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { AlertCircle, ArrowLeft, Brain, CheckCircle2, ChevronRight, Timer } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  Brain,
+  CheckCircle2,
+  ChevronRight,
+  GripVertical,
+  Timer,
+  Volume2,
+  XCircle,
+} from "lucide-react";
 import { userService } from "@/src/services/user.service";
 import { useAuth } from "@/src/app/context/AuthContext";
 import { Button } from "@/src/components/ui/button";
 import { Card } from "@/src/components/ui/card";
+import { Input } from "@/src/components/ui/input";
 import { toast } from "sonner";
 import ReportDialog from "@/src/components/shared/ReportDialog";
 import GamificationCelebration from "@/src/components/user/gamification/GamificationCelebration";
@@ -27,6 +38,18 @@ type AnswerResult = {
   questionId?: number;
   wordId?: number;
   isCorrect: boolean;
+};
+
+const shuffle = <T,>(items: T[]) => {
+  const nextItems = [...items];
+  for (let index = nextItems.length - 1; index > 0; index -= 1) {
+    const swapIndex = (index * 7 + 3) % (index + 1);
+    [nextItems[index], nextItems[swapIndex]] = [
+      nextItems[swapIndex],
+      nextItems[index],
+    ];
+  }
+  return nextItems;
 };
 
 const TEST_SECONDS = 600;
@@ -51,12 +74,15 @@ const MiniTestExecutionPage = () => {
   } | null>(null);
   const [showReview, setShowReview] = useState(false);
   const [timeLeft, setTimeLeft] = useState(TEST_SECONDS);
+  const [orderedItems, setOrderedItems] = useState<string[]>([]);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (!user || !params.id) return;
     let cancelled = false;
 
-    userService.getMiniTestDetails(params.id as string)
+    userService
+      .getMiniTestDetails(params.id as string)
       .then((data) => {
         if (cancelled) return;
         setQuestions(data);
@@ -71,8 +97,19 @@ const MiniTestExecutionPage = () => {
         setLoading(false);
       });
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [user, params.id]);
+
+  const speak = (text: string) => {
+    if (typeof window !== "undefined" && window.speechSynthesis && text) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = "en-US";
+      window.speechSynthesis.speak(utterance);
+    }
+  };
 
   const getResults = useCallback(() => {
     return questions.map((q) => {
@@ -88,8 +125,15 @@ const MiniTestExecutionPage = () => {
 
     try {
       const submittedAnswers = questions.map((q) => {
-        const userAnswer = answers[q.questionId] || "";
-        const isCorrect = userAnswer.toLowerCase().trim() === q.correctAnswer.toLowerCase().trim();
+        let userAnswer = answers[q.questionId] || "";
+        if (q.questionType === "DragDrop") {
+          userAnswer = (answers[q.questionId] || "").toLowerCase().trim();
+        }
+        const isCorrect =
+          q.questionType === "MCQ"
+            ? userAnswer === q.correctAnswer
+            : userAnswer.toLowerCase().trim() ===
+              q.correctAnswer.toLowerCase().trim();
         return {
           questionId: q.questionId,
           wordId: q.wordId || 0,
@@ -98,7 +142,10 @@ const MiniTestExecutionPage = () => {
         };
       });
 
-      const result = await userService.submitMiniTest(params.id as string, submittedAnswers);
+      const result = await userService.submitMiniTest(
+        params.id as string,
+        submittedAnswers,
+      );
       setResultData(result);
       setSubmitted(true);
     } catch (error) {
@@ -117,7 +164,14 @@ const MiniTestExecutionPage = () => {
 
     const timer = setInterval(() => setTimeLeft((v) => v - 1), 1000);
     return () => clearInterval(timer);
-  }, [timeLeft, submitted, loading, questions.length, handleSubmit, submitting]);
+  }, [
+    timeLeft,
+    submitted,
+    loading,
+    questions.length,
+    handleSubmit,
+    submitting,
+  ]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -126,8 +180,11 @@ const MiniTestExecutionPage = () => {
   };
 
   const currentQuestion = questions[currentIndex];
-  const options = useMemo(() => {
-    if (!currentQuestion?.optionsJson) return [];
+  const expectedAnswer = String(currentQuestion?.correctAnswer || "");
+
+  const mcqOptions = useMemo(() => {
+    if (!currentQuestion?.optionsJson || currentQuestion.questionType !== "MCQ")
+      return [];
     try {
       const parsed = JSON.parse(currentQuestion.optionsJson);
       return Array.isArray(parsed) ? parsed : [];
@@ -136,8 +193,35 @@ const MiniTestExecutionPage = () => {
     }
   }, [currentQuestion]);
 
+  const dragItems = useMemo(() => {
+    if (!currentQuestion || currentQuestion.questionType !== "DragDrop")
+      return [];
+    try {
+      const parsed = JSON.parse(currentQuestion.optionsJson || "{}");
+      if (Array.isArray(parsed.items)) return parsed.items;
+    } catch {
+      // Use fallback below.
+    }
+    return shuffle(expectedAnswer.split(/\s+/).filter(Boolean));
+  }, [currentQuestion, expectedAnswer]);
+
+  useEffect(() => {
+    if (currentQuestion?.questionType === "DragDrop") {
+      if (!answers[currentQuestion.questionId]) {
+        setOrderedItems(dragItems);
+      }
+    } else {
+      setOrderedItems([]);
+    }
+    setDraggedIndex(null);
+  }, [currentQuestion?.questionId, currentQuestion?.questionType, dragItems]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (authLoading) {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white font-mono uppercase tracking-widest">Đang xác thực...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white font-mono uppercase tracking-widest">
+        Đang xác thực...
+      </div>
+    );
   }
 
   // ==================== LOADING ====================
@@ -145,7 +229,9 @@ const MiniTestExecutionPage = () => {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white gap-4">
         <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" />
-        <p className="text-sm text-slate-500 dark:text-slate-400 font-mono uppercase tracking-widest">Đang chuẩn bị bài kiểm tra...</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400 font-mono uppercase tracking-widest">
+          Đang chuẩn bị bài kiểm tra...
+        </p>
       </div>
     );
   }
@@ -154,10 +240,22 @@ const MiniTestExecutionPage = () => {
   if (questions.length === 0) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white p-6 text-center">
-        <AlertCircle size={56} className="mb-4 text-slate-500 dark:text-slate-600" />
-        <h1 className="text-2xl font-black mb-2">Bài kiểm tra chưa có câu hỏi</h1>
-        <p className="text-slate-500 dark:text-slate-400 mb-8">Vui lòng chọn bài khác hoặc quay lại sau.</p>
-        <Button onClick={() => router.push("/user/minitests")} className="bg-blue-600">Quay lại danh sách</Button>
+        <AlertCircle
+          size={56}
+          className="mb-4 text-slate-500 dark:text-slate-600"
+        />
+        <h1 className="text-2xl font-black mb-2">
+          Bài kiểm tra chưa có câu hỏi
+        </h1>
+        <p className="text-slate-500 dark:text-slate-400 mb-8">
+          Vui lòng chọn bài khác hoặc quay lại sau.
+        </p>
+        <Button
+          onClick={() => router.push("/user/minitests")}
+          className="bg-blue-600"
+        >
+          Quay lại danh sách
+        </Button>
       </div>
     );
   }
@@ -166,38 +264,65 @@ const MiniTestExecutionPage = () => {
   if (submitted && !showReview) {
     const score = resultData?.total ?? questions.length;
     const correct = resultData?.correct ?? 0;
-    const accuracy = resultData?.score != null ? Math.round(resultData.score) : Math.round((correct / score) * 100);
+    const accuracy =
+      resultData?.score != null
+        ? Math.round(resultData.score)
+        : Math.round((correct / score) * 100);
 
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white p-4">
         <GamificationCelebration reward={resultData?.gamification} />
         <Card className="w-full max-w-2xl bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 p-12 text-center rounded-[40px] shadow-sm">
-          <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-8 border-2 ${accuracy >= 70 ? "bg-green-500/20 border-green-500/30" : accuracy >= 40 ? "bg-amber-500/20 border-amber-500/30" : "bg-red-500/20 border-red-500/30"}`}>
+          <div
+            className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-8 border-2 ${accuracy >= 70 ? "bg-green-500/20 border-green-500/30" : accuracy >= 40 ? "bg-amber-500/20 border-amber-500/30" : "bg-red-500/20 border-red-500/30"}`}
+          >
             {accuracy >= 70 ? (
               <CheckCircle2 size={48} className="text-green-400" />
             ) : (
               <Brain size={48} className="text-amber-400" />
             )}
           </div>
-          <h1 className="text-5xl font-black uppercase tracking-tighter mb-2">Hoàn thành!</h1>
-          <p className="text-slate-500 dark:text-slate-400 mb-10 font-medium">Kết quả của bạn đã được ghi nhận và lưu vào lịch sử.</p>
+          <h1 className="text-5xl font-black uppercase tracking-tighter mb-2">
+            Hoàn thành!
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400 mb-10 font-medium">
+            Kết quả của bạn đã được ghi nhận và lưu vào lịch sử.
+          </p>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-12">
             <div className="dark:bg-white/3 bg-slate-50 p-6 rounded-3xl border border-slate-200 dark:border-white/5">
-              <p className="text-slate-600 dark:text-slate-400 text-[10px] uppercase font-black tracking-widest mb-2">Đúng</p>
-              <p className="text-3xl font-black text-green-400">{correct}/{score}</p>
+              <p className="text-slate-600 dark:text-slate-400 text-[10px] uppercase font-black tracking-widest mb-2">
+                Đúng
+              </p>
+              <p className="text-3xl font-black text-green-400">
+                {correct}/{score}
+              </p>
             </div>
             <div className="dark:bg-white/3 bg-slate-50 p-6 rounded-3xl border border-slate-200 dark:border-white/5">
-              <p className="text-slate-600 dark:text-slate-400 text-[10px] uppercase font-black tracking-widest mb-2">Chính xác</p>
-              <p className={`text-3xl font-black ${accuracy >= 70 ? "text-green-400" : accuracy >= 40 ? "text-amber-400" : "text-red-400"}`}>{accuracy}%</p>
+              <p className="text-slate-600 dark:text-slate-400 text-[10px] uppercase font-black tracking-widest mb-2">
+                Chính xác
+              </p>
+              <p
+                className={`text-3xl font-black ${accuracy >= 70 ? "text-green-400" : accuracy >= 40 ? "text-amber-400" : "text-red-400"}`}
+              >
+                {accuracy}%
+              </p>
             </div>
             <div className="dark:bg-white/3 bg-slate-50 p-6 rounded-3xl border border-slate-200 dark:border-white/5">
-              <p className="text-slate-600 dark:text-slate-400 text-[10px] uppercase font-black tracking-widest mb-2">Sai</p>
-              <p className="text-3xl font-black text-red-400">{score - correct}</p>
+              <p className="text-slate-600 dark:text-slate-400 text-[10px] uppercase font-black tracking-widest mb-2">
+                Sai
+              </p>
+              <p className="text-3xl font-black text-red-400">
+                {score - correct}
+              </p>
             </div>
             <div className="dark:bg-white/3 bg-amber-50/50 p-6 rounded-3xl border border-amber-200 dark:border-amber-500/10">
-              <p className="text-slate-600 dark:text-slate-400 text-[10px] uppercase font-black tracking-widest mb-2">XP</p>
-              <p className="text-3xl font-black text-amber-500">+{resultData?.xpEarned || 0}</p>
+              <p className="text-slate-600 dark:text-slate-400 text-[10px] uppercase font-black tracking-widest mb-2">
+                XP
+              </p>
+              <p className="text-3xl font-black text-amber-500">
+                +{resultData?.xpEarned || 0}
+              </p>
             </div>
           </div>
 
@@ -228,10 +353,15 @@ const MiniTestExecutionPage = () => {
       <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white">
         <header className="h-16 bg-white/80 dark:bg-black/40 backdrop-blur-2xl border-b border-slate-200 dark:border-white/5 flex items-center justify-between px-6 sticky top-0 z-50">
           <div className="flex items-center gap-4">
-            <button onClick={() => setShowReview(false)} className="text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">
+            <button
+              onClick={() => setShowReview(false)}
+              className="text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
+            >
               <ArrowLeft size={20} />
             </button>
-            <h1 className="text-slate-900 dark:text-white font-black text-xs uppercase tracking-widest">Xem lại kết quả</h1>
+            <h1 className="text-slate-900 dark:text-white font-black text-xs uppercase tracking-widest">
+              Xem lại kết quả
+            </h1>
           </div>
           <Button
             onClick={() => router.push("/user/minitests")}
@@ -257,33 +387,53 @@ const MiniTestExecutionPage = () => {
               >
                 <div className="flex items-start justify-between gap-4 mb-4">
                   <div className="flex items-center gap-3">
-                    <span className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black ${
-                      correct ? "bg-green-500/20 text-green-500" : "bg-red-500/20 text-red-500"
-                    }`}>
+                    <span
+                      className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black ${
+                        correct
+                          ? "bg-green-500/20 text-green-500"
+                          : "bg-red-500/20 text-red-500"
+                      }`}
+                    >
                       {i + 1}
                     </span>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest ${
-                      correct ? "bg-green-500 text-black" : "bg-red-500 text-white"
-                    }`}>
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest ${
+                        correct
+                          ? "bg-green-500 text-black"
+                          : "bg-red-500 text-white"
+                      }`}
+                    >
                       {correct ? "Đúng" : "Sai"}
                     </span>
                   </div>
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase">{q.questionType || "Câu hỏi"}</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase">
+                    {q.questionType || "Câu hỏi"}
+                  </span>
                 </div>
 
-                <h4 className="text-slate-900 dark:text-white font-bold text-lg mb-4">{q.questionText}</h4>
+                <h4 className="text-slate-900 dark:text-white font-bold text-lg mb-4">
+                  {q.questionText}
+                </h4>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <p className="text-[9px] text-slate-500 dark:text-slate-400 uppercase font-black tracking-widest">Bạn đã trả lời</p>
-                    <p className={`font-bold ${correct ? "text-green-500" : "text-red-500"}`}>
+                    <p className="text-[9px] text-slate-500 dark:text-slate-400 uppercase font-black tracking-widest">
+                      Bạn đã trả lời
+                    </p>
+                    <p
+                      className={`font-bold ${correct ? "text-green-500" : "text-red-500"}`}
+                    >
                       {userAnswer || "(Bỏ trống)"}
                     </p>
                   </div>
                   {!correct && (
                     <div className="space-y-1">
-                      <p className="text-[9px] text-slate-500 dark:text-slate-400 uppercase font-black tracking-widest">Đáp án đúng</p>
-                      <p className="text-slate-900 dark:text-white font-bold">{q.correctAnswer}</p>
+                      <p className="text-[9px] text-slate-500 dark:text-slate-400 uppercase font-black tracking-widest">
+                        Đáp án đúng
+                      </p>
+                      <p className="text-slate-900 dark:text-white font-bold">
+                        {q.correctAnswer}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -294,7 +444,9 @@ const MiniTestExecutionPage = () => {
                       <Brain size={14} />
                     </div>
                     <p className="text-slate-500 dark:text-slate-400 text-xs">
-                      <span className="text-slate-900 dark:text-white font-bold">{q.term}</span>
+                      <span className="text-slate-900 dark:text-white font-bold">
+                        {q.term}
+                      </span>
                       {q.meaning ? `: ${q.meaning}` : ""}
                     </p>
                   </div>
@@ -319,19 +471,34 @@ const MiniTestExecutionPage = () => {
     <div className="min-h-screen flex flex-col bg-slate-100 dark:bg-slate-950">
       <header className="h-20 bg-black/40 dark:bg-black/40 bg-white/80 backdrop-blur-2xl border-b border-slate-200 dark:border-white/5 flex items-center justify-between px-8 sticky top-0 z-50">
         <div className="flex items-center gap-6">
-          <button onClick={() => router.back()} className="p-3 hover:bg-white/5 rounded-2xl text-slate-500 transition-colors">
+          <button
+            onClick={() => router.back()}
+            className="p-3 hover:bg-white/5 rounded-2xl text-slate-500 transition-colors"
+          >
             <ArrowLeft size={20} />
           </button>
           <div>
-            <h1 className="text-slate-900 dark:text-white font-black text-xs uppercase tracking-[0.2em]">Phiên làm bài</h1>
-            <p className="text-slate-600 dark:text-slate-400 text-[10px] font-bold uppercase tracking-widest">Câu {currentIndex + 1} / {questions.length}</p>
+            <h1 className="text-slate-900 dark:text-white font-black text-xs uppercase tracking-[0.2em]">
+              Phiên làm bài
+            </h1>
+            <p className="text-slate-600 dark:text-slate-400 text-[10px] font-bold uppercase tracking-widest">
+              Câu {currentIndex + 1} / {questions.length}
+            </p>
           </div>
         </div>
-        <div className={`flex items-center gap-3 px-6 py-2.5 rounded-2xl border-2 transition-all ${timeLeft < 60 ? "bg-red-500/10 border-red-500/30 text-red-500 animate-pulse" : "bg-white/5 border-white/10 text-blue-400"}`}>
+        <div
+          className={`flex items-center gap-3 px-6 py-2.5 rounded-2xl border-2 transition-all ${timeLeft < 60 ? "bg-red-500/10 border-red-500/30 text-red-500 animate-pulse" : "bg-white/5 border-white/10 text-blue-400"}`}
+        >
           <Timer size={18} />
-          <span className="font-mono font-black text-xl">{formatTime(timeLeft)}</span>
+          <span className="font-mono font-black text-xl">
+            {formatTime(timeLeft)}
+          </span>
         </div>
-        <Button onClick={handleSubmit} disabled={submitting} className="bg-white text-black hover:bg-blue-600 hover:text-white font-black text-[10px] uppercase tracking-widest px-8 h-12 rounded-xl transition-all disabled:opacity-40">
+        <Button
+          onClick={handleSubmit}
+          disabled={submitting}
+          className="bg-white text-black hover:bg-blue-600 hover:text-white font-black text-[12px] uppercase tracking-widest px-8 h-12 rounded-xl transition-all disabled:opacity-40"
+        >
           {submitting ? "Đang nộp..." : "Nộp bài"}
         </Button>
       </header>
@@ -370,52 +537,166 @@ const MiniTestExecutionPage = () => {
               />
             </div>
           )}
-          <h2 className="text-slate-900 dark:text-white text-4xl font-black leading-tight mb-6 tracking-tighter">{currentQuestion?.questionText}</h2>
-          {currentQuestion?.term && <p className="text-slate-600 dark:text-slate-400 italic text-sm font-medium">Ngữ cảnh: liên quan đến từ &quot;{currentQuestion.term}&quot;</p>}
+          <p className="text-blue-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4">
+            {currentQuestion?.questionType === "MCQ"
+              ? "Trắc nghiệm"
+              : currentQuestion?.questionType === "Dictation"
+                ? "Nghe và gõ lại"
+                : currentQuestion?.questionType === "DragDrop"
+                  ? "Sắp xếp câu"
+                  : "Điền từ vào chỗ trống"}
+          </p>
+          <h2 className="text-slate-900 dark:text-white text-4xl font-black leading-tight mb-6 tracking-tighter">
+            {currentQuestion?.questionText}
+          </h2>
+          {currentQuestion?.term && (
+            <p className="text-slate-600 dark:text-slate-400 italic text-sm font-medium">
+              Ngữ cảnh: liên quan đến từ &quot;{currentQuestion.term}&quot;
+            </p>
+          )}
         </Card>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {options.map((option: string, optionIndex: number) => (
-            <button
-              key={`${option}-${optionIndex}`}
-              onClick={() => setAnswers((prev) => ({ ...prev, [currentQuestion.questionId]: option }))}
-              className={`group p-8 rounded-[32px] border-2 text-left transition-all relative ${
-                answers[currentQuestion.questionId] === option
-                  ? "bg-blue-600/10 border-blue-500 text-white shadow-2xl scale-[1.02]"
-                  : "dark:bg-white/2 bg-white border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-400 hover:dark:bg-white/5 hover:bg-slate-100 hover:border-slate-300 dark:hover:border-white/10"
-              }`}
-            >
-              <div className="flex items-center gap-5">
-                <span className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-xs border-2 ${
+        {currentQuestion?.questionType === "MCQ" ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {mcqOptions.map((option: string, optionIndex: number) => (
+              <button
+                key={`${option}-${optionIndex}`}
+                onClick={() =>
+                  setAnswers((prev) => ({
+                    ...prev,
+                    [currentQuestion.questionId]: option,
+                  }))
+                }
+                className={`group p-8 rounded-[32px] border-2 text-left transition-all relative ${
                   answers[currentQuestion.questionId] === option
-                    ? "bg-blue-500 border-blue-400 text-white"
-                    : "dark:bg-white/5 bg-slate-100 border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-600"
-                }`}>
-                  {String.fromCharCode(65 + optionIndex)}
-                </span>
-                <span className="font-bold text-xl">{option}</span>
-              </div>
-            </button>
-          ))}
-        </div>
+                    ? "bg-blue-600/10 border-blue-500 text-white shadow-2xl scale-[1.02]"
+                    : "dark:bg-white/2 bg-white border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-400 hover:dark:bg-white/5 hover:bg-slate-100 hover:border-slate-300 dark:hover:border-white/10"
+                }`}
+              >
+                <div className="flex items-center gap-5">
+                  <span
+                    className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-xs border-2 ${
+                      answers[currentQuestion.questionId] === option
+                        ? "bg-blue-500 border-blue-400 text-white"
+                        : "dark:bg-white/5 bg-slate-100 border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-600"
+                    }`}
+                  >
+                    {String.fromCharCode(65 + optionIndex)}
+                  </span>
+                  <span className="font-bold text-xl">{option}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        ) : currentQuestion?.questionType === "DragDrop" ? (
+          <div className="space-y-4">
+            <div className="grid gap-3">
+              {orderedItems.map((item, itemIndex) => (
+                <button
+                  key={`${item}-${itemIndex}`}
+                  type="button"
+                  draggable
+                  onDragStart={() => setDraggedIndex(itemIndex)}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    if (draggedIndex === null || draggedIndex === itemIndex)
+                      return;
+                    setOrderedItems((items) => {
+                      const nextItems = [...items];
+                      const [moved] = nextItems.splice(draggedIndex, 1);
+                      nextItems.splice(itemIndex, 0, moved);
+                      return nextItems;
+                    });
+                    setDraggedIndex(itemIndex);
+                  }}
+                  onDrop={() => setDraggedIndex(null)}
+                  onDragEnd={() => setDraggedIndex(null)}
+                  className={`flex items-center gap-4 rounded-[32px] border-2 p-6 text-left transition-all ${
+                    answers[currentQuestion.questionId]
+                      ? "border-blue-500/40 bg-blue-500/10"
+                      : "dark:bg-white/2 bg-white border-slate-200 dark:border-white/5 text-slate-700 dark:text-slate-200 hover:bg-slate-100 hover:dark:bg-white/5 hover:border-blue-500/40"
+                  }`}
+                >
+                  <GripVertical size={18} className="shrink-0 text-slate-500" />
+                  <span className="text-xl font-black">{item}</span>
+                </button>
+              ))}
+            </div>
+            {orderedItems.length > 0 &&
+              !answers[currentQuestion.questionId] && (
+                <button
+                  onClick={() => {
+                    setAnswers((prev) => ({
+                      ...prev,
+                      [currentQuestion.questionId]: orderedItems.join(" "),
+                    }));
+                  }}
+                  className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-[24px] font-black uppercase text-xs tracking-widest"
+                >
+                  Xác nhận sắp xếp
+                </button>
+              )}
+            {answers[currentQuestion.questionId] && (
+              <button
+                onClick={() => {
+                  const newAnswers = { ...answers };
+                  delete newAnswers[currentQuestion.questionId];
+                  setAnswers(newAnswers);
+                }}
+                className="w-full py-3 bg-slate-200 dark:bg-white/5 text-slate-600 dark:text-slate-400 rounded-[24px] font-bold uppercase text-[10px] tracking-widest"
+              >
+                Sắp xếp lại
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {currentQuestion?.questionType === "Dictation" && (
+              <button
+                type="button"
+                onClick={() => speak(expectedAnswer)}
+                className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-300 hover:bg-blue-500/20"
+                aria-label="Phát âm thanh chính tả"
+              >
+                <Volume2 size={28} />
+              </button>
+            )}
+            <Input
+              value={answers[currentQuestion?.questionId || 0] || ""}
+              autoFocus
+              onChange={(event) =>
+                setAnswers((prev) => ({
+                  ...prev,
+                  [currentQuestion?.questionId || 0]: event.target.value,
+                }))
+              }
+              placeholder="Nhập câu trả lời..."
+              className="h-24 text-4xl font-black text-center rounded-[32px] dark:bg-white/3 bg-white border-4 border-slate-200 dark:border-white/5 focus:border-blue-600 focus:dark:bg-white/5 focus:bg-slate-50 text-slate-900 dark:text-white"
+            />
+          </div>
+        )}
 
         <div className="flex justify-between items-center pt-16">
-          <Button
-            variant="ghost"
-            disabled={currentIndex === 0}
-            onClick={() => setCurrentIndex((prev) => prev - 1)}
-            className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-bold uppercase text-[10px] tracking-widest h-14 px-8 rounded-2xl"
-          >
-            Quay lại
-          </Button>
+          {currentIndex > 0 && (
+            <Button
+              variant="ghost"
+              onClick={() => setCurrentIndex((prev) => prev - 1)}
+              className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-bold uppercase text-[10px] tracking-widest h-14 px-8 rounded-2xl"
+            >
+              Quay lại
+            </Button>
+          )}
           <Button
             onClick={() => {
-              if (currentIndex < questions.length - 1) setCurrentIndex((prev) => prev + 1);
+              if (currentIndex < questions.length - 1)
+                setCurrentIndex((prev) => prev + 1);
               else handleSubmit();
             }}
             className="bg-white text-black hover:bg-blue-600 hover:text-white px-12 h-16 rounded-[24px] font-black uppercase text-xs tracking-[0.2em] shadow-sm border border-slate-200 transition-all"
           >
-            {currentIndex < questions.length - 1 ? "Tiếp theo" : "Hoàn thành bài thi"}
+            {currentIndex < questions.length - 1
+              ? "Tiếp theo"
+              : "Hoàn thành bài thi"}
           </Button>
         </div>
       </main>
