@@ -70,7 +70,7 @@ app.use('/api/admin', adminRoutes);
 app.use(errorHandler);
 
 console.log('Attempting to start admin service...');
-app.listen(port, () => {
+const server = app.listen(port, () => {
   console.log(`Admin service successfully started on port ${port}`);
 });
 
@@ -89,3 +89,7 @@ const gracefulShutdown = async (signal) => {
 
 process.on('SIGTERM', gracefulShutdown);
 process.on('SIGINT', gracefulShutdown);
+
+server.on('error', (err) => {
+  console.error('Admin service failed to listen:', err);
+});

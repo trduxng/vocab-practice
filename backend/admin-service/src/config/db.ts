@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 const useWindowsAuth = process.env.DB_AUTH === "windows";
-const sqlModule = useWindowsAuth ? await import("mssql/msnodesqlv8") : await import("mssql");
+const sqlModule = useWindowsAuth ? await import("mssql/msnodesqlv8.js") : await import("mssql");
 const sql = sqlModule.default ?? sqlModule;
 
 const serverClean = (process.env.DB_SERVER || "localhost")

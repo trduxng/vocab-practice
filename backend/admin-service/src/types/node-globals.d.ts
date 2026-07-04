@@ -5,5 +5,5 @@ declare const process: {
   on(event: string, listener: (...args: unknown[]) => void): void;
 };
 
-declare module 'mssql/msnodesqlv8';
+declare module 'mssql/msnodesqlv8.js';
 declare const __dirname: string;
