@@ -30,6 +30,40 @@ class ReportService {
     };
   }
 
+  static async logAdminAction(adminId, action, entityType, entityId, details = null) {
+    try {
+      const pool = await poolPromise;
+      await pool.request().query(`
+        IF OBJECT_ID(N'dbo.AdminAuditLogs', N'U') IS NULL
+        BEGIN
+          CREATE TABLE dbo.AdminAuditLogs
+          (
+            AdminAuditLogID BIGINT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+            ActionByUserID BIGINT NOT NULL,
+            Action NVARCHAR(100) NOT NULL,
+            EntityType NVARCHAR(50) NOT NULL,
+            EntityID BIGINT NULL,
+            Details NVARCHAR(MAX) NULL,
+            CreatedAt DATETIMEOFFSET(7) NOT NULL CONSTRAINT DF_AdminAuditLogs_CreatedAt DEFAULT (SYSDATETIMEOFFSET())
+          );
+        END
+      `);
+
+      await pool.request()
+        .input('ActionByUserID', sql.BigInt, adminId)
+        .input('Action', sql.NVarChar(100), action)
+        .input('EntityType', sql.NVarChar(50), entityType)
+        .input('EntityID', sql.BigInt, entityId ? Number(entityId) : null)
+        .input('Details', sql.NVarChar(sql.MAX), details ? JSON.stringify(details) : null)
+        .query(`
+          INSERT INTO AdminAuditLogs (ActionByUserID, Action, EntityType, EntityID, Details)
+          VALUES (@ActionByUserID, @Action, @EntityType, @EntityID, @Details)
+        `);
+    } catch (error) {
+      console.warn('Failed to write report audit log', error.message);
+    }
+  }
+
   static async ensureSchema() {
     const pool = await poolPromise;
     await pool.request().query(`
@@ -259,8 +293,7 @@ class ReportService {
       `);
 
     if (result.rowsAffected[0] > 0) {
-      const AdminService = require('./admin.service');
-      await AdminService.logAdminAction(adminId, 'UPDATE_CONTENT_REPORT', 'ContentReport', reportId, {
+      await this.logAdminAction(adminId, 'UPDATE_CONTENT_REPORT', 'ContentReport', reportId, {
         old: oldResult.recordset[0],
         status: status || undefined,
         priority: priority || undefined,

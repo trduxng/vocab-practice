@@ -15,15 +15,15 @@ const { poolPromise } = require('./config/db');
 // Import routes
 const authRoutes = require('./routes/auth.routes');
 const categoriesRoutes = require('./routes/categories.routes');
-const adminRoutes = require('./routes/admin.routes');
 const userRoutes = require('./routes/user.routes');
 const progressRoutes = require('./routes/progress.routes');
 const creatorRoutes = require('./routes/creator.routes');
-const reviewRoutes = require('./routes/review.routes');
 const aiRoutes = require('./routes/ai.routes');
+const internalReportRoutes = require('./routes/internal-report.routes');
 
 const app = express();
 const port = process.env.PORT || 3001;
+const adminServiceUrl = (process.env.ADMIN_SERVICE_URL || 'http://localhost:3003').replace(/\/+$/, '');
 
 // Global Error Handlers to prevent crash
 process.on('unhandledRejection', (reason, promise) => {
@@ -42,7 +42,6 @@ app.use(cors({
   origin: true, 
   credentials: true
 }));
-app.use(express.json());
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
@@ -52,6 +51,42 @@ app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
 });
+
+const proxyAdminRequest = async (req, res) => {
+  try {
+    const targetUrl = `${adminServiceUrl}${req.originalUrl}`;
+    const headers = { ...req.headers };
+    delete headers.host;
+    delete headers.connection;
+
+    const upstream = await fetch(targetUrl, {
+      method: req.method,
+      headers,
+      body: ['GET', 'HEAD'].includes(req.method) ? undefined : req,
+      duplex: ['GET', 'HEAD'].includes(req.method) ? undefined : 'half',
+      redirect: 'manual'
+    });
+
+    res.status(upstream.status);
+    upstream.headers.forEach((value, key) => {
+      if (!['transfer-encoding', 'connection'].includes(key.toLowerCase())) {
+        res.setHeader(key, value);
+      }
+    });
+
+    const buffer = Buffer.from(await upstream.arrayBuffer());
+    res.send(buffer);
+  } catch (error) {
+    console.error('Admin service proxy failed:', error.message);
+    res.status(502).json({
+      message: 'Admin service unavailable',
+      target: adminServiceUrl
+    });
+  }
+};
+
+app.use('/api/admin', proxyAdminRequest);
+app.use(express.json());
 
 // Routes
 app.get('/api/health', async (req, res) => {
@@ -75,8 +110,7 @@ app.get('/api/health', async (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoriesRoutes);
-app.use('/api/admin/content-review', reviewRoutes);
-app.use('/api/admin', adminRoutes);
+app.use('/internal', internalReportRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/creator', creatorRoutes);

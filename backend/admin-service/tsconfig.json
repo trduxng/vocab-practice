@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "moduleDetection": "force",
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "noImplicitAny": false,
+    "strict": false,
+    "useUnknownInCatchVariables": false,
+    "skipLibCheck": true,
+    "esModuleInterop": true
+  },
+  "include": ["src/**/*.ts"]
+}
