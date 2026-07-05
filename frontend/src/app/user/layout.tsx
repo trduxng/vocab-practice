@@ -26,7 +26,7 @@ const StudentLayout = ({ children }: { children: React.ReactNode }) => {
   if (!mounted) return null;
 
   if (loading) {
-    return <div className="min-h-screen bg-[#080d1a] flex items-center justify-center text-white font-mono">SECURE BOOT...</div>;
+    return <div className="min-h-screen bg-[#080d1a] flex items-center justify-center text-white font-mono">Đang xác thực...</div>;
   }
 
   if (!isAuthenticated) return null;

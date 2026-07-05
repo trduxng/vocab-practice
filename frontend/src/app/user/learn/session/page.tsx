@@ -299,7 +299,7 @@ export default function StudentFlashcard() {
                 questionId={currentCard.questionId}
                 entityType="Word"
                 defaultType="WordIncorrect"
-                title={`Report word: ${currentCard.term}`}
+                title={`Báo cáo từ: ${currentCard.term}`}
                 context={currentCard.meaning}
                 buttonClassName="border-slate-200 bg-white text-slate-500 hover:text-slate-950 dark:border-white/10 dark:bg-white/5 dark:hover:text-white"
               />

@@ -191,7 +191,7 @@ const MiniTestHistoryPage = () => {
             ) : sessionDetails.map((item, index) => (
               <div key={`${item.questionText}-${index}`} className={`p-6 rounded-3xl border-2 transition-all ${item.isCorrect ? "bg-green-500/5 dark:bg-green-500/5 bg-green-50 border-green-500/10" : "bg-red-500/5 dark:bg-red-500/5 bg-red-50 border-red-500/10"}`}>
                 <div className="flex justify-between items-start mb-4">
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest ${item.isCorrect ? "bg-green-500 text-black" : "bg-red-500 text-white"}`}>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest ${item.isCorrect ? "bg-green-500 text-white" : "bg-red-500 text-white"}`}>
                     {item.isCorrect ? "Đúng" : "Sai"}
                   </span>
                   <span className="text-[10px] text-slate-600 font-bold uppercase">{item.questionType}</span>
@@ -217,7 +217,7 @@ const MiniTestHistoryPage = () => {
           </div>
 
           <div className="p-6 dark:bg-white/2 bg-slate-50 border-t border-slate-200 dark:border-white/5 flex justify-end">
-            <Button onClick={() => setSelectedSession(null)} className="bg-white text-black hover:bg-slate-200 rounded-xl px-8 font-black uppercase text-xs tracking-widest border border-slate-200">Đóng</Button>
+            <Button onClick={() => setSelectedSession(null)} className="bg-white text-black hover:bg-slate-200 dark:bg-white dark:text-black dark:hover:bg-slate-200 rounded-xl px-8 font-black uppercase text-xs tracking-widest border border-slate-200 dark:border-white/10">Đóng</Button>
           </div>
         </DialogContent>
       </Dialog>

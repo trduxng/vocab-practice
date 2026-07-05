@@ -10,11 +10,11 @@ type ReportType = "WordIncorrect" | "AudioIssue" | "AnswerIncorrect" | "Typo" | 
 type EntityType = "Word" | "Question" | "Audio" | "General";
 
 const reportTypes: Array<{ value: ReportType; label: string }> = [
-  { value: "WordIncorrect", label: "Word meaning is wrong" },
-  { value: "AudioIssue", label: "Audio/pronunciation issue" },
-  { value: "AnswerIncorrect", label: "Correct answer is wrong" },
-  { value: "Typo", label: "Typo or unclear text" },
-  { value: "Other", label: "Other issue" },
+  { value: "WordIncorrect", label: "Nghĩa của từ không chính xác" },
+  { value: "AudioIssue", label: "Vấn đề về âm thanh/phát âm" },
+  { value: "AnswerIncorrect", label: "Đáp án đúng bị sai" },
+  { value: "Typo", label: "Lỗi chính tả hoặc văn bản không rõ" },
+  { value: "Other", label: "Vấn đề khác" },
 ];
 
 export default function ReportDialog({
@@ -41,7 +41,7 @@ export default function ReportDialog({
 
   async function submitReport() {
     if (description.trim().length < 5) {
-      toast.error("Please describe the issue in a bit more detail");
+      toast.error("Vui lòng mô tả vấn đề chi tiết hơn");
       return;
     }
 
@@ -55,12 +55,12 @@ export default function ReportDialog({
         title,
         description: description.trim(),
       });
-      toast.success("Report sent to admin");
+      toast.success("Đã gửi báo cáo đến quản trị viên");
       setOpen(false);
       setDescription("");
     } catch (error) {
       console.error("Failed to submit report", error);
-      toast.error("Could not submit report");
+      toast.error("Không thể gửi báo cáo");
     } finally {
       setSubmitting(false);
     }
@@ -74,7 +74,7 @@ export default function ReportDialog({
         className={`inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400 transition-colors hover:text-white ${buttonClassName}`}
       >
         <Flag className="h-3.5 w-3.5" />
-        Report
+        Báo cáo
       </button>
 
       {open && (
@@ -82,7 +82,7 @@ export default function ReportDialog({
           <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#0f172a] p-5 text-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Report content</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Báo cáo nội dung</p>
                 <h2 className="mt-1 text-lg font-bold">{title}</h2>
                 {context && <p className="mt-1 text-sm text-slate-400">{context}</p>}
               </div>
@@ -93,7 +93,7 @@ export default function ReportDialog({
 
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-semibold text-slate-400">Issue type</label>
+                <label className="text-xs font-semibold text-slate-400">Loại vấn đề</label>
                 <select
                   value={reportType}
                   onChange={(event) => setReportType(event.target.value as ReportType)}
@@ -104,21 +104,19 @@ export default function ReportDialog({
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-400">What should admin check?</label>
+                <label className="text-xs font-semibold text-slate-400">Mô tả cho quản trị viên</label>
                 <textarea
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
                   rows={5}
                   className="mt-2 w-full resize-none rounded-md border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white outline-none placeholder:text-slate-600"
-                  placeholder="Example: The answer should be 'invoice', not 'receipt'."
+                  placeholder="Ví dụ: Đáp án đúng phải là 'invoice' chứ không phải 'receipt'."
                 />
               </div>
 
               <div className="flex justify-end gap-2 border-t border-white/10 pt-4">
-                <Button type="button" variant="ghost" onClick={() => setOpen(false)} className="rounded-md">Cancel</Button>
-                <Button type="button" disabled={submitting} onClick={submitReport} className="rounded-md bg-blue-600 hover:bg-blue-700">
-                  {submitting ? "Sending..." : "Send report"}
-                </Button>
+                <Button type="button" variant="ghost" onClick={() => setOpen(false)} className="rounded-md">Hủy</Button>
+                <Button type="button" disabled={submitting} onClick={submitReport} className="rounded-md bg-blue-600 hover:bg-blue-700">{submitting ? "Đang gửi..." : "Gửi báo cáo"}</Button>
               </div>
             </div>
           </div>

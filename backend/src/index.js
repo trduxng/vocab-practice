@@ -12,15 +12,15 @@ if (!process.env.JWT_SECRET) {
 const errorHandler = require('./middlewares/errorHandler');
 const { poolPromise } = require('./config/db');
 
-// Import routes
-const authRoutes = require('./routes/auth.routes');
-const categoriesRoutes = require('./routes/categories.routes');
-const adminRoutes = require('./routes/admin.routes');
-const userRoutes = require('./routes/user.routes');
-const progressRoutes = require('./routes/progress.routes');
-const creatorRoutes = require('./routes/creator.routes');
-const reviewRoutes = require('./routes/review.routes');
-const aiRoutes = require('./routes/ai.routes');
+// Import routes (modules architecture)
+const authRoutes = require('./modules/auth/auth.routes');
+const categoriesRoutes = require('./modules/categories/categories.routes');
+const adminRoutes = require('./modules/admin/routes');
+const userRoutes = require('./modules/learner/learner.routes');
+const progressRoutes = require('./modules/progress/progress.routes');
+const creatorRoutes = require('./modules/creator/creator.routes');
+const reviewRoutes = require('./modules/review/review.routes');
+const aiRoutes = require('./modules/ai/ai.routes');
 
 const app = express();
 const port = process.env.PORT || 3001;

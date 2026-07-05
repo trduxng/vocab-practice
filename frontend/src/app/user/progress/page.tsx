@@ -52,10 +52,10 @@ export default function UserProgress() {
   return (
     <>
       <Topbar
-        title="Tien do hoc tap"
-        subtitle="Theo doi hoat dong, XP, von tu vung va kha nang ghi nho."
+        title="Tiến độ học tập"
+        subtitle="Theo dõi hoạt động, XP, vốn từ vựng và khả năng ghi nhớ."
         role="student"
-        userName={user?.fullName || "Nguoi dung"}
+        userName={user?.fullName || "Người dùng"}
       />
 
       <main className="flex-1 overflow-auto bg-slate-100 p-4 dark:bg-slate-950 sm:p-6">
@@ -90,9 +90,9 @@ function ProgressError({ onRetry }: { onRetry: () => void }) {
       <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-100 text-rose-600 dark:bg-rose-500/15 dark:text-rose-300">
         <AlertCircle className="h-6 w-6" />
       </div>
-      <h2 className="mt-4 text-lg font-black text-slate-900 dark:text-white">Khong the tai tien do hoc tap</h2>
+      <h2 className="mt-4 text-lg font-black text-slate-900 dark:text-white">Không thể tải tiến độ học tập</h2>
       <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500 dark:text-slate-400">
-        Du lieu phan tich chua san sang. Hay thu tai lai trang.
+        Dữ liệu phân tích chưa sẵn sàng. Hãy thử tải lại trang.
       </p>
       <button
         type="button"
@@ -100,7 +100,7 @@ function ProgressError({ onRetry }: { onRetry: () => void }) {
         className="mt-6 inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-black uppercase tracking-wide text-white transition-colors hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
       >
         <RefreshCw className="h-4 w-4" />
-        Tai lai
+        Tải lại
       </button>
     </div>
   );

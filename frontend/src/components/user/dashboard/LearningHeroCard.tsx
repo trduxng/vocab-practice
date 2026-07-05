@@ -54,7 +54,7 @@ export default function LearningHeroCard({
             onClick={onContinue}
             className="mt-6 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-black text-emerald-700 shadow-lg shadow-emerald-900/15 transition-transform hover:-translate-y-0.5 hover:bg-emerald-50 sm:w-auto"
           >
-            Continue Learning
+            Học tiếp
             <ArrowRight className="h-4 w-4" />
           </button>
         </div>
@@ -80,7 +80,7 @@ export default function LearningHeroCard({
           </div>
 
           <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <HeroMetric icon={Flame} label="Streak" value={`${streak} ngày`} />
+            <HeroMetric icon={Flame} label="Chuỗi ngày" value={`${streak} ngày`} />
             <HeroMetric icon={Sparkles} label="Hôm nay" value={`${todayXP} XP`} />
             <HeroMetric icon={Star} label="Tổng XP" value={`${totalXP} XP`} />
             <HeroMetric icon={Target} label="Cấp độ" value={`Lv.${currentLevel}`} />

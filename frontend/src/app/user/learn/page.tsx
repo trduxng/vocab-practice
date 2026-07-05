@@ -57,7 +57,7 @@ export default function VocabularyTopicsPage() {
         title="Học từ theo chủ đề"
         subtitle="Chọn một chủ đề, xem trước danh sách từ và bắt đầu phiên flashcard."
         role="student"
-        userName={user?.fullName || "Learner"}
+        userName={user?.fullName || "Người học"}
       />
 
       <main className="flex-1 overflow-auto bg-slate-100 p-4 dark:bg-slate-950 sm:p-6">
@@ -73,7 +73,7 @@ export default function VocabularyTopicsPage() {
               <section className="overflow-hidden rounded-[30px] bg-linear-to-br from-emerald-600 via-teal-600 to-cyan-700 p-5 text-white shadow-xl shadow-emerald-900/15 sm:p-7">
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
                   <div>
-                    <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-100">Vocabulary roadmap</p>
+                    <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-100">Lộ trình từ vựng</p>
                     <h1 className="mt-2 max-w-2xl text-2xl font-black tracking-tight sm:text-4xl">
                       Chọn chủ đề bạn muốn học hôm nay.
                     </h1>
@@ -146,7 +146,7 @@ function TopicCard({ topic, onOpen }: { topic: LearningPathTopic; onOpen: () => 
           </div>
           <ArrowRight className="h-5 w-5 text-white/70 transition-transform group-hover:translate-x-1" />
         </div>
-        <p className="mt-7 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-100">{topic.code || "TOEIC vocabulary"}</p>
+        <p className="mt-7 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-100">{topic.code || "Từ vựng TOEIC"}</p>
         <h3 className="mt-1 min-h-14 text-lg font-black leading-6">{topic.title}</h3>
       </div>
       <div className="p-4">

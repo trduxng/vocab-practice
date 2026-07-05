@@ -493,7 +493,7 @@ export default function UserPractice() {
               questionId={current.questionId}
               entityType="Question"
               defaultType={current.questionType === "Dictation" ? "AudioIssue" : "AnswerIncorrect"}
-              title={`Report question #${current.questionId}`}
+              title={`Báo cáo câu #${current.questionId}`}
               context={current.term || current.meaning || current.questionText}
             />
           </div>

@@ -263,7 +263,7 @@ const MiniTestExecutionPage = () => {
                       {i + 1}
                     </span>
                     <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest ${
-                      correct ? "bg-green-500 text-black" : "bg-red-500 text-white"
+                      correct ? "bg-green-500 text-white" : "bg-red-500 text-white"
                     }`}>
                       {correct ? "Đúng" : "Sai"}
                     </span>
@@ -331,7 +331,7 @@ const MiniTestExecutionPage = () => {
           <Timer size={18} />
           <span className="font-mono font-black text-xl">{formatTime(timeLeft)}</span>
         </div>
-        <Button onClick={handleSubmit} disabled={submitting} className="bg-white text-black hover:bg-blue-600 hover:text-white font-black text-[10px] uppercase tracking-widest px-8 h-12 rounded-xl transition-all disabled:opacity-40">
+        <Button onClick={handleSubmit} disabled={submitting} className="bg-white text-black hover:bg-blue-600 hover:text-white dark:bg-white dark:text-black dark:hover:bg-blue-600 dark:hover:text-white font-black text-[10px] uppercase tracking-widest px-8 h-12 rounded-xl transition-all disabled:opacity-40">
           {submitting ? "Đang nộp..." : "Nộp bài"}
         </Button>
       </header>
@@ -413,7 +413,7 @@ const MiniTestExecutionPage = () => {
               if (currentIndex < questions.length - 1) setCurrentIndex((prev) => prev + 1);
               else handleSubmit();
             }}
-            className="bg-white text-black hover:bg-blue-600 hover:text-white px-12 h-16 rounded-[24px] font-black uppercase text-xs tracking-[0.2em] shadow-sm border border-slate-200 transition-all"
+            className="bg-white text-black hover:bg-blue-600 hover:text-white dark:bg-white dark:text-black dark:hover:bg-blue-600 dark:hover:text-white px-12 h-16 rounded-[24px] font-black uppercase text-xs tracking-[0.2em] shadow-sm border border-slate-200 dark:border-white/10 transition-all"
           >
             {currentIndex < questions.length - 1 ? "Tiếp theo" : "Hoàn thành bài thi"}
           </Button>

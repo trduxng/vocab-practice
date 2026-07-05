@@ -1,9 +1,28 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, Zap } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { ProgressActivityDay } from "@/src/modules/user/types";
+
+/* ─── Custom Tooltip ─── */
+
+function XpTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; color: string }>; label?: string }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="overflow-hidden rounded-xl border-0 bg-slate-900 px-3 py-2.5 shadow-2xl dark:bg-slate-800">
+      <p className="text-[10px] font-medium text-white/60">{label}</p>
+      {payload.map((entry, i) => (
+        <div key={i} className="mt-1 flex items-center gap-1.5">
+          <Zap className="h-3.5 w-3.5" style={{ color: entry.color }} />
+          <span className="text-xs font-bold text-white">
+            +{entry.value.toLocaleString("vi-VN")} XP
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 type TrendPeriod = "daily" | "weekly" | "monthly";
 
@@ -12,9 +31,9 @@ type XPTrendChartProps = {
 };
 
 const periods: Array<{ id: TrendPeriod; label: string }> = [
-  { id: "daily", label: "Ngay" },
-  { id: "weekly", label: "Tuan" },
-  { id: "monthly", label: "Thang" },
+  { id: "daily", label: "Ngày" },
+  { id: "weekly", label: "Tuần" },
+  { id: "monthly", label: "Tháng" },
 ];
 
 function shortDate(date: string) {
@@ -66,8 +85,8 @@ export default function XPTrendChart({ activity }: XPTrendChartProps) {
     <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.04] sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-600 dark:text-amber-400">XP trend</p>
-          <h2 className="mt-1 text-xl font-black tracking-tight text-slate-950 dark:text-white">Nhip tang XP</h2>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-600 dark:text-amber-400">Xu hướng XP</p>
+          <h2 className="mt-1 text-xl font-black tracking-tight text-slate-950 dark:text-white">Nhịp tăng XP</h2>
         </div>
         <div className="flex rounded-xl bg-slate-100 p-1 dark:bg-white/[0.06]">
           {periods.map((item) => (
@@ -90,7 +109,7 @@ export default function XPTrendChart({ activity }: XPTrendChartProps) {
       {totalXP === 0 ? (
         <div className="mt-6 flex h-64 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-6 text-center dark:border-white/10 dark:bg-white/[0.02]">
           <BarChart3 className="h-8 w-8 text-slate-300 dark:text-slate-600" />
-          <p className="mt-3 text-sm font-bold text-slate-700 dark:text-slate-200">Chua co XP trong khoang thoi gian nay</p>
+          <p className="mt-3 text-sm font-bold text-slate-700 dark:text-slate-200">Chưa có XP trong khoảng thời gian này</p>
         </div>
       ) : (
         <div className="mt-6 h-64 w-full">
@@ -105,7 +124,7 @@ export default function XPTrendChart({ activity }: XPTrendChartProps) {
               <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#94a3b833" />
               <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
               <YAxis allowDecimals={false} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-              <Tooltip />
+              <Tooltip content={<XpTooltip />} />
               <Area type="monotone" dataKey="xp" name="XP" stroke="#f59e0b" strokeWidth={3} fill="url(#xpTrendFill)" />
             </AreaChart>
           </ResponsiveContainer>

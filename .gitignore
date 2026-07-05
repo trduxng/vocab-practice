@@ -68,3 +68,14 @@ process/
 .codex/
 .gemini/
 
+# backend test/inspect files
+backend/src/empty/
+backend/empty/
+
+# dev scripts (local convenience)
+start.sh
+stop.sh
+
+# runtime data (PID files, logs)
+.vocaboost/
+

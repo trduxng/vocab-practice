@@ -487,14 +487,14 @@ export default function CreatorMediaPage() {
                   <button
                     onClick={(e) => { e.stopPropagation(); copyUrl(item); }}
                     className="p-1.5 rounded-lg bg-black/50 text-white hover:bg-blue-600 transition-colors"
-                    title="Copy URL"
+                    title="Sao chép URL"
                   >
                     {copiedId === item.id ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); copyAnkiRef(item); }}
                     className="p-1.5 rounded-lg bg-black/50 text-white hover:bg-purple-600 transition-colors"
-                    title="Copy Anki/Quizlet ref"
+                    title="Sao chép tham chiếu Anki/Quizlet"
                   >
                     <Clipboard className="h-3 w-3" />
                   </button>
