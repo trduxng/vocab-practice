@@ -2,6 +2,38 @@ const { sql, poolPromise } = require("../../config/db");
 const GamificationService = require("./gamification.service");
 const { calculateEaseFactor, calculateNextReview, calculateMasteryLevel, determineMemoryStatus, DEFAULT_EASE_FACTOR } = require("../../engine/srs");
 
+function gradeQuestion(questionType, submittedAnswer, correctAnswer) {
+  const answer = (submittedAnswer || "").trim().toLowerCase().replace(/\s+/g, " ");
+  const expected = (correctAnswer || "").trim().toLowerCase().replace(/\s+/g, " ");
+
+  switch ((questionType || "").toLowerCase()) {
+    case "fillblank":
+    case "fill_in_blank":
+      return answer === expected;
+    case "mcq":
+    case "multiplechoice":
+    case "dragdrop":
+    case "dictation":
+    case "flashcardcheck":
+    case "audiorecognition":
+    case "truefalse":
+    case "matching":
+    case "listening":
+    default:
+      return answer === expected;
+  }
+}
+
+function normalizeOptions(optionsJson) {
+  if (!optionsJson) return [];
+  try {
+    const parsed = JSON.parse(optionsJson);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 class FlashcardService {
   static async getDueFlashcards(userId, { topicId = null, mode = null } = {}) {
     const pool = await poolPromise;
@@ -300,7 +332,7 @@ class FlashcardService {
       if (dupeCheck.recordset[0].cnt > 0) throw new Error(`Bạn đã hoàn thành bài test ${testId} rồi`);
 
       const testQuestionsResult = await new sql.Request(transaction).input("MiniTestID", sql.BigInt, testId)
-        .query(`SELECT q.QuestionID, q.WordID, q.CorrectAnswer FROM dbo.MiniTestItems mti JOIN dbo.Questions q ON q.QuestionID = mti.QuestionID AND q.ContentStatus = N'Published' WHERE mti.MiniTestID = @MiniTestID;`);
+        .query(`SELECT q.QuestionID, q.WordID, q.CorrectAnswer, q.QuestionType FROM dbo.MiniTestItems mti JOIN dbo.Questions q ON q.QuestionID = mti.QuestionID AND q.ContentStatus = N'Published' WHERE mti.MiniTestID = @MiniTestID;`);
       const testQuestions = new Map(testQuestionsResult.recordset.map((q) => [Number(q.QuestionID), q]));
       if (testQuestions.size === 0) throw new Error(`Mini test ${testId} does not contain questions`);
       if (answers.length !== testQuestions.size) throw new Error(`Mini test ${testId} requires exactly ${testQuestions.size} answers`);
@@ -334,7 +366,7 @@ class FlashcardService {
         submittedQuestionIds.add(numericQuestionId);
 
         const wordId = Number(question.WordID);
-        const isCorrect = submittedAnswer.trim().toLowerCase() === String(question.CorrectAnswer || "").trim().toLowerCase();
+        const isCorrect = gradeQuestion(question.QuestionType, submittedAnswer, question.CorrectAnswer);
         const scoreAwarded = isCorrect ? 100 : 0;
         const req = new sql.Request(transaction);
         req.input('UserID', sql.BigInt, userId).input('QuestionID', sql.BigInt, questionId || null);

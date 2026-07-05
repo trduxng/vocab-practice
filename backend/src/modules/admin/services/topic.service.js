@@ -101,6 +101,76 @@ class TopicService {
     if (result.rowsAffected[0] > 0) await logAdminAction(adminId, 'DELETE_TOPIC', 'Topic', topicId);
     return { success: result.rowsAffected[0] > 0, archived: false };
   }
+
+  // ── Topic Categories ──
+  static async getTopicCategories() {
+    const pool = await poolPromise;
+    const result = await pool.request().query(`
+      SELECT tc.TopicCategoryID AS id, tc.CategoryName AS name, tc.CategoryCode AS code,
+             tc.Description AS description, tc.IconUrl AS iconUrl, tc.DisplayOrder AS displayOrder,
+             tc.IsActive AS isActive, COUNT(DISTINCT t.TopicID) AS topicCount,
+             COUNT(DISTINCT wt.WordID) AS wordCount, tc.UpdatedAt AS updatedAt, tc.CreatedAt AS createdAt
+      FROM TopicCategories tc LEFT JOIN Topics t ON tc.TopicCategoryID = t.TopicCategoryID
+      LEFT JOIN WordTopics wt ON t.TopicID = wt.TopicID
+      GROUP BY tc.TopicCategoryID, tc.CategoryName, tc.CategoryCode, tc.Description,
+               tc.IconUrl, tc.DisplayOrder, tc.IsActive, tc.UpdatedAt, tc.CreatedAt
+      ORDER BY tc.DisplayOrder ASC, tc.CategoryName ASC`);
+    return result.recordset;
+  }
+
+  static async createTopicCategory(categoryData, adminId) {
+    const name = String(categoryData?.name ?? '').trim();
+    const code = buildTopicCode(categoryData?.code || name);
+    const description = String(categoryData?.description ?? '').trim();
+    const iconUrl = String(categoryData?.iconUrl ?? '').trim();
+    const displayOrder = Number(categoryData?.displayOrder) || 1;
+    const isActive = categoryData?.isActive === undefined ? true : Boolean(categoryData.isActive);
+    if (!name) throw new Error('Invalid topic category data');
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('CategoryName', sql.NVarChar(255), name).input('CategoryCode', sql.NVarChar(100), code)
+      .input('Description', sql.NVarChar(1000), description || null).input('IconUrl', sql.NVarChar(1000), iconUrl || null)
+      .input('DisplayOrder', sql.Int, displayOrder).input('IsActive', sql.Bit, isActive)
+      .input('CreatedByUserID', sql.BigInt, adminId)
+      .query(`IF EXISTS (SELECT 1 FROM TopicCategories WHERE CategoryCode = @CategoryCode) THROW 50011, 'Topic category code already exists', 1;
+        INSERT INTO TopicCategories (CategoryName, CategoryCode, Description, IconUrl, DisplayOrder, IsActive, CreatedByUserID, CreatedAt, UpdatedAt)
+        OUTPUT inserted.TopicCategoryID AS id, inserted.CategoryName AS name, inserted.CategoryCode AS code, inserted.Description AS description, inserted.IsActive AS isActive
+        VALUES (@CategoryName, @CategoryCode, @Description, @IconUrl, @DisplayOrder, @IsActive, @CreatedByUserID, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())`);
+    const created = result.recordset[0];
+    await logAdminAction(adminId, 'CREATE_TOPIC_CATEGORY', 'TopicCategory', created.id, created);
+    return created;
+  }
+
+  static async updateTopicCategory(categoryId, categoryData, adminId) {
+    const name = String(categoryData?.name ?? '').trim();
+    const code = buildTopicCode(categoryData?.code || name);
+    const description = String(categoryData?.description ?? '').trim();
+    const iconUrl = String(categoryData?.iconUrl ?? '').trim();
+    const displayOrder = Number(categoryData?.displayOrder) || 1;
+    const isActive = categoryData?.isActive === undefined ? true : Boolean(categoryData.isActive);
+    if (!name) throw new Error('Invalid topic category data');
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('TopicCategoryID', sql.BigInt, categoryId).input('CategoryName', sql.NVarChar(255), name)
+      .input('CategoryCode', sql.NVarChar(100), code).input('Description', sql.NVarChar(1000), description || null)
+      .input('IconUrl', sql.NVarChar(1000), iconUrl || null).input('DisplayOrder', sql.Int, displayOrder)
+      .input('IsActive', sql.Bit, isActive)
+      .query(`UPDATE TopicCategories SET CategoryName=@CategoryName, CategoryCode=@CategoryCode,
+        Description=@Description, IconUrl=@IconUrl, DisplayOrder=@DisplayOrder, IsActive=@IsActive,
+        UpdatedAt=SYSDATETIMEOFFSET() WHERE TopicCategoryID=@TopicCategoryID`);
+    if (result.rowsAffected[0] > 0) await logAdminAction(adminId, 'UPDATE_TOPIC_CATEGORY', 'TopicCategory', categoryId, categoryData);
+    return result.rowsAffected[0] > 0;
+  }
+
+  static async deleteTopicCategory(categoryId, adminId) {
+    const pool = await poolPromise;
+    const result = await pool.request().input('TopicCategoryID', sql.BigInt, categoryId)
+      .query(`UPDATE Topics SET TopicCategoryID = NULL, UpdatedAt = SYSDATETIMEOFFSET() WHERE TopicCategoryID = @TopicCategoryID;
+        UPDATE TopicCategories SET IsActive = 0, UpdatedAt = SYSDATETIMEOFFSET() WHERE TopicCategoryID = @TopicCategoryID`);
+    const success = result.rowsAffected.some((count) => count > 0);
+    if (success) await logAdminAction(adminId, 'DISABLE_TOPIC_CATEGORY', 'TopicCategory', categoryId);
+    return success;
+  }
 }
 
 module.exports = TopicService;

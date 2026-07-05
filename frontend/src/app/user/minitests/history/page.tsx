@@ -125,7 +125,7 @@ const MiniTestHistoryPage = () => {
                       <p className="text-[10px] text-slate-600 dark:text-slate-400 uppercase font-bold tracking-widest mb-1">Độ chính xác</p>
                       <p className={`font-black ${accuracy >= 80 ? "text-green-400" : accuracy >= 50 ? "text-blue-400" : "text-red-400"}`}>{accuracy}%</p>
                     </div>
-                    <Button onClick={() => handleViewDetails(session)} className="dark:bg-white/5 bg-slate-100 hover:dark:bg-white/10 hover:bg-slate-200 text-slate-900 dark:text-white rounded-xl px-6 h-11 font-bold text-xs uppercase tracking-widest gap-2">
+                    <Button onClick={() => handleViewDetails(session)} className="dark:bg-white/5 bg-slate-100 dark:hover:bg-white/10 hover:bg-slate-200 text-slate-900 dark:text-white rounded-xl px-6 h-11 font-bold text-xs uppercase tracking-widest gap-2">
                       Xem lại <ChevronRight size={14} />
                     </Button>
                   </div>

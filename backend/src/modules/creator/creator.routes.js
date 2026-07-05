@@ -14,7 +14,7 @@ router.get('/topics/:id/analytics', checkPermission('VIEW_CONTENT_ANALYTICS'), C
 router.get('/mini-tests/:id/analytics', checkPermission('VIEW_CONTENT_ANALYTICS'), CreatorController.getMiniTestAnalytics);
 
 // TopicCategories
-router.get('/topic-categories', CreatorController.getTopics); // getTopicCategories
+router.get('/topic-categories', CreatorController.getTopicCategories);
 
 // Topics
 router.get('/topics', checkPermission('MANAGE_TOPICS'), CreatorController.getTopics);
@@ -22,10 +22,14 @@ router.post('/topics', checkPermission('MANAGE_TOPICS'), CreatorController.creat
 router.put('/topics/:id', checkPermission('MANAGE_TOPICS'), CreatorController.updateTopic);
 router.delete('/topics/:id', checkPermission('MANAGE_TOPICS'), CreatorController.deleteTopic);
 router.post('/topics/:id/submit-review', checkPermission('SUBMIT_CONTENT_REVIEW'), CreatorController.submitTopicForReview);
+router.post('/topics/:id/withdraw', checkPermission('SUBMIT_CONTENT_REVIEW'), CreatorController.withdrawTopic);
+router.post('/topics/:id/duplicate', checkPermission('MANAGE_TOPICS'), CreatorController.duplicateTopic);
+router.get('/topics/:id/logs', checkPermission('MANAGE_TOPICS'), CreatorController.getTopicReviewLogs);
 
 // Words
 router.get('/words', checkPermission('MANAGE_WORDS'), CreatorController.getWords);
 router.post('/words', checkPermission('MANAGE_WORDS'), CreatorController.createWord);
+router.post('/words/bulk', checkPermission('MANAGE_WORDS'), CreatorController.bulkCreateWords);
 router.put('/words/:id', checkPermission('MANAGE_WORDS'), CreatorController.updateWord);
 router.delete('/words/:id', checkPermission('MANAGE_WORDS'), CreatorController.deleteWord);
 router.post('/words/:id/submit-review', checkPermission('SUBMIT_CONTENT_REVIEW'), CreatorController.submitWordForReview);
@@ -42,6 +46,8 @@ router.get('/mini-tests', checkPermission('MANAGE_TESTS'), CreatorController.get
 router.post('/mini-tests', checkPermission('MANAGE_TESTS'), CreatorController.createMiniTest);
 router.put('/mini-tests/:id', checkPermission('MANAGE_TESTS'), CreatorController.updateMiniTest);
 router.delete('/mini-tests/:id', checkPermission('MANAGE_TESTS'), CreatorController.deleteMiniTest);
+router.post('/mini-tests/:id/items', checkPermission('MANAGE_TESTS'), CreatorController.addMiniTestItem);
+router.delete('/mini-tests/:id/items/:questionId', checkPermission('MANAGE_TESTS'), CreatorController.removeMiniTestItem);
 router.post('/mini-tests/:id/submit-review', checkPermission('SUBMIT_CONTENT_REVIEW'), CreatorController.submitMiniTestForReview);
 
 // Media

@@ -142,7 +142,7 @@ const MiniTestsPage = () => {
 
                     <Button
                       onClick={() => router.push(`/user/minitests/${test.id}`)}
-                      className="w-full bg-white dark:bg-white text-slate-900 hover:bg-blue-600 hover:text-white font-black text-xs uppercase tracking-widest py-6 rounded-2xl transition-all border border-slate-200 dark:border-transparent"
+                      className="w-full bg-white dark:bg-white/10 text-slate-900 dark:text-slate-200 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white font-black text-xs uppercase tracking-widest py-6 rounded-2xl transition-all border border-slate-200 dark:border-white/10"
                     >
                       Bắt đầu làm bài <ChevronRight size={14} />
                     </Button>

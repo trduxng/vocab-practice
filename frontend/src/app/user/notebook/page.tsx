@@ -63,7 +63,7 @@ export default function VocabularyNotebook() {
     let cancelled = false;
 
     userService
-      .getNotebook(page, 20)
+      .getNotebook(page, 12)
       .then((result) => {
         if (cancelled) return;
         setEntries(result.data || []);
@@ -281,91 +281,83 @@ export default function VocabularyNotebook() {
             </Button>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredEntries.map((entry) => (
               <div
                 key={entry.notebookId}
-                className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-5 transition-all hover:shadow-sm group"
+                className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-5 transition-all hover:shadow-sm group flex flex-col"
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-1">
-                      <button
-                        onClick={() => speak(entry.term)}
-                        className="shrink-0 p-1.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 transition-colors"
-                        title="Nghe phát âm"
-                      >
-                        <Volume2 size={14} />
-                      </button>
-                      <h4 className="text-slate-900 dark:text-white font-black text-lg truncate">
-                        {entry.term}
-                      </h4>
-                      {entry.phonetic && (
-                        <span className="text-slate-600 dark:text-slate-400 text-xs font-mono">
-                          {entry.phonetic}
-                        </span>
-                      )}
-                      {entry.partOfSpeechName && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 font-medium uppercase tracking-wider">
-                          {entry.partOfSpeechName}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-slate-600 dark:text-slate-400 text-sm font-medium mb-3">
-                      {entry.meaning}
-                    </p>
-
-                    {entry.personalNote && (
-                      <div className="inline-block rounded-xl bg-blue-500/5 border border-blue-500/10 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 italic max-w-lg">
-                        &ldquo;{entry.personalNote}&rdquo;
-                      </div>
-                    )}
-
-                    <div className="flex items-center gap-4 mt-3">
-                      <span className="text-[10px] text-slate-500 dark:text-slate-500 font-medium">
-                        Thành thạo:{" "}
-                        <span className="font-black text-slate-900 dark:text-white">
-                          {entry.masteryLevel}/10
-                        </span>
-                      </span>
-                      <span className="text-[10px] text-slate-500 dark:text-slate-500 font-medium">
-                        Thêm vào:{" "}
-                        {new Date(entry.addedAt).toLocaleDateString("vi-VN")}
-                      </span>
-                    </div>
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <button
+                      onClick={() => speak(entry.term)}
+                      className="shrink-0 p-1.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 transition-colors"
+                      title="Nghe phát âm"
+                    >
+                      <Volume2 size={14} />
+                    </button>
+                    <h4 className="text-slate-900 dark:text-white font-black text-base truncate">
+                      {entry.term}
+                    </h4>
                   </div>
+                  <button
+                    onClick={() => handleToggleFavorite(entry)}
+                    className={`shrink-0 p-1.5 rounded-lg transition-all ${
+                      entry.isFavorite
+                        ? "text-amber-500 bg-amber-500/10"
+                        : "text-slate-500 hover:text-amber-500 hover:bg-amber-500/10"
+                    }`}
+                    title={entry.isFavorite ? "Bỏ yêu thích" : "Yêu thích"}
+                  >
+                    <Star size={14} fill={entry.isFavorite ? "currentColor" : "none"} />
+                  </button>
+                </div>
 
-                  <div className="flex items-center gap-1 shrink-0">
+                {entry.phonetic && (
+                  <span className="text-slate-500 dark:text-slate-400 text-xs font-mono mb-1">
+                    {entry.phonetic}
+                    {entry.partOfSpeechName && (
+                      <span className="ml-2 text-[9px] px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-white/5 font-medium uppercase tracking-wider">
+                        {entry.partOfSpeechName}
+                      </span>
+                    )}
+                  </span>
+                )}
+
+                <p className="text-slate-600 dark:text-slate-400 text-sm font-medium mb-3 line-clamp-2">
+                  {entry.meaning}
+                </p>
+
+                {entry.personalNote && (
+                  <div className="rounded-xl bg-blue-500/5 border border-blue-500/10 px-3 py-2 text-xs text-slate-600 dark:text-slate-400 italic mb-3 line-clamp-2">
+                    &ldquo;{entry.personalNote}&rdquo;
+                  </div>
+                )}
+
+                <div className="mt-auto flex items-center justify-between pt-3 border-t border-slate-100 dark:border-white/5">
+                  <span className="text-[9px] text-slate-500 dark:text-slate-500 font-medium">
+                    Thành thạo:{" "}
+                    <span className="font-black text-slate-900 dark:text-white">
+                      {entry.masteryLevel}/10
+                    </span>
+                  </span>
+                  <div className="flex items-center gap-1">
                     <button
                       onClick={() => {
                         setEditingEntry(entry);
                         setEditNote(entry.personalNote || "");
                       }}
-                      className="p-2 rounded-xl text-slate-500 hover:text-blue-600 hover:bg-blue-500/10 transition-all"
+                      className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-500/10 transition-all"
                       title="Sửa ghi chú"
                     >
-                      <Pencil size={16} />
-                    </button>
-                    <button
-                      onClick={() => handleToggleFavorite(entry)}
-                      className={`p-2 rounded-xl transition-all ${
-                        entry.isFavorite
-                          ? "text-amber-500 bg-amber-500/10"
-                          : "text-slate-500 hover:text-amber-500 hover:bg-amber-500/10"
-                      }`}
-                      title={entry.isFavorite ? "Bỏ yêu thích" : "Yêu thích"}
-                    >
-                      <Star
-                        size={16}
-                        fill={entry.isFavorite ? "currentColor" : "none"}
-                      />
+                      <Pencil size={13} />
                     </button>
                     <button
                       onClick={() => handleDelete(entry)}
-                      className="p-2 rounded-xl text-slate-500 hover:text-red-500 hover:bg-red-500/10 transition-all"
+                      className="p-1.5 rounded-lg text-slate-500 hover:text-red-500 hover:bg-red-500/10 transition-all"
                       title="Xóa khỏi sổ tay"
                     >
-                      <Trash2 size={16} />
+                      <Trash2 size={13} />
                     </button>
                   </div>
                 </div>

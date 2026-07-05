@@ -2,13 +2,13 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Brain, CheckCircle2, Clock, GripVertical, RefreshCw, Volume2, XCircle } from "lucide-react";
+import { ArrowLeft, Brain, CheckCircle2, Clock, GripVertical, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { userService } from "@/src/services/user.service";
 import { useAuth } from "@/src/app/context/AuthContext";
 import { Button } from "@/src/components/ui/button";
-import { Input } from "@/src/components/ui/input";
 import { Card } from "@/src/components/ui/card";
+import { QuestionRenderer } from "@/src/components/user/practice/QuestionRenderer";
 import ReportDialog from "@/src/components/shared/ReportDialog";
 import GamificationCelebration from "@/src/components/user/gamification/GamificationCelebration";
 import LevelProgressBar from "@/src/components/user/gamification/LevelProgressBar";
@@ -165,15 +165,6 @@ export default function UserPractice() {
       void Promise.resolve().then(() => resetQuestionState());
     }
   }, [current?.questionId, current?.questionType, dragItems, resetQuestionState]);
-
-  const speak = (text: string) => {
-    if (typeof window !== "undefined" && window.speechSynthesis && text) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = "en-US";
-      window.speechSynthesis.speak(utterance);
-    }
-  };
 
   const submittedAnswer = current?.questionType === "DragDrop" ? orderedItems.join(" ") : selected;
   const isCorrect = current?.questionType === "MCQ"
@@ -505,21 +496,15 @@ export default function UserPractice() {
         </Card>
 
         {current.questionType === "MCQ" ? (
-          <div className="grid gap-3">
-            {mcqOptions.map((option: string, optionIndex: number) => {
-              const isSelected = selected === option;
-              const isAnswer = option === expectedAnswer;
-              return (
-                <button key={`${option}-${optionIndex}`} disabled={checked} onClick={() => setSelected(option)} className={`group relative p-6 rounded-3xl border-2 text-left transition-all ${checked ? (isAnswer ? "bg-green-500/10 border-green-500/40 text-white" : (isSelected ? "bg-red-500/10 border-red-500/40 text-white" : "dark:bg-white/2 bg-slate-100 border-slate-200 dark:border-white/5 text-slate-500 dark:text-slate-700")) : (isSelected ? "bg-blue-600 border-blue-500 text-white scale-[1.02] shadow-2xl shadow-blue-900/40" : "dark:bg-white/3 bg-white border-slate-200 dark:border-white/5 text-slate-500 dark:text-slate-400 hover:dark:bg-white/5 hover:bg-slate-100 hover:border-slate-300 dark:hover:border-white/10")}`}>
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-lg">{option}</span>
-                    {checked && isAnswer && <CheckCircle2 size={24} className="text-green-400" />}
-                    {checked && isSelected && !isAnswer && <XCircle size={24} className="text-red-400" />}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+          <QuestionRenderer
+            questionType="MCQ"
+            options={mcqOptions}
+            value={selected}
+            onChange={setSelected}
+            mode={checked ? "feedback" : "select"}
+            correctAnswer={expectedAnswer}
+            disabled={checked}
+          />
         ) : current.questionType === "DragDrop" ? (
           <div className="space-y-4">
             <div className="grid gap-3">
@@ -535,7 +520,7 @@ export default function UserPractice() {
                     moveDraggedItem(itemIndex);
                   }}
                   onDrop={() => setDraggedIndex(null)}
-                  className={`flex items-center gap-4 rounded-3xl border-2 p-5 text-left transition-all ${checked ? (isCorrect ? "border-green-500/40 bg-green-500/10 text-white" : "border-red-500/40 bg-red-500/10 text-white") : "border-slate-200 dark:border-white/5 dark:bg-white/3 bg-white text-slate-700 dark:text-slate-200 hover:border-blue-500/40 hover:dark:bg-white/5 hover:bg-slate-100"}`}
+                  className={`flex items-center gap-4 rounded-3xl border-2 p-5 text-left transition-all ${checked ? (isCorrect ? "border-green-500/40 bg-green-500/10 text-white" : "border-red-500/40 bg-red-500/10 text-white") : "border-slate-200 dark:border-white/5 dark:bg-white/3 bg-white text-slate-700 dark:text-slate-200 hover:border-blue-500/40 dark:hover:bg-white/10 hover:bg-slate-100"}`}
                 >
                   <GripVertical size={18} className="shrink-0 text-slate-500" />
                   <span className="text-lg font-black">{item}</span>
@@ -549,20 +534,34 @@ export default function UserPractice() {
               </div>
             )}
           </div>
+        ) : current.questionType === "FillBlank" ? (
+          <div className="space-y-6">
+            <QuestionRenderer
+              questionType="FillBlank"
+              options={[]}
+              value={selected}
+              onChange={setSelected}
+              mode={checked ? "feedback" : "select"}
+              correctAnswer={expectedAnswer}
+              disabled={checked}
+            />
+            {checked && !isCorrect && (
+              <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl text-center">
+                <p className="text-slate-500 dark:text-slate-400 text-slate-500 text-[10px] uppercase font-bold mb-1">Đáp án đúng</p>
+                <p className="text-red-400 text-2xl font-black">{expectedAnswer}</p>
+              </div>
+            )}
+          </div>
         ) : (
           <div className="space-y-6">
-            {current.questionType === "Dictation" && (
-              <button type="button" onClick={() => speak(expectedAnswer)} className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-300 hover:bg-blue-500/20" aria-label="Phát âm thanh chính tả">
-                <Volume2 size={28} />
-              </button>
-            )}
-            <Input
+            <QuestionRenderer
+              questionType={current.questionType}
+              options={[]}
               value={selected}
+              onChange={setSelected}
+              mode={checked ? "feedback" : "select"}
+              correctAnswer={expectedAnswer}
               disabled={checked}
-              autoFocus
-              onChange={(event) => setSelected(event.target.value)}
-              placeholder="Nhập câu trả lời..."
-              className={`h-24 text-4xl font-black text-center rounded-[32px] dark:bg-white/3 bg-white border-4 transition-all ${checked ? (isCorrect ? "border-green-500 text-green-400 shadow-glow-green" : "border-red-500 text-red-400 shadow-glow-red") : "border-slate-200 dark:border-white/5 focus:border-blue-600 focus:dark:bg-white/5 focus:bg-slate-50 text-slate-900 dark:text-white"}`}
             />
             {checked && !isCorrect && (
               <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl text-center">

@@ -1,4 +1,4 @@
-const ProgressService = require("./progress.service");
+const ProgressService = require("../learner/progress.service");
 
 class ProgressController {
   static async getProgress(req, res, next) {
