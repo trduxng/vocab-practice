@@ -28,7 +28,7 @@ import { adminService, type PaginationMeta } from "@/src/services/admin.service"
 import { adminLabel } from "@/src/lib/admin-i18n";
 
 type ContentStatus = "Draft" | "PendingReview" | "Published" | "Rejected" | "Archived";
-type QuestionType = "MCQ" | "FillBlank" | "DragDrop" | "Dictation" | "FlashcardCheck" | "AudioRecognition";
+type QuestionType = "MCQ" | "FillBlank" | "DragDrop" | "Dictation";
 
 type WordItem = {
   id: number;
@@ -65,7 +65,7 @@ type BulkImportResult = {
   errors?: Array<{ row: number; message: string }>;
 };
 
-const questionTypes: QuestionType[] = ["MCQ", "FillBlank", "Dictation", "DragDrop", "FlashcardCheck", "AudioRecognition"];
+const questionTypes: QuestionType[] = ["MCQ", "FillBlank", "Dictation", "DragDrop"];
 const statusOptions: ContentStatus[] = ["Draft", "PendingReview", "Published", "Rejected", "Archived"];
 
 const statusTone: Record<ContentStatus, "slate" | "blue" | "emerald" | "amber" | "rose"> = {
@@ -443,11 +443,10 @@ export default function AdminQuestionsPage() {
                       key={word.id}
                       type="button"
                       onClick={() => selectWord(word)}
-                      className={`w-full rounded-lg border p-3 text-left transition-colors ${
-                        selectedWord?.id === word.id
+                      className={`w-full rounded-lg border p-3 text-left transition-colors ${selectedWord?.id === word.id
                           ? "border-blue-400 bg-blue-50 dark:border-blue-500/40 dark:bg-blue-500/10"
                           : "border-slate-200 bg-white hover:bg-slate-50 dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/[0.06]"
-                      }`}
+                        }`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">

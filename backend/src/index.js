@@ -19,7 +19,6 @@ const adminRoutes = require('./modules/admin/routes');
 const userRoutes = require('./modules/learner/learner.routes');
 const progressRoutes = require('./modules/progress/progress.routes');
 const creatorRoutes = require('./modules/creator/creator.routes');
-const reviewRoutes = require('./modules/review/review.routes');
 const aiRoutes = require('./modules/ai/ai.routes');
 
 const app = express();
@@ -75,7 +74,6 @@ app.get('/api/health', async (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoriesRoutes);
-app.use('/api/admin/content-review', reviewRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/progress', progressRoutes);

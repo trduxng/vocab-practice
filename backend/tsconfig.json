@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "moduleDetection": "force",
+    "noEmit": true,
+    "allowJs": true,
+    "allowImportingTsExtensions": true,
+    "noImplicitAny": false,
+    "strict": false,
+    "useUnknownInCatchVariables": false,
+    "skipLibCheck": true,
+    "esModuleInterop": true
+  },
+  "include": ["src/modules/admin/**/*.ts"]
+}
