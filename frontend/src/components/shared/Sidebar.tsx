@@ -55,7 +55,6 @@ const adminLinks: NavLink[] = [
   { icon: BookOpen, label: "Từ vựng", href: "/admin/words", anyOf: [PERMISSIONS.manageWords] },
   { icon: FileQuestion, label: "Câu hỏi", href: "/admin/questions", anyOf: [PERMISSIONS.manageQuestions] },
   { icon: ListChecks, label: "Bài kiểm tra", href: "/admin/minitests", anyOf: [PERMISSIONS.manageTests] },
-  { icon: Settings, label: "Cài đặt", href: "/admin/settings" },
 ];
 
 const creatorLinks: NavLink[] = [
