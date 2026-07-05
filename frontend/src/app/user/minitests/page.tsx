@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BookOpen, ChevronRight, Clock, FileText } from "lucide-react";
+import { BookOpen, ChevronRight, Clock, FileText, LayoutGrid, List, Search, X } from "lucide-react";
 import { userService } from "@/src/services/user.service";
 import { useAuth } from "@/src/app/context/AuthContext";
 import Topbar from "@/src/components/shared/Topbar";
@@ -23,8 +23,17 @@ const MiniTestsPage = () => {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [viewMode, setViewMode] = useState<"detailed" | "grid">("detailed");
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const pageSize = 12;
   const router = useRouter();
+
+  // Debounce search: chỉ fetch sau khi ngừng gõ 300ms
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   useEffect(() => {
     if (!user) return;
@@ -33,7 +42,7 @@ const MiniTestsPage = () => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
 
-    userService.getMiniTests(page, pageSize)
+    userService.getMiniTests(page, pageSize, debouncedSearch)
       .then((result) => {
         if (cancelled) return;
         setTests(result.data || []);
@@ -49,7 +58,7 @@ const MiniTestsPage = () => {
       });
 
     return () => { cancelled = true; };
-  }, [user, page, pageSize]);
+  }, [user, page, pageSize, debouncedSearch]);
 
   if (authLoading) {
     return (
@@ -84,79 +93,165 @@ const MiniTestsPage = () => {
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {loading ? (
-            Array.from({ length: 4 }).map((_, i) => (
-              <Card key={i} className="bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 overflow-hidden shadow-sm">
-                <CardContent className="p-6 space-y-4">
-                  <div className="flex justify-between items-start">
-                    <div className="w-12 h-12 rounded-2xl bg-slate-200 dark:bg-white/10 animate-pulse" />
-                    <div className="w-16 h-5 rounded bg-slate-200 dark:bg-white/10 animate-pulse" />
-                  </div>
-                  <div className="h-6 w-3/4 bg-slate-200 dark:bg-white/10 rounded animate-pulse" />
-                  <div className="h-8 w-full bg-slate-200 dark:bg-white/10 rounded animate-pulse" />
-                  <div className="h-12 w-full bg-slate-200 dark:bg-white/10 rounded-2xl animate-pulse" />
-                </CardContent>
-              </Card>
-            ))
-          ) : tests.length > 0 ? (
-            tests.map((test) => (
-              <Card
-                key={test.id}
-                className="bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 hover:border-blue-500/30 transition-all group overflow-hidden shadow-sm"
-              >
-                <CardContent className="p-0">
-                  <div className="p-6">
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
-                        <FileText size={24} />
+        {/* Search + View toggle */}
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1 max-w-sm">
+            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              placeholder="Tìm kiếm bài kiểm tra..."
+              className="w-full h-11 pl-11 pr-10 rounded-2xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-sm font-medium outline-none focus:border-blue-500/50 transition-all placeholder:text-slate-500"
+            />
+            {search && (
+              <button onClick={() => { setSearch(""); setPage(1); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors">
+                <X size={16} />
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-1 ml-auto">
+          <button
+            onClick={() => setViewMode("detailed")}
+            className={`p-2 rounded-xl transition-all ${
+              viewMode === "detailed"
+                ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                : "text-slate-500 hover:text-slate-300 border border-transparent"
+            }`}
+            title="Xem chi tiết"
+          >
+            <List size={18} />
+          </button>
+          <button
+            onClick={() => setViewMode("grid")}
+            className={`p-2 rounded-xl transition-all ${
+              viewMode === "grid"
+                ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                : "text-slate-500 hover:text-slate-300 border border-transparent"
+            }`}
+            title="Xem lưới"
+          >
+            <LayoutGrid size={18} />
+          </button>
+          </div>
+        </div>
+
+        {viewMode === "grid" ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {loading ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <Card key={i} className="bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 overflow-hidden shadow-sm">
+                  <CardContent className="p-6 space-y-4">
+                    <div className="flex justify-between items-start">
+                      <div className="w-12 h-12 rounded-2xl bg-slate-200 dark:bg-white/10 animate-pulse" />
+                      <div className="w-16 h-5 rounded bg-slate-200 dark:bg-white/10 animate-pulse" />
+                    </div>
+                    <div className="h-6 w-3/4 bg-slate-200 dark:bg-white/10 rounded animate-pulse" />
+                    <div className="h-8 w-full bg-slate-200 dark:bg-white/10 rounded animate-pulse" />
+                    <div className="h-12 w-full bg-slate-200 dark:bg-white/10 rounded-2xl animate-pulse" />
+                  </CardContent>
+                </Card>
+              ))
+            ) : tests.length > 0 ? (
+              tests.map((test) => (
+                <Card
+                  key={test.id}
+                  className="bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 hover:border-blue-500/30 transition-all group overflow-hidden shadow-sm"
+                >
+                  <CardContent className="p-0">
+                    <div className="p-6">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+                          <FileText size={24} />
+                        </div>
+                        <span className="text-[10px] px-2 py-1 rounded bg-white/5 text-slate-500 font-bold uppercase tracking-widest border border-white/5">
+                          {test.topicName || "Tổng hợp"}
+                        </span>
                       </div>
-                      <span className="text-[10px] px-2 py-1 rounded bg-white/5 text-slate-500 font-bold uppercase tracking-widest border border-white/5">
+                      <h3 className="text-slate-900 dark:text-white font-bold text-lg mb-2 group-hover:text-blue-400 transition-colors">
+                        {test.title}
+                      </h3>
+                      <p className="text-slate-500 dark:text-slate-400 text-xs line-clamp-2 mb-6 h-8">
+                        {test.description ||
+                          "Bài kiểm tra đánh giá năng lực từ vựng tổng hợp."}
+                      </p>
+                      <div className="flex items-center gap-4 text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest mb-6">
+                        <span className="flex items-center gap-1.5">
+                          <Clock size={12} className="text-blue-600 dark:text-blue-500" /> 10 phút
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <BookOpen size={12} className="text-blue-600 dark:text-blue-500" /> {test.totalQuestions || 0} câu
+                        </span>
+                      </div>
+                      <Button
+                        onClick={() => router.push(`/user/minitests/${test.id}`)}
+                        className="w-full bg-white dark:bg-white/10 text-slate-900 dark:text-slate-200 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white font-black text-xs uppercase tracking-widest py-6 rounded-2xl transition-all border border-slate-200 dark:border-white/10"
+                      >
+                        Bắt đầu làm bài <ChevronRight size={14} />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <div className="col-span-2 py-20 text-center text-slate-500 dark:text-slate-600 border border-dashed border-slate-200 dark:border-white/10 rounded-3xl">
+                <FileText size={48} className="mx-auto mb-4 opacity-10" />
+                <p>Hiện chưa có bài kiểm tra nào được xuất bản.</p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {loading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="h-20 rounded-2xl bg-white/5 animate-pulse" />
+              ))
+            ) : tests.length > 0 ? (
+              tests.map((test) => (
+                <div
+                  key={test.id}
+                  className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-5 flex items-center gap-5 hover:border-blue-500/30 transition-all group"
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
+                    <FileText size={22} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-1">
+                      <h3 className="text-slate-900 dark:text-white font-bold text-base truncate group-hover:text-blue-400 transition-colors">
+                        {test.title}
+                      </h3>
+                      <span className="text-[9px] px-2 py-0.5 rounded bg-white/5 text-slate-500 font-bold uppercase tracking-widest border border-white/5 shrink-0">
                         {test.topicName || "Tổng hợp"}
                       </span>
                     </div>
-                    <h3 className="text-slate-900 dark:text-white font-bold text-lg mb-2 group-hover:text-blue-400 transition-colors">
-                      {test.title}
-                    </h3>
-                    <p className="text-slate-500 dark:text-slate-400 text-slate-500 text-xs line-clamp-2 mb-6 h-8">
-                      {test.description ||
-                        "Bài kiểm tra đánh giá năng lực từ vựng tổng hợp."}
+                    <p className="text-slate-500 dark:text-slate-400 text-xs line-clamp-1">
+                      {test.description || "Bài kiểm tra đánh giá năng lực từ vựng tổng hợp."}
                     </p>
-
-                    <div className="flex items-center gap-4 text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest mb-6">
-                      <span className="flex items-center gap-1.5">
-                        <Clock
-                          size={12}
-                          className="text-blue-600 dark:text-blue-500"
-                        />{" "}
-                        10 phút
+                    <div className="flex items-center gap-4 mt-2 text-[9px] text-slate-500 dark:text-slate-500 font-bold uppercase tracking-widest">
+                      <span className="flex items-center gap-1">
+                        <Clock size={11} className="text-blue-500" /> 10 phút
                       </span>
-                      <span className="flex items-center gap-1.5">
-                        <BookOpen
-                          size={12}
-                          className="text-blue-600 dark:text-blue-500"
-                        />{" "}
-                        {test.totalQuestions || 0} câu
+                      <span className="flex items-center gap-1">
+                        <BookOpen size={11} className="text-blue-500" /> {test.totalQuestions || 0} câu
                       </span>
                     </div>
-
-                    <Button
-                      onClick={() => router.push(`/user/minitests/${test.id}`)}
-                      className="w-full bg-white dark:bg-white/10 text-slate-900 dark:text-slate-200 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white font-black text-xs uppercase tracking-widest py-6 rounded-2xl transition-all border border-slate-200 dark:border-white/10"
-                    >
-                      Bắt đầu làm bài <ChevronRight size={14} />
-                    </Button>
                   </div>
-                </CardContent>
-              </Card>
-            ))
-          ) : (
-            <div className="col-span-2 py-20 text-center text-slate-500 dark:text-slate-600 border border-dashed border-slate-200 dark:border-white/10 rounded-3xl">
-              <FileText size={48} className="mx-auto mb-4 opacity-10" />
-              <p>Hiện chưa có bài kiểm tra nào được xuất bản.</p>
-            </div>
-          )}
-        </div>
+                  <Button
+                    onClick={() => router.push(`/user/minitests/${test.id}`)}
+                    className="shrink-0 bg-white dark:bg-white/10 text-slate-900 dark:text-slate-200 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white font-black text-[10px] uppercase tracking-widest px-5 h-11 rounded-xl transition-all border border-slate-200 dark:border-white/10"
+                  >
+                    Bắt đầu <ChevronRight size={13} />
+                  </Button>
+                </div>
+              ))
+            ) : (
+              <div className="py-20 text-center text-slate-500 dark:text-slate-600 border border-dashed border-slate-200 dark:border-white/10 rounded-3xl">
+                <FileText size={48} className="mx-auto mb-4 opacity-10" />
+                <p>Hiện chưa có bài kiểm tra nào được xuất bản.</p>
+              </div>
+            )}
+          </div>
+        )}
         {/* Pagination */}
         {!loading && totalPages > 1 && (
           <div className="flex justify-center items-center gap-4 mt-8">

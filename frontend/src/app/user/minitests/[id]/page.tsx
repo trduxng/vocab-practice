@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { AlertCircle, ArrowLeft, Brain, CheckCircle2, ChevronRight, ChevronLeft, Timer, Volume2, XCircle, HelpCircle } from "lucide-react";
+import { AlertCircle, ArrowLeft, Brain, CheckCircle2, ChevronRight, ChevronLeft, Info, Timer, Volume2, XCircle, HelpCircle } from "lucide-react";
 import { userService } from "@/src/services/user.service";
 import { useAuth } from "@/src/app/context/AuthContext";
 import { Button } from "@/src/components/ui/button";
@@ -50,18 +50,24 @@ const MiniTestExecutionPage = () => {
     xpEarned?: number;
     gamification?: GamificationReward;
     results: AnswerResult[];
+    attemptNumber?: number;
   } | null>(null);
   const [showReview, setShowReview] = useState(false);
   const [timeLeft, setTimeLeft] = useState(TEST_SECONDS);
+  const [attemptInfo, setAttemptInfo] = useState<{ attemptCount: number; bestScore: number } | null>(null);
 
   useEffect(() => {
     if (!user || !params.id) return;
     let cancelled = false;
 
-    userService.getMiniTestDetails(params.id as string)
-      .then((data) => {
+    Promise.all([
+      userService.getMiniTestDetails(params.id as string),
+      userService.getMyMiniTestAttempts(params.id as string),
+    ])
+      .then(([questions, attempts]) => {
         if (cancelled) return;
-        setQuestions(data);
+        setQuestions(questions);
+        setAttemptInfo(attempts);
       })
       .catch((error) => {
         if (cancelled) return;
@@ -108,6 +114,13 @@ const MiniTestExecutionPage = () => {
     }
   }, [answers, questions, submitted, submitting, params.id]);
 
+  const handleSubmitWithConfirm = useCallback(() => {
+    if (submitted || submitting) return;
+    if (window.confirm("Bạn đã hoàn thành? Bài làm sẽ được nộp và không thể chỉnh sửa.")) {
+      void handleSubmit();
+    }
+  }, [submitted, submitting, handleSubmit]);
+
   useEffect(() => {
     if (submitted || loading || questions.length === 0 || submitting) return;
     if (timeLeft <= 0) {
@@ -118,6 +131,40 @@ const MiniTestExecutionPage = () => {
     const timer = setInterval(() => setTimeLeft((v) => v - 1), 1000);
     return () => clearInterval(timer);
   }, [timeLeft, submitted, loading, questions.length, handleSubmit, submitting]);
+
+  const confirmLeave = useCallback(() => {
+    if (submitted) return true;
+    return window.confirm("Bạn có chắc muốn rời khỏi bài kiểm tra? Tiến trình sẽ bị mất.");
+  }, [submitted]);
+
+  const handleBack = useCallback(() => {
+    if (confirmLeave()) router.back();
+  }, [confirmLeave, router]);
+
+  // ── Navigation guard ──
+  useEffect(() => {
+    if (submitted) return;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    const handleClick = (e: MouseEvent) => {
+      const anchor = (e.target as HTMLElement).closest("a");
+      if (!anchor) return;
+      const url = new URL(anchor.href, window.location.origin);
+      if (url.origin !== window.location.origin) return;
+      if (url.pathname === window.location.pathname) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (confirmLeave()) router.push(url.pathname + url.search + url.hash);
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    document.addEventListener("click", handleClick, true);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      document.removeEventListener("click", handleClick, true);
+    };
+  }, [submitted, confirmLeave, router]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -355,7 +402,7 @@ const MiniTestExecutionPage = () => {
       {/* Top bar */}
       <header className="bg-white/80 dark:bg-black/60 backdrop-blur-2xl border-b border-slate-200 dark:border-white/5 sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
-          <button onClick={() => router.back()} className="p-2 hover:bg-white/5 rounded-xl text-slate-500 transition-colors shrink-0">
+          <button onClick={handleBack} className="p-2 hover:bg-white/5 rounded-xl text-slate-500 transition-colors shrink-0">
             <ArrowLeft size={20} />
           </button>
 
@@ -394,7 +441,7 @@ const MiniTestExecutionPage = () => {
             </div>
 
             <Button
-              onClick={handleSubmit}
+              onClick={handleSubmitWithConfirm}
               disabled={submitting}
               className="bg-blue-600 hover:bg-blue-500 text-white font-black text-[10px] uppercase tracking-widest px-5 h-9 rounded-xl shadow-lg transition-all disabled:opacity-40"
             >
@@ -404,7 +451,18 @@ const MiniTestExecutionPage = () => {
         </div>
       </header>
 
-      <main className="flex-1 p-6 max-w-4xl mx-auto w-full space-y-8 py-10">
+      <main className="flex-1 p-6 max-w-4xl mx-auto w-full space-y-6 py-10">
+        {/* Attempt info banner */}
+        {attemptInfo && attemptInfo.attemptCount > 0 && (
+          <div className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-sm">
+            <Info size={16} className="shrink-0" />
+            <span className="font-medium">
+              Bạn đã làm bài này <strong>{attemptInfo.attemptCount} lần</strong>.
+              Điểm cao nhất: <strong>{attemptInfo.bestScore}%</strong>
+            </span>
+          </div>
+        )}
+
         {/* Question dots navigator */}
         <div className="flex items-center gap-3 justify-center">
           {questions.map((question, qIndex) => {
@@ -521,7 +579,7 @@ const MiniTestExecutionPage = () => {
           <Button
             onClick={() => {
               if (currentIndex < questions.length - 1) setCurrentIndex((prev) => prev + 1);
-              else handleSubmit();
+              else handleSubmitWithConfirm();
             }}
             className="bg-blue-600 hover:bg-blue-500 text-white px-8 h-14 rounded-2xl font-black uppercase text-xs tracking-[0.15em] shadow-lg shadow-blue-500/20 transition-all gap-2"
           >

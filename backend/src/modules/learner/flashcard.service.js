@@ -75,6 +75,35 @@ class FlashcardService {
     return result.recordset;
   }
 
+  static async getAllDueFlashcards(userId, limit = 15) {
+    const pool = await poolPromise;
+    limit = Math.min(50, Math.max(1, limit));
+    const result = await pool.request()
+      .input("UserID", sql.BigInt, userId)
+      .input("Limit", sql.Int, limit).query(`
+        SELECT TOP (@Limit) q.QuestionID AS questionId, q.QuestionType AS questionType,
+          COALESCE(q.QuestionText, w.Meaning) AS questionText, COALESCE(q.CorrectAnswer, w.Term) AS correctAnswer,
+          q.OptionsJson AS optionsJson, w.Phonetic AS phonetic, w.Meaning AS meaning, w.Term AS term,
+          w.AudioUrlUK AS audioUrlUK, w.AudioUrlUS AS audioUrlUS, w.ImageUrl AS imageUrl, w.WordID AS wordId,
+          p.PartOfSpeechName AS partOfSpeechName, ISNULL(uwp.MasteryLevel, 0) AS masteryLevel,
+          ISNULL(uwp.MemoryStatus, N'New') AS memoryStatus, ISNULL(uwp.RepetitionCount, 0) AS repetitionCount,
+          ex.SentenceText AS exampleSentence, ex.SentenceTranslation AS exampleMeaning
+        FROM dbo.UserTopicEnrollments ute
+        JOIN dbo.WordTopics wt ON ute.TopicID = wt.TopicID
+        JOIN dbo.Words w ON wt.WordID = w.WordID AND w.ContentStatus = N'Published'
+        LEFT JOIN dbo.PartOfSpeeches p ON w.PartOfSpeechID = p.PartOfSpeechID
+        OUTER APPLY (SELECT TOP 1 QuestionID, QuestionType, QuestionText, CorrectAnswer, OptionsJson FROM dbo.Questions WHERE WordID = w.WordID AND ContentStatus = N'Published' ORDER BY QuestionID) q
+        OUTER APPLY (SELECT TOP 1 SentenceText, SentenceTranslation FROM dbo.ExampleSentences WHERE WordID = w.WordID ORDER BY ExampleSentenceID) ex
+        LEFT JOIN dbo.UserWordProgress uwp ON w.WordID = uwp.WordID AND uwp.UserID = @UserID
+        WHERE ute.UserID = @UserID AND ute.IsActive = 1
+          AND (uwp.NextReviewDate IS NULL OR uwp.NextReviewDate <= SYSDATETIMEOFFSET())
+        ORDER BY
+          CASE WHEN uwp.NextReviewDate <= SYSDATETIMEOFFSET() THEN 0 WHEN uwp.UserWordProgressID IS NOT NULL THEN 1 ELSE 2 END,
+          uwp.NextReviewDate, uwp.MasteryLevel, NEWID()
+      `);
+    return result.recordset;
+  }
+
   static async getTopicWords(userId, topicId) {
     const pool = await poolPromise;
     const result = await pool.request().input("UserID", sql.BigInt, userId).input("TopicID", sql.BigInt, topicId).query(`
@@ -234,6 +263,57 @@ class FlashcardService {
     return result.recordset;
   }
 
+  static async getPracticeQueue(userId, { limit = 15, topicId = null } = {}) {
+    limit = Math.min(50, Math.max(1, limit));
+
+    const smartLimit = Math.min(7, Math.max(3, Math.round(limit / 3)));
+    const smartQueue = await this.getSmartReviewQueue(userId, smartLimit);
+
+    const remainingLimit = limit - smartQueue.length;
+    let normalQueue = [];
+    if (remainingLimit > 0) {
+      normalQueue = topicId
+        ? await this.getDueFlashcards(userId, { topicId })
+        : await this.getAllDueFlashcards(userId, remainingLimit);
+      normalQueue = normalQueue.slice(0, remainingLimit);
+    }
+
+    const smartQuestions = smartQueue.map((item) => ({
+      questionId: null,
+      wordId: Number(item.wordId),
+      questionType: 'FillBlank',
+      questionText: String(item.meaning || '') || String(item.term || ''),
+      correctAnswer: String(item.term || ''),
+      optionsJson: null,
+      term: String(item.term || ''),
+      meaning: String(item.meaning || ''),
+      phonetic: item.phonetic || null,
+      source: 'smart',
+    }));
+
+    const normalQuestions = normalQueue.map((item) => ({
+      ...item,
+      source: 'normal',
+    }));
+
+    const merged = [];
+    let si = 0;
+    let ni = 0;
+    let turn = 0;
+    while (si < smartQuestions.length || ni < normalQuestions.length) {
+      if (si < smartQuestions.length && (turn % 3 === 0 || ni >= normalQuestions.length)) {
+        merged.push(smartQuestions[si++]);
+      } else if (ni < normalQuestions.length) {
+        merged.push(normalQuestions[ni++]);
+      } else if (si < smartQuestions.length) {
+        merged.push(smartQuestions[si++]);
+      }
+      turn++;
+    }
+
+    return merged;
+  }
+
   static async getMistakeReviewQueue(userId, limit = 10) {
     const pool = await poolPromise;
     limit = Math.min(30, Math.max(1, limit));
@@ -251,20 +331,35 @@ class FlashcardService {
   }
 
   // ── Mini Tests ──
-  static async getMiniTests(page = 1, pageSize = 20) {
+  static async getMiniTests(page = 1, pageSize = 20, search = "") {
     const pool = await poolPromise;
     page = Math.max(1, page);
     pageSize = Math.min(100, Math.max(1, pageSize));
     const offset = (page - 1) * pageSize;
-    const countResult = await pool.request().query(`SELECT COUNT(*) AS total FROM MiniTests WHERE IsPublished = 1`);
+    const searchFilter = search
+      ? `AND mt.TestTitle LIKE @Search`
+      : "";
+    const countReq = search
+      ? pool.request().input("Search", sql.NVarChar(200), `%${search}%`)
+      : pool.request();
+    const countResult = await countReq.query(`SELECT COUNT(*) AS total FROM MiniTests mt LEFT JOIN Topics t ON mt.TopicID = t.TopicID WHERE mt.IsPublished = 1 ${searchFilter}`);
     const total = countResult.recordset[0].total;
-    const result = await pool.request().input("Offset", sql.Int, offset).input("PageSize", sql.Int, pageSize).query(`
+    const dataReq = pool.request().input("Offset", sql.Int, offset).input("PageSize", sql.Int, pageSize);
+    if (search) dataReq.input("Search", sql.NVarChar(200), `%${search}%`);
+    const result = await dataReq.query(`
       SELECT mt.MiniTestID AS id, mt.TestTitle AS title, mt.Description AS description,
         t.TopicName AS topicName, t.TopicCode AS topicCode, mt.TotalQuestions AS totalQuestions
       FROM MiniTests mt LEFT JOIN Topics t ON mt.TopicID = t.TopicID
-      WHERE mt.IsPublished = 1 ORDER BY mt.CreatedAt DESC OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
+      WHERE mt.IsPublished = 1 ${searchFilter} ORDER BY mt.CreatedAt DESC OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
     `);
     return { data: result.recordset, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+  }
+
+  static async getMyMiniTestAttempts(userId, testId) {
+    const pool = await poolPromise;
+    const result = await pool.request().input("UserID", sql.BigInt, userId).input("MiniTestID", sql.BigInt, testId)
+      .query(`SELECT COUNT(*) AS attemptCount, ISNULL(MAX(Score), 0) AS bestScore FROM dbo.MiniTestAttempts WHERE MiniTestID = @MiniTestID AND UserID = @UserID AND SubmittedAt IS NOT NULL`);
+    return { attemptCount: Number(result.recordset[0]?.attemptCount || 0), bestScore: Number(result.recordset[0]?.bestScore || 0) };
   }
 
   static async getMiniTestDetails(testId) {
@@ -275,7 +370,7 @@ class FlashcardService {
       FROM MiniTests mt JOIN MiniTestItems mti ON mti.MiniTestID = mt.MiniTestID
       JOIN Questions q ON mti.QuestionID = q.QuestionID AND q.ContentStatus = N'Published'
       JOIN Words w ON q.WordID = w.WordID AND w.ContentStatus = N'Published'
-      WHERE mt.MiniTestID = @MiniTestID AND mt.IsPublished = 1 ORDER BY mti.DisplayOrder
+      WHERE mt.MiniTestID = @MiniTestID AND mt.IsPublished = 1 ORDER BY NEWID()
     `);
     return result.recordset;
   }
@@ -327,9 +422,9 @@ class FlashcardService {
       if (!mtCheck.recordset[0] || mtCheck.recordset[0].IsPublished !== true)
         throw new Error(`Mini test ${testId} chưa được xuất bản hoặc không tồn tại`);
 
-      const dupeCheck = await new sql.Request(transaction).input("MiniTestID", sql.BigInt, testId).input("UserID", sql.BigInt, userId)
-        .query(`SELECT COUNT(*) AS cnt FROM dbo.MiniTestAttempts WHERE MiniTestID = @MiniTestID AND UserID = @UserID AND SubmittedAt IS NOT NULL`);
-      if (dupeCheck.recordset[0].cnt > 0) throw new Error(`Bạn đã hoàn thành bài test ${testId} rồi`);
+      const attemptCountResult = await new sql.Request(transaction).input("MiniTestID", sql.BigInt, testId).input("UserID", sql.BigInt, userId)
+        .query(`SELECT COUNT(*) AS cnt, ISNULL(MAX(Score), 0) AS bestScore FROM dbo.MiniTestAttempts WHERE MiniTestID = @MiniTestID AND UserID = @UserID AND SubmittedAt IS NOT NULL`);
+      const attemptInfo = attemptCountResult.recordset[0];
 
       const testQuestionsResult = await new sql.Request(transaction).input("MiniTestID", sql.BigInt, testId)
         .query(`SELECT q.QuestionID, q.WordID, q.CorrectAnswer, q.QuestionType FROM dbo.MiniTestItems mti JOIN dbo.Questions q ON q.QuestionID = mti.QuestionID AND q.ContentStatus = N'Published' WHERE mti.MiniTestID = @MiniTestID;`);
@@ -391,7 +486,6 @@ class FlashcardService {
           const wordReq = new sql.Request(transaction);
           wordReq.input('UserID', sql.BigInt, userId).input('WordID', sql.BigInt, wordId);
           wordReq.input('MasteryLevel', sql.Int, newMastery);
-          wordReq.input('EaseFactor', sql.Decimal(5, 2), DEFAULT_EASE_FACTOR);
           wordReq.input('RepetitionCount', sql.Int, newReps);
           wordReq.input('NextReviewDate', sql.DateTimeOffset, nextReview);
           wordReq.input('MemoryStatus', sql.NVarChar(20), newMemoryStatus);
@@ -409,13 +503,21 @@ class FlashcardService {
               LastReviewedAt = SYSDATETIMEOFFSET(), NextReviewDate = @NextReviewDate,
               LastScore = CASE WHEN @IsCorrect = 1 THEN 100.00 ELSE 0.00 END, MemoryStatus = @MemoryStatus, UpdatedAt = SYSDATETIMEOFFSET()
               WHERE UserID = @UserID AND WordID = @WordID`);
+            progressMap.set(wordId, { ...row, EaseFactor: newEF, MasteryLevel: newMastery,
+              RepetitionCount: newReps, ConsecutiveCorrect: newConsecutiveCorrect,
+              ConsecutiveWrong: newConsecutiveWrong, MemoryStatus: newMemoryStatus });
           } else {
+            wordReq.input('EaseFactor', sql.Decimal(5, 2), DEFAULT_EASE_FACTOR);
             await wordReq.query(`INSERT INTO UserWordProgress (UserID, WordID, MasteryLevel, EaseFactor, RepetitionCount,
                 ConsecutiveCorrect, ConsecutiveWrong, LastReviewedAt, NextReviewDate, LastScore, MemoryStatus, CreatedAt, UpdatedAt)
               VALUES (@UserID, @WordID, @MasteryLevel, @EaseFactor, @RepetitionCount,
                 CASE WHEN @IsCorrect = 1 THEN 1 ELSE 0 END, CASE WHEN @IsCorrect = 0 THEN 1 ELSE 0 END,
                 SYSDATETIMEOFFSET(), @NextReviewDate, CASE WHEN @IsCorrect = 1 THEN 100.00 ELSE 0.00 END,
                 @MemoryStatus, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())`);
+            progressMap.set(wordId, { WordID: wordId, EaseFactor: DEFAULT_EASE_FACTOR,
+              MasteryLevel: newMastery, RepetitionCount: newReps,
+              ConsecutiveCorrect: isCorrect ? 1 : 0, ConsecutiveWrong: isCorrect ? 0 : 1,
+              MemoryStatus: newMemoryStatus });
           }
         }
         if (isCorrect) correctCount++;
@@ -430,8 +532,16 @@ class FlashcardService {
       await transaction.commit();
       committed = true;
       const miniTestAttemptId = attemptResult.recordset[0]?.id;
-      const gamification = await GamificationService.awardXP(userId, { eventType: "MiniTestComplete", sourceKey: `mini-test-attempt:${miniTestAttemptId}`, metadata: { testId: Number(testId), miniTestAttemptId, score } });
-      return { total: answers.length, correct: correctCount, score, xpEarned: gamification.xpGained, gamification, results };
+
+      const isRetake = attemptInfo.cnt > 0;
+      const previousBest = Number(attemptInfo.bestScore || 0);
+      const improved = isRetake && score > previousBest;
+      let xpAmount = 20;
+      if (isRetake) xpAmount = 10;
+      if (improved) xpAmount += 5;
+
+      const gamification = await GamificationService.awardXP(userId, { eventType: "MiniTestComplete", sourceKey: `mini-test-attempt:${miniTestAttemptId}`, xpAmount, metadata: { testId: Number(testId), miniTestAttemptId, score, attemptNumber: attemptInfo.cnt + 1 } });
+      return { total: answers.length, correct: correctCount, score, xpEarned: gamification.xpGained, gamification, results, attemptNumber: attemptInfo.cnt + 1 };
     } catch (err) {
       if (!committed) await transaction.rollback();
       throw err;

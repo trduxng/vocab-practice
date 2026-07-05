@@ -369,3 +369,35 @@ html.dark {
     transform: translateY(0);
   }
 }
+
+/* Fade in up (staggered entrance) */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.35s ease both;
+}
+
+/* Slide in from right (question transitions) */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(40px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.35s ease both;
+}

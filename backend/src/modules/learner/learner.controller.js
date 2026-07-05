@@ -127,6 +127,13 @@ class LearnerController {
     } catch (error) { next(error); }
   }
 
+  static async getMyMiniTestAttempts(req, res, next) {
+    try {
+      const data = await FlashcardService.getMyMiniTestAttempts(req.user.id, req.params.id);
+      res.status(200).json(data);
+    } catch (error) { next(error); }
+  }
+
   static async getTestHistory(req, res, next) {
     try {
       const userId = req.user.id;
@@ -218,6 +225,16 @@ class LearnerController {
       if (!srsReviewLimit || srsReviewLimit < 5 || srsReviewLimit > 50) return res.status(400).json({ message: 'Số thẻ mỗi ngày phải từ 5 đến 50' });
       const result = await ProfileService.updateSRSReviewLimit(req.user.id, srsReviewLimit);
       res.status(200).json(result);
+    } catch (error) { next(error); }
+  }
+
+  // =============== PRACTICE QUEUE (merged) ===============
+  static async getPracticeQueue(req, res, next) {
+    try {
+      const limit = parseInt(req.query.limit) || 15;
+      const topicId = req.query.topicId || null;
+      const queue = await FlashcardService.getPracticeQueue(req.user.id, { limit, topicId });
+      res.status(200).json(queue);
     } catch (error) { next(error); }
   }
 

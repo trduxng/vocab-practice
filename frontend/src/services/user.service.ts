@@ -76,8 +76,8 @@ export const userService = {
     return response.data;
   },
 
-  async getMiniTests(page = 1, pageSize = 20) {
-    const response = await apiClient.get('/user/minitests', { params: { page, pageSize } });
+  async getMiniTests(page = 1, pageSize = 20, search = "") {
+    const response = await apiClient.get('/user/minitests', { params: { page, pageSize, search } });
     return response.data;
   },
 
@@ -94,6 +94,11 @@ export const userService = {
   async getMiniTestDetails(id: string) {
     const response = await apiClient.get(`/user/minitests/${id}`);
     return response.data;
+  },
+
+  async getMyMiniTestAttempts(id: string) {
+    const response = await apiClient.get(`/user/minitests/${id}/my-attempts`);
+    return response.data as { attemptCount: number; bestScore: number };
   },
 
   async updateProfile(data: unknown) {
@@ -132,6 +137,12 @@ export const userService = {
 
   async updateSRSConfig(srsReviewLimit: number) {
     const response = await apiClient.put('/user/goals/srs-config', { srsReviewLimit });
+    return response.data;
+  },
+
+  // =============== PRACTICE QUEUE (merged) ===============
+  async getPracticeQueue(params?: { limit?: number; topicId?: number | string }) {
+    const response = await apiClient.get('/user/practice-queue', { params });
     return response.data;
   },
 

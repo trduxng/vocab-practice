@@ -31,6 +31,7 @@ router.get("/minitests", LearnerController.getMiniTests);
 router.get("/minitests/history", LearnerController.getTestHistory);
 router.get("/minitests/session-details", LearnerController.getTestSessionDetails);
 router.get("/minitests/:id", LearnerController.getMiniTestDetails);
+router.get("/minitests/:id/my-attempts", LearnerController.getMyMiniTestAttempts);
 router.post("/minitests/:id/submit", LearnerController.submitMiniTest);
 
 // Profile
@@ -44,6 +45,9 @@ router.post("/reports", validate(schemas.createReport), LearnerController.create
 router.get("/goals/daily-goal", LearnerController.getDailyGoal);
 router.put("/goals/daily-goal", LearnerController.updateDailyGoal);
 router.put("/goals/srs-config", LearnerController.updateSRSConfig);
+
+// Practice Queue (merged)
+router.get("/practice-queue", LearnerController.getPracticeQueue);
 
 // Smart Review Queue
 router.get("/review/smart-queue", LearnerController.getSmartReviewQueue);

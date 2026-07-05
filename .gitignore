@@ -79,3 +79,5 @@ stop.sh
 # runtime data (PID files, logs)
 .vocaboost/
 
+# vscode debug config
+.vscode/
