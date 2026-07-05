@@ -2,23 +2,53 @@
 
 import React, { useEffect, useState } from 'react';
 import { creatorService } from '@/src/services/creator.service';
-import { BarChart3, BookOpen, FileQuestion, FileText, ListChecks, Loader2, PieChart as PieChartIcon, Award, TrendingUp, Users } from 'lucide-react';
+import { BarChart3, BookOpen, FileQuestion, FileText, ListChecks, Loader2, PieChart as PieChartIcon, Award, Users } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, ComposedChart, Line } from 'recharts';
 import { toast } from 'sonner';
 import Topbar from '@/src/components/shared/Topbar';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-  Legend,
-} from 'recharts';
-import ChartFrame from '@/src/components/admin/ChartFrame';
-import { chartColors } from '@/src/components/admin/AdminPrimitives';
+
+interface AcademicSummary {
+  totalStudents: number;
+  averageScore: number;
+  totalAttempts: number;
+  publishedTopics: number;
+}
+
+interface HardWordItem {
+  wordId: number;
+  term: string;
+  meaning: string;
+  totalAttempts: number;
+  wrongAttempts: number;
+  failureRate: number;
+}
+
+interface StudentAttemptItem {
+  id: number;
+  testId: number;
+  testTitle: string;
+  userId: number;
+  studentName: string;
+  studentEmail: string;
+  score: number;
+  totalQuestions: number;
+  correctCount: number;
+  submittedAt: string;
+}
+
+interface TestPerformanceItem {
+  testId: number;
+  testTitle: string;
+  averageScore: number;
+  attemptCount: number;
+}
+
+interface AcademicAnalyticsData {
+  summary: AcademicSummary;
+  hardWords: HardWordItem[];
+  studentAttempts: StudentAttemptItem[];
+  testPerformance: TestPerformanceItem[];
+}
 
 interface DashboardStats {
   TotalTopics?: number;
@@ -36,6 +66,18 @@ interface DashboardStats {
 interface ContentSummaryItem {
   EntityType: string;
   ContentStatus: string;
+  Total: number;
+}
+
+type ContentStatusKey = 'Draft' | 'PendingReview' | 'Published' | 'Rejected' | 'Archived';
+
+interface ContentStructureRow {
+  entityType: string;
+  Draft: number;
+  PendingReview: number;
+  Published: number;
+  Rejected: number;
+  Archived: number;
   Total: number;
 }
 
@@ -65,15 +107,17 @@ interface MiniTestAnalyticsItem {
 export default function CreatorDashboardPage() {
   const [stats, setStats] = useState<DashboardStats>({});
   const [summary, setSummary] = useState<ContentSummaryItem[]>([]);
+  const [academicAnalytics, setAcademicAnalytics] = useState<AcademicAnalyticsData | null>(null);
   const [topicAnalytics, setTopicAnalytics] = useState<TopicAnalyticsItem[]>([]);
   const [miniTestAnalytics, setMiniTestAnalytics] = useState<MiniTestAnalyticsItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadData = async () => {
     try {
-      const [s, c] = await Promise.all([
+      const [s, c, a] = await Promise.all([
         creatorService.getDashboard(),
         creatorService.getContentSummary(),
+        creatorService.getAcademicAnalytics(),
       ]);
       
       if (s && s.stats) {
@@ -87,6 +131,7 @@ export default function CreatorDashboardPage() {
         setMiniTestAnalytics([]);
       }
       setSummary(c);
+      setAcademicAnalytics(a);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Không thể tải dữ liệu dashboard');
@@ -127,9 +172,12 @@ export default function CreatorDashboardPage() {
     summary.reduce((acc, curr) => {
       const type = typeLabels[curr.EntityType] || curr.EntityType;
       if (!acc[type]) acc[type] = { name: type, Draft: 0, PendingReview: 0, Published: 0, Rejected: 0, Archived: 0 };
-      acc[type][curr.ContentStatus] = curr.Total;
+      const statusKey = curr.ContentStatus as ContentStatusKey;
+      if (['Draft', 'PendingReview', 'Published', 'Rejected', 'Archived'].includes(statusKey)) {
+        acc[type][statusKey] = curr.Total;
+      }
       return acc;
-    }, {} as Record<string, any>)
+    }, {} as Record<string, { name: string; Draft: number; PendingReview: number; Published: number; Rejected: number; Archived: number }>)
   ).map(([, value]) => value);
 
   // Transform summary for PieChart (Total by Entity Type)
@@ -151,50 +199,25 @@ export default function CreatorDashboardPage() {
     grouped[item.EntityType].push(item);
   });
 
-  const statusColors: Record<string, string> = {
-    Draft: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
-    PendingReview: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
-    Published: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
-    Rejected: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-    Archived: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
-  };
+  const contentStructureRows = Object.entries(
+    summary.reduce((acc, curr) => {
+      if (!acc[curr.EntityType]) {
+        acc[curr.EntityType] = { entityType: curr.EntityType, Draft: 0, PendingReview: 0, Published: 0, Rejected: 0, Archived: 0, Total: 0 };
+      }
 
-  const statusLabels: Record<string, string> = {
-    Draft: 'Bản nháp',
-    PendingReview: 'Chờ duyệt',
-    Published: 'Đã xuất bản',
-    Rejected: 'Bị từ chối',
-    Archived: 'Đã lưu trữ',
-  };
+      const statusKey = curr.ContentStatus as ContentStatusKey;
+      if (['Draft', 'PendingReview', 'Published', 'Rejected', 'Archived'].includes(statusKey)) {
+        acc[curr.EntityType][statusKey] = curr.Total;
+      }
+      acc[curr.EntityType].Total += curr.Total;
+      return acc;
+    }, {} as Record<string, ContentStructureRow>),
+  ).map(([, value]) => value);
 
-
-  // 1. Data for Content Overview Chart
-  const overviewData = [
-    { name: 'Chủ đề', value: stats.TotalTopics ?? 0, color: '#3b82f6' }, // blue-500
-    { name: 'Từ vựng', value: stats.TotalWords ?? 0, color: '#10b981' }, // emerald-500
-    { name: 'Câu hỏi', value: stats.TotalQuestions ?? 0, color: '#f59e0b' }, // amber-500
-    { name: 'Bài test', value: stats.TotalMiniTests ?? 0, color: '#8b5cf6' }, // purple-500
-  ];
-
-  // 2. Data for Status Distribution Chart
-  const statusData = Object.entries(typeLabels).map(([type, label]) => {
-    const items = grouped[type] || [];
-    const getCount = (status: string) => items.find((i) => i.ContentStatus === status)?.Total || 0;
-    return {
-      name: label,
-      'Bản nháp': getCount('Draft'),
-      'Chờ duyệt': getCount('PendingReview'),
-      'Từ chối': getCount('Rejected'),
-      'Đã duyệt': getCount('Published'),
-    };
-  });
-
-  const tooltipStyle = {
-    background: 'rgb(15 23 42)',
-    border: '1px solid rgba(255,255,255,.12)',
-    borderRadius: 8,
-    color: 'white',
-  };
+  const academicSummary = academicAnalytics?.summary;
+  const hardWords = academicAnalytics?.hardWords || [];
+  const studentAttempts = academicAnalytics?.studentAttempts || [];
+  const testPerformance = academicAnalytics?.testPerformance || [];
 
   return (
     <div className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-[#020617]">
@@ -294,10 +317,11 @@ export default function CreatorDashboardPage() {
                   <YAxis tick={{ fill: "#94a3b8", fontSize: 12 }} />
                   <Tooltip
                     contentStyle={{ background: "rgb(15 23 42)", border: "none", borderRadius: 8, color: "white" }}
-                    formatter={(value: any, name: any) => {
-                      if (name === 'TotalEnrolledLearners') return [value, 'Học viên đăng ký'];
-                      if (name === 'LearnersWithProgress') return [value, 'Học viên đã học'];
-                      return [value, name];
+                    formatter={(value, name) => {
+                      const label = String(name);
+                      if (label === 'TotalEnrolledLearners') return [value, 'Học viên đăng ký'];
+                      if (label === 'LearnersWithProgress') return [value, 'Học viên đã học'];
+                      return [value, label];
                     }}
                   />
                   <Legend formatter={(value) => {
@@ -333,10 +357,11 @@ export default function CreatorDashboardPage() {
                   <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tick={{ fill: "#94a3b8", fontSize: 12 }} label={{ value: 'Điểm trung bình (%)', angle: 90, position: 'insideRight', fill: '#94a3b8' }} />
                   <Tooltip
                     contentStyle={{ background: "rgb(15 23 42)", border: "none", borderRadius: 8, color: "white" }}
-                    formatter={(value: any, name: any) => {
-                      if (name === 'TotalAttempts') return [value, 'Số lượt làm'];
-                      if (name === 'AvgScore') return [`${parseFloat(value).toFixed(1)}%`, 'Điểm trung bình'];
-                      return [value, name];
+                    formatter={(value, name) => {
+                      const label = String(name);
+                      if (label === 'TotalAttempts') return [value, 'Số lượt làm'];
+                      if (label === 'AvgScore') return [`${Number(value).toFixed(1)}%`, 'Điểm trung bình'];
+                      return [value, label];
                     }}
                   />
                   <Legend formatter={(value) => {
@@ -349,6 +374,166 @@ export default function CreatorDashboardPage() {
                 </ComposedChart>
               </ResponsiveContainer>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* Creator Tables */}
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 p-6">
+            <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
+              <BarChart3 className="h-5 w-5 text-slate-400" /> Cơ cấu kho nội dung
+            </h2>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-white/10 text-slate-500">
+                    <th className="py-3 text-left font-medium">Loại nội dung</th>
+                    <th className="py-3 text-right font-medium">Bản nháp</th>
+                    <th className="py-3 text-right font-medium">Chờ duyệt</th>
+                    <th className="py-3 text-right font-medium">Đã duyệt</th>
+                    <th className="py-3 text-right font-medium">Từ chối</th>
+                    <th className="py-3 text-right font-medium">Lưu trữ</th>
+                    <th className="py-3 text-right font-medium">Tổng</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {contentStructureRows.map((row) => (
+                    <tr key={row.entityType} className="border-b border-slate-100 dark:border-white/5 last:border-0">
+                      <td className="py-3 font-medium">{typeLabels[row.entityType] || row.entityType}</td>
+                      <td className="py-3 text-right">{row.Draft}</td>
+                      <td className="py-3 text-right">{row.PendingReview}</td>
+                      <td className="py-3 text-right">{row.Published}</td>
+                      <td className="py-3 text-right">{row.Rejected}</td>
+                      <td className="py-3 text-right">{row.Archived}</td>
+                      <td className="py-3 text-right font-semibold">{row.Total}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 p-6">
+            <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
+              <FileText className="h-5 w-5 text-slate-400" /> Cơ cấu từ vựng
+            </h2>
+            <div className="overflow-x-auto max-h-[420px]">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-white/10 text-slate-500 sticky top-0 bg-white dark:bg-slate-950">
+                    <th className="py-3 text-left font-medium">Từ</th>
+                    <th className="py-3 text-left font-medium">Nghĩa</th>
+                    <th className="py-3 text-right font-medium">Lượt làm</th>
+                    <th className="py-3 text-right font-medium">Sai</th>
+                    <th className="py-3 text-right font-medium">Tỷ lệ sai (%)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {hardWords.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center text-slate-500">
+                        Chưa có dữ liệu từ vựng cần cải thiện.
+                      </td>
+                    </tr>
+                  ) : hardWords.map((item) => (
+                    <tr key={item.wordId} className="border-b border-slate-100 dark:border-white/5 last:border-0">
+                      <td className="py-3 font-medium">{item.term}</td>
+                      <td className="py-3 text-slate-500">{item.meaning}</td>
+                      <td className="py-3 text-right">{item.totalAttempts}</td>
+                      <td className="py-3 text-right">{item.wrongAttempts}</td>
+                      <td className="py-3 text-right font-semibold text-rose-500">{Number(item.failureRate).toFixed(1)}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 p-6">
+            <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
+              <Award className="h-5 w-5 text-slate-400" /> Tỷ lệ trả lời đúng (%)
+            </h2>
+            <div className="overflow-x-auto max-h-[420px]">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-white/10 text-slate-500 sticky top-0 bg-white dark:bg-slate-950">
+                    <th className="py-3 text-left font-medium">Bài test</th>
+                    <th className="py-3 text-right font-medium">Lượt làm</th>
+                    <th className="py-3 text-right font-medium">Điểm TB (%)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {testPerformance.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="py-8 text-center text-slate-500">
+                        Chưa có dữ liệu bài test.
+                      </td>
+                    </tr>
+                  ) : testPerformance.map((item) => (
+                    <tr key={item.testId} className="border-b border-slate-100 dark:border-white/5 last:border-0">
+                      <td className="py-3 font-medium">{item.testTitle}</td>
+                      <td className="py-3 text-right">{item.attemptCount}</td>
+                      <td className="py-3 text-right font-semibold text-emerald-500">{Number(item.averageScore).toFixed(1)}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {academicSummary && (
+              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                <div className="rounded-xl bg-slate-50 dark:bg-white/5 p-3">
+                  <p className="text-slate-500">Điểm TB chung</p>
+                  <p className="font-semibold text-lg">{academicSummary.averageScore.toFixed(1)}%</p>
+                </div>
+                <div className="rounded-xl bg-slate-50 dark:bg-white/5 p-3">
+                  <p className="text-slate-500">Số lượt làm</p>
+                  <p className="font-semibold text-lg">{academicSummary.totalAttempts}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 p-6">
+            <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
+              <Users className="h-5 w-5 text-slate-400" /> Hoạt động học tập
+            </h2>
+            <div className="overflow-x-auto max-h-[420px]">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-white/10 text-slate-500 sticky top-0 bg-white dark:bg-slate-950">
+                    <th className="py-3 text-left font-medium">Học viên</th>
+                    <th className="py-3 text-left font-medium">Bài test</th>
+                    <th className="py-3 text-right font-medium">Điểm</th>
+                    <th className="py-3 text-right font-medium">Đúng/Tổng</th>
+                    <th className="py-3 text-right font-medium">Thời gian</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {studentAttempts.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center text-slate-500">
+                        Chưa có hoạt động học tập gần đây.
+                      </td>
+                    </tr>
+                  ) : studentAttempts.map((item) => (
+                    <tr key={item.id} className="border-b border-slate-100 dark:border-white/5 last:border-0">
+                      <td className="py-3">
+                        <div className="font-medium">{item.studentName}</div>
+                        <div className="text-xs text-slate-500">{item.studentEmail}</div>
+                      </td>
+                      <td className="py-3">{item.testTitle}</td>
+                      <td className="py-3 text-right font-semibold">{Number(item.score).toFixed(1)}%</td>
+                      <td className="py-3 text-right">{item.correctCount}/{item.totalQuestions}</td>
+                      <td className="py-3 text-right text-slate-500">{new Date(item.submittedAt).toLocaleString('vi-VN')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>

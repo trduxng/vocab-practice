@@ -8,6 +8,6 @@ const authLimiter = rateLimiter({ maxRequests: 10, windowMs: 15 * 60 * 1000, mes
 const router = express.Router();
 
 router.post('/register', authLimiter, validate(schemas.register), AuthController.register);
-router.post('/login', authLimiter, validate(schemas.login), AuthController.login);
+router.post('/login', validate(schemas.login), AuthController.login);
 
 module.exports = router;

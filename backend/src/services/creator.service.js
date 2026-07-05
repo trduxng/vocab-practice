@@ -618,7 +618,7 @@ class CreatorService {
   }
 
   static async createWord(data, userId) {
-    const { term, meaning, phonetic, partOfSpeechId, topicIds, examples } = data;
+    const { term, meaning, phonetic, partOfSpeechId, topicIds, examples, mediaIds } = data;
     if (!topicIds || !Array.isArray(topicIds) || topicIds.length === 0) {
       throw new Error('Từ vựng bắt buộc phải được gán vào ít nhất một chủ đề (Topic)');
     }
@@ -797,21 +797,65 @@ class CreatorService {
   }
 
   static async updateWord(id, data, userId) {
-    const { term, meaning, phonetic, partOfSpeechId } = data;
+    const { term, meaning, phonetic, partOfSpeechId, mediaIds } = data;
     const pool = await poolPromise;
-    const result = await pool.request()
-      .input('WordID', sql.BigInt, id)
-      .input('UserID', sql.BigInt, userId)
-      .input('Term', sql.NVarChar(200), term)
-      .input('Meaning', sql.NVarChar(1000), meaning)
-      .input('Phonetic', sql.NVarChar(255), phonetic || '')
-      .input('PartOfSpeechID', sql.Int, partOfSpeechId)
-      .query(`
-        UPDATE Words SET Term=@Term, Meaning=@Meaning, Phonetic=@Phonetic,
-          PartOfSpeechID=@PartOfSpeechID, UpdatedAt=SYSDATETIMEOFFSET()
-        WHERE WordID=@WordID AND CreatedByUserID=@UserID
-      `);
-    return result.rowsAffected[0] > 0;
+    
+    // We start a transaction if mediaIds is present, otherwise simple query
+    if (mediaIds !== undefined) {
+      const transaction = new sql.Transaction(pool);
+      await transaction.begin();
+      try {
+        const req = new sql.Request(transaction);
+        await req
+          .input('WordID', sql.BigInt, id)
+          .input('UserID', sql.BigInt, userId)
+          .input('Term', sql.NVarChar(200), term)
+          .input('Meaning', sql.NVarChar(1000), meaning)
+          .input('Phonetic', sql.NVarChar(255), phonetic || '')
+          .input('PartOfSpeechID', sql.Int, partOfSpeechId)
+          .query(`
+            UPDATE Words SET Term=@Term, Meaning=@Meaning, Phonetic=@Phonetic,
+              PartOfSpeechID=@PartOfSpeechID, UpdatedAt=SYSDATETIMEOFFSET()
+            WHERE WordID=@WordID AND CreatedByUserID=@UserID
+          `);
+          
+        const delReq = new sql.Request(transaction);
+        await delReq.input('WordID', sql.BigInt, id)
+          .query(`DELETE FROM ContentMediaLinks WHERE EntityType = 'Word' AND EntityID = @WordID`);
+
+        if (Array.isArray(mediaIds) && mediaIds.length > 0) {
+          let displayOrder = 1;
+          for (const mId of mediaIds) {
+            const mr = new sql.Request(transaction);
+            await mr.input('MediaAssetID', sql.BigInt, mId)
+              .input('EntityType', sql.NVarChar(30), 'Word')
+              .input('EntityID', sql.BigInt, id)
+              .input('DisplayOrder', sql.Int, displayOrder++)
+              .query(`INSERT INTO ContentMediaLinks (MediaAssetID, EntityType, EntityID, DisplayOrder)
+                      VALUES (@MediaAssetID, @EntityType, @EntityID, @DisplayOrder)`);
+          }
+        }
+        await transaction.commit();
+        return true;
+      } catch (err) {
+        await transaction.rollback();
+        throw err;
+      }
+    } else {
+      const result = await pool.request()
+        .input('WordID', sql.BigInt, id)
+        .input('UserID', sql.BigInt, userId)
+        .input('Term', sql.NVarChar(200), term)
+        .input('Meaning', sql.NVarChar(1000), meaning)
+        .input('Phonetic', sql.NVarChar(255), phonetic || '')
+        .input('PartOfSpeechID', sql.Int, partOfSpeechId)
+        .query(`
+          UPDATE Words SET Term=@Term, Meaning=@Meaning, Phonetic=@Phonetic,
+            PartOfSpeechID=@PartOfSpeechID, UpdatedAt=SYSDATETIMEOFFSET()
+          WHERE WordID=@WordID AND CreatedByUserID=@UserID
+        `);
+      return result.rowsAffected[0] > 0;
+    }
   }
 
   static async deleteWord(id, userId) {

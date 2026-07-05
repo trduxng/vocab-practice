@@ -82,6 +82,7 @@ const schemas = {
       phonetic: z.string().optional(),
       partOfSpeechId: z.coerce.number().int().positive(),
       topicIds: z.array(z.coerce.number().int().positive()).optional(),
+      mediaIds: z.array(z.coerce.number().int().positive()).optional(),
       status: z.enum(['Draft', 'PendingReview', 'Published', 'Rejected', 'Archived']).optional(),
       examples: z.array(z.object({
         sentence: z.string(),

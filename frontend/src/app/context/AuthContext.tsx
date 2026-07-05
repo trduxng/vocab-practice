@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation';
 import { authService } from '@/src/services/auth.service';
 import type { PermissionCode } from '@/src/modules/auth/types/permissions';
 import { hasPermission as userHasPermission } from '@/src/modules/auth/utils/permissions';
+import { decodeJwtPayload } from '@/src/lib/jwt';
+
+type LoginResponse = Awaited<ReturnType<typeof authService.login>>;
 
 interface User {
   id: string | number;
@@ -18,7 +21,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   loading: boolean;
-  login: (data: { email: string; password: string }) => Promise<void>;
+  login: (data: { email: string; password: string }) => Promise<LoginResponse>;
   logout: () => void;
   isAuthenticated: boolean;
   isAdmin: boolean;
@@ -30,12 +33,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 function parsePermissionsFromToken(token: string): PermissionCode[] {
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return Array.isArray(payload.permissions) ? payload.permissions : [];
-  } catch {
-    return [];
-  }
+  const payload = decodeJwtPayload<{ permissions?: PermissionCode[] }>(token);
+  return payload && Array.isArray(payload.permissions) ? payload.permissions : [];
 }
 
 function readStoredAuth(): { user: User | null; token: string | null; permissions: PermissionCode[] } {
@@ -78,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setToken(response.token);
       setUser(response.user);
       setPermissions(parsePermissionsFromToken(response.token));
+      return response;
     } catch (error) {
       throw error;
     } finally {

@@ -1,5 +1,6 @@
 // vocab-practice/frontend/src/services/auth.service.ts
 import apiClient from "../lib/api-client";
+import { isTokenExpired } from "../lib/jwt";
 import type { PermissionCode } from "../modules/auth/types/permissions";
 import type { GamificationReward } from "../modules/user/types";
 
@@ -27,20 +28,11 @@ type AuthResponse = {
   };
 };
 
-function isTokenExpired(token: string): boolean {
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return payload.exp * 1000 < Date.now();
-  } catch {
-    return true;
-  }
-}
-
 // Helper set cookie (client-side)
 function setCookie(name: string, value: string, days: number = 1) {
   if (typeof document === "undefined") return;
   const expires = new Date(Date.now() + days * 864e5).toUTCString();
-  document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
+  document.cookie = `${name}=${value}; expires=${expires}; path=/; SameSite=Lax`;
 }
 
 function deleteCookie(name: string) {
@@ -69,7 +61,6 @@ export const authService = {
 
       // Lưu vào cookie (cho middleware server-side check)
       setCookie("token", res.token, 1);
-      setCookie("user", JSON.stringify(res.user), 1);
     }
 
     return res;
