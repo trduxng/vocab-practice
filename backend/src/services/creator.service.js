@@ -1,5 +1,71 @@
 const { poolPromise, sql } = require('../config/db');
 
+function normalizeTopicCode(value) {
+  const code = String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\u0111/g, 'd')
+    .replace(/\u0110/g, 'D')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 50);
+
+  return code || `TOPIC_${Date.now()}`;
+}
+
+function normalizeTopicName(value) {
+  return String(value ?? '').trim().replace(/\s+/g, ' ');
+}
+
+async function buildUniqueTopicName(pool, candidateName, excludeTopicId = null) {
+  const baseName = normalizeTopicName(candidateName);
+  for (let suffix = 0; suffix < 1000; suffix += 1) {
+    const nextName = suffix === 0 ? baseName : `${baseName} (${suffix + 1})`.slice(0, 200);
+    const request = pool.request().input('TopicName', sql.NVarChar(200), nextName);
+    if (excludeTopicId) {
+      request.input('TopicID', sql.BigInt, excludeTopicId);
+    }
+
+    const existing = await request.query(`
+      SELECT TOP 1 TopicID
+      FROM Topics
+      WHERE TopicName = @TopicName
+      ${excludeTopicId ? 'AND TopicID <> @TopicID' : ''}
+    `);
+
+    if (existing.recordset.length === 0) {
+      return nextName;
+    }
+  }
+
+  return `${baseName} (${Date.now()})`.slice(0, 200);
+}
+
+async function buildUniqueTopicCode(pool, candidateCode, excludeTopicId = null) {
+  const baseCode = normalizeTopicCode(candidateCode);
+  for (let suffix = 0; suffix < 1000; suffix += 1) {
+    const nextCode = suffix === 0 ? baseCode : `${baseCode}_${suffix + 1}`.slice(0, 50);
+    const request = pool.request().input('TopicCode', sql.NVarChar(50), nextCode);
+    if (excludeTopicId) {
+      request.input('TopicID', sql.BigInt, excludeTopicId);
+    }
+
+    const existing = await request.query(`
+      SELECT TOP 1 TopicID
+      FROM Topics
+      WHERE TopicCode = @TopicCode
+      ${excludeTopicId ? 'AND TopicID <> @TopicID' : ''}
+    `);
+
+    if (existing.recordset.length === 0) {
+      return nextCode;
+    }
+  }
+
+  return `${baseCode}_${Date.now()}`.slice(0, 50);
+}
+
 class CreatorService {
   // ── Dashboard & Analytics ──
   static async getDashboardStats(userId) {
@@ -295,9 +361,11 @@ class CreatorService {
   static async createTopic(data, userId) {
     const { topicName, topicCode, description, topicCategoryId } = data;
     const pool = await poolPromise;
+    const uniqueTopicName = await buildUniqueTopicName(pool, topicName);
+    const uniqueTopicCode = await buildUniqueTopicCode(pool, topicCode || topicName);
     const result = await pool.request()
-      .input('TopicName', sql.NVarChar(200), topicName)
-      .input('TopicCode', sql.NVarChar(50), topicCode)
+      .input('TopicName', sql.NVarChar(200), uniqueTopicName)
+      .input('TopicCode', sql.NVarChar(50), uniqueTopicCode)
       .input('Description', sql.NVarChar(1000), description || null)
       .input('TopicCategoryID', sql.BigInt, topicCategoryId || null)
       .input('CreatedByUserID', sql.BigInt, userId)
@@ -314,11 +382,13 @@ class CreatorService {
   static async updateTopic(id, data, userId) {
     const { topicName, topicCode, description, topicCategoryId } = data;
     const pool = await poolPromise;
+    const uniqueTopicName = topicName ? await buildUniqueTopicName(pool, topicName, id) : null;
+    const uniqueTopicCode = topicCode ? await buildUniqueTopicCode(pool, topicCode, id) : null;
     const result = await pool.request()
       .input('TopicID', sql.BigInt, id)
       .input('UserID', sql.BigInt, userId)
-      .input('TopicName', sql.NVarChar(200), topicName)
-      .input('TopicCode', sql.NVarChar(50), topicCode || null)
+      .input('TopicName', sql.NVarChar(200), uniqueTopicName)
+      .input('TopicCode', sql.NVarChar(50), uniqueTopicCode)
       .input('Description', sql.NVarChar(1000), description || null)
       .input('TopicCategoryID', sql.BigInt, topicCategoryId || null)
       .query(`
@@ -340,7 +410,7 @@ class CreatorService {
       .input('UserID', sql.BigInt, userId)
       .query(`
         DELETE FROM Topics
-        WHERE TopicID = @TopicID AND CreatedByUserID = @UserID AND ContentStatus = 'Draft'
+        WHERE TopicID = @TopicID AND CreatedByUserID = @UserID AND ContentStatus IN ('Draft', 'PendingReview')
       `);
     return result.rowsAffected[0] > 0;
   }
@@ -863,7 +933,7 @@ class CreatorService {
     const result = await pool.request()
       .input('WordID', sql.BigInt, id)
       .input('UserID', sql.BigInt, userId)
-      .query(`DELETE FROM Words WHERE WordID=@WordID AND CreatedByUserID=@UserID AND ContentStatus='Draft'`);
+      .query(`DELETE FROM Words WHERE WordID=@WordID AND CreatedByUserID=@UserID AND ContentStatus IN ('Draft', 'PendingReview')`);
     return result.rowsAffected[0] > 0;
   }
 
@@ -994,7 +1064,7 @@ class CreatorService {
     const result = await pool.request()
       .input('QuestionID', sql.BigInt, id)
       .input('UserID', sql.BigInt, userId)
-      .query(`DELETE FROM Questions WHERE QuestionID=@QuestionID AND CreatedByUserID=@UserID AND ContentStatus='Draft'`);
+      .query(`DELETE FROM Questions WHERE QuestionID=@QuestionID AND CreatedByUserID=@UserID AND ContentStatus IN ('Draft', 'PendingReview')`);
     return result.rowsAffected[0] > 0;
   }
 
@@ -1131,7 +1201,7 @@ class CreatorService {
                 AND EXISTS (SELECT 1 FROM MiniTests WHERE MiniTestID=@MiniTestID AND CreatedByUserID=@UserID AND ContentStatus='Draft')`);
       const r2 = new sql.Request(transaction);
       const del = await r2.input('MiniTestID', sql.BigInt, id).input('UserID', sql.BigInt, userId)
-        .query(`DELETE FROM MiniTests WHERE MiniTestID=@MiniTestID AND CreatedByUserID=@UserID AND ContentStatus='Draft'`);
+        .query(`DELETE FROM MiniTests WHERE MiniTestID=@MiniTestID AND CreatedByUserID=@UserID AND ContentStatus IN ('Draft', 'PendingReview')`);
       await transaction.commit();
       return del.rowsAffected[0] > 0;
     } catch (err) {

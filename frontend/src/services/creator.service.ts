@@ -206,7 +206,7 @@ export const creatorService = {
 
   async createTopic(data: TopicPayload) {
     const res = await apiClient.post('/creator/topics', data);
-    return res.data;
+    return res.data?.data ?? res.data;
   },
 
   async updateTopic(id: number, data: TopicPayload) {

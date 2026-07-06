@@ -813,7 +813,7 @@ export default function AdminWordsPage() {
               <AdminPanel title={editingWord ? `Chỉnh sửa: ${editingWord.term}` : 'Thêm từ vựng mới'} description="Nhập nghĩa, trạng thái, loại từ, chủ đề và các câu ví dụ dùng trong bài học.">
                 <form onSubmit={handleSaveWord} className="space-y-5">
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-                    <Field label="Từ vựng"><Input value={wordForm.term} onChange={(event) => setWordForm({ ...wordForm, term: event.target.value })} className="h-10 rounded-md" required /></Field>
+                    <Field label="Từ vựng"><Input value={wordForm.term} onChange={(event) => setWordForm({ ...wordForm, term: event.target.value })} onBlur={() => { void handleSuggestWordContent(); }} className="h-10 rounded-md" required /></Field>
                     <Field label="Phiên âm"><Input value={wordForm.phonetic} onChange={(event) => setWordForm({ ...wordForm, phonetic: event.target.value })} className="h-10 rounded-md" /></Field>
                     <Field label="Loại từ">
                       <Select value={wordForm.partOfSpeechId} onChange={(value) => setWordForm({ ...wordForm, partOfSpeechId: value })} required>

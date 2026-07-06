@@ -1,5 +1,6 @@
 const { poolPromise, sql } = require('../config/db');
 const bcrypt = require('bcrypt');
+const AiService = require('./ai.service');
 
 const USER_ROLES = ['Admin', 'Learner', 'ContentCreator'];
 
@@ -214,6 +215,66 @@ class AdminService {
       .split(/[;,|]/)
       .map((item) => item.trim())
       .filter(Boolean);
+  }
+
+  static async enrichWordDraft({ term, meaning, phonetic, partOfSpeechId, examples = [] }) {
+    const normalizedTerm = String(term ?? '').trim();
+    const normalizedMeaning = String(meaning ?? '').trim();
+    const normalizedPhonetic = String(phonetic ?? '').trim();
+    let resolvedMeaning = normalizedMeaning;
+    let resolvedPhonetic = normalizedPhonetic;
+    let resolvedPartOfSpeechId = Number(partOfSpeechId) || null;
+
+    if (!resolvedMeaning) {
+      const translation = await AiService.translateText({ text: normalizedTerm, source: 'en', target: 'vi' }).catch(() => null);
+      resolvedMeaning = String(translation?.translatedText ?? '').trim();
+    }
+
+    const dictionary = await AiService.lookupDictionary({ term: normalizedTerm }).catch(() => null);
+    if (!resolvedMeaning) {
+      resolvedMeaning = String(dictionary?.meaning ?? '').trim();
+    }
+
+    if (!resolvedPhonetic) {
+      resolvedPhonetic = String(dictionary?.phonetic ?? '').trim();
+    }
+
+    if (!resolvedPartOfSpeechId && dictionary?.partOfSpeech) {
+      const pool = await poolPromise;
+      const posResult = await pool.request().query(`SELECT PartOfSpeechID AS id, PartOfSpeechName AS name, PartOfSpeechCode AS code FROM PartOfSpeeches;`);
+      const partsOfSpeech = posResult.recordset || [];
+      const match = partsOfSpeech.find((item) => {
+        const left = this.normalizeImportKey(item.name);
+        const right = this.normalizeImportKey(item.code);
+        const target = this.normalizeImportKey(dictionary.partOfSpeech);
+        return left === target || right === target || left.includes(target) || target.includes(left);
+      });
+      resolvedPartOfSpeechId = match ? Number(match.id) : null;
+    }
+
+    const normalizedExamples = Array.isArray(examples)
+      ? examples
+          .map((example) => ({
+            sentence: String(example?.sentence ?? '').trim(),
+            meaning: String(example?.meaning ?? '').trim(),
+          }))
+          .filter((example) => example.sentence)
+      : [];
+
+    if (normalizedExamples.length === 0 && Array.isArray(dictionary?.examples)) {
+      normalizedExamples.push(...dictionary.examples.slice(0, 3).map((example) => ({
+        sentence: String(example?.sentence ?? '').trim(),
+        meaning: String(example?.meaning ?? '').trim(),
+      })).filter((example) => example.sentence));
+    }
+
+    return {
+      term: normalizedTerm,
+      meaning: resolvedMeaning,
+      phonetic: resolvedPhonetic,
+      partOfSpeechId: resolvedPartOfSpeechId,
+      examples: normalizedExamples,
+    };
   }
 
   static parseQuestionImport(input) {
@@ -1095,14 +1156,35 @@ class AdminService {
         const rawTopics = this.getImportValue(row, ['topics', 'topic', 'topicNames', 'topicName', 'chu de', 'ten chu de']);
         const rawExampleSentence = this.getImportValue(row, ['exampleSentence', 'sentence', 'example', 'cau vi du', 'vi du']);
         const rawExampleMeaning = this.getImportValue(row, ['exampleMeaning', 'sentenceTranslation', 'translation', 'nghia cau vi du', 'dich']);
+        const status = this.getImportValue(row, ['status', 'contentStatus', 'trang thai']) ?? 'Published';
 
-        if (!term || !meaning) {
-          throw new Error('Missing required fields: term, meaning');
+        if (!term) {
+          throw new Error('Missing required field: term');
         }
 
         let partOfSpeechId = Number(rawPartOfSpeechId);
         if (!partOfSpeechId && rawPartOfSpeechName) {
           partOfSpeechId = partOfSpeechByName.get(this.normalizeImportKey(rawPartOfSpeechName));
+        }
+
+        const draft = await this.enrichWordDraft({
+          term,
+          meaning,
+          phonetic,
+          partOfSpeechId,
+          examples: String(rawExampleSentence ?? '').trim()
+            ? [{ sentence: String(rawExampleSentence).trim(), meaning: String(rawExampleMeaning ?? '').trim() }]
+            : [],
+          status: status
+        });
+
+        partOfSpeechId = draft.partOfSpeechId || partOfSpeechId;
+        const enrichedMeaning = draft.meaning;
+        const enrichedPhonetic = draft.phonetic;
+        const examples = draft.examples;
+
+        if (!enrichedMeaning) {
+          throw new Error('Missing meaning and could not auto-fill from Google Translate/FreeDictionaryAPI');
         }
 
         if (!partOfSpeechId || !partOfSpeechById.has(Number(partOfSpeechId))) {
@@ -1132,21 +1214,16 @@ class AdminService {
           topicIds.add(mappedTopicId);
         }
 
-        const examples = [];
-        if (String(rawExampleSentence ?? '').trim()) {
-          examples.push({
-            sentence: String(rawExampleSentence).trim(),
-            meaning: String(rawExampleMeaning ?? '').trim()
-          });
-        }
+        const finalExamples = examples.length > 0 ? examples : [];
 
         await this.createWord({
           term,
-          meaning,
-          phonetic,
+          meaning: enrichedMeaning,
+          phonetic: enrichedPhonetic,
           partOfSpeechId: Number(partOfSpeechId),
           topicIds: [...topicIds],
-          examples
+          examples: finalExamples,
+          status: String(status).trim()
         }, adminId);
 
         results.success += 1;
@@ -1205,15 +1282,14 @@ class AdminService {
       const rawTopics = this.getImportValue(row, ['topics', 'topic', 'topicNames', 'topicName', 'chu de', 'ten chu de']);
       const rawExampleSentence = this.getImportValue(row, ['exampleSentence', 'sentence', 'example', 'cau vi du', 'vi du']);
       const rawExampleMeaning = this.getImportValue(row, ['exampleMeaning', 'sentenceTranslation', 'translation', 'nghia cau vi du', 'dich']);
+      const status = String(this.getImportValue(row, ['status', 'contentStatus', 'trang thai']) ?? 'Published').trim();
 
       if (!term) errors.push('Missing term');
-      if (!meaning) errors.push('Missing meaning');
 
       let partOfSpeech = partOfSpeechById.get(Number(rawPartOfSpeechId));
       if (!partOfSpeech && rawPartOfSpeechName) {
         partOfSpeech = partOfSpeechByName.get(this.normalizeImportKey(rawPartOfSpeechName));
       }
-      if (!partOfSpeech) errors.push('Invalid or missing partOfSpeech');
 
       const resolvedTopics = [];
       for (const value of this.splitImportList(rawTopicIds)) {
@@ -1234,6 +1310,28 @@ class AdminService {
         }
       }
 
+      const draft = await this.enrichWordDraft({
+        term,
+        meaning,
+        phonetic,
+        partOfSpeechId: partOfSpeech ? Number(partOfSpeech.id) : Number(rawPartOfSpeechId),
+        examples: String(rawExampleSentence ?? '').trim()
+          ? [{ sentence: String(rawExampleSentence).trim(), meaning: String(rawExampleMeaning ?? '').trim() }]
+          : []
+      });
+
+      const resolvedMeaning = draft.meaning;
+      const resolvedPhonetic = draft.phonetic;
+      const resolvedPartOfSpeech = draft.partOfSpeechId ? partOfSpeechById.get(Number(draft.partOfSpeechId)) : partOfSpeech;
+
+      if (!resolvedMeaning) {
+        errors.push('Missing meaning and could not auto-fill');
+      }
+
+      if (!resolvedPartOfSpeech) {
+        errors.push('Invalid or missing partOfSpeech and could not auto-fill');
+      }
+
       if (errors.length > 0) invalid += 1;
       else valid += 1;
 
@@ -1242,13 +1340,12 @@ class AdminService {
         valid: errors.length === 0,
         errors,
         term,
-        meaning,
-        phonetic,
-        partOfSpeech: partOfSpeech ? { id: partOfSpeech.id, name: partOfSpeech.name, code: partOfSpeech.code } : null,
+        meaning: resolvedMeaning || meaning,
+        phonetic: resolvedPhonetic || phonetic,
+        partOfSpeech: resolvedPartOfSpeech ? { id: resolvedPartOfSpeech.id, name: resolvedPartOfSpeech.name, code: resolvedPartOfSpeech.code } : null,
         topics: resolvedTopics.map((topic) => ({ id: topic.id, name: topic.name, code: topic.code })),
-        examples: String(rawExampleSentence ?? '').trim()
-          ? [{ sentence: String(rawExampleSentence).trim(), meaning: String(rawExampleMeaning ?? '').trim() }]
-          : []
+        examples: draft.examples,
+        status: status
       });
     }
 
@@ -1831,7 +1928,18 @@ class AdminService {
       const questionType = row.questionType ?? row.QuestionType;
       const questionText = row.questionText ?? row.QuestionText;
       const correctAnswer = row.correctAnswer ?? row.CorrectAnswer;
-      const optionsJson = row.optionsJson ?? row.OptionsJson ?? '[]';
+      const optionA = row.optionA ?? row.OptionA;
+      const optionB = row.optionB ?? row.OptionB;
+      const optionC = row.optionC ?? row.OptionC;
+      const optionD = row.optionD ?? row.OptionD;
+      
+      let optionsJson = row.optionsJson ?? row.OptionsJson;
+      if (!optionsJson && (optionA !== undefined || optionB !== undefined || optionC !== undefined || optionD !== undefined)) {
+        const optionsArr = [optionA, optionB, optionC, optionD].filter(o => o != null && String(o).trim() !== '');
+        optionsJson = JSON.stringify(optionsArr);
+      } else if (!optionsJson) {
+        optionsJson = '[]';
+      }
       const explanation = row.explanation ?? row.Explanation ?? null;
       const status = row.status ?? row.ContentStatus ?? 'Published';
 

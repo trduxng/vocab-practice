@@ -1,7 +1,8 @@
 'use client';
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { creatorService, MiniTestPayload, MiniTest, Topic } from '@/src/services/creator.service';
-import { Plus, Pencil, Trash2, Send, Loader2, X } from 'lucide-react';
+import { aiService } from '@/src/services/ai.service';
+import { Plus, Pencil, Trash2, Send, Loader2, X, Sparkles } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import { toast } from 'sonner';
@@ -18,6 +19,9 @@ export default function CreatorMiniTestsPage() {
   const [form, setForm] = useState<MiniTestPayload>({ title:'', description:'', topicId:0, questionIds:[] });
   const [qidsInput, setQidsInput] = useState('');
   const [saving, setSaving] = useState(false);
+  const [generatingDraft, setGeneratingDraft] = useState(false);
+
+  const selectedTopic = useMemo(() => topics.find((topic) => topic.id === form.topicId) || null, [form.topicId, topics]);
 
   const load = useCallback(async () => {
     try {
@@ -65,6 +69,36 @@ export default function CreatorMiniTestsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleSubmit = async (id:number) => { try { await creatorService.submitMiniTestForReview(id); toast.success('Đã gửi duyệt'); await load(); } catch (e:any) { toast.error(e.response?.data?.message||'Lỗi'); } };
 
+  const handleSuggestMiniTest = async () => {
+    if (!selectedTopic) {
+      toast.error('Vui lòng chọn chủ đề trước khi dùng AI');
+      return;
+    }
+
+    setGeneratingDraft(true);
+    try {
+      const questionIds = qidsInput.split(',').map((s) => Number(s.trim())).filter((n) => n > 0);
+      const suggestion = await aiService.suggestMiniTestContent({
+        topicName: selectedTopic.name,
+        description: form.description || undefined,
+        questionCount: questionIds.length || form.questionIds?.length || 10,
+        titleHint: form.title || undefined,
+      });
+
+      setForm((current) => ({
+        ...current,
+        title: current.title.trim() || suggestion.title,
+        description: suggestion.description || current.description,
+      }));
+      toast.success('AI đã gợi ý mini test');
+    } catch (error) {
+      console.error('Không thể tạo gợi ý mini test', error);
+      toast.error('Không thể tạo gợi ý AI');
+    } finally {
+      setGeneratingDraft(false);
+    }
+  };
+
   if (loading) return <div className="flex-1 flex items-center justify-center p-8"><Loader2 className="animate-spin h-8 w-8 text-blue-500" /></div>;
 
   return (
@@ -77,7 +111,16 @@ export default function CreatorMiniTestsPage() {
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={()=>setShowForm(false)}>
           <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-lg space-y-4 shadow-2xl border border-slate-200 dark:border-white/10" onClick={e=>e.stopPropagation()}>
-            <div className="flex items-center justify-between"><h2 className="text-lg font-bold">{editing?'Sửa':'Tạo'} bài test</h2><button onClick={()=>setShowForm(false)}><X className="h-5 w-5 text-slate-500"/></button></div>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold">{editing?'Sửa':'Tạo'} bài test</h2>
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="outline" onClick={handleSuggestMiniTest} disabled={generatingDraft} className="rounded-xl gap-2">
+                  {generatingDraft && <Loader2 className="animate-spin h-4 w-4" />}
+                  <Sparkles className="h-4 w-4" /> Gợi ý AI
+                </Button>
+                <button onClick={()=>setShowForm(false)}><X className="h-5 w-5 text-slate-500"/></button>
+              </div>
+            </div>
             <div className="space-y-3">
               <div><label className="text-xs font-semibold text-slate-500 uppercase">Tiêu đề *</label><Input value={form.title} onChange={e=>setForm({...form,title:e.target.value})} className="mt-1"/></div>
               <div>
@@ -125,7 +168,7 @@ export default function CreatorMiniTestsPage() {
                 <td className="px-4 py-3"><div className="flex items-center justify-end gap-1">
                   {(t.contentStatus==='Draft'||t.contentStatus==='Rejected')&&<button onClick={()=>handleSubmit(t.id)} title="Gửi duyệt" className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-500"><Send className="h-4 w-4"/></button>}
                   <button onClick={()=>openEdit(t)} title="Sửa" className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-500"><Pencil className="h-4 w-4"/></button>
-                  {t.contentStatus==='Draft'&&<button onClick={()=>handleDelete(t.id)} title="Xóa" className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500"><Trash2 className="h-4 w-4"/></button>}
+                  {(t.contentStatus==='Draft'||t.contentStatus==='PendingReview')&&<button onClick={()=>handleDelete(t.id)} title="Xóa" className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500"><Trash2 className="h-4 w-4"/></button>}
                 </div></td>
               </tr>
             ))}</tbody>

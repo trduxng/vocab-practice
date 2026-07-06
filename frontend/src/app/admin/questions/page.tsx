@@ -364,13 +364,16 @@ export default function AdminQuestionsPage() {
   function downloadTemplate() {
     const sampleWordId = selectedWord?.id ? String(selectedWord.id) : "1";
     const rows = [
-      ["wordId", "questionType", "questionText", "correctAnswer", "optionsJson", "explanation", "status"],
+      ["wordId", "questionType", "questionText", "correctAnswer", "optionA", "optionB", "optionC", "optionD", "explanation", "status"],
       [
         sampleWordId,
         "MCQ",
         selectedWord ? `What is the correct meaning of ${selectedWord.term}?` : "What is the correct meaning?",
         selectedWord?.meaning || "correct answer",
-        JSON.stringify([selectedWord?.meaning || "correct answer", "distractor 1", "distractor 2", "distractor 3"]),
+        selectedWord?.meaning || "correct answer",
+        "distractor 1",
+        "distractor 2",
+        "distractor 3",
         "Optional explanation",
         "Published",
       ],

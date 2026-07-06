@@ -1,0 +1,17 @@
+pyproject.toml
+app/__init__.py
+app/main.py
+app/api/__init__.py
+app/api/routes.py
+app/core/__init__.py
+app/core/auth.py
+app/core/settings.py
+app/schemas/__init__.py
+app/schemas/ai.py
+app/services/__init__.py
+app/services/ai.py
+vocab_ai_service.egg-info/PKG-INFO
+vocab_ai_service.egg-info/SOURCES.txt
+vocab_ai_service.egg-info/dependency_links.txt
+vocab_ai_service.egg-info/requires.txt
+vocab_ai_service.egg-info/top_level.txt

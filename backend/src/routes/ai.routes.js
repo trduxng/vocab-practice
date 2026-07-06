@@ -14,4 +14,39 @@ router.post(
   AiController.suggestWordContent
 );
 
+router.post(
+  '/topic-suggestions',
+  checkAnyPermission(['MANAGE_TOPICS']),
+  validate(schemas.aiTopicSuggestion),
+  AiController.suggestTopicContent
+);
+
+router.post(
+  '/question-suggestions',
+  checkAnyPermission(['MANAGE_QUESTIONS']),
+  validate(schemas.aiQuestionSuggestion),
+  AiController.suggestQuestionContent
+);
+
+router.post(
+  '/translate',
+  checkAnyPermission(['MANAGE_WORDS', 'MANAGE_TOPICS', 'MANAGE_QUESTIONS']),
+  validate(schemas.aiTranslate),
+  AiController.translate
+);
+
+router.post(
+  '/dictionary',
+  checkAnyPermission(['MANAGE_WORDS', 'MANAGE_QUESTIONS']),
+  validate(schemas.aiDictionary),
+  AiController.dictionary
+);
+
+router.post(
+  '/mini-test-suggestions',
+  checkAnyPermission(['MANAGE_TESTS']),
+  validate(schemas.aiMiniTestSuggestion),
+  AiController.suggestMiniTestContent
+);
+
 module.exports = router;

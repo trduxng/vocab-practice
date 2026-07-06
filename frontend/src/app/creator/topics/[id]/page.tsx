@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { aiService } from '@/src/services/ai.service';
 import { creatorService, Word, WordPayload, Question, QuestionPayload, Topic, MediaItem } from '@/src/services/creator.service';
 import { ArrowLeft, Plus, Pencil, Trash2, Send, Loader2, X, BookOpen, FileQuestion } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
@@ -35,6 +36,7 @@ export default function TopicDetailPage() {
   const [editingWord, setEditingWord] = useState<Word | null>(null);
   const [wordForm, setWordForm] = useState<WordPayload>({ term: '', meaning: '', phonetic: '', partOfSpeechId: 1, topicIds: [topicId], mediaIds: [] });
   const [savingWord, setSavingWord] = useState(false);
+  const [autoFillingWord, setAutoFillingWord] = useState(false);
 
   // Media Modal
   const [showMediaModal, setShowMediaModal] = useState(false);
@@ -103,6 +105,39 @@ export default function TopicDetailPage() {
     setEditingWord(w);
     setWordForm({ term: w.term, meaning: w.meaning, phonetic: w.phonetic || '', partOfSpeechId: w.partOfSpeechId, topicIds: [topicId], mediaIds: [] });
     setShowWordForm(true);
+  };
+
+  const handleAutoFillWord = async () => {
+    const term = wordForm.term.trim();
+    if (!term) return;
+    const shouldRefreshContext = Boolean(
+      editingWord && editingWord.term.trim().toLowerCase() !== term.toLowerCase()
+    );
+
+    setAutoFillingWord(true);
+    try {
+      const suggestion = await aiService.suggestWordContent({
+        term,
+        meaning: wordForm.meaning.trim() || undefined,
+        exampleCount: 3,
+      });
+
+      setWordForm((current) => ({
+        ...current,
+        term: current.term.trim() || suggestion.term,
+        meaning: shouldRefreshContext
+          ? suggestion.meaning || current.meaning
+          : current.meaning.trim() || suggestion.meaning || current.meaning,
+        phonetic: shouldRefreshContext
+          ? suggestion.phonetic || current.phonetic
+          : (current.phonetic || '').trim() || suggestion.phonetic || current.phonetic,
+      }));
+    } catch (error) {
+      console.error('Không thể tự điền từ vựng', error);
+      toast.error('Không thể tự động điền nghĩa/phiên âm');
+    } finally {
+      setAutoFillingWord(false);
+    }
   };
   const handleSaveWord = async () => {
     if (!wordForm.term.trim() || !wordForm.meaning.trim()) { toast.error('Từ và nghĩa là bắt buộc'); return; }
@@ -237,7 +272,7 @@ export default function TopicDetailPage() {
                           <button onClick={() => handleSubmitWord(w.id)} title="Gửi duyệt" className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-500"><Send className="h-4 w-4" /></button>
                         )}
                         <button onClick={() => openEditWord(w)} title="Sửa" className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-500"><Pencil className="h-4 w-4" /></button>
-                        {w.contentStatus === 'Draft' && (
+                        {(w.contentStatus === 'Draft' || w.contentStatus === 'PendingReview') && (
                           <button onClick={() => handleDeleteWord(w.id)} title="Xóa" className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500"><Trash2 className="h-4 w-4" /></button>
                         )}
                       </div>
@@ -283,7 +318,7 @@ export default function TopicDetailPage() {
                           <button onClick={() => handleSubmitQ(q.id)} title="Gửi duyệt" className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-500"><Send className="h-4 w-4" /></button>
                         )}
                         <button onClick={() => openEditQ(q)} title="Sửa" className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-500"><Pencil className="h-4 w-4" /></button>
-                        {q.contentStatus === 'Draft' && (
+                        {(q.contentStatus === 'Draft' || q.contentStatus === 'PendingReview') && (
                           <button onClick={() => handleDeleteQ(q.id)} title="Xóa" className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500"><Trash2 className="h-4 w-4" /></button>
                         )}
                       </div>
@@ -305,9 +340,14 @@ export default function TopicDetailPage() {
               <button onClick={() => setShowWordForm(false)}><X className="h-5 w-5 text-slate-500" /></button>
             </div>
             <div className="space-y-3">
-              <div><label className="text-xs font-semibold text-slate-500 uppercase">Từ (Term) *</label><Input value={wordForm.term} onChange={(e) => setWordForm({ ...wordForm, term: e.target.value })} placeholder="example" className="mt-1" /></div>
+              <div><label className="text-xs font-semibold text-slate-500 uppercase">Từ (Term) *</label><Input value={wordForm.term} onChange={(e) => setWordForm({ ...wordForm, term: e.target.value })} onBlur={() => { void handleAutoFillWord(); }} placeholder="example" className="mt-1" /></div>
               <div><label className="text-xs font-semibold text-slate-500 uppercase">Nghĩa *</label><Input value={wordForm.meaning} onChange={(e) => setWordForm({ ...wordForm, meaning: e.target.value })} placeholder="ví dụ" className="mt-1" /></div>
               <div><label className="text-xs font-semibold text-slate-500 uppercase">Phiên âm</label><Input value={wordForm.phonetic} onChange={(e) => setWordForm({ ...wordForm, phonetic: e.target.value })} placeholder="/ɪɡˈzæm.pəl/" className="mt-1" /></div>
+              <div className="flex justify-end">
+                <Button type="button" variant="outline" onClick={() => { void handleAutoFillWord(); }} disabled={autoFillingWord || !wordForm.term.trim()} className="rounded-md">
+                  {autoFillingWord ? 'Đang tự điền...' : 'Tự động điền'}
+                </Button>
+              </div>
               <div><label className="text-xs font-semibold text-slate-500 uppercase">Loại từ</label>
                 <select value={wordForm.partOfSpeechId} onChange={(e) => setWordForm({ ...wordForm, partOfSpeechId: Number(e.target.value) })} className="mt-1 w-full rounded-md border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 px-3 py-2 text-sm">
                   <option value={1}>Noun (Danh từ)</option>

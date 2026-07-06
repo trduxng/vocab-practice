@@ -60,6 +60,7 @@ const adminLinks: NavLink[] = [
 
 const creatorLinks: NavLink[] = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/creator/dashboard", anyOf: [PERMISSIONS.viewDashboard] },
+  { icon: Brain, label: "AI Studio", href: "/creator/ai-studio", anyOf: [PERMISSIONS.manageTopics, PERMISSIONS.manageWords, PERMISSIONS.manageQuestions] },
   { icon: BookOpen, label: "Chủ đề & Nội dung", href: "/creator/topics", anyOf: [PERMISSIONS.manageTopics] },
   { icon: ListChecks, label: "Bài test", href: "/creator/mini-tests", anyOf: [PERMISSIONS.manageTests] },
   { icon: Image, label: "Media", href: "/creator/media" },

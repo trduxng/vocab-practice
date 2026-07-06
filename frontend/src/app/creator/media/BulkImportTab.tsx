@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { UploadCloud, AlertCircle, FileText, Trash2, Save, Settings } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
-import { creatorService, WordPayload } from '@/src/services/creator.service';
+import { creatorService, WordPayload, Topic } from '@/src/services/creator.service';
 import { toast } from 'sonner';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
@@ -22,8 +22,8 @@ export default function BulkImportTab() {
   const [activeTab, setActiveTab] = useState<'paste' | 'file'>('paste');
   const [rawText, setRawText] = useState('');
   const [delimiter, setDelimiter] = useState<string>('tab');
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [rawRows, setRawRows] = useState<any[][]>([]);
+  type RawCell = string | number | boolean | null | undefined;
+  const [rawRows, setRawRows] = useState<RawCell[][]>([]);
   const [parsedWords, setParsedWords] = useState<ParsedWord[]>([]);
   const [hasHeader, setHasHeader] = useState<boolean>(true);
   
@@ -36,8 +36,7 @@ export default function BulkImportTab() {
     exampleMeaning: -1,
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [topics, setTopics] = useState<any[]>([]);
+  const [topics, setTopics] = useState<Topic[]>([]);
   const [selectedTopicId, setSelectedTopicId] = useState<number | null>(null);
   const [conflictStrategy, setConflictStrategy] = useState<string>('merge');
 
@@ -58,8 +57,7 @@ export default function BulkImportTab() {
   }, []);
 
   // Process data from raw file/text rows
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const processData = (data: any[][]) => {
+  const processData = (data: RawCell[][]) => {
     const cleaned = data.filter(row => row && row.length > 0 && row.some(cell => cell !== null && cell !== undefined && String(cell).trim() !== ''));
     if (cleaned.length === 0) {
       toast.error('Không tìm thấy dữ liệu nào hợp lệ');
@@ -138,20 +136,18 @@ export default function BulkImportTab() {
           delimiter: actualDelimiter,
           skipEmptyLines: true,
           complete: (results) => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            processData(results.data as any[][]);
+            processData(results.data as RawCell[][]);
             setIsParsing(false);
           },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          error: (error: any) => {
+          error: (error: Error) => {
             toast.error('Lỗi phân tích: ' + error.message);
             setIsParsing(false);
           }
         });
       }
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (err) {
-      toast.error('Lỗi khi phân tích dữ liệu');
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+      toast.error(`Lỗi khi phân tích dữ liệu: ${errorMsg}`);
       setIsParsing(false);
     }
   };
@@ -172,12 +168,11 @@ export default function BulkImportTab() {
           const firstSheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[firstSheetName];
           const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          processData(json as any[][]);
+          processData(json as RawCell[][]);
           toast.success('Đã đọc xong file Excel');
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        } catch (err) {
-          toast.error('Lỗi khi đọc file Excel');
+        } catch (err: unknown) {
+          const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+          toast.error(`Lỗi khi đọc file Excel: ${errorMsg}`);
         } finally {
           setIsParsing(false);
         }
@@ -191,13 +186,11 @@ export default function BulkImportTab() {
       Papa.parse(file, {
         skipEmptyLines: true,
         complete: (results) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          processData(results.data as any[][]);
+          processData(results.data as RawCell[][]);
           toast.success('Đã đọc xong file CSV');
           setIsParsing(false);
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        error: (error: any) => {
+        error: (error: Error) => {
           toast.error('Lỗi phân tích: ' + error.message);
           setIsParsing(false);
         }
@@ -223,8 +216,7 @@ export default function BulkImportTab() {
     try {
       setIsImporting(true);
       const payload: WordPayload[] = validWords.map(w => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const item: any = {
+        const item: WordPayload = {
           term: w.term,
           meaning: w.meaning,
           phonetic: w.phonetic || '',
@@ -232,7 +224,7 @@ export default function BulkImportTab() {
         };
         
         if (w.partOfSpeech) {
-          item.partOfSpeechId = w.partOfSpeech; // mapped by backend service
+          item.partOfSpeechId = Number(w.partOfSpeech) || 1; // mapped by backend service
         }
         
         if (selectedTopicId) {
@@ -258,9 +250,9 @@ export default function BulkImportTab() {
       setParsedWords([]);
       setRawRows([]);
       setRawText('');
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Lỗi khi import');
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } }, message?: string };
+      toast.error(e.response?.data?.message || e.message || 'Lỗi khi import');
     } finally {
       setIsImporting(false);
     }

@@ -197,6 +197,48 @@ const schemas = {
       partOfSpeech: z.string().trim().max(100).optional(),
       exampleCount: z.coerce.number().int().min(1).max(5).optional()
     })
+  }),
+
+  aiTopicSuggestion: z.object({
+    body: z.object({
+      topicName: z.string().trim().min(1).max(200),
+      description: z.string().trim().max(1000).optional(),
+      targetWordCount: z.coerce.number().int().min(5).max(50).optional(),
+      topicCategoryId: z.coerce.number().int().positive().optional()
+    })
+  }),
+
+  aiQuestionSuggestion: z.object({
+    body: z.object({
+      wordId: z.coerce.number().int().positive(),
+      term: z.string().trim().min(1).max(100),
+      meaning: z.string().trim().min(1).max(1000),
+      questionType: z.string().trim().min(1).max(50).optional(),
+      optionCount: z.coerce.number().int().min(2).max(5).optional()
+    })
+  }),
+
+  aiTranslate: z.object({
+    body: z.object({
+      text: z.string().trim().min(1).max(5000),
+      source: z.string().trim().max(10).optional(),
+      target: z.string().trim().max(10).optional()
+    })
+  }),
+
+  aiDictionary: z.object({
+    body: z.object({
+      term: z.string().trim().min(1).max(100)
+    })
+  }),
+
+  aiMiniTestSuggestion: z.object({
+    body: z.object({
+      topicName: z.string().trim().min(1).max(200),
+      description: z.string().trim().max(1000).optional(),
+      questionCount: z.coerce.number().int().min(1).max(50).optional(),
+      titleHint: z.string().trim().max(200).optional()
+    })
   })
 };
 

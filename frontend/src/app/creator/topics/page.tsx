@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { creatorService, TopicCategory, TopicPayload, Topic } from '@/src/services/creator.service';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { creatorService, TopicCategory, TopicPayload, Topic, WordPayload } from '@/src/services/creator.service';
+import { aiService } from '@/src/services/ai.service';
 import { Plus, Pencil, Trash2, Send, Loader2, X, ExternalLink, RotateCcw, Copy, History, AlertTriangle } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
@@ -26,17 +27,20 @@ const statusLabels: Record<string, string> = {
 
 export default function CreatorTopicsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [topics, setTopics] = useState<Topic[]>([]);
   const [categories, setCategories] = useState<TopicCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Topic | null>(null);
   const [form, setForm] = useState<TopicPayload>({ topicName: '', topicCode: '', description: '', topicCategoryId: undefined, displayOrder: 0 });
+  const [draftWords, setDraftWords] = useState<WordPayload[]>([]);
   const [saving, setSaving] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
   const [selectedTopicLogs, setSelectedTopicLogs] = useState<any[]>([]);
   const [selectedTopicName, setSelectedTopicName] = useState('');
   const [loadingLogs, setLoadingLogs] = useState(false);
+  const [generatingDraft, setGeneratingDraft] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     title: string;
@@ -91,9 +95,35 @@ export default function CreatorTopicsPage() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadData(); }, [loadData]);
 
+  useEffect(() => {
+    if (searchParams.get('draft') !== '1') return;
+
+    const draftRaw = window.localStorage.getItem('creator.topicDraft');
+    if (!draftRaw) return;
+
+    try {
+      const draft = JSON.parse(draftRaw) as Partial<TopicPayload>;
+      setEditing(null);
+      setForm({
+        topicName: draft.topicName || '',
+        topicCode: draft.topicCode || '',
+        description: draft.description || '',
+        topicCategoryId: draft.topicCategoryId,
+        displayOrder: draft.displayOrder ?? 0,
+      });
+      setDraftWords((draft as { suggestedWords?: WordPayload[] }).suggestedWords || []);
+      setShowForm(true);
+    } catch {
+      // ignore bad draft
+    } finally {
+      window.localStorage.removeItem('creator.topicDraft');
+    }
+  }, [searchParams]);
+
   const openCreate = () => {
     setEditing(null);
     setForm({ topicName: '', topicCode: '', description: '', topicCategoryId: undefined, displayOrder: 0 });
+    setDraftWords([]);
     setShowForm(true);
   };
 
@@ -101,6 +131,44 @@ export default function CreatorTopicsPage() {
     setEditing(t);
     setForm({ topicName: t.name, topicCode: t.code, description: t.description || '', topicCategoryId: t.categoryId || undefined, displayOrder: t.displayOrder });
     setShowForm(true);
+  };
+
+  const applyAiSuggestion = (suggestion: { topicName: string; topicCode: string; description?: string; suggestedWords?: WordPayload[] }) => {
+    setForm((current) => ({
+      ...current,
+      topicName: current.topicName.trim() || suggestion.topicName,
+      topicCode: current.topicCode.trim() || suggestion.topicCode,
+      description: suggestion.description || current.description,
+    }));
+    if (suggestion.suggestedWords && suggestion.suggestedWords.length > 0) {
+      setDraftWords(suggestion.suggestedWords);
+    }
+  };
+
+  const handleSuggestTopicContent = async () => {
+    const topicName = form.topicName.trim();
+    if (!topicName) {
+      toast.error('Vui lòng nhập tên chủ đề trước khi dùng AI');
+      return;
+    }
+
+    setGeneratingDraft(true);
+    try {
+      const suggestion = await aiService.suggestTopicContent({
+        topicName,
+        description: (form.description || '').trim() || undefined,
+        targetWordCount: 15,
+        topicCategoryId: form.topicCategoryId,
+      });
+
+      applyAiSuggestion(suggestion as { topicName: string; topicCode: string; description?: string; suggestedWords?: WordPayload[] });
+      toast.success('AI đã gợi ý nội dung cho chủ đề');
+    } catch (error) {
+      console.error('Không thể lấy gợi ý chủ đề từ AI', error);
+      toast.error('Không thể tạo gợi ý AI');
+    } finally {
+      setGeneratingDraft(false);
+    }
   };
 
   const handleSave = async () => {
@@ -114,10 +182,27 @@ export default function CreatorTopicsPage() {
         await creatorService.updateTopic(editing.id, form);
         toast.success('Cập nhật thành công');
       } else {
-        await creatorService.createTopic(form);
+        const createdTopic = await creatorService.createTopic(form);
+        if (!createdTopic?.id) {
+          throw new Error('Tạo chủ đề xong nhưng không nhận được TopicID');
+        }
+
+        if (draftWords.length > 0) {
+          const words = draftWords.map((word) => ({
+            term: word.term,
+            meaning: word.meaning || `Từ liên quan đến ${form.topicName}`,
+            phonetic: word.phonetic,
+            partOfSpeechId: word.partOfSpeechId || 1,
+            topicIds: [createdTopic.id],
+            examples: word.examples,
+            mediaIds: word.mediaIds,
+          }));
+          await creatorService.bulkCreateWords({ words, conflictStrategy: 'skip' });
+        }
         toast.success('Tạo chủ đề thành công');
       }
       setShowForm(false);
+      setDraftWords([]);
       await loadData();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
@@ -235,7 +320,19 @@ export default function CreatorTopicsPage() {
           <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-lg space-y-4 shadow-2xl border border-slate-200 dark:border-white/10" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold">{editing ? 'Sửa chủ đề' : 'Tạo chủ đề mới'}</h2>
-              <button onClick={() => setShowForm(false)}><X className="h-5 w-5 text-slate-500" /></button>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleSuggestTopicContent}
+                  disabled={generatingDraft}
+                  className="rounded-xl gap-2"
+                >
+                  {generatingDraft && <Loader2 className="animate-spin h-4 w-4" />}
+                  Gợi ý AI
+                </Button>
+                <button onClick={() => setShowForm(false)}><X className="h-5 w-5 text-slate-500" /></button>
+              </div>
             </div>
             <div className="space-y-3">
               <div>
@@ -273,6 +370,18 @@ export default function CreatorTopicsPage() {
                 <label className="text-xs font-semibold text-slate-500 uppercase">Thứ tự hiển thị</label>
                 <Input type="number" value={form.displayOrder} onChange={(e) => setForm({ ...form, displayOrder: Number(e.target.value) })} className="mt-1" />
               </div>
+              {draftWords.length > 0 && (
+                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 dark:border-white/10 dark:bg-white/5">
+                  <p className="text-xs font-semibold uppercase text-slate-500">Từ vựng AI sẽ được tạo cùng topic</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {draftWords.slice(0, 12).map((word) => (
+                      <span key={word.term} className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700 dark:border-white/10 dark:bg-slate-900 dark:text-slate-300">
+                        {word.term}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setShowForm(false)} className="rounded-xl">Hủy</Button>
@@ -338,7 +447,7 @@ export default function CreatorTopicsPage() {
                       <button onClick={() => handleViewLogs(t.id, t.name)} title="Xem lịch sử phê duyệt" className="p-1.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 text-purple-500">
                         <History className="h-4 w-4" />
                       </button>
-                      {t.contentStatus === 'Draft' && (
+                      {(t.contentStatus === 'Draft' || t.contentStatus === 'PendingReview') && (
                         <button onClick={() => handleDelete(t.id)} title="Xóa" className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500">
                           <Trash2 className="h-4 w-4" />
                         </button>

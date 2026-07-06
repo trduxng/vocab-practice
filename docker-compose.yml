@@ -22,8 +22,30 @@ services:
       - DB_SERVER=sqlserver
       - DB_NAME=ToeicVocabularyPlatform
       - JWT_SECRET=your_production_jwt_secret
+      - AI_SERVICE_URL=http://ai-service:8000
+      - AI_INTERNAL_TOKEN=your_internal_shared_secret
     ports:
       - "3001:3001"
+    depends_on:
+      - sqlserver
+
+  # AI Service
+  ai-service:
+    build: ./ai-service
+    container_name: vocaboost-ai
+    environment:
+      - APP_ENV=production
+      - APP_PORT=8000
+      - OPENROUTER_API_KEY=your_openrouter_api_key
+      - OPENROUTER_MODEL=deepseek/deepseek-chat-v3.1
+      - OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+      - OPENROUTER_SITE_URL=http://localhost:3000
+      - OPENROUTER_APP_NAME=VocaBoost
+      - GOOGLE_TRANSLATE_API_KEY=your_google_translate_api_key
+      - DATABASE_URL=Driver={ODBC Driver 18 for SQL Server};Server=sqlserver,1433;Database=ToeicVocabularyPlatform;Uid=sa;Pwd=YourStrongPassword123;Encrypt=no;TrustServerCertificate=yes;
+      - AI_INTERNAL_TOKEN=your_internal_shared_secret
+    ports:
+      - "8000:8000"
     depends_on:
       - sqlserver
 
