@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { createHmac, timingSafeEqual } from "crypto";
 
 const publicRoutes = ["/", "/login", "/register"];
 
@@ -16,53 +15,16 @@ type SessionPayload = {
   exp?: number;
 };
 
-function decodeBase64Url<T>(segment: string): T | null {
+function getSessionFromToken(token: string): SessionPayload | null {
   try {
-    const normalized = segment.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), "=");
-    return JSON.parse(Buffer.from(padded, "base64").toString("utf8")) as T;
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const payload = JSON.parse(Buffer.from(parts[1], "base64").toString());
+    if (payload.exp && payload.exp * 1000 <= Date.now()) return null;
+    return payload as SessionPayload;
   } catch {
     return null;
   }
-}
-
-function verifySessionToken(token: string): SessionPayload | null {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) {
-    return null;
-  }
-
-  const rawToken = (() => {
-    try {
-      return decodeURIComponent(token);
-    } catch {
-      return token;
-    }
-  })();
-
-  const parts = rawToken.split(".");
-  if (parts.length !== 3) {
-    return null;
-  }
-
-  const header = decodeBase64Url<{ alg?: string }>(parts[0]);
-  const payload = decodeBase64Url<SessionPayload>(parts[1]);
-  if (!header || !payload || header.alg !== "HS256") {
-    return null;
-  }
-
-  const expected = createHmac("sha256", secret).update(`${parts[0]}.${parts[1]}`).digest();
-  const actual = Buffer.from(parts[2].replace(/-/g, "+").replace(/_/g, "/"), "base64");
-
-  if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
-    return null;
-  }
-
-  if (payload.exp && payload.exp * 1000 <= Date.now()) {
-    return null;
-  }
-
-  return payload;
 }
 
 function redirectToLogin(request: NextRequest) {
@@ -84,7 +46,7 @@ export function proxy(request: NextRequest) {
   }
 
   const token = request.cookies.get("token")?.value;
-  const session = token ? verifySessionToken(token) : null;
+  const session = token ? getSessionFromToken(token) : null;
 
   if (protectedRoutes.some((route) => pathname.startsWith(route))) {
     if (!session) {
