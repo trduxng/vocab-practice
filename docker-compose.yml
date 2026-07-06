@@ -36,6 +36,10 @@ services:
     environment:
       - PORT=8080
       - UPSTREAM_URL=http://backend:3001
+      - JWT_SECRET=${JWT_SECRET:-your_production_jwt_secret}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-5.4-mini}
+      - GOOGLE_TRANSLATE_API_KEY=${GOOGLE_TRANSLATE_API_KEY:-}
     ports:
       - "8080:8080"
     depends_on:

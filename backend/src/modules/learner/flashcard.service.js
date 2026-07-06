@@ -1,6 +1,22 @@
 const { sql, poolPromise } = require("../../config/db");
 const GamificationService = require("./gamification.service");
-const { calculateEaseFactor, calculateNextReview, calculateMasteryLevel, determineMemoryStatus, DEFAULT_EASE_FACTOR } = require("../../engine/srs");
+
+const SRS_API = process.env.SRS_API_URL || "http://gin-gateway:8080/api/srs/grade";
+const DEFAULT_EASE_FACTOR = 2.50;
+
+async function srsGrade(input) {
+  const fetch = (await import("node-fetch")).default;
+  const res = await fetch(SRS_API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: "SRS API error" }));
+    throw new Error(err.message || `SRS API returned ${res.status}`);
+  }
+  return res.json();
+}
 
 function gradeQuestion(questionType, submittedAnswer, correctAnswer) {
   const answer = (submittedAnswer || "").trim().toLowerCase().replace(/\s+/g, " ");
@@ -143,10 +159,10 @@ class FlashcardService {
       const currentEF = row.EaseFactor != null ? Number(row.EaseFactor) : DEFAULT_EASE_FACTOR;
       const currentMastery = row.MasteryLevel != null ? Number(row.MasteryLevel) : 0;
 
-      // 2. Tính toán SRS bằng engine/srs/ pure functions
-      const newEF = calculateEaseFactor(currentEF, reviewRating);
-      const nextReview = calculateNextReview(reviewRating, currentMastery);
-      const now = new Date();
+      // 2. Tính toán SRS bằng Go gateway
+      const srsResult = await srsGrade({ currentEF: currentEF, rating: reviewRating, masteryLevel: currentMastery, isCorrect: isCorrect == true });
+      const newEF = srsResult.newEF;
+      const nextReview = new Date(srsResult.nextReview);
 
       // 3. UPDATE với giá trị đã tính
       const updateResult = await pool.request()
@@ -178,16 +194,26 @@ class FlashcardService {
     const row = current.recordset[0];
     const hasExisting = !!row;
 
-    // 2. Tính toán SRS bằng engine/srs/ pure functions
+    // 2. Tính toán SRS bằng Go gateway
     const currentEF = row ? Number(row.EaseFactor) : DEFAULT_EASE_FACTOR;
     const currentMastery = row ? Number(row.MasteryLevel) : 0;
     const currentReps = row ? Number(row.RepetitionCount) : 0;
 
-    const newEF = reviewRating ? calculateEaseFactor(currentEF, reviewRating) : currentEF;
-    const newMastery = calculateMasteryLevel(currentMastery, isCorrect);
-    const nextReview = reviewRating ? calculateNextReview(reviewRating, currentMastery)
-      : isCorrect ? calculateNextReview('Good', currentMastery) : new Date();
-    const newMemoryStatus = determineMemoryStatus(isCorrect, newMastery);
+    let newEF, newMastery, nextReview, newMemoryStatus;
+    if (reviewRating) {
+      const srsResult = await srsGrade({ currentEF, rating: reviewRating, masteryLevel: currentMastery, isCorrect });
+      newEF = srsResult.newEF;
+      newMastery = srsResult.newMastery;
+      nextReview = new Date(srsResult.nextReview);
+      newMemoryStatus = srsResult.memoryStatus;
+    } else {
+      newEF = currentEF;
+      newMastery = currentMastery;
+      const srsResult = await srsGrade({ currentEF, rating: isCorrect ? "Good" : "Again", masteryLevel: currentMastery, isCorrect });
+      newMastery = srsResult.newMastery;
+      nextReview = isCorrect ? new Date(srsResult.nextReview) : new Date();
+      newMemoryStatus = srsResult.memoryStatus;
+    }
     const newReps = currentReps + 1;
     const newConsecutiveCorrect = row ? (isCorrect ? Number(row.ConsecutiveCorrect) + 1 : 0) : (isCorrect ? 1 : 0);
     const newConsecutiveWrong = row ? (!isCorrect ? Number(row.ConsecutiveWrong) + 1 : 0) : (!isCorrect ? 1 : 0);
@@ -470,17 +496,21 @@ class FlashcardService {
         await req.query(`INSERT INTO ExerciseAttempts (UserID, QuestionID, WordID, SubmittedAnswer, IsCorrect, ScoreAwarded, AttemptedAt) VALUES (@UserID, @QuestionID, @WordID, @SubmittedAnswer, @IsCorrect, @ScoreAwarded, SYSDATETIMEOFFSET())`);
 
         if (wordId) {
-          // Tính toán SRS bằng engine/srs/ pure functions
+          // Tính toán SRS bằng Go gateway
           const row = progressMap.get(wordId);
           const currentEF = row ? Number(row.EaseFactor) : DEFAULT_EASE_FACTOR;
           const currentMastery = row ? Number(row.MasteryLevel) : 0;
           const currentReps = row ? Number(row.RepetitionCount) : 0;
 
-          const newMastery = calculateMasteryLevel(currentMastery, isCorrect);
-          const nextReview = isCorrect
-            ? calculateNextReview('Good', currentMastery)
-            : new Date();
-          const newMemoryStatus = determineMemoryStatus(isCorrect, newMastery);
+          const srsResult = await srsGrade({
+            currentEF,
+            rating: isCorrect ? "Good" : "Again",
+            masteryLevel: currentMastery,
+            isCorrect,
+          });
+          const newMastery = srsResult.newMastery;
+          const nextReview = isCorrect ? new Date(srsResult.nextReview) : new Date();
+          const newMemoryStatus = srsResult.memoryStatus;
           const newReps = currentReps + 1;
 
           const wordReq = new sql.Request(transaction);
@@ -492,7 +522,7 @@ class FlashcardService {
           wordReq.input('IsCorrect', sql.Bit, isCorrect);
 
           if (row) {
-            const newEF = calculateEaseFactor(currentEF, 'Good');
+            const newEF = srsResult.newEF;
             const newConsecutiveCorrect = isCorrect ? Number(row.ConsecutiveCorrect) + 1 : 0;
             const newConsecutiveWrong = !isCorrect ? Number(row.ConsecutiveWrong) + 1 : 0;
             wordReq.input('EaseFactor', sql.Decimal(5, 2), newEF);

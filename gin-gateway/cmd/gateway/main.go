@@ -9,6 +9,7 @@ import (
 	"gin-gateway/internal/ai"
 	"gin-gateway/internal/middleware"
 	"gin-gateway/internal/proxy"
+	"gin-gateway/internal/srs"
 
 	"github.com/gin-gonic/gin"
 )
@@ -40,6 +41,12 @@ func main() {
 	aiGroup.Use(middleware.RequirePermission("MANAGE_WORDS", "MANAGE_QUESTIONS"))
 	{
 		aiGroup.POST("/word-suggestions", aiHandler.SuggestWordContent)
+	}
+
+	// SRS module — xử lý native
+	srsGroup := r.Group("/api/srs")
+	{
+		srsGroup.POST("/grade", srs.GradeHandler)
 	}
 
 	r.NoRoute(func(c *gin.Context) {

@@ -104,6 +104,7 @@ const schemas = {
       status: z
         .enum(["Draft", "PendingReview", "Published", "Rejected", "Archived"])
         .optional(),
+      difficultyLevel: z.coerce.number().int().min(1).max(5).optional(),
     }),
   }),
   miniTest: z.object({
