@@ -11,7 +11,7 @@ services:
     ports:
       - "1433:1433"
 
-  # Backend API
+  # Backend API (Express)
   backend:
     build: ./backend
     container_name: vocaboost-api
@@ -23,17 +23,37 @@ services:
       - DB_NAME=ToeicVocabularyPlatform
       - JWT_SECRET=your_production_jwt_secret
     ports:
-      - "3001:3001"
+      - "3001"
     depends_on:
       - sqlserver
+
+  # API Gateway (Gin)
+  gin-gateway:
+    build:
+      context: ./gin-gateway
+      target: ${GIN_TARGET:-dev}
+    container_name: vocaboost-gateway
+    environment:
+      - PORT=8080
+      - UPSTREAM_URL=http://backend:3001
+    ports:
+      - "8080:8080"
+    depends_on:
+      - backend
+    develop:
+      watch:
+        - path: ./gin-gateway
+          action: sync
+          ignore:
+            - tmp/
 
   # Frontend Web
   frontend:
     build: ./frontend
     container_name: vocaboost-web
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:3001/api
+      - NEXT_PUBLIC_API_URL=http://localhost:8080/api
     ports:
       - "3000:3000"
     depends_on:
-      - backend
+      - gin-gateway

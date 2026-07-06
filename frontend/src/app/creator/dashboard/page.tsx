@@ -6,17 +6,6 @@ import { BarChart3, BookOpen, FileQuestion, FileText, ListChecks, Loader2, PieCh
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, ComposedChart, Line } from 'recharts';
 import { toast } from 'sonner';
 import Topbar from '@/src/components/shared/Topbar';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-  Legend,
-} from 'recharts';
 import ChartFrame from '@/src/components/admin/ChartFrame';
 import { chartColors } from '@/src/components/admin/AdminPrimitives';
 

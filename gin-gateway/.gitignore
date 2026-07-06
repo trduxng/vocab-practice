@@ -1,0 +1,6 @@
+tmp/
+.vscode/
+.idea/
+*.exe
+*.test
+*.out

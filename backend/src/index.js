@@ -19,7 +19,6 @@ const adminRoutes = require('./modules/admin/routes');
 const userRoutes = require('./modules/learner/learner.routes');
 const progressRoutes = require('./modules/progress/progress.routes');
 const creatorRoutes = require('./modules/creator/creator.routes');
-const aiRoutes = require('./modules/ai/ai.routes');
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -78,7 +77,6 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/creator', creatorRoutes);
-app.use('/api/ai', aiRoutes);
 
 // Error Handler Middleware
 app.use(errorHandler);

@@ -10,7 +10,7 @@ import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import { toast } from 'sonner';
 
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace(/\/api\/?$/, '');
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api').replace(/\/api\/?$/, '');
 
 const mediaTypeBadge: Record<string, string> = {
   Image: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
