@@ -17,18 +17,13 @@ import {
   Search,
   Trash2,
   Upload,
-  X,
 } from "lucide-react";
 import Topbar from "@/src/components/shared/Topbar";
 import { AdminPage, AdminPanel, ConfirmDialog, IconButton, KpiCard, StatusBadge, ToolbarButton } from "@/src/components/admin/AdminPrimitives";
 import { Button } from "@/src/components/ui/button";
-import { Input } from "@/src/components/ui/input";
-import { Textarea } from "@/src/components/ui/textarea";
 import { adminService, type PaginationMeta } from "@/src/services/admin.service";
 import { adminLabel } from "@/src/lib/admin-i18n";
-
-type ContentStatus = "Draft" | "PendingReview" | "Published" | "Rejected" | "Archived";
-type QuestionType = "MCQ" | "FillBlank" | "DragDrop" | "Dictation";
+import { QuestionForm, type QuestionType, type ContentStatus } from "@/src/components/admin/questions/QuestionForm";
 
 type WordItem = {
   id: number;
@@ -47,16 +42,8 @@ type QuestionItem = {
   correctAnswer: string;
   explanation?: string;
   status?: ContentStatus;
+  difficultyLevel?: number;
   updatedAt?: string;
-};
-
-type QuestionForm = {
-  questionType: QuestionType;
-  questionText: string;
-  options: string[];
-  correctAnswer: string;
-  explanation: string;
-  status: ContentStatus;
 };
 
 type BulkImportResult = {
@@ -65,7 +52,7 @@ type BulkImportResult = {
   errors?: Array<{ row: number; message: string }>;
 };
 
-const questionTypes: QuestionType[] = ["MCQ", "FillBlank", "Dictation", "DragDrop"];
+const questionTypes: QuestionType[] = ["MCQ", "FillBlank", "Dictation", "DragDrop", "FlashcardCheck"];
 const statusOptions: ContentStatus[] = ["Draft", "PendingReview", "Published", "Rejected", "Archived"];
 
 const statusTone: Record<ContentStatus, "slate" | "blue" | "emerald" | "amber" | "rose"> = {
@@ -76,32 +63,9 @@ const statusTone: Record<ContentStatus, "slate" | "blue" | "emerald" | "amber" |
   Archived: "slate",
 };
 
-const emptyForm: QuestionForm = {
-  questionType: "MCQ",
-  questionText: "",
-  options: ["", "", "", ""],
-  correctAnswer: "",
-  explanation: "",
-  status: "Published",
-};
-
 function getErrorMessage(error: unknown, fallback: string) {
   const apiError = error as { response?: { data?: { message?: unknown } } };
   return typeof apiError.response?.data?.message === "string" ? apiError.response.data.message : fallback;
-}
-
-function parseOptions(optionsJson?: string) {
-  if (!optionsJson) return ["", "", "", ""];
-  try {
-    const parsed = JSON.parse(optionsJson);
-    if (Array.isArray(parsed)) {
-      const values = parsed.map((item) => String(item ?? ""));
-      return values.length >= 2 ? values : [...values, "", ""].slice(0, 4);
-    }
-  } catch {
-    return ["", "", "", ""];
-  }
-  return ["", "", "", ""];
 }
 
 function compactNumber(value?: number) {
@@ -136,15 +100,13 @@ export default function AdminQuestionsPage() {
   const [questionQuery, setQuestionQuery] = useState("");
   const [questionTypeFilter, setQuestionTypeFilter] = useState("");
   const [questionStatusFilter, setQuestionStatusFilter] = useState("");
+  const [questionDifficultyFilter, setQuestionDifficultyFilter] = useState("");
   const [questionsPage, setQuestionsPage] = useState(1);
   const [questionsPagination, setQuestionsPagination] = useState<PaginationMeta | null>(null);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [questionsError, setQuestionsError] = useState("");
 
-  const [form, setForm] = useState<QuestionForm>(emptyForm);
-  const [editingQuestion, setEditingQuestion] = useState<QuestionItem | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [formTarget, setFormTarget] = useState<{ question: QuestionItem | null } | null>(null);
   const [bulkImporting, setBulkImporting] = useState(false);
   const [bulkResult, setBulkResult] = useState<BulkImportResult | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<QuestionItem | null>(null);
@@ -195,6 +157,7 @@ export default function AdminQuestionsPage() {
         search: questionQuery.trim(),
         type: questionTypeFilter,
         status: questionStatusFilter,
+        difficultyLevel: questionDifficultyFilter || undefined,
       });
       setQuestions(response.items);
       setQuestionsPagination(response.pagination);
@@ -206,7 +169,7 @@ export default function AdminQuestionsPage() {
     } finally {
       setLoadingQuestions(false);
     }
-  }, [questionQuery, questionStatusFilter, questionTypeFilter, questionsPage, selectedWord]);
+  }, [questionDifficultyFilter, questionQuery, questionStatusFilter, questionTypeFilter, questionsPage, selectedWord]);
 
   useEffect(() => {
     void Promise.resolve().then(fetchWords);
@@ -229,99 +192,21 @@ export default function AdminQuestionsPage() {
     setQuestionQuery("");
     setQuestionTypeFilter("");
     setQuestionStatusFilter("");
-    resetForm();
-  }
-
-  function resetForm() {
-    setForm(emptyForm);
-    setEditingQuestion(null);
-    setShowForm(false);
+    setQuestionDifficultyFilter("");
+    setFormTarget(null);
   }
 
   function openCreateForm() {
-    if (!selectedWord) return;
-    setEditingQuestion(null);
-    setForm({
-      ...emptyForm,
-      questionText: `What is the correct meaning of "${selectedWord.term}"?`,
-      correctAnswer: selectedWord.meaning,
-      options: [selectedWord.meaning, "", "", ""],
-    });
-    setShowForm(true);
+    setFormTarget({ question: null });
   }
 
   function openEditForm(question: QuestionItem) {
-    setEditingQuestion(question);
-    setForm({
-      questionType: question.questionType,
-      questionText: question.questionText,
-      options: parseOptions(question.optionsJson),
-      correctAnswer: question.correctAnswer,
-      explanation: question.explanation || "",
-      status: question.status || "Published",
-    });
-    setShowForm(true);
+    setFormTarget({ question });
   }
 
-  function updateOption(index: number, value: string) {
-    setForm((current) => {
-      const nextOptions = [...current.options];
-      nextOptions[index] = value;
-      return { ...current, options: nextOptions };
-    });
-  }
-
-  function addOption() {
-    setForm((current) => ({ ...current, options: [...current.options, ""] }));
-  }
-
-  function removeOption(index: number) {
-    setForm((current) => ({ ...current, options: current.options.filter((_, itemIndex) => itemIndex !== index) }));
-  }
-
-  function buildPayload() {
-    if (!selectedWord) throw new Error("Vui lòng chọn từ vựng trước");
-    const questionText = form.questionText.trim();
-    const correctAnswer = form.correctAnswer.trim();
-    const options = form.options.map((option) => option.trim()).filter(Boolean);
-
-    if (questionText.length < 5) throw new Error("Nội dung câu hỏi phải có ít nhất 5 ký tự");
-    if (!correctAnswer) throw new Error("Vui lòng nhập đáp án đúng");
-    if (form.questionType === "MCQ" && options.length < 2) throw new Error("Câu trắc nghiệm cần ít nhất 2 lựa chọn");
-
-    return {
-      wordId: selectedWord.id,
-      questionType: form.questionType,
-      questionText,
-      optionsJson: JSON.stringify(form.questionType === "MCQ" ? options : []),
-      correctAnswer,
-      explanation: form.explanation.trim() || undefined,
-      status: form.status,
-    };
-  }
-
-  async function saveQuestion(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!selectedWord) return;
-
-    setSaving(true);
-    try {
-      const payload = buildPayload();
-      if (editingQuestion) {
-        await adminService.updateQuestion(editingQuestion.id, payload);
-        toast.success("Đã cập nhật câu hỏi");
-      } else {
-        await adminService.createQuestion(payload);
-        toast.success("Đã tạo câu hỏi");
-      }
-      resetForm();
-      await Promise.all([fetchQuestions(), fetchWords()]);
-    } catch (error) {
-      console.error("Không thể lưu câu hỏi", error);
-      toast.error(error instanceof Error ? error.message : getErrorMessage(error, "Không thể lưu câu hỏi"));
-    } finally {
-      setSaving(false);
-    }
+  function onFormSaved() {
+    setFormTarget(null);
+    void Promise.all([fetchQuestions(), fetchWords()]);
   }
 
   async function deleteQuestion() {
@@ -506,68 +391,15 @@ export default function AdminQuestionsPage() {
                 </div>
               )}
 
-              {showForm && selectedWord && (
-                <form onSubmit={saveQuestion} className="mb-5 space-y-4 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/[0.04]">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h2 className="text-sm font-semibold text-slate-950 dark:text-white">{editingQuestion ? "Sửa câu hỏi" : "Tạo câu hỏi"}</h2>
-                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Gắn với từ {selectedWord.term}</p>
-                    </div>
-                    <IconButton label="Đóng biểu mẫu" onClick={resetForm}><X className="h-4 w-4" /></IconButton>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                    <Field label="Loại câu hỏi">
-                      <Select value={form.questionType} onChange={(value) => setForm((current) => ({ ...current, questionType: value as QuestionType }))}>
-                        {questionTypes.map((type) => <option key={type} value={type}>{adminLabel(type)}</option>)}
-                      </Select>
-                    </Field>
-                    <Field label="Trạng thái">
-                      <Select value={form.status} onChange={(value) => setForm((current) => ({ ...current, status: value as ContentStatus }))}>
-                        {statusOptions.map((status) => <option key={status} value={status}>{adminLabel(status)}</option>)}
-                      </Select>
-                    </Field>
-                    <Field label="Đáp án đúng">
-                      <Input value={form.correctAnswer} onChange={(event) => setForm((current) => ({ ...current, correctAnswer: event.target.value }))} className="h-10 rounded-md" required />
-                    </Field>
-                  </div>
-
-                  <Field label="Nội dung câu hỏi">
-                    <Textarea
-                      value={form.questionText}
-                      onChange={(event) => setForm((current) => ({ ...current, questionText: event.target.value }))}
-                      className="min-h-24 rounded-md"
-                      required
-                    />
-                  </Field>
-
-                  {form.questionType === "MCQ" && (
-                    <Field label="Các lựa chọn">
-                      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                        {form.options.map((option, index) => (
-                          <div key={index} className="flex items-center gap-2">
-                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-slate-200 text-xs font-semibold text-slate-500 dark:border-white/10">{String.fromCharCode(65 + index)}</span>
-                            <Input value={option} onChange={(event) => updateOption(index, event.target.value)} className="h-10 rounded-md" />
-                            <button type="button" onClick={() => setForm((current) => ({ ...current, correctAnswer: option }))} className="h-10 rounded-md border border-slate-200 px-2 text-xs text-slate-500 dark:border-white/10">Chọn</button>
-                            {form.options.length > 2 && <IconButton label="Xóa lựa chọn" tone="rose" onClick={() => removeOption(index)}><X className="h-4 w-4" /></IconButton>}
-                          </div>
-                        ))}
-                      </div>
-                      <Button type="button" variant="outline" onClick={addOption} className="mt-2 h-9 rounded-md">Thêm lựa chọn</Button>
-                    </Field>
-                  )}
-
-                  <Field label="Giải thích">
-                    <Textarea value={form.explanation} onChange={(event) => setForm((current) => ({ ...current, explanation: event.target.value }))} className="min-h-20 rounded-md" />
-                  </Field>
-
-                  <div className="flex justify-end gap-2 border-t border-slate-200 pt-4 dark:border-white/10">
-                    <Button type="button" variant="ghost" onClick={resetForm} className="rounded-md">Hủy</Button>
-                    <Button type="submit" disabled={saving} className="rounded-md bg-blue-600 hover:bg-blue-700">
-                      {saving ? "Đang lưu..." : editingQuestion ? "Cập nhật câu hỏi" : "Tạo câu hỏi"}
-                    </Button>
-                  </div>
-                </form>
+              {formTarget && selectedWord && (
+                <div className="mb-5">
+                  <QuestionForm
+                    word={{ id: selectedWord.id, term: selectedWord.term, meaning: selectedWord.meaning }}
+                    question={formTarget.question}
+                    onSaved={onFormSaved}
+                    onCancel={() => setFormTarget(null)}
+                  />
+                </div>
               )}
 
               <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -593,6 +425,10 @@ export default function AdminQuestionsPage() {
                     <option value="">Tất cả trạng thái</option>
                     {statusOptions.map((status) => <option key={status} value={status}>{adminLabel(status)}</option>)}
                   </Select>
+                  <Select value={questionDifficultyFilter} onChange={(value) => { setQuestionDifficultyFilter(value); setQuestionsPage(1); }}>
+                    <option value="">Tất cả độ khó</option>
+                    {[1, 2, 3, 4, 5].map((level) => <option key={level} value={String(level)}>{'★'.repeat(level)}{'☆'.repeat(5 - level)}</option>)}
+                  </Select>
                 </div>
               </div>
 
@@ -603,43 +439,53 @@ export default function AdminQuestionsPage() {
               </div>
 
               <div className="overflow-hidden rounded-lg border border-slate-200 dark:border-white/10">
-                <table className="w-full min-w-[920px] text-left text-sm">
-                  <thead className="border-b border-slate-200 bg-slate-100 text-xs uppercase tracking-wide text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
-                    <tr>
-                      <th className="px-4 py-3 font-medium">Câu hỏi</th>
-                      <th className="px-4 py-3 font-medium">Loại</th>
-                      <th className="px-4 py-3 font-medium">Đáp án</th>
-                      <th className="px-4 py-3 font-medium">Trạng thái</th>
-                      <th className="px-4 py-3 text-right font-medium">Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200 dark:divide-white/10">
-                    {loadingQuestions ? (
+                  <table className="w-full min-w-[920px] text-left text-sm">
+                    <thead className="border-b border-slate-200 bg-slate-100 text-xs uppercase tracking-wide text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
                       <tr>
-                        <td colSpan={5} className="px-4 py-12 text-center text-sm text-slate-500">
-                          <Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin" />
-                          Đang tải câu hỏi...
-                        </td>
+                        <th className="px-4 py-3 font-medium">Câu hỏi</th>
+                        <th className="px-4 py-3 font-medium">Loại</th>
+                        <th className="px-4 py-3 font-medium">Đáp án</th>
+                        <th className="px-4 py-3 font-medium">Độ khó</th>
+                        <th className="px-4 py-3 font-medium">Trạng thái</th>
+                        <th className="px-4 py-3 text-right font-medium">Thao tác</th>
                       </tr>
-                    ) : questionsError ? (
-                      <tr><td colSpan={5}><InlineError message={questionsError} onRetry={() => void fetchQuestions()} /></td></tr>
-                    ) : !selectedWord ? (
-                      <tr><td colSpan={5}><EmptyState icon={HelpCircle} title="Chọn một từ vựng" description="Danh sách câu hỏi được tải theo từng từ vựng." /></td></tr>
-                    ) : questions.length === 0 ? (
-                      <tr><td colSpan={5}><EmptyState icon={FileQuestion} title="Chưa có câu hỏi" description="Hãy tạo thủ công hoặc nhập từ tệp CSV." /></td></tr>
-                    ) : questions.map((question) => (
-                      <tr key={question.id} className="hover:bg-slate-50 dark:hover:bg-white/5">
-                        <td className="px-4 py-4">
-                          <p className="max-w-xl font-medium text-slate-950 dark:text-white">{question.questionText}</p>
-                          <QuestionOptions optionsJson={question.optionsJson} />
-                          {question.explanation && <p className="mt-2 line-clamp-2 text-xs text-slate-600 dark:text-slate-400">{question.explanation}</p>}
-                        </td>
-                        <td className="px-4 py-4"><StatusBadge tone="blue">{adminLabel(question.questionType)}</StatusBadge></td>
-                        <td className="px-4 py-4 text-slate-700 dark:text-slate-300">{question.correctAnswer}</td>
-                        <td className="px-4 py-4">
-                          <StatusBadge tone={statusTone[question.status || "Published"]}>{adminLabel(question.status || "Published")}</StatusBadge>
-                        </td>
-                        <td className="px-4 py-4">
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 dark:divide-white/10">
+                      {loadingQuestions ? (
+                        <tr>
+                          <td colSpan={6} className="px-4 py-12 text-center text-sm text-slate-500">
+                            <Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin" />
+                            Đang tải câu hỏi...
+                          </td>
+                        </tr>
+                      ) : questionsError ? (
+                        <tr><td colSpan={6}><InlineError message={questionsError} onRetry={() => void fetchQuestions()} /></td></tr>
+                      ) : !selectedWord ? (
+                        <tr><td colSpan={6}><EmptyState icon={HelpCircle} title="Chọn một từ vựng" description="Danh sách câu hỏi được tải theo từng từ vựng." /></td></tr>
+                      ) : questions.length === 0 ? (
+                        <tr><td colSpan={6}><EmptyState icon={FileQuestion} title="Chưa có câu hỏi" description="Hãy tạo thủ công hoặc nhập từ tệp CSV." /></td></tr>
+                      ) : questions.map((question) => (
+                        <tr key={question.id} className="hover:bg-slate-50 dark:hover:bg-white/5">
+                          <td className="px-4 py-4">
+                            <p className="max-w-xl font-medium text-slate-950 dark:text-white">{question.questionText}</p>
+                            <QuestionOptions optionsJson={question.optionsJson} />
+                            {question.explanation && <p className="mt-2 line-clamp-2 text-xs text-slate-600 dark:text-slate-400">{question.explanation}</p>}
+                          </td>
+                          <td className="px-4 py-4"><StatusBadge tone="blue">{adminLabel(question.questionType)}</StatusBadge></td>
+                          <td className="px-4 py-4 text-slate-700 dark:text-slate-300">{question.correctAnswer}</td>
+                          <td className="px-4 py-4">
+                            {question.difficultyLevel ? (
+                              <span className={`text-xs font-bold ${question.difficultyLevel <= 2 ? 'text-emerald-500' : question.difficultyLevel <= 4 ? 'text-amber-500' : 'text-rose-500'}`}>
+                                {'★'.repeat(question.difficultyLevel)}{'☆'.repeat(5 - question.difficultyLevel)}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-slate-400">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-4">
+                            <StatusBadge tone={statusTone[question.status || "Published"]}>{adminLabel(question.status || "Published")}</StatusBadge>
+                          </td>
+                          <td className="px-4 py-4">
                           <div className="flex justify-end gap-2">
                             <IconButton label="Sửa câu hỏi" onClick={() => openEditForm(question)}><Edit2 className="h-4 w-4" /></IconButton>
                             <IconButton label="Xóa câu hỏi" tone="rose" onClick={() => setDeleteTarget(question)}><Trash2 className="h-4 w-4" /></IconButton>
@@ -669,15 +515,6 @@ export default function AdminQuestionsPage() {
         />
       </AdminPage>
     </>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-2">
-      <label className="text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-400">{label}</label>
-      {children}
-    </div>
   );
 }
 
@@ -727,7 +564,14 @@ function PaginationBar({ pagination, loading, onPageChange }: { pagination: Pagi
 }
 
 function QuestionOptions({ optionsJson }: { optionsJson?: string }) {
-  const options = parseOptions(optionsJson).filter(Boolean);
+  if (!optionsJson) return null;
+  let options: string[] = [];
+  try {
+    const parsed = JSON.parse(optionsJson);
+    if (Array.isArray(parsed)) {
+      options = parsed.map((item) => String(item ?? "")).filter(Boolean);
+    }
+  } catch { /* ignore */ }
   if (!options.length) return null;
 
   return (

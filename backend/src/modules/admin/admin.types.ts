@@ -57,6 +57,7 @@ export interface QuestionFilters {
   search?: string;
   type?: string;
   status?: ContentStatus | string;
+  difficultyLevel?: number | string;
 }
 
 export interface QuestionPayload {
@@ -67,6 +68,7 @@ export interface QuestionPayload {
   optionsJson?: string;
   explanation?: string;
   status?: ContentStatus;
+  difficultyLevel?: number;
 }
 
 export interface MiniTestFilters {

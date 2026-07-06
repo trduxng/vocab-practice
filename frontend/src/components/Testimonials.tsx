@@ -9,7 +9,7 @@ const reviews = [
     avatarBg: "bg-blue-500",
     rating: 5,
     text: "Sau 3 tháng dùng VocaBoost, vốn từ IELTS của mình tăng vọt. Phương pháp SRS thực sự hiệu quả, giờ mình nhớ từ lâu hơn nhiều so với học truyền thống.",
-    course: "IELTS Vocabulary Master",
+    course: "Từ vựng IELTS Chuyên sâu",
     highlight: "Tăng từ 6.0 → 7.5",
   },
   {
@@ -19,7 +19,7 @@ const reviews = [
     avatarBg: "bg-pink-500",
     rating: 5,
     text: "App thiết kế rất đẹp, dễ dùng. Tôi học 15 phút mỗi ngày trên đường đi làm và đạt 850 TOEIC sau 2 tháng. Nội dung sát với đề thi thật!",
-    course: "TOEIC 800+ Vocabulary",
+    course: "Từ vựng TOEIC 800+",
     highlight: "TOEIC 850 điểm",
   },
   {
@@ -39,7 +39,7 @@ const reviews = [
     avatarBg: "bg-amber-500",
     rating: 5,
     text: "Nhớ mãi không quên nhờ học theo ngữ cảnh. AI nhắc ôn tập đúng lúc, không bao giờ bị quá tải. Điểm nghe IELTS của mình từ 6.5 lên 8.0!",
-    course: "IELTS Vocabulary Master",
+    course: "Từ vựng IELTS Chuyên sâu",
     highlight: "Listening 8.0",
   },
 ];

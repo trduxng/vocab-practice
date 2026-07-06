@@ -71,12 +71,13 @@ const schemas = {
   createQuestion: z.object({
     body: z.object({
       wordId: z.coerce.number().int().positive(),
-      questionType: z.enum(['MCQ', 'FillBlank', 'DragDrop', 'Dictation']),
+      questionType: z.enum(['MCQ', 'FillBlank', 'DragDrop', 'Dictation', 'FlashcardCheck']),
       questionText: z.string().min(5),
       correctAnswer: z.string().min(1),
       optionsJson: z.string().optional(),
       explanation: z.string().optional(),
       status: z.enum(contentStatusEnum).optional(),
+      difficultyLevel: z.coerce.number().int().min(1).max(5).optional(),
     })
   }),
 

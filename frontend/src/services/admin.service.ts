@@ -171,7 +171,7 @@ export const adminService = {
     wordId: number,
     page = 1,
     limit = 20,
-    filters: { search?: string; type?: string; status?: string } = {}
+    filters: { search?: string; type?: string; status?: string; difficultyLevel?: string } = {}
   ) {
     const response = await apiClient.get(`/admin/questions/${wordId}`, {
       params: {
@@ -180,12 +180,13 @@ export const adminService = {
         search: filters.search || undefined,
         type: filters.type || undefined,
         status: filters.status || undefined,
+        difficultyLevel: filters.difficultyLevel || undefined,
       }
     });
     return response.data as PagedResponse<T>;
   },
 
-  async getQuestionsByWord<T = unknown>(wordId: number, page = 1, limit = 20, filters: { search?: string; type?: string; status?: string } = {}) {
+  async getQuestionsByWord<T = unknown>(wordId: number, page = 1, limit = 20, filters: { search?: string; type?: string; status?: string; difficultyLevel?: string } = {}) {
     const data = await this.getQuestionsByWordPage<T>(wordId, page, limit, filters);
     return unwrapItems<T>(data);
   },

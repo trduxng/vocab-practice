@@ -8,6 +8,7 @@ class QuestionService extends AdminShared {
     const search = String(filters.search ?? '').trim();
     const type = String(filters.type ?? '').trim();
     const status = String(filters.status ?? '').trim();
+    const difficultyLevel = filters.difficultyLevel ? Number(filters.difficultyLevel) : 0;
     const conditions = ['WordID = @WordID'];
     const request = pool.request()
       .input('WordID', sql.BigInt, wordId)
@@ -29,6 +30,11 @@ class QuestionService extends AdminShared {
       conditions.push('ContentStatus = @ContentStatus');
     }
 
+    if (difficultyLevel >= 1 && difficultyLevel <= 5) {
+      request.input('DifficultyLevel', sql.TinyInt, difficultyLevel);
+      conditions.push('DifficultyLevel = @DifficultyLevel');
+    }
+
     const whereClause = `WHERE ${conditions.join(' AND ')}`;
     const result = await request
       .query(`
@@ -38,7 +44,7 @@ class QuestionService extends AdminShared {
 
         SELECT QuestionID AS id, QuestionType AS questionType, QuestionText AS questionText, 
                OptionsJson AS optionsJson, CorrectAnswer AS correctAnswer, Explanation AS explanation,
-               ContentStatus AS status, UpdatedAt AS updatedAt
+               DifficultyLevel AS difficultyLevel, ContentStatus AS status, UpdatedAt AS updatedAt
         FROM Questions
         ${whereClause}
         ORDER BY UpdatedAt DESC
@@ -48,7 +54,7 @@ class QuestionService extends AdminShared {
   }
 
   static async createQuestion(questionData: QuestionPayload, adminId) {
-    const { wordId, questionType, questionText, optionsJson = '[]', correctAnswer, explanation, status = 'Published' } = questionData;
+    const { wordId, questionType, questionText, optionsJson = '[]', correctAnswer, explanation, status = 'Published', difficultyLevel = 1 } = questionData;
     this.assertContentStatus(status);
     const pool = await poolPromise;
     const result = await pool.request()
@@ -59,19 +65,20 @@ class QuestionService extends AdminShared {
       .input('CorrectAnswer', sql.NVarChar(500), correctAnswer)
       .input('Explanation', sql.NVarChar(2000), explanation)
       .input('ContentStatus', sql.NVarChar(30), status)
+      .input('DifficultyLevel', sql.TinyInt, difficultyLevel)
       .input('CreatedByUserID', sql.BigInt, adminId)
       .query(`
-        INSERT INTO Questions (WordID, QuestionType, QuestionText, OptionsJson, CorrectAnswer, Explanation, ContentStatus, CreatedByUserID, CreatedAt, UpdatedAt, PublishedAt)
+        INSERT INTO Questions (WordID, QuestionType, QuestionText, OptionsJson, CorrectAnswer, Explanation, DifficultyLevel, ContentStatus, CreatedByUserID, CreatedAt, UpdatedAt, PublishedAt)
         OUTPUT inserted.QuestionID AS id
-        VALUES (@WordID, @QuestionType, @QuestionText, @OptionsJson, @CorrectAnswer, @Explanation, @ContentStatus, @CreatedByUserID, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET(), CASE WHEN @ContentStatus = N'Published' THEN SYSDATETIMEOFFSET() ELSE NULL END)
+        VALUES (@WordID, @QuestionType, @QuestionText, @OptionsJson, @CorrectAnswer, @Explanation, @DifficultyLevel, @ContentStatus, @CreatedByUserID, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET(), CASE WHEN @ContentStatus = N'Published' THEN SYSDATETIMEOFFSET() ELSE NULL END)
       `);
     const created = result.recordset[0];
-    await this.logAdminAction(adminId, 'CREATE_QUESTION', 'Question', created.id, { wordId, questionType, status });
+    await this.logAdminAction(adminId, 'CREATE_QUESTION', 'Question', created.id, { wordId, questionType, status, difficultyLevel });
     return created;
   }
 
   static async updateQuestion(questionId, questionData: QuestionPayload, adminId) {
-    const { wordId, questionType, questionText, optionsJson = '[]', correctAnswer, explanation, status = 'Published' } = questionData;
+    const { wordId, questionType, questionText, optionsJson = '[]', correctAnswer, explanation, status = 'Published', difficultyLevel } = questionData;
     this.assertContentStatus(status);
     const pool = await poolPromise;
     const oldStatusResult = await pool.request()
@@ -80,6 +87,7 @@ class QuestionService extends AdminShared {
 
     if (oldStatusResult.recordset.length === 0) return false;
     const oldStatus = oldStatusResult.recordset[0].ContentStatus;
+    const level = difficultyLevel ?? 1;
 
     const result = await pool.request()
       .input('QuestionID', sql.BigInt, questionId)
@@ -89,6 +97,7 @@ class QuestionService extends AdminShared {
       .input('OptionsJson', sql.NVarChar(sql.MAX), optionsJson)
       .input('CorrectAnswer', sql.NVarChar(500), correctAnswer)
       .input('Explanation', sql.NVarChar(2000), explanation)
+      .input('DifficultyLevel', sql.TinyInt, level)
       .input('ContentStatus', sql.NVarChar(30), status)
       .input('OldStatus', sql.NVarChar(30), oldStatus)
       .input('ReviewedByUserID', sql.BigInt, adminId)
@@ -100,6 +109,7 @@ class QuestionService extends AdminShared {
             OptionsJson = @OptionsJson,
             CorrectAnswer = @CorrectAnswer,
             Explanation = @Explanation,
+            DifficultyLevel = @DifficultyLevel,
             ContentStatus = @ContentStatus,
             ReviewedByUserID = @ReviewedByUserID,
             ReviewedAt = CASE WHEN @ContentStatus <> @OldStatus THEN SYSDATETIMEOFFSET() ELSE ReviewedAt END,
