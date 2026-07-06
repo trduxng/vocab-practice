@@ -62,6 +62,7 @@ const creatorLinks: NavLink[] = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/creator/dashboard", anyOf: [PERMISSIONS.viewDashboard] },
   { icon: Brain, label: "AI Studio", href: "/creator/ai-studio", anyOf: [PERMISSIONS.manageTopics, PERMISSIONS.manageWords, PERMISSIONS.manageQuestions] },
   { icon: BookOpen, label: "Chủ đề & Nội dung", href: "/creator/topics", anyOf: [PERMISSIONS.manageTopics] },
+  { icon: FileQuestion, label: "Câu hỏi", href: "/creator/questions", anyOf: [PERMISSIONS.manageQuestions] },
   { icon: ListChecks, label: "Bài test", href: "/creator/mini-tests", anyOf: [PERMISSIONS.manageTests] },
   { icon: Image, label: "Media", href: "/creator/media" },
   { icon: Edit3, label: "Bản nháp", href: "/creator/drafts" },

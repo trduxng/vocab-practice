@@ -100,6 +100,7 @@ export interface MiniTest {
   isPublished: boolean;
   contentStatus: string;
   createdAt: string;
+  questionIds?: number[];
 }
 
 export interface MediaItem {
@@ -271,7 +272,7 @@ export const creatorService = {
   },
 
   // Questions
-  async getQuestions(filters?: { status?: string; page?: number; pageSize?: number; topicId?: number }): Promise<Question[]> {
+  async getQuestions(filters?: { status?: string; page?: number; pageSize?: number; topicId?: number; wordId?: number; search?: string; type?: string }): Promise<Question[]> {
     const res = await apiClient.get('/creator/questions', { params: filters });
     return unwrapItems<Question>(res.data);
   },
@@ -297,7 +298,7 @@ export const creatorService = {
   },
 
   // MiniTests
-  async getMiniTests(filters?: { status?: string; page?: number; pageSize?: number }): Promise<MiniTest[]> {
+  async getMiniTests(filters?: { status?: string; page?: number; pageSize?: number; search?: string; topicId?: number | string }): Promise<MiniTest[]> {
     const res = await apiClient.get('/creator/mini-tests', { params: filters });
     return unwrapItems<MiniTest>(res.data);
   },

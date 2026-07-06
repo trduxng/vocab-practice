@@ -108,12 +108,12 @@ export default function CreatorAiStudioPage() {
             <button onClick={() => setTab('topic')} className={`rounded-xl px-4 py-2 text-sm font-medium ${tab === 'topic' ? 'bg-slate-950 text-white dark:bg-white dark:text-slate-950' : 'bg-slate-100 text-slate-700 dark:bg-white/5 dark:text-slate-300'}`}>
               <Sparkles className="mr-2 inline-block h-4 w-4" /> Topics
             </button>
-            <button onClick={() => setTab('question')} className={`rounded-xl px-4 py-2 text-sm font-medium ${tab === 'question' ? 'bg-slate-950 text-white dark:bg-white dark:text-slate-950' : 'bg-slate-100 text-slate-700 dark:bg-white/5 dark:text-slate-300'}`}>
+            {/* <button onClick={() => setTab('question')} className={`rounded-xl px-4 py-2 text-sm font-medium ${tab === 'question' ? 'bg-slate-950 text-white dark:bg-white dark:text-slate-950' : 'bg-slate-100 text-slate-700 dark:bg-white/5 dark:text-slate-300'}`}>
               <FileQuestion className="mr-2 inline-block h-4 w-4" /> Questions
             </button>
             <button onClick={() => setTab('miniTest')} className={`rounded-xl px-4 py-2 text-sm font-medium ${tab === 'miniTest' ? 'bg-slate-950 text-white dark:bg-white dark:text-slate-950' : 'bg-slate-100 text-slate-700 dark:bg-white/5 dark:text-slate-300'}`}>
               <ClipboardList className="mr-2 inline-block h-4 w-4" /> Mini Test
-            </button>
+            </button> */}
           </div>
         </div>
       </div>

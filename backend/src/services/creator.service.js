@@ -646,7 +646,15 @@ class CreatorService {
     const topicId = filters.topicId ? Number(filters.topicId) : null;
 
     const req = pool.request().input('UserID', sql.BigInt, userId);
-    let where = 'w.CreatedByUserID = @UserID';
+    let where = `(
+      w.CreatedByUserID = @UserID
+      OR EXISTS (
+        SELECT 1
+        FROM WordTopics wtOwned
+        JOIN Topics tOwned ON tOwned.TopicID = wtOwned.TopicID
+        WHERE wtOwned.WordID = w.WordID AND tOwned.CreatedByUserID = @UserID
+      )
+    )`;
     if (filters.status) {
       req.input('Status', sql.NVarChar(20), filters.status);
       where += ' AND w.ContentStatus = @Status';
@@ -664,7 +672,15 @@ class CreatorService {
     const total = countResult.recordset[0].total;
 
     const req2 = pool.request().input('UserID', sql.BigInt, userId).input('Offset', sql.Int, offset).input('PageSize', sql.Int, pageSize);
-    let where2 = 'w.CreatedByUserID = @UserID';
+    let where2 = `(
+      w.CreatedByUserID = @UserID
+      OR EXISTS (
+        SELECT 1
+        FROM WordTopics wtOwned
+        JOIN Topics tOwned ON tOwned.TopicID = wtOwned.TopicID
+        WHERE wtOwned.WordID = w.WordID AND tOwned.CreatedByUserID = @UserID
+      )
+    )`;
     if (filters.status) {
       req2.input('Status', sql.NVarChar(20), filters.status);
       where2 += ' AND w.ContentStatus = @Status';
@@ -944,6 +960,8 @@ class CreatorService {
     const pageSize = Math.min(100, Math.max(1, parseInt(filters.pageSize) || 50));
     const offset = (page - 1) * pageSize;
     const topicId = filters.topicId ? Number(filters.topicId) : null;
+    const wordId = filters.wordId ? Number(filters.wordId) : null;
+    const search = String(filters.search ?? '').trim();
 
     const req = pool.request().input('UserID', sql.BigInt, userId);
     let where = 'q.CreatedByUserID = @UserID';
@@ -955,10 +973,23 @@ class CreatorService {
       req.input('TopicID', sql.BigInt, topicId);
       where += ' AND EXISTS (SELECT 1 FROM WordTopics wt WHERE wt.WordID = q.WordID AND wt.TopicID = @TopicID)';
     }
+    if (wordId) {
+      req.input('WordID', sql.BigInt, wordId);
+      where += ' AND q.WordID = @WordID';
+    }
+    if (filters.type) {
+      req.input('QuestionType', sql.NVarChar(30), filters.type);
+      where += ' AND q.QuestionType = @QuestionType';
+    }
+    if (search) {
+      req.input('Search', sql.NVarChar(250), `%${search}%`);
+      where += ' AND (q.QuestionText LIKE @Search OR q.CorrectAnswer LIKE @Search OR w.Term LIKE @Search)';
+    }
 
     const countResult = await req.query(`
       SELECT COUNT(*) AS total
       FROM Questions q
+      LEFT JOIN Words w ON q.WordID = w.WordID
       WHERE ${where}
     `);
     const total = countResult.recordset[0].total;
@@ -972,6 +1003,18 @@ class CreatorService {
     if (topicId) {
       req2.input('TopicID', sql.BigInt, topicId);
       where2 += ' AND EXISTS (SELECT 1 FROM WordTopics wt WHERE wt.WordID = q.WordID AND wt.TopicID = @TopicID)';
+    }
+    if (wordId) {
+      req2.input('WordID', sql.BigInt, wordId);
+      where2 += ' AND q.WordID = @WordID';
+    }
+    if (filters.type) {
+      req2.input('QuestionType', sql.NVarChar(30), filters.type);
+      where2 += ' AND q.QuestionType = @QuestionType';
+    }
+    if (search) {
+      req2.input('Search', sql.NVarChar(250), `%${search}%`);
+      where2 += ' AND (q.QuestionText LIKE @Search OR q.CorrectAnswer LIKE @Search OR w.Term LIKE @Search)';
     }
 
     const result = await req2.query(`
@@ -1000,7 +1043,8 @@ class CreatorService {
       .query(`
         SELECT w.WordID FROM Words w
         JOIN WordTopics wt ON w.WordID = wt.WordID
-        WHERE w.WordID = @WordID AND w.CreatedByUserID = @UserID
+        JOIN Topics t ON t.TopicID = wt.TopicID
+        WHERE w.WordID = @WordID AND (w.CreatedByUserID = @UserID OR t.CreatedByUserID = @UserID)
       `);
     if (wordCheck.recordset.length === 0) {
       throw new Error('Từ vựng không hợp lệ hoặc không thuộc về chủ đề nào do bạn quản lý');
@@ -1035,7 +1079,8 @@ class CreatorService {
       .query(`
         SELECT w.WordID FROM Words w
         JOIN WordTopics wt ON w.WordID = wt.WordID
-        WHERE w.WordID = @WordID AND w.CreatedByUserID = @UserID
+        JOIN Topics t ON t.TopicID = wt.TopicID
+        WHERE w.WordID = @WordID AND (w.CreatedByUserID = @UserID OR t.CreatedByUserID = @UserID)
       `);
     if (wordCheck.recordset.length === 0) {
       throw new Error('Từ vựng không hợp lệ hoặc không thuộc về chủ đề nào do bạn quản lý');
@@ -1074,6 +1119,8 @@ class CreatorService {
     const page = Math.max(1, parseInt(filters.page) || 1);
     const pageSize = Math.min(100, Math.max(1, parseInt(filters.pageSize) || 50));
     const offset = (page - 1) * pageSize;
+    const search = String(filters.search ?? '').trim();
+    const topicId = filters.topicId ? Number(filters.topicId) : null;
 
     const req = pool.request().input('UserID', sql.BigInt, userId);
     let where = 'mt.CreatedByUserID = @UserID';
@@ -1081,10 +1128,19 @@ class CreatorService {
       req.input('Status', sql.NVarChar(20), filters.status);
       where += ' AND mt.ContentStatus = @Status';
     }
+    if (topicId) {
+      req.input('TopicID', sql.BigInt, topicId);
+      where += ' AND mt.TopicID = @TopicID';
+    }
+    if (search) {
+      req.input('Search', sql.NVarChar(250), `%${search}%`);
+      where += ' AND (mt.TestTitle LIKE @Search OR mt.Description LIKE @Search OR t.TopicName LIKE @Search)';
+    }
 
     const countResult = await req.query(`
       SELECT COUNT(*) AS total
       FROM MiniTests mt
+      LEFT JOIN Topics t ON mt.TopicID = t.TopicID
       WHERE ${where}
     `);
     const total = countResult.recordset[0].total;
@@ -1095,25 +1151,56 @@ class CreatorService {
       req2.input('Status', sql.NVarChar(20), filters.status);
       where2 += ' AND mt.ContentStatus = @Status';
     }
+    if (topicId) {
+      req2.input('TopicID', sql.BigInt, topicId);
+      where2 += ' AND mt.TopicID = @TopicID';
+    }
+    if (search) {
+      req2.input('Search', sql.NVarChar(250), `%${search}%`);
+      where2 += ' AND (mt.TestTitle LIKE @Search OR mt.Description LIKE @Search OR t.TopicName LIKE @Search)';
+    }
 
     const result = await req2.query(`
       SELECT mt.MiniTestID AS id, mt.TestTitle AS title, mt.Description AS description,
-             mt.TopicID AS topicId, t.TopicName AS topicName, mt.TotalQuestions AS totalQuestions,
-             mt.IsPublished AS isPublished, mt.ContentStatus AS contentStatus,
-             mt.CreatedAt AS createdAt
+              mt.TopicID AS topicId, t.TopicName AS topicName, mt.TotalQuestions AS totalQuestions,
+              mt.IsPublished AS isPublished, mt.ContentStatus AS contentStatus,
+              mt.CreatedAt AS createdAt,
+              (
+                SELECT mti.QuestionID AS id
+                FROM MiniTestItems mti
+                WHERE mti.MiniTestID = mt.MiniTestID
+                ORDER BY mti.DisplayOrder
+                FOR JSON PATH
+              ) AS questionsJson
       FROM MiniTests mt
       LEFT JOIN Topics t ON mt.TopicID = t.TopicID
       WHERE ${where2}
       ORDER BY mt.CreatedAt DESC
       OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
     `);
-    return { data: result.recordset, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+    return {
+      data: result.recordset.map((test) => ({
+        ...test,
+        questionIds: test.questionsJson ? JSON.parse(test.questionsJson).map((item) => item.id) : [],
+      })),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 
   static async createMiniTest(data, userId) {
     const { title, description, topicId, questionIds } = data;
     if (!topicId) {
       throw new Error('Bài test bắt buộc phải gắn liền với một chủ đề (Topic)');
+    }
+    if (!Array.isArray(questionIds) || questionIds.length === 0) {
+      throw new Error('Bài test cần ít nhất một câu hỏi');
+    }
+    const uniqueQuestionIds = [...new Set(questionIds.map((id) => Number(id)).filter((id) => id > 0))];
+    if (uniqueQuestionIds.length === 0) {
+      throw new Error('Bài test cần ít nhất một câu hỏi hợp lệ');
     }
     const pool = await poolPromise;
     // Check if the topic exists and belongs to the creator
@@ -1134,7 +1221,7 @@ class CreatorService {
         .input('Description', sql.NVarChar(1000), description || null)
         .input('TopicID', sql.BigInt, topicId)
         .input('CreatedByUserID', sql.BigInt, userId)
-        .input('TotalQuestions', sql.Int, Array.isArray(questionIds) ? questionIds.length : 0)
+        .input('TotalQuestions', sql.Int, uniqueQuestionIds.length)
         .query(`
           INSERT INTO MiniTests (TestTitle, Description, TopicID, CreatedByUserID, TotalQuestions,
                                  IsPublished, ContentStatus, CreatedAt, UpdatedAt)
@@ -1144,14 +1231,28 @@ class CreatorService {
         `);
       const testId = testResult.recordset[0].id;
 
-      if (Array.isArray(questionIds)) {
-        for (let i = 0; i < questionIds.length; i++) {
+      for (let i = 0; i < uniqueQuestionIds.length; i++) {
+          const checkQuestionReq = new sql.Request(transaction);
+          const checkQuestion = await checkQuestionReq
+            .input('QuestionID', sql.BigInt, uniqueQuestionIds[i])
+            .input('UserID', sql.BigInt, userId)
+            .input('TopicID', sql.BigInt, topicId)
+            .query(`
+              SELECT q.QuestionID
+              FROM Questions q
+              JOIN Words w ON q.WordID = w.WordID
+              JOIN WordTopics wt ON wt.WordID = w.WordID
+              WHERE q.QuestionID = @QuestionID AND q.CreatedByUserID = @UserID AND wt.TopicID = @TopicID
+            `);
+          if (checkQuestion.recordset.length === 0) {
+            throw new Error('Câu hỏi không hợp lệ hoặc không thuộc chủ đề đã chọn');
+          }
+
           const r = new sql.Request(transaction);
           await r.input('MiniTestID', sql.BigInt, testId)
-            .input('QuestionID', sql.BigInt, questionIds[i])
+            .input('QuestionID', sql.BigInt, uniqueQuestionIds[i])
             .input('DisplayOrder', sql.Int, i + 1)
             .query(`INSERT INTO MiniTestItems (MiniTestID, QuestionID, DisplayOrder) VALUES (@MiniTestID, @QuestionID, @DisplayOrder)`);
-        }
       }
       await transaction.commit();
       return { id: testId, title };
@@ -1162,9 +1263,16 @@ class CreatorService {
   }
 
   static async updateMiniTest(id, data, userId) {
-    const { title, description, topicId } = data;
+    const { title, description, topicId, questionIds } = data;
     if (!topicId) {
       throw new Error('Bài test bắt buộc phải gắn liền với một chủ đề (Topic)');
+    }
+    if (!Array.isArray(questionIds) || questionIds.length === 0) {
+      throw new Error('Bài test cần ít nhất một câu hỏi');
+    }
+    const uniqueQuestionIds = [...new Set(questionIds.map((questionId) => Number(questionId)).filter((questionId) => questionId > 0))];
+    if (uniqueQuestionIds.length === 0) {
+      throw new Error('Bài test cần ít nhất một câu hỏi hợp lệ');
     }
     const pool = await poolPromise;
     // Check if the topic exists and belongs to the creator
@@ -1176,18 +1284,62 @@ class CreatorService {
       throw new Error('Chủ đề (Topic) không hợp lệ hoặc không thuộc quyền sở hữu của bạn');
     }
 
-    const result = await pool.request()
-      .input('MiniTestID', sql.BigInt, id)
-      .input('UserID', sql.BigInt, userId)
-      .input('Title', sql.NVarChar(255), title)
-      .input('Description', sql.NVarChar(1000), description || null)
-      .input('TopicID', sql.BigInt, topicId)
-      .query(`
-        UPDATE MiniTests SET TestTitle=@Title, Description=@Description, TopicID=@TopicID,
-          UpdatedAt=SYSDATETIMEOFFSET()
-        WHERE MiniTestID=@MiniTestID AND CreatedByUserID=@UserID
-      `);
-    return result.rowsAffected[0] > 0;
+    const transaction = new sql.Transaction(pool);
+    try {
+      await transaction.begin();
+      const req = new sql.Request(transaction);
+      const result = await req
+        .input('MiniTestID', sql.BigInt, id)
+        .input('UserID', sql.BigInt, userId)
+        .input('Title', sql.NVarChar(255), title)
+        .input('Description', sql.NVarChar(1000), description || null)
+        .input('TopicID', sql.BigInt, topicId)
+        .input('TotalQuestions', sql.Int, uniqueQuestionIds.length)
+        .query(`
+          UPDATE MiniTests SET TestTitle=@Title, Description=@Description, TopicID=@TopicID,
+            TotalQuestions=@TotalQuestions, UpdatedAt=SYSDATETIMEOFFSET()
+          WHERE MiniTestID=@MiniTestID AND CreatedByUserID=@UserID
+        `);
+      if (result.rowsAffected[0] === 0) {
+        await transaction.rollback();
+        return false;
+      }
+
+      const delReq = new sql.Request(transaction);
+      await delReq
+        .input('MiniTestID', sql.BigInt, id)
+        .query('DELETE FROM MiniTestItems WHERE MiniTestID = @MiniTestID');
+
+      for (let i = 0; i < uniqueQuestionIds.length; i++) {
+        const checkQuestionReq = new sql.Request(transaction);
+        const checkQuestion = await checkQuestionReq
+          .input('QuestionID', sql.BigInt, uniqueQuestionIds[i])
+          .input('UserID', sql.BigInt, userId)
+          .input('TopicID', sql.BigInt, topicId)
+          .query(`
+            SELECT q.QuestionID
+            FROM Questions q
+            JOIN Words w ON q.WordID = w.WordID
+            JOIN WordTopics wt ON wt.WordID = w.WordID
+            WHERE q.QuestionID = @QuestionID AND q.CreatedByUserID = @UserID AND wt.TopicID = @TopicID
+          `);
+        if (checkQuestion.recordset.length === 0) {
+          throw new Error('Câu hỏi không hợp lệ hoặc không thuộc chủ đề đã chọn');
+        }
+
+        const itemReq = new sql.Request(transaction);
+        await itemReq
+          .input('MiniTestID', sql.BigInt, id)
+          .input('QuestionID', sql.BigInt, uniqueQuestionIds[i])
+          .input('DisplayOrder', sql.Int, i + 1)
+          .query('INSERT INTO MiniTestItems (MiniTestID, QuestionID, DisplayOrder) VALUES (@MiniTestID, @QuestionID, @DisplayOrder)');
+      }
+      await transaction.commit();
+      return true;
+    } catch (err) {
+      await transaction.rollback();
+      throw err;
+    }
   }
 
   static async deleteMiniTest(id, userId) {
@@ -1215,8 +1367,22 @@ class CreatorService {
     const check = await pool.request()
       .input('MiniTestID', sql.BigInt, miniTestId)
       .input('UserID', sql.BigInt, userId)
-      .query(`SELECT MiniTestID FROM MiniTests WHERE MiniTestID=@MiniTestID AND CreatedByUserID=@UserID`);
+      .query(`SELECT MiniTestID, TopicID FROM MiniTests WHERE MiniTestID=@MiniTestID AND CreatedByUserID=@UserID`);
     if (check.recordset.length === 0) return false;
+    const topicId = check.recordset[0].TopicID;
+
+    const checkQuestion = await pool.request()
+      .input('QuestionID', sql.BigInt, questionId)
+      .input('UserID', sql.BigInt, userId)
+      .input('TopicID', sql.BigInt, topicId)
+      .query(`
+        SELECT q.QuestionID
+        FROM Questions q
+        JOIN Words w ON q.WordID = w.WordID
+        JOIN WordTopics wt ON wt.WordID = w.WordID
+        WHERE q.QuestionID = @QuestionID AND q.CreatedByUserID = @UserID AND wt.TopicID = @TopicID
+      `);
+    if (checkQuestion.recordset.length === 0) return false;
 
     const orderResult = await pool.request()
       .input('MiniTestID', sql.BigInt, miniTestId)
