@@ -23,7 +23,7 @@ const routePermissions: Array<{ prefix: string; anyOf: PermissionCode[] }> = [
 ];
 
 const AdminLayout = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, isAdmin, loading } = useAuth();
+  const { isAuthenticated, isAdmin, isCreator, loading } = useAuth();
   const { hasAnyPermission } = usePermissions();
   const router = useRouter();
   const pathname = usePathname();
@@ -44,12 +44,12 @@ const AdminLayout = ({ children }: { children: React.ReactNode }) => {
       if (!isAuthenticated) {
         router.replace(`/login?callbackUrl=${encodeURIComponent(pathname)}`);
       } else if (!isAdmin || !canAccessAdmin) {
-        router.replace('/user/dashboard');
+        router.replace(isCreator ? '/creator/dashboard' : '/user/dashboard');
       } else if (!canAccessRoute) {
         router.replace(fallbackAdminRoute);
       }
     }
-  }, [loading, isAuthenticated, isAdmin, canAccessAdmin, canAccessRoute, fallbackAdminRoute, pathname, router, mounted]);
+  }, [loading, isAuthenticated, isAdmin, isCreator, canAccessAdmin, canAccessRoute, fallbackAdminRoute, pathname, router, mounted]);
 
   if (!mounted) return null;
 

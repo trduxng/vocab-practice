@@ -6,7 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { useRouter } from "next/navigation";
 
 const CreatorLayout = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, isCreator, isAdmin, loading } = useAuth();
+  const { isAuthenticated, isCreator, loading } = useAuth();
   const router = useRouter();
 
   const [mounted, setMounted] = useState(false);
@@ -20,12 +20,11 @@ const CreatorLayout = ({ children }: { children: React.ReactNode }) => {
     if (!loading && mounted) {
       if (!isAuthenticated) {
         router.push('/login');
-      } else if (!isCreator && !isAdmin) {
-        // Admin có thể truy cập creator area để kiểm tra
+      } else if (!isCreator) {
         router.push('/user/dashboard');
       }
     }
-  }, [loading, isAuthenticated, isCreator, isAdmin, router, mounted]);
+  }, [loading, isAuthenticated, isCreator, router, mounted]);
 
   if (!mounted) return null;
 
@@ -33,7 +32,7 @@ const CreatorLayout = ({ children }: { children: React.ReactNode }) => {
     return <div className="min-h-screen bg-[#080d1a] flex items-center justify-center text-white font-mono">ĐANG XÁC THỰC QUYỀN TRUY CẬP CREATOR...</div>;
   }
 
-  if (!isAuthenticated || (!isCreator && !isAdmin)) return null;
+  if (!isAuthenticated || !isCreator) return null;
 
   return (
     <div className="flex min-h-screen bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-slate-100">

@@ -8,6 +8,8 @@ const apiClient = axios.create({
   },
 });
 
+const authEndpointHints = ["/auth/login", "/auth/register"];
+
 // Interceptor to add Bearer token to requests
 apiClient.interceptors.request.use(
   (config) => {
@@ -26,13 +28,16 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const requestUrl = String(error.config?.url || "");
+    const isAuthEndpoint = authEndpointHints.some((hint) => requestUrl.includes(hint));
+
+    if (error.response?.status === 401 && !isAuthEndpoint) {
       if (typeof window !== "undefined") {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
         document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
         document.cookie = "user=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
-        window.location.href = "/login"; // Optional: redirect to login
+        window.location.href = "/login";
       }
     }
     return Promise.reject(error);

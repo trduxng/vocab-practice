@@ -1,11 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, LoginFormValues } from "@/src/lib/validations";
 import { useAuth } from "@/src/app/context/AuthContext";
-import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
@@ -20,8 +20,23 @@ import { LogIn, Mail, Lock, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginPageShell />}>
+      <LoginPageContent />
+    </Suspense>
+  );
+}
+
+function LoginPageShell() {
+  return <div className="min-h-screen bg-[#080d1a]" />;
+}
+
+function LoginPageContent() {
   const { login } = useAuth();
-  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const callbackUrl = searchParams.get("callbackUrl");
+  const safeCallbackUrl = callbackUrl && callbackUrl.startsWith("/") && !callbackUrl.startsWith("//") ? callbackUrl : null;
 
   const {
     register,
@@ -37,21 +52,24 @@ export default function LoginPage() {
 
   const onSubmit = async (data: LoginFormValues) => {
     try {
-      await login(data);
+      const result = await login(data);
       toast.success("Đăng nhập thành công!");
-      // Navigation is handled in AuthContext or use local storage logic as fallback
-      const savedUser = JSON.parse(localStorage.getItem("user") || "{}");
-      if (savedUser.role === "Admin") {
-        router.push("/admin/dashboard");
-      } else if (savedUser.role === "ContentCreator") {
-        router.push("/creator/dashboard");
+      const targetUrl = safeCallbackUrl || (result.user.role === "Admin"
+        ? "/admin/dashboard"
+        : result.user.role === "ContentCreator"
+          ? "/creator/dashboard"
+          : "/user/dashboard");
+
+      if (safeCallbackUrl) {
+        window.location.replace(targetUrl);
       } else {
-        router.push("/user/dashboard");
+        window.location.replace(targetUrl);
       }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
+      const message = error.response?.data?.message || error.message || "Đăng nhập không thành công";
       toast.error(
-        error.response?.data?.message || "Email hoặc mật khẩu không chính xác",
+        message,
       );
     }
   };

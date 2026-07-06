@@ -26,6 +26,7 @@ export interface WordPayload {
   partOfSpeechId: number;
   topicIds?: number[];
   examples?: { sentence: string; meaning?: string }[];
+  mediaIds?: number[];
 }
 
 export interface QuestionPayload {

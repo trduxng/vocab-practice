@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { creatorService, Word, WordPayload, Question, QuestionPayload, Topic } from '@/src/services/creator.service';
+import { creatorService, Word, WordPayload, Question, QuestionPayload, Topic, MediaItem } from '@/src/services/creator.service';
 import { ArrowLeft, Plus, Pencil, Trash2, Send, Loader2, X, BookOpen, FileQuestion } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
@@ -33,8 +33,37 @@ export default function TopicDetailPage() {
   // Word form
   const [showWordForm, setShowWordForm] = useState(false);
   const [editingWord, setEditingWord] = useState<Word | null>(null);
-  const [wordForm, setWordForm] = useState<WordPayload>({ term: '', meaning: '', phonetic: '', partOfSpeechId: 1, topicIds: [topicId] });
+  const [wordForm, setWordForm] = useState<WordPayload>({ term: '', meaning: '', phonetic: '', partOfSpeechId: 1, topicIds: [topicId], mediaIds: [] });
   const [savingWord, setSavingWord] = useState(false);
+
+  // Media Modal
+  const [showMediaModal, setShowMediaModal] = useState(false);
+  const [mediaList, setMediaList] = useState<MediaItem[]>([]);
+  const [loadingMedia, setLoadingMedia] = useState(false);
+
+  const handleOpenMedia = async () => {
+    setShowMediaModal(true);
+    if (mediaList.length === 0) {
+      setLoadingMedia(true);
+      try {
+        const res = await creatorService.getMedia();
+        setMediaList(res.data);
+      } catch {
+        toast.error('Không thể tải media');
+      } finally {
+        setLoadingMedia(false);
+      }
+    }
+  };
+
+  const toggleMediaSelection = (mId: number) => {
+    const current = wordForm.mediaIds || [];
+    if (current.includes(mId)) {
+      setWordForm({ ...wordForm, mediaIds: current.filter(id => id !== mId) });
+    } else {
+      setWordForm({ ...wordForm, mediaIds: [...current, mId] });
+    }
+  };
 
   // Question form
   const [showQForm, setShowQForm] = useState(false);
@@ -67,12 +96,12 @@ export default function TopicDetailPage() {
   // ── Word handlers ──
   const openCreateWord = () => {
     setEditingWord(null);
-    setWordForm({ term: '', meaning: '', phonetic: '', partOfSpeechId: 1, topicIds: [topicId] });
+    setWordForm({ term: '', meaning: '', phonetic: '', partOfSpeechId: 1, topicIds: [topicId], mediaIds: [] });
     setShowWordForm(true);
   };
   const openEditWord = (w: Word) => {
     setEditingWord(w);
-    setWordForm({ term: w.term, meaning: w.meaning, phonetic: w.phonetic || '', partOfSpeechId: w.partOfSpeechId, topicIds: [topicId] });
+    setWordForm({ term: w.term, meaning: w.meaning, phonetic: w.phonetic || '', partOfSpeechId: w.partOfSpeechId, topicIds: [topicId], mediaIds: [] });
     setShowWordForm(true);
   };
   const handleSaveWord = async () => {
@@ -289,6 +318,15 @@ export default function TopicDetailPage() {
                   <option value={6}>Conjunction (Liên từ)</option>
                 </select>
               </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase">Media đính kèm</label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Button variant="outline" size="sm" onClick={handleOpenMedia}>Chọn từ Thư viện Media</Button>
+                  <span className="text-xs text-slate-500">
+                    Đã chọn: {(wordForm.mediaIds || []).length} media
+                  </span>
+                </div>
+              </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setShowWordForm(false)} className="rounded-xl">Hủy</Button>
@@ -330,6 +368,58 @@ export default function TopicDetailPage() {
               <Button onClick={handleSaveQ} disabled={savingQ} className="rounded-xl gap-2">
                 {savingQ && <Loader2 className="animate-spin h-4 w-4" />} {editingQ ? 'Cập nhật' : 'Tạo'}
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Media Selection Modal ── */}
+      {showMediaModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowMediaModal(false)}>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl border border-slate-200 dark:border-white/10" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold">Chọn Media</h2>
+              <button onClick={() => setShowMediaModal(false)}><X className="h-5 w-5 text-slate-500" /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto min-h-[300px]">
+              {loadingMedia ? (
+                <div className="flex justify-center items-center h-full"><Loader2 className="animate-spin h-6 w-6 text-blue-500" /></div>
+              ) : mediaList.length === 0 ? (
+                <div className="text-center text-slate-500 py-10">Không có media nào trong thư viện.</div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  {mediaList.map((m) => {
+                    const isSelected = (wordForm.mediaIds || []).includes(m.id);
+                    return (
+                      <div 
+                        key={m.id} 
+                        onClick={() => toggleMediaSelection(m.id)}
+                        className={`cursor-pointer border-2 rounded-xl overflow-hidden transition-all relative ${isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'}`}
+                      >
+                        {m.mediaType === 'image' ? (
+                          <img src={m.fileUrl} alt={m.altText || ''} className="w-full h-24 object-cover" />
+                        ) : m.mediaType === 'audio' ? (
+                          <div className="w-full h-24 bg-slate-100 dark:bg-slate-800 flex items-center justify-center p-2 text-center text-xs">
+                            🎵 {m.fileName}
+                          </div>
+                        ) : (
+                          <div className="w-full h-24 bg-slate-100 dark:bg-slate-800 flex items-center justify-center p-2 text-center text-xs text-slate-500">
+                            {m.fileName}
+                          </div>
+                        )}
+                        {isSelected && (
+                          <div className="absolute top-2 right-2 bg-blue-500 text-white rounded-full p-0.5 shadow-md">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end pt-4 mt-4 border-t border-slate-100 dark:border-slate-800">
+              <Button onClick={() => setShowMediaModal(false)} className="rounded-xl">Xong</Button>
             </div>
           </div>
         </div>
